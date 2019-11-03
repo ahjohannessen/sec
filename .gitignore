@@ -1,0 +1,26 @@
+# sbt specific
+dist/*
+target/
+lib_managed/
+src_managed/
+/.classpath
+/.project
+/.settings
+project/boot/
+project/plugins/project/
+project/project
+project/target
+
+logs
+tmp
+.cache
+/RUNNING_PID
+
+# idea specific
+.idea/*
+!.idea/dictionaries
+
+# Metals
+.metals/*
+.bloop/*
+project/.bloop/*
