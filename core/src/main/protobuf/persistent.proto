@@ -57,7 +57,7 @@ message ReadResp {
 		}
 		oneof count {
 			int32 retry_count = 5;
-			Empty empty = 6;			
+			Empty empty = 6;
 		}
 		message RecordedEvent {
 			bytes id = 1;
