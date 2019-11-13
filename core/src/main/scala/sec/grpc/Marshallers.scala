@@ -7,6 +7,16 @@ import io.grpc.Metadata.AsciiMarshaller
 import Constants.Headers.BasicScheme
 import sec.core.UserCredentials
 
+private[grpc] object LongMarshaller extends AsciiMarshaller[Long] {
+  def toAsciiString(value: Long): String         = value.toString
+  def parseAsciiString(serialized: String): Long = serialized.toLong
+}
+
+private[grpc] object StringMarshaller extends AsciiMarshaller[String] {
+  def toAsciiString(value: String): String         = value
+  def parseAsciiString(serialized: String): String = serialized
+}
+
 private[grpc] object UserCredentialsMarshaller extends AsciiMarshaller[UserCredentials] {
 
   private val encoder64: Base64.Encoder = Base64.getEncoder

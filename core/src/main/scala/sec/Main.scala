@@ -1,7 +1,6 @@
 package sec
 
 import java.util.UUID
-import scala.concurrent.duration._
 import cats.data.NonEmptyList
 import cats.ApplicativeError
 import cats.implicits._

@@ -6,21 +6,21 @@ import cats.{Eq, Show}
 sealed trait StreamRevision
 object StreamRevision {
 
-  case object NoStream                            extends StreamRevision
-  case object Any                                 extends StreamRevision
-  case object StreamExists                        extends StreamRevision
-  sealed abstract case class Version(value: Long) extends StreamRevision
+  case object NoStream                          extends StreamRevision
+  case object Any                               extends StreamRevision
+  case object StreamExists                      extends StreamRevision
+  sealed abstract case class Exact(value: Long) extends StreamRevision
 
-  object Version {
-    def apply(exact: EventNumber.Exact): Version = new Version(exact.revision) {}
+  object Exact {
+    def apply(eventNumber: EventNumber.Exact): Exact = new Exact(eventNumber.revision) {}
   }
 
   implicit val eq: Eq[StreamRevision] = Eq.fromUniversalEquals
-  implicit val showForAnyStreamRevision: Show[StreamRevision] = Show.show {
+  implicit val showForStreamRevision: Show[StreamRevision] = Show.show {
     case NoStream     => "NoStream"
     case Any          => "Any"
     case StreamExists => "StreamExists"
-    case Version(v)   => s"Version($v)"
+    case Exact(v)     => s"Exact($v)"
   }
 
 }
