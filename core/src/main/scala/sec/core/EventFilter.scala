@@ -4,6 +4,9 @@ package core
 import scala.util.matching.Regex
 import EventFilter._
 
+// TODO: combine prefixes into
+// `expression: Either[NonEmptyList[Prefix], Regex]`
+
 sealed abstract case class EventFilter(
   prefixes: List[PrefixFilterExpression],
   regex: Option[RegularFilterExpression],
