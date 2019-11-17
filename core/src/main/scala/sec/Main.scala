@@ -35,16 +35,15 @@ object Main extends IOApp {
       _          <- Stream.eval(client.appendToStream(streamName, StreamRevision.NoStream, eventData1)).evalTap(print)
       en         <- Stream.eval(EventNumber.Exact(19).toRight(new RuntimeException("OhNoes")).liftTo[IO])
       _          <- Stream.eval(client.appendToStream(streamName, en.asRevision, eventData2)).evalTap(print)
-      _          <- client.readStreamForwards(streamName, EventNumber.Start, 20).evalTap(print)
+      _          <- client.readStreamForwards(streamName, EventNumber.Start, 20)
     } yield ()
 
     stream.compile.drain.as(ExitCode.Success)
 
   }
 
-  def print(r: AppendResp): IO[Unit] = IO.delay {
-    println(s"${r.id.toUUID} -> ${r.currentRevisionOptions}: ${r.positionOptions}")
-  }
+  def print(wr: WriteResult): IO[Unit] =
+    IO.delay(println(s"$wr"))
 
   def print(r: ReadResp): IO[Unit] = IO.delay {
     val response = r.event.flatMap(_.event.filter(_.streamName.startsWith("test_stream")).map { e =>

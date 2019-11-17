@@ -1,4 +1,9 @@
 package sec
 package core
 
-final case class WriteResult(version: StreamRevision.Exact, position: Position)
+import java.util.UUID
+
+final case class WriteResult(
+  id: UUID,
+  currentRevision: StreamRevision.Exact
+)

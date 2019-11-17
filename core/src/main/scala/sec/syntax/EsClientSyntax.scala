@@ -71,7 +71,7 @@ final class EsClientSyntax[F[_]](val esc: EsClient[F]) extends AnyVal {
     expectedRevision: StreamRevision,
     events: NonEmptyList[EventData],
     credentials: Option[UserCredentials] = None
-  ): F[AppendResp] = esc.appendToStream(stream, expectedRevision, events, credentials)
+  ): F[WriteResult] = esc.appendToStream(stream, expectedRevision, events, credentials)
 
   /// Delete
 

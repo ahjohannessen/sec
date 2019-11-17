@@ -11,9 +11,9 @@ object EventNumber {
 
   sealed abstract case class Exact(value: Long) extends EventNumber
   object Exact {
-    private[EventNumber] def exact(value: Long): Exact = new Exact(value) {}
-    def apply(sr: StreamRevision.Exact): Exact         = exact(sr.value)
-    def apply(value: Long): Option[Exact]              = if (value >= 0) exact(value).some else none
+    private[sec] def exact(value: Long): Exact = new Exact(value) {}
+    def apply(sr: StreamRevision.Exact): Exact = exact(sr.value)
+    def apply(value: Long): Option[Exact]      = if (value >= 0) exact(value).some else none
 
     implicit final class ExactOps(e: Exact) {
       def asRevision: StreamRevision = StreamRevision.Exact(e)

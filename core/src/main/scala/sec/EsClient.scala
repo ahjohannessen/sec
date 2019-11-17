@@ -50,7 +50,7 @@ trait EsClient[F[_]] {
     expectedRevision: StreamRevision,
     events: NonEmptyList[EventData],
     creds: Option[UserCredentials]
-  ): F[com.eventstore.client.streams.AppendResp] // temp
+  ): F[WriteResult]
 
   def softDelete(
     stream: String,
@@ -74,6 +74,8 @@ object EsClient {
   val extractEsException: PartialFunction[Throwable, Throwable] = {
     case e: StatusRuntimeException => convertToEs(e).getOrElse(e)
   }
+
+  ///
 
   ///
 
@@ -127,8 +129,8 @@ object EsClient {
       expectedRevision: StreamRevision,
       events: NonEmptyList[EventData],
       creds: Option[UserCredentials]
-    ): F[AppendResp] =
-      streams.appendToStream[F](client.append(_, auth(creds)))(stream, expectedRevision, events.toList)
+    ): F[WriteResult] =
+      streams.appendToStream[F](client.append(_, auth(creds)))(stream, expectedRevision, Nil)
 
     def softDelete(
       stream: String,
@@ -209,7 +211,8 @@ object EsClient {
       stream: String,
       expectedRevision: StreamRevision,
       events: List[EventData]
-    ): F[AppendResp] = uuidBS[F] >>= { id =>
+    ): F[WriteResult] = uuidBS[F] >>= { id =>
+    
       val header = AppendReq().withOptions(AppendReq.Options(id, stream, mapAppendRevision(expectedRevision)))
       val proposals = events.map(e => AppendReq().withProposedMessage(AppendReq.ProposedMessage(
         e.eventId.toBS,
@@ -218,7 +221,7 @@ object EsClient {
         e.data.data.toBS
       )))
 
-      appendFn(Stream.emit(header) ++ Stream.emits(proposals)).adaptError(extractEsException)
+      appendFn(Stream.emit(header) ++ Stream.emits(proposals)).adaptError(extractEsException) >>= mkWriteResult[F]
     }
 
     def softDelete[F[_]: Sync](deleteFn: DeleteReq => F[DeleteResp])(

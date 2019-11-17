@@ -2,12 +2,19 @@ package sec
 package grpc
 package mapping
 
-import sec.core.{EventNumber, Position, ReadDirection, StreamRevision}
+import java.util.UUID
+
+import cats._
+import cats.implicits._
+import com.eventstore.client.streams.AppendResp.CurrentRevisionOptions
+import com.eventstore.client.streams.ReadReq.Options.{AllOptions, FilterOptions, StreamOptions}
+import com.eventstore.client.streams._
+import sec.format._
+import sec.core._
 
 object Streams {
 
-  import com.eventstore.client.streams.ReadReq.Options.{AllOptions, StreamOptions}
-  import com.eventstore.client.streams._
+  /// Outgoing
 
   val startOfAll    = AllOptions.AllOptions.Start(ReadReq.Empty())
   val endOfAll      = AllOptions.AllOptions.Position(ReadReq.Options.Position(-1L, -1L))
@@ -58,4 +65,43 @@ object Streams {
 
   def mapRevision(exact: EventNumber.Exact): ReadReq.Options.StreamOptions.RevisionOptions.Revision =
     ReadReq.Options.StreamOptions.RevisionOptions.Revision(exact.value)
+
+  def mapEventFilter(filter: EventFilter): Option[ReadReq.Options.FilterOptions] = {
+
+    val expression: Option[FilterOptions.Expression] = (filter.prefixes, filter.regex) match {
+      case (Nil, Some(r)) => ReadReq.Options.FilterOptions.Expression(regex = r.value).some
+      case (_ :: _, None) => ReadReq.Options.FilterOptions.Expression(prefix = filter.prefixes.map(_.value)).some
+      case _              => None
+    }
+
+    val window = filter.maxSearchWindow
+      .map(ReadReq.Options.FilterOptions.Window.Max)
+      .getOrElse(ReadReq.Options.FilterOptions.Window.Count(ReadReq.Empty()))
+
+    val options = ReadReq.Options.FilterOptions().withWindow(window)
+
+    expression.map { e =>
+      filter.kind match {
+        case EventFilter.Stream    => options.withStreamName(e)
+        case EventFilter.EventType => options.withEventType(e)
+      }
+    }
+  }
+
+  /// Incoming
+
+  def mkWriteResult[F[_]: ApplicativeError[*[_], Throwable]](ar: AppendResp): F[WriteResult] = {
+
+    val rev: Attempt[StreamRevision.Exact] = ar.currentRevisionOptions match {
+      case CurrentRevisionOptions.CurrentRevision(value) => StreamRevision.Exact.exact(value).asRight
+      case CurrentRevisionOptions.NoStream(_)            => "Did not expect NoStream when using NonEmptyList".asLeft
+      case CurrentRevisionOptions.Empty                  => "Did not expect nothing".asLeft
+    }
+
+    val id: Attempt[UUID] = ar.id.toUUID
+
+    (id, rev).mapN(WriteResult).leftMap(ProtoResultError).liftTo[F]
+
+  }
+
 }
