@@ -130,7 +130,7 @@ object EsClient {
       events: NonEmptyList[EventData],
       creds: Option[UserCredentials]
     ): F[WriteResult] =
-      streams.appendToStream[F](client.append(_, auth(creds)))(stream, expectedRevision, Nil)
+      streams.appendToStream[F](client.append(_, auth(creds)))(stream, expectedRevision, events.toList)
 
     def softDelete(
       stream: String,
