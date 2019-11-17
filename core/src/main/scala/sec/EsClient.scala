@@ -72,7 +72,7 @@ object EsClient {
     new sec.syntax.EsClientSyntax[F](esc)
 
   val extractEsException: PartialFunction[Throwable, Throwable] = {
-    case e: StatusRuntimeException => convertToEs.unlift(e)
+    case e: StatusRuntimeException => convertToEs(e).getOrElse(e)
   }
 
   ///

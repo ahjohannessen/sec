@@ -13,11 +13,11 @@ sealed trait Event extends Ordered[Event] {
   def record: EventRecord
   def created: Option[ZonedDateTime]
 
-  final def compare(that: Event) = number.revision compare that.number.revision
+  final def compare(that: Event) = number.value compare that.number.value
 
   /// TODO: Circle back to this
   final def link(eventId: UUID, metadata: Content = Content.Empty): Attempt[EventData] = {
-    Content(s"${number.revision}@${streamId}") >>= { c =>
+    Content(s"${number.value}@${streamId}") >>= { c =>
       EventData(eventType = "$>", eventId, c, metadata)
     }
   }

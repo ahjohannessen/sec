@@ -57,5 +57,5 @@ object Streams {
     ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(exact.commit, exact.prepare))
 
   def mapRevision(exact: EventNumber.Exact): ReadReq.Options.StreamOptions.RevisionOptions.Revision =
-    ReadReq.Options.StreamOptions.RevisionOptions.Revision(exact.revision)
+    ReadReq.Options.StreamOptions.RevisionOptions.Revision(exact.value)
 }

@@ -29,9 +29,12 @@ object Main extends IOApp {
 
     val stream = for {
       client     <- mkChannel.map(ch => EsClient(Streams.client[IO, Metadata](ch, identity), cfg))
-      eventData  <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orFail[IO])
+      eventData1 <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orFail[IO])
+      eventData2 <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orFail[IO])
       streamName <- Stream.eval(uuid[IO].map(id => s"test_stream-$id"))
-      _          <- Stream.eval(client.appendToStream(streamName, StreamRevision.NoStream, eventData))
+      _          <- Stream.eval(client.appendToStream(streamName, StreamRevision.NoStream, eventData1)).evalTap(print)
+      en         <- Stream.eval(EventNumber.Exact(19).toRight(new RuntimeException("OhNoes")).liftTo[IO])
+      _          <- Stream.eval(client.appendToStream(streamName, en.asRevision, eventData2)).evalTap(print)
       _          <- client.readStreamForwards(streamName, EventNumber.Start, 20).evalTap(print)
     } yield ()
 
