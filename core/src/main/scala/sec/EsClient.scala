@@ -130,7 +130,7 @@ object EsClient {
       events: NonEmptyList[EventData],
       creds: Option[UserCredentials]
     ): F[WriteResult] =
-      streams.appendToStream[F](client.append(_, auth(creds)))(stream, expectedRevision, events.toList)
+      streams.appendToStream[F](client.append(_, auth(creds)))(stream, expectedRevision, events)
 
     def softDelete(
       stream: String,
@@ -210,7 +210,7 @@ object EsClient {
     def appendToStream[F[_]: Sync](appendFn: Stream[F, AppendReq] => F[AppendResp])(
       stream: String,
       expectedRevision: StreamRevision,
-      events: List[EventData]
+      events: NonEmptyList[EventData]
     ): F[WriteResult] = uuidBS[F] >>= { id =>
     
       val header = AppendReq().withOptions(AppendReq.Options(id, stream, mapAppendRevision(expectedRevision)))
@@ -221,7 +221,7 @@ object EsClient {
         e.data.data.toBS
       )))
 
-      appendFn(Stream.emit(header) ++ Stream.emits(proposals)).adaptError(extractEsException) >>= mkWriteResult[F]
+      appendFn(Stream.emit(header) ++ Stream.emits(proposals.toList)).adaptError(extractEsException) >>= mkWriteResult[F]
     }
 
     def softDelete[F[_]: Sync](deleteFn: DeleteReq => F[DeleteResp])(
