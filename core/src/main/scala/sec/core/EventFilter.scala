@@ -2,16 +2,14 @@ package sec
 package core
 
 import scala.util.matching.Regex
+import cats.implicits._
+import cats.data.NonEmptyList
 import EventFilter._
 
-// TODO: combine prefixes into
-// `expression: Either[NonEmptyList[Prefix], Regex]`
-
-sealed abstract case class EventFilter(
-  prefixes: List[PrefixFilterExpression],
-  regex: Option[RegularFilterExpression],
+final case class EventFilter(
+  kind: Kind,
   maxSearchWindow: Option[Int],
-  kind: Kind
+  option: Either[NonEmptyList[PrefixFilter], RegexFilter]
 )
 
 object EventFilter {
@@ -20,17 +18,21 @@ object EventFilter {
   case object Stream    extends Kind
   case object EventType extends Kind
 
-  // smart constructors for valid combinations
+  def prefixes(kind: Kind, maxSearchWindow: Option[Int], fst: PrefixFilter, rest: PrefixFilter*): EventFilter =
+    EventFilter(kind, maxSearchWindow, NonEmptyList(fst, rest.toList).asLeft)
+
+  def regex(kind: Kind, maxSearchWindow: Option[Int], filter: RegexFilter): EventFilter =
+    EventFilter(kind, maxSearchWindow, filter.asRight)
 
   ///
 
   sealed trait Expression
-  final case class PrefixFilterExpression(value: String)  extends Expression
-  final case class RegularFilterExpression(value: String) extends Expression
+  final case class PrefixFilter(value: String) extends Expression
+  final case class RegexFilter(value: String)  extends Expression
 
-  object RegularFilterExpression {
-    val excludeSystemEvents                          = RegularFilterExpression("""^[^$].*""".r)
-    def apply(regex: Regex): RegularFilterExpression = RegularFilterExpression(regex.pattern.toString)
+  object RegexFilter {
+    val excludeSystemEvents: Regex       = "^[^$].*".r
+    def apply(regex: Regex): RegexFilter = RegexFilter(regex.pattern.toString)
   }
 
 }

@@ -6,19 +6,16 @@ import java.util.{UUID => JUUID}
 import cats._
 import cats.implicits._
 import com.eventstore.client.streams._
-import com.eventstore.client.streams.AppendResp.CurrentRevisionOptions
-import com.eventstore.client.streams.ReadReq.Options.{AllOptions, FilterOptions, StreamOptions}
-import com.eventstore.client.streams.UUID.Value
 import sec.core._
 
 object Streams {
 
   /// Outgoing
 
-  val startOfAll    = AllOptions.AllOptions.Start(ReadReq.Empty())
-  val endOfAll      = AllOptions.AllOptions.Position(ReadReq.Options.Position(-1L, -1L))
-  val startOfStream = StreamOptions.RevisionOptions.Start(ReadReq.Empty())
-  val endOfStream   = StreamOptions.RevisionOptions.Revision(-1L)
+  val startOfAll    = ReadReq.Options.AllOptions.AllOptions.Start(ReadReq.Empty())
+  val endOfAll      = ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(-1L, -1L))
+  val startOfStream = ReadReq.Options.StreamOptions.RevisionOptions.Start(ReadReq.Empty())
+  val endOfStream   = ReadReq.Options.StreamOptions.RevisionOptions.Revision(-1L)
 
   val mapReadAllPosition: Position => ReadReq.Options.AllOptions.AllOptions = {
     case Position.Start       => startOfAll
@@ -28,7 +25,7 @@ object Streams {
 
   val mapReadStreamRevision: EventNumber => ReadReq.Options.StreamOptions.RevisionOptions = {
     case EventNumber.Start      => startOfStream
-    case EventNumber.Exact(rev) => StreamOptions.RevisionOptions.Revision(rev)
+    case EventNumber.Exact(rev) => ReadReq.Options.StreamOptions.RevisionOptions.Revision(rev)
     case EventNumber.End        => endOfStream
   }
 
@@ -65,37 +62,41 @@ object Streams {
   def mapRevision(exact: EventNumber.Exact): ReadReq.Options.StreamOptions.RevisionOptions.Revision =
     ReadReq.Options.StreamOptions.RevisionOptions.Revision(exact.value)
 
-  def mapEventFilter(filter: EventFilter): Option[ReadReq.Options.FilterOptions] = {
+  val mapReadEventFilter: Option[EventFilter] => ReadReq.Options.FilterOptionsOneof = {
 
-    val expression: Option[FilterOptions.Expression] = (filter.prefixes, filter.regex) match {
-      case (Nil, Some(r)) => ReadReq.Options.FilterOptions.Expression(regex = r.value).some
-      case (_ :: _, None) => ReadReq.Options.FilterOptions.Expression(prefix = filter.prefixes.map(_.value)).some
-      case _              => None
-    }
+    import ReadReq.Options.FilterOptionsOneof
 
-    val window = filter.maxSearchWindow
-      .map(ReadReq.Options.FilterOptions.Window.Max)
-      .getOrElse(ReadReq.Options.FilterOptions.Window.Count(ReadReq.Empty()))
+    def filter(filter: EventFilter): FilterOptionsOneof = {
 
-    val options = ReadReq.Options.FilterOptions().withWindow(window)
+      val expr = filter.option.fold(
+        nel => ReadReq.Options.FilterOptions.Expression().withPrefix(nel.map(_.value).toList),
+        reg => ReadReq.Options.FilterOptions.Expression().withRegex(reg.value)
+      )
 
-    expression.map { e =>
-      filter.kind match {
-        case EventFilter.Stream    => options.withStreamName(e)
-        case EventFilter.EventType => options.withEventType(e)
+      val window = filter.maxSearchWindow
+        .map(ReadReq.Options.FilterOptions.Window.Max)
+        .getOrElse(ReadReq.Options.FilterOptions.Window.Count(ReadReq.Empty()))
+
+      val result = filter.kind match {
+        case EventFilter.Stream    => ReadReq.Options.FilterOptions().withStreamName(expr).withWindow(window)
+        case EventFilter.EventType => ReadReq.Options.FilterOptions().withEventType(expr).withWindow(window)
       }
+
+      FilterOptionsOneof.Filter(result)
     }
+
+    def noFilter: FilterOptionsOneof = FilterOptionsOneof.NoFilter(ReadReq.Empty())
+
+    _.fold(noFilter)(filter)
   }
 
   /// Incoming
 
-  def requireNonEmpty[F[_]: ApplicativeError[*[_], Throwable], A](t: Option[A], tpe: String): F[A] =
-    t.toRight(ProtoResultError(s"Expected non empty $tpe")).liftTo[F]
-
   def expectUUID[F[_]: MonadError[*[_], Throwable]](uuid: Option[UUID]): F[JUUID] =
-    requireNonEmpty(uuid, "UUID") >>= mkUUID[F]
+    uuid.toRight(ProtoResultError(s"Expected non empty UUID")).liftTo[F] >>= mkUUID[F]
 
   def mkUUID[F[_]: ApplicativeError[*[_], Throwable]](uuid: UUID): F[JUUID] = {
+    import UUID.Value
 
     val juuid = uuid.value match {
       case Value.Structured(v) => new JUUID(v.mostSignificantBits, v.leastSignificantBits).asRight
@@ -108,10 +109,10 @@ object Streams {
 
   def mkWriteResult[F[_]: ApplicativeError[*[_], Throwable]](ar: AppendResp): F[WriteResult] = {
 
-    val rev: Attempt[StreamRevision.Exact] = ar.currentRevisionOptions match {
-      case CurrentRevisionOptions.CurrentRevision(v) => StreamRevision.Exact.exact(v).asRight
-      case CurrentRevisionOptions.NoStream(_)        => "Did not expect NoStream when using NonEmptyList".asLeft
-      case CurrentRevisionOptions.Empty              => "CurrentRevisionOptions is missing".asLeft
+    val rev = ar.currentRevisionOptions match {
+      case AppendResp.CurrentRevisionOptions.CurrentRevision(v) => StreamRevision.Exact.exact(v).asRight
+      case AppendResp.CurrentRevisionOptions.NoStream(_)        => "Did not expect NoStream when using NonEmptyList".asLeft
+      case AppendResp.CurrentRevisionOptions.Empty              => "CurrentRevisionOptions is missing".asLeft
     }
 
     rev.map(WriteResult(_)).leftMap(ProtoResultError).liftTo[F]

@@ -94,7 +94,7 @@ object EsClient {
       filter: Option[EventFilter],
       creds: Option[UserCredentials]
     ): Stream[F, ReadResp] =
-      streams.subscribeToAll[F](client.read(_, auth(creds)))(exclusiveFrom, resolveLinkTos)
+      streams.subscribeToAll[F](client.read(_, auth(creds)))(exclusiveFrom, resolveLinkTos, filter)
 
     def subscribeToStream(
       stream: String,
@@ -112,7 +112,7 @@ object EsClient {
       filter: Option[EventFilter],
       creds: Option[UserCredentials]
     ): Stream[F, ReadResp] =
-      streams.readAll[F](client.read(_, auth(creds)))(position, direction, maxCount, resolveLinkTos)
+      streams.readAll[F](client.read(_, auth(creds)))(position, direction, maxCount, resolveLinkTos, filter)
 
     def readStream(
       stream: String,
@@ -159,13 +159,14 @@ object EsClient {
     
     def subscribeToAll[F[_]: Sync](readFn: ReadReq => Stream[F, ReadResp])(
       exclusiveFrom: Option[Position],
-      resolveLinkTos: Boolean
+      resolveLinkTos: Boolean,
+      filter: Option[EventFilter]
     ): Stream[F, ReadResp] = readFn(ReadReq().withOptions(ReadReq.Options()
         .withAll(AllOptions(exclusiveFrom.map(mapReadAllPosition(_)).getOrElse(startOfAll)))
         .withSubscription(ReadReq.Options.SubscriptionOptions())
         .withReadDirection(mapDirection(ReadDirection.Forward))
         .withResolveLinks(resolveLinkTos)
-        .withNoFilter(ReadReq.Empty())
+        .withFilterOptionsOneof(mapReadEventFilter(filter))
     )).adaptError(extractEsException)
 
     def subscribeToStream[F[_]: Sync](readFn: ReadReq => Stream[F, ReadResp])(
@@ -184,13 +185,14 @@ object EsClient {
       position: Position,
       direction: ReadDirection,
       maxCount: Int,
-      resolveLinkTos: Boolean
+      resolveLinkTos: Boolean,
+      filter: Option[EventFilter]
     ): Stream[F, ReadResp] = readFn(ReadReq().withOptions(ReadReq.Options()
       .withAll(ReadReq.Options.AllOptions(mapReadAllPosition(position)))
       .withCount(maxCount)
       .withReadDirection(mapDirection(direction))
       .withResolveLinks(resolveLinkTos)
-      .withNoFilter(ReadReq.Empty())
+      .withFilterOptionsOneof(mapReadEventFilter(filter))
     )).adaptError(extractEsException)
 
     def readStream[F[_]: Sync](readFn: ReadReq => Stream[F, ReadResp])(

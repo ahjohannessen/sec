@@ -13,11 +13,12 @@ import fs2.Stream
 import core._
 import format._
 import EsClient.Config
+import io.netty.handler.ssl.SslContext
 
 object Main extends IOApp {
 
-  val cfg = Config(UserCredentials.unsafe("admin", "changeit"))
-  val ssl = GrpcSslContexts.forClient().trustManager(getClass.getResourceAsStream("/dev-cert.pem")).build()
+  val cfg: Config     = Config(UserCredentials.unsafe("admin", "changeit"))
+  val ssl: SslContext = GrpcSslContexts.forClient().trustManager(getClass.getResourceAsStream("/dev-cert.pem")).build()
 
   def run(args: List[String]): IO[ExitCode] = {
 
