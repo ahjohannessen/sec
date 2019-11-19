@@ -2,14 +2,13 @@ package sec
 package grpc
 package mapping
 
-import java.util.UUID
-
+import java.util.{UUID => JUUID}
 import cats._
 import cats.implicits._
+import com.eventstore.client.streams._
 import com.eventstore.client.streams.AppendResp.CurrentRevisionOptions
 import com.eventstore.client.streams.ReadReq.Options.{AllOptions, FilterOptions, StreamOptions}
-import com.eventstore.client.streams._
-import sec.format._
+import com.eventstore.client.streams.UUID.Value
 import sec.core._
 
 object Streams {
@@ -90,18 +89,31 @@ object Streams {
 
   /// Incoming
 
+  def require[F[_], A, B](t: Option[A], f: A => F[B])(implicit F: ApplicativeError[F, Throwable]): F[B] =
+    t.fold(F.raiseError[B](ProtoResultError("Expected nonEmpty")))(v => f(v))
+
+  def requireUUID[F[_]: ApplicativeError[*[_], Throwable]](uuid: Option[UUID]): F[JUUID] = require(uuid, mapUUID[F])
+
+  def mapUUID[F[_]: ApplicativeError[*[_], Throwable]](uuid: UUID): F[JUUID] = {
+
+    val juuid = uuid.value match {
+      case Value.Structured(v) => new JUUID(v.mostSignificantBits, v.leastSignificantBits).asRight
+      case Value.String(v)     => JUUID.fromString(v).asRight
+      case Value.Empty         => "UUID is missing".asLeft
+    }
+
+    juuid.leftMap(ProtoResultError).liftTo[F]
+  }
+
   def mkWriteResult[F[_]: ApplicativeError[*[_], Throwable]](ar: AppendResp): F[WriteResult] = {
 
     val rev: Attempt[StreamRevision.Exact] = ar.currentRevisionOptions match {
-      case CurrentRevisionOptions.CurrentRevision(value) => StreamRevision.Exact.exact(value).asRight
-      case CurrentRevisionOptions.NoStream(_)            => "Did not expect NoStream when using NonEmptyList".asLeft
-      case CurrentRevisionOptions.Empty                  => "Did not expect nothing".asLeft
+      case CurrentRevisionOptions.CurrentRevision(v) => StreamRevision.Exact.exact(v).asRight
+      case CurrentRevisionOptions.NoStream(_)        => "Did not expect NoStream when using NonEmptyList".asLeft
+      case CurrentRevisionOptions.Empty              => "CurrentRevisionOptions is missing".asLeft
     }
 
-    val id: Attempt[UUID] = ar.id.toUUID
-
-    (id, rev).mapN(WriteResult).leftMap(ProtoResultError).liftTo[F]
-
+    rev.map(WriteResult(_)).leftMap(ProtoResultError).liftTo[F]
   }
 
 }

@@ -12,5 +12,6 @@ package object sec {
 
   def uuid[F[_]: Sync]: F[UUID]         = Sync[F].delay(UUID.randomUUID())
   def uuidBS[F[_]: Sync]: F[ByteString] = uuid[F].map(_.toBS)
+  def uuidS[F[_]: Sync]: F[String]      = uuid[F].map(_.toString)
 
 }

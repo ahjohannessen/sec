@@ -35,7 +35,7 @@ object Main extends IOApp {
       _          <- Stream.eval(client.appendToStream(streamName, StreamRevision.NoStream, eventData1)).evalTap(print)
       en         <- Stream.eval(EventNumber.Exact(19).toRight(new RuntimeException("OhNoes")).liftTo[IO])
       _          <- Stream.eval(client.appendToStream(streamName, en.asRevision, eventData2)).evalTap(print)
-      _          <- client.readStreamForwards(streamName, EventNumber.Start, 20)
+      _          <- client.readStreamForwards(streamName, EventNumber.Start, 20).evalTap(print)
     } yield ()
 
     stream.compile.drain.as(ExitCode.Success)
@@ -43,14 +43,23 @@ object Main extends IOApp {
   }
 
   def print(wr: WriteResult): IO[Unit] =
-    IO.delay(println(s"$wr"))
+    IO.delay(println(wr.show))
 
-  def print(r: ReadResp): IO[Unit] = IO.delay {
-    val response = r.event.flatMap(_.event.filter(_.streamName.startsWith("test_stream")).map { e =>
-      s"${e.streamName} @ ${e.streamRevision} -> ${e.data.toBV.decodeUtf8} : ${e.id.toUUID} : ${e.metadata}"
-    })
+  def print(r: ReadResp): IO[Unit] = {
 
-    response.fold(())(println)
+    import com.eventstore.client.streams.ReadResp.ReadEvent
+    import grpc.mapping.Streams.requireUUID
+
+    val eventOpt: Option[ReadEvent.RecordedEvent] =
+      r.event.flatMap(_.event.filter(_.streamName.startsWith("test_stream")))
+
+    def extract(e: ReadEvent.RecordedEvent): IO[String] = requireUUID[IO](e.id).map { id =>
+      s"${e.streamName} @ ${e.streamRevision} -> data: ${e.data.toBV.decodeUtf8.toOption
+        .getOrElse("<empty>")} - id: $id - metadata: ${e.metadata}"
+    }
+
+    eventOpt.fold(IO.delay(()))(e => extract(e).map(println))
+
   }
 
   ///

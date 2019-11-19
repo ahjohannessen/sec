@@ -150,7 +150,7 @@ object EsClient {
   // format: off
 
   private[sec] object streams {
-    
+
     import ReadReq.Options.AllOptions
     import ReadReq.Options.StreamOptions
     import sec.grpc.mapping.Streams._
@@ -211,11 +211,10 @@ object EsClient {
       stream: String,
       expectedRevision: StreamRevision,
       events: NonEmptyList[EventData]
-    ): F[WriteResult] = uuidBS[F] >>= { id =>
-    
-      val header = AppendReq().withOptions(AppendReq.Options(id, stream, mapAppendRevision(expectedRevision)))
+    ): F[WriteResult] = {
+      val header = AppendReq().withOptions(AppendReq.Options(stream, mapAppendRevision(expectedRevision)))
       val proposals = events.map(e => AppendReq().withProposedMessage(AppendReq.ProposedMessage(
-        e.eventId.toBS,
+        UUID().withString(e.eventId.toString).some,
         Map(Constants.Metadata.Type -> e.eventType, Constants.Metadata.IsJson -> e.data.ct.fold("false", "true")),
         e.metadata.data.toBS,
         e.data.data.toBS
@@ -227,20 +226,16 @@ object EsClient {
     def softDelete[F[_]: Sync](deleteFn: DeleteReq => F[DeleteResp])(
       stream: String,
       expectedRevision: StreamRevision
-    ): F[DeleteResp] = uuidBS[F] >>= { id =>
-      val revision = mapDeleteRevision(expectedRevision)
-      val request = DeleteReq().withOptions(DeleteReq.Options(id, stream, revision))
-      deleteFn(request).adaptError(extractEsException)
-    }
+    ): F[DeleteResp] =
+      deleteFn(DeleteReq().withOptions(DeleteReq.Options(stream, mapDeleteRevision(expectedRevision))))
+        .adaptError(extractEsException)
 
     def tombstone[F[_]: Sync](tombstoneFn: TombstoneReq => F[TombstoneResp])(
       stream: String,
       expectedRevision: StreamRevision
-    ): F[TombstoneResp] = uuidBS[F] >>= { id =>
-      val revision = mapTombstoneRevision(expectedRevision)
-      val request = TombstoneReq().withOptions(TombstoneReq.Options(id, stream, revision))
-      tombstoneFn(request).adaptError(extractEsException)
-    }
+    ): F[TombstoneResp] =
+      tombstoneFn(TombstoneReq().withOptions(TombstoneReq.Options(stream, mapTombstoneRevision(expectedRevision))))
+        .adaptError(extractEsException)
     
     // format: on
 
