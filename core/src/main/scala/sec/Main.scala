@@ -48,12 +48,12 @@ object Main extends IOApp {
   def print(r: ReadResp): IO[Unit] = {
 
     import com.eventstore.client.streams.ReadResp.ReadEvent
-    import grpc.mapping.Streams.requireUUID
+    import grpc.mapping.Streams.expectUUID
 
     val eventOpt: Option[ReadEvent.RecordedEvent] =
       r.event.flatMap(_.event.filter(_.streamName.startsWith("test_stream")))
 
-    def extract(e: ReadEvent.RecordedEvent): IO[String] = requireUUID[IO](e.id).map { id =>
+    def extract(e: ReadEvent.RecordedEvent): IO[String] = expectUUID[IO](e.id).map { id =>
       s"${e.streamName} @ ${e.streamRevision} -> data: ${e.data.toBV.decodeUtf8.toOption
         .getOrElse("<empty>")} - id: $id - metadata: ${e.metadata}"
     }

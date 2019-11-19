@@ -89,12 +89,13 @@ object Streams {
 
   /// Incoming
 
-  def require[F[_], A, B](t: Option[A], f: A => F[B])(implicit F: ApplicativeError[F, Throwable]): F[B] =
-    t.fold(F.raiseError[B](ProtoResultError("Expected nonEmpty")))(v => f(v))
+  def requireNonEmpty[F[_]: ApplicativeError[*[_], Throwable], A](t: Option[A], tpe: String): F[A] =
+    t.toRight(ProtoResultError(s"Expected non empty $tpe")).liftTo[F]
 
-  def requireUUID[F[_]: ApplicativeError[*[_], Throwable]](uuid: Option[UUID]): F[JUUID] = require(uuid, mapUUID[F])
+  def expectUUID[F[_]: MonadError[*[_], Throwable]](uuid: Option[UUID]): F[JUUID] =
+    requireNonEmpty(uuid, "UUID") >>= mkUUID[F]
 
-  def mapUUID[F[_]: ApplicativeError[*[_], Throwable]](uuid: UUID): F[JUUID] = {
+  def mkUUID[F[_]: ApplicativeError[*[_], Throwable]](uuid: UUID): F[JUUID] = {
 
     val juuid = uuid.value match {
       case Value.Structured(v) => new JUUID(v.mostSignificantBits, v.leastSignificantBits).asRight
