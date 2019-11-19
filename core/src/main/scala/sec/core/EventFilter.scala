@@ -18,7 +18,7 @@ object EventFilter {
   case object Stream    extends Kind
   case object EventType extends Kind
 
-  def prefixes(kind: Kind, maxSearchWindow: Option[Int], fst: PrefixFilter, rest: PrefixFilter*): EventFilter =
+  def prefix(kind: Kind, maxSearchWindow: Option[Int], fst: PrefixFilter, rest: PrefixFilter*): EventFilter =
     EventFilter(kind, maxSearchWindow, NonEmptyList(fst, rest.toList).asLeft)
 
   def regex(kind: Kind, maxSearchWindow: Option[Int], filter: RegexFilter): EventFilter =
