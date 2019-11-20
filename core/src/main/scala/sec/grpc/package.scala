@@ -1,7 +1,7 @@
 package sec
 
 import cats.implicits._
-import io.grpc.{Metadata, Status, StatusRuntimeException}
+import io.grpc.{Metadata, StatusRuntimeException}
 import sec.core._
 import grpc.Constants.Headers._
 import grpc.Constants.{Exceptions => ce}
@@ -24,6 +24,10 @@ package object grpc {
       md.put(keys.authKey, uc)
       md
     }
+  }
+
+  val extractEsException: PartialFunction[Throwable, Throwable] = {
+    case e: StatusRuntimeException => convertToEs(e).getOrElse(e)
   }
 
   val convertToEs: StatusRuntimeException => Option[EsException] = ex => {

@@ -11,13 +11,11 @@ import io.grpc.netty.{GrpcSslContexts, NettyChannelBuilder}
 import com.eventstore.client.streams._
 import fs2.Stream
 import core._
-import format._
-import EsClient.Config
 import io.netty.handler.ssl.SslContext
 
 object Main extends IOApp {
 
-  val cfg: Config     = Config(UserCredentials.unsafe("admin", "changeit"))
+  val cfg: Settings   = Settings(UserCredentials.unsafe("admin", "changeit"))
   val ssl: SslContext = GrpcSslContexts.forClient().trustManager(getClass.getResourceAsStream("/dev-cert.pem")).build()
 
   def run(args: List[String]): IO[ExitCode] = {
@@ -29,7 +27,7 @@ object Main extends IOApp {
     }
 
     val stream = for {
-      client     <- mkChannel.map(ch => EsClient(Streams.client[IO, Metadata](ch, identity), cfg))
+      client     <- mkChannel.map(ch => Streams(StreamsFs2Grpc.client[IO, Metadata](ch, identity), cfg))
       eventData1 <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orFail[IO])
       eventData2 <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orFail[IO])
       streamName <- Stream.eval(uuid[IO].map(id => s"test_stream-$id"))
@@ -47,19 +45,11 @@ object Main extends IOApp {
     IO.delay(println(wr.show))
 
   def print(r: ReadResp): IO[Unit] = {
-
-    import com.eventstore.client.streams.ReadResp.ReadEvent
-    import grpc.mapping.Streams.expectUUID
-
-    val eventOpt: Option[ReadEvent.RecordedEvent] =
-      r.event.flatMap(_.event.filter(_.streamName.startsWith("test_stream")))
-
-    def extract(e: ReadEvent.RecordedEvent): IO[String] = expectUUID[IO](e.id).map { id =>
-      s"${e.streamName} @ ${e.streamRevision} -> data: ${e.data.toBV.decodeUtf8.toOption
-        .getOrElse("<empty>")} - id: $id - metadata: ${e.metadata}"
-    }
-
-    eventOpt.fold(IO.delay(()))(e => extract(e).map(println))
+    import grpc.mapping.Streams.mkEventRecord
+    r.event
+      .flatMap(_.event)
+      .fold(IO(()))(mkEventRecord[IO](_).map(e =>
+        println(s"${e.streamId} - ${e.number} - ${e.data.data.show} - ${e.data.eventType} - ${e.created}")))
 
   }
 

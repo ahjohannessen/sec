@@ -11,7 +11,6 @@ lazy val core = project
   .settings(
     name := "sec",
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    fs2GrpcServiceSuffix := "",
     libraryDependencies ++= compileM(
       cats, catsEffect, fs2, scodecBits, circe,
       scalaPb, grpcNetty, tcnative

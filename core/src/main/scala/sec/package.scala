@@ -1,17 +1,23 @@
 import java.util.UUID
+import cats.{ApplicativeError, MonadError}
 import cats.implicits._
 import cats.effect.Sync
-import com.google.protobuf.ByteString
-import sec.format._
 
 package object sec {
 
-  type Attempt[T] = Either[String, T]
+  private[sec] type ErrorM[F[_]] = MonadError[F, Throwable]
+  private[sec] type ErrorA[F[_]] = ApplicativeError[F, Throwable]
+  private[sec] type Attempt[T]   = Either[String, T]
 
   ///
 
-  def uuid[F[_]: Sync]: F[UUID]         = Sync[F].delay(UUID.randomUUID())
-  def uuidBS[F[_]: Sync]: F[ByteString] = uuid[F].map(_.toBS)
-  def uuidS[F[_]: Sync]: F[String]      = uuid[F].map(_.toString)
+  private[sec] def uuid[F[_]: Sync]: F[UUID]    = Sync[F].delay(UUID.randomUUID())
+  private[sec] def uuidS[F[_]: Sync]: F[String] = uuid[F].map(_.toString)
+
+  ///
+
+  private[sec] implicit final class BooleanOps(private val b: Boolean) extends AnyVal {
+    def fold[A](t: => A, f: => A): A = if (b) t else f
+  }
 
 }

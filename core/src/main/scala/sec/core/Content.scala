@@ -8,7 +8,7 @@ import scala.PartialFunction.condOpt
 
 final case class Content(
   data: ByteVector,
-  ct: ContentType
+  contentType: ContentType
 )
 
 object Content {
@@ -17,9 +17,6 @@ object Content {
 
   def apply(content: String): Attempt[Content] =
     ByteVector.encodeUtf8(content).map(Content(_, ContentType.Binary)).leftMap(_.getMessage)
-
-  def apply(content: Array[Byte]): Content =
-    Content(ByteVector.view(content), ContentType.Binary) // TODO: Review safety wrt. using view
 
   object Json {
 
@@ -34,11 +31,11 @@ object Content {
   ///
 
   implicit val showForContent: Show[Content] = Show.show { c =>
-    val data = c.ct match {
+    val data = c.contentType match {
       case ContentType.Json if c.data.nonEmpty => c.data.decodeUtf8.getOrElse("Failed read json")
       case _                                   => c.data.toString
     }
-    s"Content($data, ${c.ct})"
+    s"Content($data, ${c.contentType})"
   }
 
 }

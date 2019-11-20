@@ -2,8 +2,8 @@ package sec
 package grpc
 package mapping
 
+import java.time.{Instant, ZoneOffset, ZonedDateTime}
 import java.util.{UUID => JUUID}
-import cats._
 import cats.implicits._
 import com.eventstore.client.streams._
 import sec.core._
@@ -56,10 +56,10 @@ object Streams {
     case ReadDirection.Backward => ReadReq.Options.ReadDirection.Backwards
   }
 
-  def mapPosition(exact: Position.Exact): ReadReq.Options.AllOptions.AllOptions.Position =
+  val mapPosition: Position.Exact => ReadReq.Options.AllOptions.AllOptions.Position = exact =>
     ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(exact.commit, exact.prepare))
 
-  def mapRevision(exact: EventNumber.Exact): ReadReq.Options.StreamOptions.RevisionOptions.Revision =
+  val mapRevision: EventNumber.Exact => ReadReq.Options.StreamOptions.RevisionOptions.Revision = exact =>
     ReadReq.Options.StreamOptions.RevisionOptions.Revision(exact.value)
 
   val mapReadEventFilter: Option[EventFilter] => ReadReq.Options.FilterOptionsOneof = {
@@ -90,32 +90,65 @@ object Streams {
     _.fold(noFilter)(filter)
   }
 
+  val mapUuidString: JUUID => UUID = j => UUID().withString(j.toString)
+
   /// Incoming
 
-  def expectUUID[F[_]: MonadError[*[_], Throwable]](uuid: Option[UUID]): F[JUUID] =
-    uuid.toRight(ProtoResultError(s"Expected non empty UUID")).liftTo[F] >>= mkUUID[F]
+  def mkEventRecord[F[_]: ErrorM](e: ReadResp.ReadEvent.RecordedEvent): F[EventRecord] = {
 
-  def mkUUID[F[_]: ApplicativeError[*[_], Throwable]](uuid: UUID): F[JUUID] = {
-    import UUID.Value
+    import EventData.{binary, json}
+    import Constants.Metadata.{Created, IsJson, Type}
+
+    val streamId    = e.streamName
+    val data        = e.data.toByteVector
+    val customMeta  = e.customMetadata.toByteVector
+    val eventNumber = EventNumber.Exact.exact(e.streamRevision)
+
+    val eventId   = e.id.require[F]("UUID") >>= mkUUID[F]
+    val eventType = e.metadata.get(Type).require[F](Type)
+    val isJson    = e.metadata.get(IsJson).flatMap(_.toBooleanOption).require[F](IsJson)
+    val created   = e.metadata.get(Created).flatMap(_.toLongOption).require[F](Created).flatMap(mkZDT[F])
+
+    val eventData = (eventId, eventType, isJson).mapN((i, t, j) =>
+      j.fold(json(t, i, data, customMeta), binary(t, i, data, customMeta)).leftMap(ProtoResultError).liftTo[F])
+
+    (eventData.flatten, created).mapN((ed, c) => EventRecord(streamId, eventNumber, ed, c))
+  }
+
+  // TODO: The returned value is .NET-centric (ToBinary) format.
+  def mkZDT[F[_]: ErrorA](epoch: Long): F[ZonedDateTime] = {
+    def unsafeEpoch = ZonedDateTime.ofInstant(Instant.ofEpochMilli(epoch), ZoneOffset.UTC)
+    Either.catchNonFatal(unsafeEpoch).leftMap(e => ProtoResultError(e.getMessage)).liftTo[F]
+  }
+
+  def mkUUID[F[_]: ErrorA](uuid: UUID): F[JUUID] = {
 
     val juuid = uuid.value match {
-      case Value.Structured(v) => new JUUID(v.mostSignificantBits, v.leastSignificantBits).asRight
-      case Value.String(v)     => JUUID.fromString(v).asRight
-      case Value.Empty         => "UUID is missing".asLeft
+      case UUID.Value.Structured(v) => new JUUID(v.mostSignificantBits, v.leastSignificantBits).asRight
+      case UUID.Value.String(v)     => JUUID.fromString(v).asRight
+      case UUID.Value.Empty         => "UUID is missing".asLeft
     }
 
     juuid.leftMap(ProtoResultError).liftTo[F]
   }
 
-  def mkWriteResult[F[_]: ApplicativeError[*[_], Throwable]](ar: AppendResp): F[WriteResult] = {
+  def mkWriteResult[F[_]: ErrorA](ar: AppendResp): F[WriteResult] = {
 
-    val rev = ar.currentRevisionOptions match {
+    val currentRevision = ar.currentRevisionOptions match {
       case AppendResp.CurrentRevisionOptions.CurrentRevision(v) => StreamRevision.Exact.exact(v).asRight
       case AppendResp.CurrentRevisionOptions.NoStream(_)        => "Did not expect NoStream when using NonEmptyList".asLeft
       case AppendResp.CurrentRevisionOptions.Empty              => "CurrentRevisionOptions is missing".asLeft
     }
 
-    rev.map(WriteResult(_)).leftMap(ProtoResultError).liftTo[F]
+    currentRevision.map(WriteResult(_)).leftMap(ProtoResultError).liftTo[F]
+  }
+
+  ///
+
+  // Temporary
+  implicit final class OptionOps[A](private val o: Option[A]) extends AnyVal {
+    def require[F[_]: ErrorA](value: String): F[A] =
+      o.toRight(ProtoResultError(s"Required value $value missing or invalid.")).liftTo[F]
   }
 
 }

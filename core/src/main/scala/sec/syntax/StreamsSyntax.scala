@@ -6,7 +6,7 @@ import fs2.Stream
 import sec.core._
 import com.eventstore.client.streams.{DeleteResp, ReadResp, TombstoneResp} // temp
 
-final class EsClientSyntax[F[_]](val esc: EsClient[F]) extends AnyVal {
+final class StreamsSyntax[F[_]](val esc: Streams[F]) extends AnyVal {
 
   /// Subscription
 
