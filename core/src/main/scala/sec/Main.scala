@@ -2,11 +2,9 @@ package sec
 
 import java.util.UUID
 import cats.data.NonEmptyList
-import cats.ApplicativeError
 import cats.implicits._
 import cats.effect._
 import org.lyranthe.fs2_grpc.java_runtime.implicits._
-import io.grpc.Metadata
 import io.grpc.netty.{GrpcSslContexts, NettyChannelBuilder}
 import com.eventstore.client.streams._
 import fs2.Stream
@@ -15,8 +13,8 @@ import io.netty.handler.ssl.SslContext
 
 object Main extends IOApp {
 
-  val cfg: Settings   = Settings(UserCredentials.unsafe("admin", "changeit"))
-  val ssl: SslContext = GrpcSslContexts.forClient().trustManager(getClass.getResourceAsStream("/dev-cert.pem")).build()
+  val settings: Settings = Settings(UserCredentials.unsafe("admin", "changeit"))
+  val ssl: SslContext    = GrpcSslContexts.forClient().trustManager(getClass.getResourceAsStream("/dev-cert.pem")).build()
 
   def run(args: List[String]): IO[ExitCode] = {
 
@@ -27,7 +25,7 @@ object Main extends IOApp {
     }
 
     val stream = for {
-      client     <- mkChannel.map(ch => Streams(StreamsFs2Grpc.client[IO, Metadata](ch, identity), cfg))
+      client     <- mkChannel.map(Streams[IO](_, settings))
       eventData1 <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orFail[IO])
       eventData2 <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orFail[IO])
       streamName <- Stream.eval(uuid[IO].map(id => s"test_stream-$id"))
@@ -56,8 +54,7 @@ object Main extends IOApp {
   ///
 
   implicit class AttemptOps[A](a: Attempt[A]) {
-    def orFail[F[_]: ApplicativeError[*[_], Throwable]]: F[A] =
-      a.leftMap(new RuntimeException(_)).liftTo[F]
+    def orFail[F[_]: ErrorA]: F[A] = a.leftMap(new RuntimeException(_)).liftTo[F]
   }
 
 }

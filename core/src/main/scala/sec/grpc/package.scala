@@ -26,10 +26,6 @@ package object grpc {
     }
   }
 
-  val extractEsException: PartialFunction[Throwable, Throwable] = {
-    case e: StatusRuntimeException => convertToEs(e).getOrElse(e)
-  }
-
   val convertToEs: StatusRuntimeException => Option[EsException] = ex => {
 
     val unknown = "<unknown>"

@@ -1,8 +1,9 @@
 package sec
 
 import cats.data.NonEmptyList
+import cats.effect.ConcurrentEffect
 import cats.implicits._
-import io.grpc.Metadata
+import io.grpc.{ManagedChannel, Metadata}
 import fs2.Stream
 import com.eventstore.client.streams._
 import sec.core._
@@ -72,7 +73,16 @@ object Streams {
 
   ///
 
-  def apply[F[_]: ErrorM](client: StreamsFs2Grpc[F, Metadata], settings: Settings): Streams[F] = new Streams[F] {
+  def apply[F[_]: ConcurrentEffect](
+    channel: ManagedChannel,
+    settings: Settings
+  ): Streams[F] =
+    Streams(StreamsFs2Grpc.client[F, Metadata](channel, identity, identity, convertToEs), settings)
+
+  private[sec] def apply[F[_]: ErrorM](
+    client: StreamsFs2Grpc[F, Metadata],
+    settings: Settings
+  ): Streams[F] = new Streams[F] {
 
     val authFallback: Metadata                    = settings.creds.toMetadata
     val auth: Option[UserCredentials] => Metadata = _.fold(authFallback)(_.toMetadata)
@@ -98,7 +108,7 @@ object Streams {
 
       val request = ReadReq().withOptions(options)
 
-      client.read(request, auth(creds)).adaptError(extractEsException)
+      client.read(request, auth(creds))
     }
 
     def subscribeToStream(
@@ -121,7 +131,7 @@ object Streams {
 
       val request = ReadReq().withOptions(options)
 
-      client.read(request, auth(creds)).adaptError(extractEsException)
+      client.read(request, auth(creds))
     }
 
     def readAll(
@@ -147,7 +157,7 @@ object Streams {
 
       val request = ReadReq().withOptions(options)
 
-      client.read(request, auth(creds)).adaptError(extractEsException)
+      client.read(request, auth(creds))
     }
 
     def readStream(
@@ -172,7 +182,7 @@ object Streams {
 
       val request = ReadReq().withOptions(options)
 
-      client.read(request, auth(creds)).adaptError(extractEsException)
+      client.read(request, auth(creds))
     }
 
     def appendToStream(
@@ -198,7 +208,7 @@ object Streams {
 
       val request = Stream.emit(header) ++ Stream.emits(proposals.toList)
 
-      client.append(request, auth(creds)).adaptError(extractEsException) >>= mkWriteResult[F]
+      client.append(request, auth(creds)) >>= mkWriteResult[F]
     }
 
     def softDelete(
@@ -210,7 +220,7 @@ object Streams {
       val revision = mapDeleteRevision(expectedRevision)
       val request  = DeleteReq().withOptions(DeleteReq.Options(stream, revision))
 
-      client.delete(request, auth(creds)).adaptError(extractEsException)
+      client.delete(request, auth(creds))
     }
 
     def tombstone(
@@ -222,7 +232,7 @@ object Streams {
       val revision = mapTombstoneRevision(expectedRevision)
       val request  = TombstoneReq().withOptions(TombstoneReq.Options(stream, revision))
 
-      client.tombstone(request, auth(creds)).adaptError(extractEsException)
+      client.tombstone(request, auth(creds))
     }
   }
 
