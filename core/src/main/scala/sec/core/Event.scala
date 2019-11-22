@@ -11,7 +11,7 @@ sealed trait Event extends Ordered[Event] {
   def number: EventNumber.Exact
   def data: EventData
   def record: EventRecord
-  def created: ZonedDateTime
+  def created: Option[ZonedDateTime]
 
   final def compare(that: Event) = number.value compare that.number.value
 
@@ -27,7 +27,7 @@ final case class EventRecord(
   streamId: String, // EventStream.Id,
   number: EventNumber.Exact,
   data: EventData,
-  created: ZonedDateTime
+  created: Option[ZonedDateTime]
 ) extends Event {
   def record = this
 }

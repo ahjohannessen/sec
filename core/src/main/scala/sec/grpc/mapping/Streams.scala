@@ -13,20 +13,16 @@ object Streams {
   /// Outgoing
 
   val startOfAll    = ReadReq.Options.AllOptions.AllOptions.Start(ReadReq.Empty())
-  val endOfAll      = ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(-1L, -1L))
   val startOfStream = ReadReq.Options.StreamOptions.RevisionOptions.Start(ReadReq.Empty())
-  val endOfStream   = ReadReq.Options.StreamOptions.RevisionOptions.Revision(-1L)
 
-  val mapReadAllPosition: Position => ReadReq.Options.AllOptions.AllOptions = {
-    case Position.Start       => startOfAll
+  val mapPosition: Position => ReadReq.Options.AllOptions.AllOptions = {
     case Position.Exact(c, p) => ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(c, p))
-    case Position.End         => endOfAll
+    case Position.End         => ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(-1L, -1L))
   }
 
-  val mapReadStreamRevision: EventNumber => ReadReq.Options.StreamOptions.RevisionOptions = {
-    case EventNumber.Start      => startOfStream
+  val mapEventNumber: EventNumber => ReadReq.Options.StreamOptions.RevisionOptions = {
     case EventNumber.Exact(rev) => ReadReq.Options.StreamOptions.RevisionOptions.Revision(rev)
-    case EventNumber.End        => endOfStream
+    case EventNumber.End        => ReadReq.Options.StreamOptions.RevisionOptions.Revision(-1L)
   }
 
   val mapAppendRevision: StreamRevision => AppendReq.Options.ExpectedStreamRevision = {
@@ -55,12 +51,6 @@ object Streams {
     case ReadDirection.Forward  => ReadReq.Options.ReadDirection.Forwards
     case ReadDirection.Backward => ReadReq.Options.ReadDirection.Backwards
   }
-
-  val mapPosition: Position.Exact => ReadReq.Options.AllOptions.AllOptions.Position = exact =>
-    ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(exact.commit, exact.prepare))
-
-  val mapRevision: EventNumber.Exact => ReadReq.Options.StreamOptions.RevisionOptions.Revision = exact =>
-    ReadReq.Options.StreamOptions.RevisionOptions.Revision(exact.value)
 
   val mapReadEventFilter: Option[EventFilter] => ReadReq.Options.FilterOptionsOneof = {
 
@@ -100,19 +90,20 @@ object Streams {
     import Constants.Metadata.{Created, IsJson, Type}
 
     val streamId    = e.streamName
+    val eventNumber = EventNumber.Exact.exact(e.streamRevision)
     val data        = e.data.toByteVector
     val customMeta  = e.customMetadata.toByteVector
-    val eventNumber = EventNumber.Exact.exact(e.streamRevision)
+    val eventId     = e.id.require[F]("UUID") >>= mkUUID[F]
+    val eventType   = e.metadata.get(Type).require[F](Type)
+    val isJson      = e.metadata.get(IsJson).flatMap(_.toBooleanOption).require[F](IsJson)
+    val created     = e.metadata.get(Created).flatMap(_.toLongOption).traverse(mkZDT[F])
 
-    val eventId   = e.id.require[F]("UUID") >>= mkUUID[F]
-    val eventType = e.metadata.get(Type).require[F](Type)
-    val isJson    = e.metadata.get(IsJson).flatMap(_.toBooleanOption).require[F](IsJson)
-    val created   = e.metadata.get(Created).flatMap(_.toLongOption).require[F](Created).flatMap(mkZDT[F])
-
-    val eventData = (eventId, eventType, isJson).mapN((i, t, j) =>
-      j.fold(json(t, i, data, customMeta), binary(t, i, data, customMeta)).leftMap(ProtoResultError).liftTo[F])
+    val eventData = (eventId, eventType, isJson).mapN { (i, t, j) =>
+      j.fold(json(t, i, data, customMeta), binary(t, i, data, customMeta)).leftMap(ProtoResultError).liftTo[F]
+    }
 
     (eventData.flatten, created).mapN((ed, c) => EventRecord(streamId, eventNumber, ed, c))
+
   }
 
   // TODO: The returned value is .NET-centric (ToBinary) format.

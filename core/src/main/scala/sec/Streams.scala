@@ -94,17 +94,13 @@ object Streams {
       creds: Option[UserCredentials]
     ): Stream[F, ReadResp] = {
 
-      val position      = exclusiveFrom.map(mapReadAllPosition(_)).getOrElse(startOfAll)
-      val readDirection = mapDirection(ReadDirection.Forward)
-      val filterOption  = mapReadEventFilter(filter)
-
       val options = ReadReq
         .Options()
-        .withAll(ReadReq.Options.AllOptions(position))
+        .withAll(ReadReq.Options.AllOptions(exclusiveFrom.map(mapPosition).getOrElse(startOfAll)))
         .withSubscription(ReadReq.Options.SubscriptionOptions())
-        .withReadDirection(readDirection)
+        .withReadDirection(mapDirection(ReadDirection.Forward))
         .withResolveLinks(resolveLinkTos)
-        .withFilterOptionsOneof(filterOption)
+        .withFilterOptionsOneof(mapReadEventFilter(filter))
 
       val request = ReadReq().withOptions(options)
 
@@ -118,14 +114,11 @@ object Streams {
       creds: Option[UserCredentials]
     ): Stream[F, ReadResp] = {
 
-      val revision  = exclusiveFrom.map(mapReadStreamRevision(_)).getOrElse(startOfStream)
-      val direction = mapDirection(ReadDirection.Forward)
-
       val options = ReadReq
         .Options()
-        .withStream(ReadReq.Options.StreamOptions(stream, revision))
+        .withStream(ReadReq.Options.StreamOptions(stream, exclusiveFrom.map(mapEventNumber).getOrElse(startOfStream)))
         .withSubscription(ReadReq.Options.SubscriptionOptions())
-        .withReadDirection(direction)
+        .withReadDirection(mapDirection(ReadDirection.Forward))
         .withResolveLinks(resolveLinkTos)
         .withNoFilter(ReadReq.Empty())
 
@@ -143,17 +136,13 @@ object Streams {
       creds: Option[UserCredentials]
     ): Stream[F, ReadResp] = {
 
-      val allPosition   = mapReadAllPosition(position)
-      val readDirection = mapDirection(direction)
-      val filterOption  = mapReadEventFilter(filter)
-
       val options = ReadReq
         .Options()
-        .withAll(ReadReq.Options.AllOptions(allPosition))
+        .withAll(ReadReq.Options.AllOptions(mapPosition(position)))
         .withCount(maxCount)
-        .withReadDirection(readDirection)
+        .withReadDirection(mapDirection(direction))
         .withResolveLinks(resolveLinkTos)
-        .withFilterOptionsOneof(filterOption)
+        .withFilterOptionsOneof(mapReadEventFilter(filter))
 
       val request = ReadReq().withOptions(options)
 
@@ -169,14 +158,11 @@ object Streams {
       creds: Option[UserCredentials]
     ): Stream[F, ReadResp] = {
 
-      val revision      = mapReadStreamRevision(from)
-      val readDirection = mapDirection(direction)
-
       val options = ReadReq
         .Options()
-        .withStream(ReadReq.Options.StreamOptions(stream, revision))
+        .withStream(ReadReq.Options.StreamOptions(stream, mapEventNumber(from)))
         .withCount(count)
-        .withReadDirection(readDirection)
+        .withReadDirection(mapDirection(direction))
         .withResolveLinks(resolveLinkTos)
         .withNoFilter(ReadReq.Empty())
 
@@ -194,9 +180,7 @@ object Streams {
 
       import Constants.Metadata.{IsJson, Type}
 
-      val revision = mapAppendRevision(expectedRevision)
-      val header   = AppendReq().withOptions(AppendReq.Options(stream, revision))
-
+      val header = AppendReq().withOptions(AppendReq.Options(stream, mapAppendRevision(expectedRevision)))
       val proposals = events.map { e =>
         val id         = mapUuidString(e.eventId)
         val customMeta = e.metadata.data.toByteString
@@ -216,9 +200,7 @@ object Streams {
       expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
     ): F[DeleteResp] = {
-
-      val revision = mapDeleteRevision(expectedRevision)
-      val request  = DeleteReq().withOptions(DeleteReq.Options(stream, revision))
+      val request = DeleteReq().withOptions(DeleteReq.Options(stream, mapDeleteRevision(expectedRevision)))
 
       client.delete(request, auth(creds))
     }
@@ -228,9 +210,7 @@ object Streams {
       expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
     ): F[TombstoneResp] = {
-
-      val revision = mapTombstoneRevision(expectedRevision)
-      val request  = TombstoneReq().withOptions(TombstoneReq.Options(stream, revision))
+      val request = TombstoneReq().withOptions(TombstoneReq.Options(stream, mapTombstoneRevision(expectedRevision)))
 
       client.tombstone(request, auth(creds))
     }

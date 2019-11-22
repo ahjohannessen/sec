@@ -44,6 +44,7 @@ object Main extends IOApp {
 
   def print(r: ReadResp): IO[Unit] = {
     import grpc.mapping.Streams.mkEventRecord
+
     r.event
       .flatMap(_.event)
       .fold(IO(()))(mkEventRecord[IO](_).map(e =>
