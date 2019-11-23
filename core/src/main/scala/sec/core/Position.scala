@@ -6,16 +6,19 @@ import cats.Order
 sealed trait Position
 object Position {
 
-  val Start: Exact = exact(0L, 0L)
-  sealed abstract case class Exact(commit: Long, prepare: Long) extends Position
-  case object End                                               extends Position
+  val Start: Exact = Exact(0L, 0L)
 
-  private[sec] def exact(commit: Long, prepare: Long): Exact = new Exact(commit, prepare) {}
+  sealed abstract case class Exact(commit: Long, prepare: Long) extends Position
+  object Exact {
+    private[sec] def apply(commit: Long, prepare: Long): Exact = new Exact(commit, prepare) {}
+  }
+
+  case object End extends Position
 
   ///
 
   def apply(position: Long): Position              = Position(position, position)
-  def apply(commit: Long, prepare: Long): Position = if (commit < 0 || prepare < 0) End else exact(commit, prepare)
+  def apply(commit: Long, prepare: Long): Position = if (commit < 0 || prepare < 0) End else Exact(commit, prepare)
 
   implicit val orderForPosition: Order[Position] = Order.from {
     case (x: Exact, y: Exact) => Order[Exact].compare(x, y)

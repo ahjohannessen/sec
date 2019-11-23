@@ -1,9 +1,9 @@
 package sec
 
+import cats.Show
 import cats.data.NonEmptyList
-import cats.effect.ConcurrentEffect
 import cats.implicits._
-import io.grpc.{ManagedChannel, Metadata}
+import io.grpc.Metadata
 import fs2.Stream
 import com.eventstore.client.streams._
 import sec.core._
@@ -19,14 +19,14 @@ trait Streams[F[_]] {
     resolveLinkTos: Boolean,
     filter: Option[EventFilter],
     creds: Option[UserCredentials]
-  ): Stream[F, ReadResp] // temp
+  ): Stream[F, Event]
 
   def subscribeToStream(
     stream: String,
     exclusiveFrom: Option[EventNumber],
     resolveLinkTos: Boolean,
     creds: Option[UserCredentials]
-  ): Stream[F, ReadResp] // temp
+  ): Stream[F, Event]
 
   def readAll(
     position: Position,
@@ -35,7 +35,7 @@ trait Streams[F[_]] {
     resolveLinkTos: Boolean,
     filter: Option[EventFilter],
     creds: Option[UserCredentials]
-  ): Stream[F, ReadResp] // temp
+  ): Stream[F, Event]
 
   def readStream(
     stream: String,
@@ -44,26 +44,26 @@ trait Streams[F[_]] {
     count: Int,
     resolveLinkTos: Boolean,
     creds: Option[UserCredentials]
-  ): Stream[F, ReadResp] // temp
+  ): Stream[F, Event]
 
   def appendToStream(
     stream: String,
     expectedRevision: StreamRevision,
     events: NonEmptyList[EventData],
     creds: Option[UserCredentials]
-  ): F[WriteResult]
+  ): F[Streams.WriteResult]
 
   def softDelete(
     stream: String,
     expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
-  ): F[DeleteResp] // temp
+  ): F[Streams.DeleteResult]
 
-  def tombstone(
+  def hardDelete(
     stream: String,
     expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
-  ): F[TombstoneResp] // temp
+  ): F[Streams.DeleteResult]
 
 }
 
@@ -71,28 +71,51 @@ object Streams {
 
   implicit def syntaxForStreams[F[_]](s: Streams[F]): StreamsSyntax[F] = new StreamsSyntax[F](s)
 
-  ///
+  /// Result Types
 
-  def apply[F[_]: ConcurrentEffect](
-    channel: ManagedChannel,
-    settings: Settings
-  ): Streams[F] =
-    Streams(StreamsFs2Grpc.client[F, Metadata](channel, identity, identity, convertToEs), settings)
+  final case class WriteResult(
+    currentRevision: StreamRevision.Exact
+  )
+
+  object WriteResult {
+    implicit val showForWriteResult: Show[WriteResult] = Show.show { wr =>
+      s"WriteResult(currentRevision = ${wr.currentRevision.value})"
+    }
+  }
+
+  final case class DeleteResult(position: Position.Exact)
+
+  object DeleteResult {
+    implicit val showForDeleteResult: Show[DeleteResult] = Show.show { dr =>
+      s"DeleteResult(commit = ${dr.position.commit}, prepare = ${dr.position.prepare})"
+    }
+  }
+
+  ///
 
   private[sec] def apply[F[_]: ErrorM](
     client: StreamsFs2Grpc[F, Metadata],
-    settings: Settings
-  ): Streams[F] = new Streams[F] {
+    options: Options
+  ): Streams[F] =
+    new Impl[F](client, options)
 
-    val authFallback: Metadata                    = settings.creds.toMetadata
+  private[sec] final class Impl[F[_]: ErrorM](
+    val client: StreamsFs2Grpc[F, Metadata],
+    val options: Options
+  ) extends Streams[F] {
+
+    val authFallback: Metadata                    = options.creds.toMetadata
     val auth: Option[UserCredentials] => Metadata = _.fold(authFallback)(_.toMetadata)
+
+    private val mkEvents: Stream[F, ReadResp] => Stream[F, Event] =
+      _.evalMap(_.event.map(mkEvent[F]).getOrElse(none[Event].pure[F])).unNone
 
     def subscribeToAll(
       exclusiveFrom: Option[Position],
       resolveLinkTos: Boolean,
       filter: Option[EventFilter],
       creds: Option[UserCredentials]
-    ): Stream[F, ReadResp] = {
+    ): Stream[F, Event] = {
 
       val options = ReadReq
         .Options()
@@ -104,7 +127,7 @@ object Streams {
 
       val request = ReadReq().withOptions(options)
 
-      client.read(request, auth(creds))
+      client.read(request, auth(creds)).through(mkEvents)
     }
 
     def subscribeToStream(
@@ -112,7 +135,7 @@ object Streams {
       exclusiveFrom: Option[EventNumber],
       resolveLinkTos: Boolean,
       creds: Option[UserCredentials]
-    ): Stream[F, ReadResp] = {
+    ): Stream[F, Event] = {
 
       val options = ReadReq
         .Options()
@@ -124,7 +147,7 @@ object Streams {
 
       val request = ReadReq().withOptions(options)
 
-      client.read(request, auth(creds))
+      client.read(request, auth(creds)).through(mkEvents)
     }
 
     def readAll(
@@ -134,7 +157,7 @@ object Streams {
       resolveLinkTos: Boolean,
       filter: Option[EventFilter],
       creds: Option[UserCredentials]
-    ): Stream[F, ReadResp] = {
+    ): Stream[F, Event] = {
 
       val options = ReadReq
         .Options()
@@ -146,7 +169,7 @@ object Streams {
 
       val request = ReadReq().withOptions(options)
 
-      client.read(request, auth(creds))
+      client.read(request, auth(creds)).through(mkEvents)
     }
 
     def readStream(
@@ -156,7 +179,7 @@ object Streams {
       count: Int,
       resolveLinkTos: Boolean,
       creds: Option[UserCredentials]
-    ): Stream[F, ReadResp] = {
+    ): Stream[F, Event] = {
 
       val options = ReadReq
         .Options()
@@ -168,7 +191,7 @@ object Streams {
 
       val request = ReadReq().withOptions(options)
 
-      client.read(request, auth(creds))
+      client.read(request, auth(creds)).through(mkEvents)
     }
 
     def appendToStream(
@@ -199,20 +222,20 @@ object Streams {
       stream: String,
       expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
-    ): F[DeleteResp] = {
+    ): F[DeleteResult] = {
       val request = DeleteReq().withOptions(DeleteReq.Options(stream, mapDeleteRevision(expectedRevision)))
 
-      client.delete(request, auth(creds))
+      client.delete(request, auth(creds)) >>= mkDeleteResult[F]
     }
 
-    def tombstone(
+    def hardDelete(
       stream: String,
       expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
-    ): F[TombstoneResp] = {
+    ): F[DeleteResult] = {
       val request = TombstoneReq().withOptions(TombstoneReq.Options(stream, mapTombstoneRevision(expectedRevision)))
 
-      client.tombstone(request, auth(creds))
+      client.tombstone(request, auth(creds)) >>= mkDeleteResult[F]
     }
   }
 

@@ -31,11 +31,12 @@ object Content {
   ///
 
   implicit val showForContent: Show[Content] = Show.show { c =>
-    val data = c.contentType match {
-      case ContentType.Json if c.data.nonEmpty => c.data.decodeUtf8.getOrElse("Failed read json")
-      case _                                   => c.data.toString
+    c.contentType match {
+      case ContentType.Json => {
+        s"Json(${if (c.data.isEmpty) "<empty>" else c.data.decodeUtf8.getOrElse("Failed read json")})"
+      }
+      case _ => s"Binary(${c.data.toString})"
     }
-    s"Content($data, ${c.contentType})"
   }
 
 }

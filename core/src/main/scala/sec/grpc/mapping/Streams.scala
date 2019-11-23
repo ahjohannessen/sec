@@ -2,13 +2,13 @@ package sec
 package grpc
 package mapping
 
-import java.time.{Instant, ZoneOffset, ZonedDateTime}
 import java.util.{UUID => JUUID}
 import cats.implicits._
 import com.eventstore.client.streams._
 import sec.core._
+import sec.Streams._
 
-object Streams {
+private[sec] object Streams {
 
   /// Outgoing
 
@@ -84,32 +84,42 @@ object Streams {
 
   /// Incoming
 
+  // TODO: It is possible that event: None and link: Some(l) when event is deleted. Consider if worth surfacing as event record
+  def mkEvent[F[_]: ErrorM](re: ReadResp.ReadEvent): F[Option[Event]] = {
+
+    // Alternative that selects option of link if event is None.
+//    (re.event.traverse(mkEventRecord[F]), re.link.traverse(mkEventRecord[F])).mapN { (e, l) =>
+//      e.map(er => l.fold[Event](er)(ResolvedEvent(er, _))).getOrElse(l)
+//    }
+
+    re.event.traverse(mkEventRecord[F]) >>= { event =>
+      re.link.traverse(mkEventRecord[F]).map { link =>
+        event.map(er => link.fold[Event](er)(ResolvedEvent(er, _)))
+      }
+    }
+  }
+
   def mkEventRecord[F[_]: ErrorM](e: ReadResp.ReadEvent.RecordedEvent): F[EventRecord] = {
 
     import EventData.{binary, json}
     import Constants.Metadata.{Created, IsJson, Type}
 
     val streamId    = e.streamName
-    val eventNumber = EventNumber.Exact.exact(e.streamRevision)
+    val eventNumber = EventNumber.Exact(e.streamRevision)
+    val position    = Position.Exact(e.commitPosition, e.preparePosition)
     val data        = e.data.toByteVector
     val customMeta  = e.customMetadata.toByteVector
     val eventId     = e.id.require[F]("UUID") >>= mkUUID[F]
     val eventType   = e.metadata.get(Type).require[F](Type)
     val isJson      = e.metadata.get(IsJson).flatMap(_.toBooleanOption).require[F](IsJson)
-    val created     = e.metadata.get(Created).flatMap(_.toLongOption).traverse(mkZDT[F])
+    val created     = e.metadata.get(Created).flatMap(_.toLongOption).require[F](Created) >>= fromDateTimeBinaryUTC[F]
 
     val eventData = (eventId, eventType, isJson).mapN { (i, t, j) =>
       j.fold(json(t, i, data, customMeta), binary(t, i, data, customMeta)).leftMap(ProtoResultError).liftTo[F]
     }
 
-    (eventData.flatten, created).mapN((ed, c) => EventRecord(streamId, eventNumber, ed, c))
+    (eventData.flatten, created).mapN((ed, c) => EventRecord(streamId, eventNumber, position, ed, c))
 
-  }
-
-  // TODO: The returned value is .NET-centric (ToBinary) format.
-  def mkZDT[F[_]: ErrorA](epoch: Long): F[ZonedDateTime] = {
-    def unsafeEpoch = ZonedDateTime.ofInstant(Instant.ofEpochMilli(epoch), ZoneOffset.UTC)
-    Either.catchNonFatal(unsafeEpoch).leftMap(e => ProtoResultError(e.getMessage)).liftTo[F]
   }
 
   def mkUUID[F[_]: ErrorA](uuid: UUID): F[JUUID] = {
@@ -126,13 +136,23 @@ object Streams {
   def mkWriteResult[F[_]: ErrorA](ar: AppendResp): F[WriteResult] = {
 
     val currentRevision = ar.currentRevisionOptions match {
-      case AppendResp.CurrentRevisionOptions.CurrentRevision(v) => StreamRevision.Exact.exact(v).asRight
+      case AppendResp.CurrentRevisionOptions.CurrentRevision(v) => StreamRevision.Exact(v).asRight
       case AppendResp.CurrentRevisionOptions.NoStream(_)        => "Did not expect NoStream when using NonEmptyList".asLeft
       case AppendResp.CurrentRevisionOptions.Empty              => "CurrentRevisionOptions is missing".asLeft
     }
 
     currentRevision.map(WriteResult(_)).leftMap(ProtoResultError).liftTo[F]
   }
+
+  def mkDeleteResult[F[_]: ErrorA](dr: DeleteResp): F[DeleteResult] =
+    dr.positionOptions.position
+      .map(p => DeleteResult(Position.Exact(p.commitPosition, p.preparePosition)))
+      .require[F]("DeleteResp.PositionOptions.Position")
+
+  def mkDeleteResult[F[_]: ErrorA](tr: TombstoneResp): F[DeleteResult] =
+    tr.positionOptions.position
+      .map(p => DeleteResult(Position.Exact(p.commitPosition, p.preparePosition)))
+      .require[F]("TombstoneResp.PositionOptions.Position")
 
   ///
 

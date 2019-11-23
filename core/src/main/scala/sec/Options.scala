@@ -2,6 +2,6 @@ package sec
 
 import sec.core.UserCredentials
 
-final case class Settings(
+final case class Options(
   creds: UserCredentials
 )

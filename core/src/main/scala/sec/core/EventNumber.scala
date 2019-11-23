@@ -7,13 +7,13 @@ import cats.implicits._
 sealed trait EventNumber
 object EventNumber {
 
-  val Start: Exact = Exact.exact(0L)
+  val Start: Exact = Exact(0L)
 
   sealed abstract case class Exact(value: Long) extends EventNumber
   object Exact {
-    private[sec] def exact(value: Long): Exact = new Exact(value) {}
-    def apply(sr: StreamRevision.Exact): Exact = exact(sr.value)
-    def apply(value: Long): Option[Exact]      = if (value >= 0) exact(value).some else none
+    private[sec] def apply(value: Long): Exact = new Exact(value) {}
+    def apply(sr: StreamRevision.Exact): Exact = apply(sr.value)
+    def opt(value: Long): Option[Exact]        = if (value >= 0) apply(value).some else none
 
     implicit final class ExactOps(e: Exact) {
       def asRevision: StreamRevision = StreamRevision.Exact(e)
@@ -25,7 +25,7 @@ object EventNumber {
 
   ///
 
-  def apply(number: Long): EventNumber = if (number < 0) End else Exact.exact(number)
+  def apply(number: Long): EventNumber = if (number < 0) End else Exact(number)
 
   implicit val orderForEventNumber: Order[EventNumber] = Order.from {
     case (x: Exact, y: Exact) => x.value compare y.value
