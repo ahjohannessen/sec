@@ -21,7 +21,14 @@ object EventNumber {
 
   }
 
-  case object End extends EventNumber
+  private[sec] def unapply(en: EventNumber): Option[Long] = en match {
+    case Exact(v) => v.some
+    case End      => End.longValue.some
+  }
+
+  case object End extends EventNumber {
+    private[sec] final val longValue: Long = -1
+  }
 
   ///
 

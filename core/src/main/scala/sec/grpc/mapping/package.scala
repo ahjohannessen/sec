@@ -21,7 +21,7 @@ package object mapping {
   /**
    * TODO: Temporary workaround for dotnet specific encoding.
    * Not something that I wish to do as it is best
-   * effort, probably full of edgecases and wtfs.
+   * effort, probably full of edge cases and wtfs.
    *
    * @param value 100-nanosecond intervals elapsed since 0001-01-01T00:00:00Z
    * */
@@ -39,7 +39,25 @@ package object mapping {
 
   ///
 
-  // Break up into different types
+  implicit final class OptionOps[A](private val o: Option[A]) extends AnyVal {
+    def require[F[_]: ErrorA](value: String): F[A] =
+      o.toRight(ProtoResultError(s"Required value $value missing or invalid.")).liftTo[F]
+  }
+
+  // TODO: Break up into different types
+
+  final case class EncodingError(msg: String) extends RuntimeException(msg)
+
+  object EncodingError {
+    def apply(e: Exception): EncodingError = EncodingError(e.getMessage)
+  }
+
+  final case class DecodingError(msg: String) extends RuntimeException(msg)
+
+  object DecodingError {
+    def apply(e: Exception): DecodingError = DecodingError(e.getMessage)
+  }
+
   final case class ProtoResultError(msg: String) extends RuntimeException(msg)
 
 }

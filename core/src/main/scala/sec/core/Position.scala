@@ -2,6 +2,7 @@ package sec
 package core
 
 import cats.Order
+import cats.implicits._
 
 sealed trait Position
 object Position {
@@ -13,7 +14,14 @@ object Position {
     private[sec] def apply(commit: Long, prepare: Long): Exact = new Exact(commit, prepare) {}
   }
 
-  case object End extends Position
+  case object End extends Position {
+    private[sec] val longValues: (Long, Long) = (-1L, -1L)
+  }
+
+  def unapply(pos: Position): Option[(Long, Long)] = pos match {
+    case Exact(p, c) => (p, c).some
+    case End         => End.longValues.some
+  }
 
   ///
 

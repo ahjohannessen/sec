@@ -17,11 +17,12 @@ object Dependencies {
 
   // Compile
 
-  val cats       = "org.typelevel" %% "cats-core"   % versions.catsCore
-  val catsEffect = "org.typelevel" %% "cats-effect" % versions.catsEffect
-  val fs2        = "co.fs2"        %% "fs2-core"    % versions.fs2
-  val scodecBits = "org.scodec"    %% "scodec-bits" % versions.scodecBits
-  val circe      = "io.circe"      %% "circe-core"  % versions.circe
+  val cats        = "org.typelevel" %% "cats-core"    % versions.catsCore
+  val catsEffect  = "org.typelevel" %% "cats-effect"  % versions.catsEffect
+  val fs2         = "co.fs2"        %% "fs2-core"     % versions.fs2
+  val scodecBits  = "org.scodec"    %% "scodec-bits"  % versions.scodecBits
+  val circe       = "io.circe"      %% "circe-core"   % versions.circe
+  val circeParser = "io.circe"      %% "circe-parser" % versions.circe
 
   val scalaPb = "com.thesamet.scalapb" %% "scalapb-runtime" % versions.scalaPb
 

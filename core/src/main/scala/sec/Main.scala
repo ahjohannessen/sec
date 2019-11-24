@@ -1,6 +1,7 @@
 package sec
 
 import java.util.UUID
+import scala.concurrent.duration._
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect._
@@ -27,12 +28,20 @@ object Main extends IOApp {
     val stream = for {
       builder    <- Stream.eval(nettyBuilder[IO])
       client     <- EsClient.stream[IO, NettyChannelBuilder](builder, options).map(_.streams)
+      streamName <- Stream.eval(uuid[IO].map(id => s"test_stream-$id"))
       eventData1 <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orFail[IO])
       eventData2 <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orFail[IO])
-      streamName <- Stream.eval(uuid[IO].map(id => s"test_stream-$id"))
       _          <- Stream.eval(client.appendToStream(streamName, StreamRevision.NoStream, eventData1)).evalTap(print)
       _          <- Stream.eval(client.appendToStream(streamName, EventNumber.Exact(19).asRevision, eventData2)).evalTap(print)
-      _          <- client.readStreamForwards(streamName, EventNumber.Start, 40).evalTap(print)
+      _ <- Stream.eval(
+            client.setStreamMetadata(
+              streamName,
+              StreamRevision.NoStream,
+              StreamMetaData.empty.copy(maxCount = 1.some),
+              None
+            ))
+      _ <- Stream.eval(client.getStreamMetadata(streamName, None)).evalTap(r => IO(println(r)))
+      _ <- client.readStreamForwards(streamName, EventNumber.Exact(39), 1).evalTap(print)
     } yield ()
 
     stream.compile.drain.as(ExitCode.Success)
@@ -40,7 +49,7 @@ object Main extends IOApp {
   }
 
   def print(wr: WriteResult): IO[Unit] =
-    IO.delay(println(wr.show))
+    IO.delay(println(wr))
 
   def print(r: Event): IO[Unit] =
     IO.delay(println(r.show))

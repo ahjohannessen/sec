@@ -16,13 +16,11 @@ private[sec] object Streams {
   val startOfStream = ReadReq.Options.StreamOptions.RevisionOptions.Start(ReadReq.Empty())
 
   val mapPosition: Position => ReadReq.Options.AllOptions.AllOptions = {
-    case Position.Exact(c, p) => ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(c, p))
-    case Position.End         => ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(-1L, -1L))
+    case Position(c, p) => ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(c, p))
   }
 
   val mapEventNumber: EventNumber => ReadReq.Options.StreamOptions.RevisionOptions = {
-    case EventNumber.Exact(rev) => ReadReq.Options.StreamOptions.RevisionOptions.Revision(rev)
-    case EventNumber.End        => ReadReq.Options.StreamOptions.RevisionOptions.Revision(-1L)
+    case EventNumber(nr) => ReadReq.Options.StreamOptions.RevisionOptions.Revision(nr)
   }
 
   val mapAppendRevision: StreamRevision => AppendReq.Options.ExpectedStreamRevision = {
@@ -84,7 +82,8 @@ private[sec] object Streams {
 
   /// Incoming
 
-  // TODO: It is possible that event: None and link: Some(l) when event is deleted. Consider if worth surfacing as event record
+  // TODO: It is possible that event: None and link: Some(l) when event is deleted.
+  //       Consider if worth surfacing as event record
   def mkEvent[F[_]: ErrorM](re: ReadResp.ReadEvent): F[Option[Event]] = {
 
     // Alternative that selects option of link if event is None.
@@ -153,13 +152,5 @@ private[sec] object Streams {
     tr.positionOptions.position
       .map(p => DeleteResult(Position.Exact(p.commitPosition, p.preparePosition)))
       .require[F]("TombstoneResp.PositionOptions.Position")
-
-  ///
-
-  // Temporary
-  implicit final class OptionOps[A](private val o: Option[A]) extends AnyVal {
-    def require[F[_]: ErrorA](value: String): F[A] =
-      o.toRight(ProtoResultError(s"Required value $value missing or invalid.")).liftTo[F]
-  }
 
 }

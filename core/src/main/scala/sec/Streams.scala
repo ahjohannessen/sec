@@ -1,8 +1,10 @@
 package sec
 
-import cats.Show
 import cats.data.NonEmptyList
+import cats.effect.Sync
 import cats.implicits._
+import io.circe._
+import io.circe.parser.decode
 import io.grpc.Metadata
 import fs2.Stream
 import com.eventstore.client.streams._
@@ -65,6 +67,20 @@ trait Streams[F[_]] {
     creds: Option[UserCredentials]
   ): F[Streams.DeleteResult]
 
+  // Temporary
+
+  private[sec] def getStreamMetadata(
+    stream: String,
+    creds: Option[UserCredentials]
+  ): F[Option[Streams.StreamMetadataResult]]
+
+  private[sec] def setStreamMetadata(
+    stream: String,
+    expectedRevision: StreamRevision,
+    data: StreamMetaData,
+    creds: Option[UserCredentials]
+  ): F[Unit]
+
 }
 
 object Streams {
@@ -73,36 +89,28 @@ object Streams {
 
   /// Result Types
 
-  final case class WriteResult(
-    currentRevision: StreamRevision.Exact
-  )
-
-  object WriteResult {
-    implicit val showForWriteResult: Show[WriteResult] = Show.show { wr =>
-      s"WriteResult(currentRevision = ${wr.currentRevision.value})"
-    }
-  }
-
+  final case class WriteResult(currentRevision: StreamRevision.Exact)
   final case class DeleteResult(position: Position.Exact)
 
-  object DeleteResult {
-    implicit val showForDeleteResult: Show[DeleteResult] = Show.show { dr =>
-      s"DeleteResult(commit = ${dr.position.commit}, prepare = ${dr.position.prepare})"
-    }
-  }
+  // Questionable
+  private[sec] final case class StreamMetadataResult(
+    number: EventNumber.Exact,
+    data: StreamMetaData
+  )
 
   ///
 
-  private[sec] def apply[F[_]: ErrorM](
+  private[sec] def apply[F[_]: Sync](
     client: StreamsFs2Grpc[F, Metadata],
     options: Options
   ): Streams[F] =
     new Impl[F](client, options)
 
-  private[sec] final class Impl[F[_]: ErrorM](
+  private[sec] final class Impl[F[_]](
     val client: StreamsFs2Grpc[F, Metadata],
     val options: Options
-  ) extends Streams[F] {
+  )(implicit F: Sync[F])
+    extends Streams[F] {
 
     val authFallback: Metadata                    = options.creds.toMetadata
     val auth: Option[UserCredentials] => Metadata = _.fold(authFallback)(_.toMetadata)
@@ -206,8 +214,8 @@ object Streams {
       val header = AppendReq().withOptions(AppendReq.Options(stream, mapAppendRevision(expectedRevision)))
       val proposals = events.map { e =>
         val id         = mapUuidString(e.eventId)
-        val customMeta = e.metadata.data.toByteString
-        val data       = e.data.data.toByteString
+        val customMeta = e.metadata.bytes.toByteString
+        val data       = e.data.bytes.toByteString
         val meta       = Map(Type -> e.eventType, IsJson -> e.isJson.fold("true", "false"))
         val proposal   = AppendReq.ProposedMessage(id.some, meta, customMeta, data)
         AppendReq().withProposedMessage(proposal)
@@ -237,6 +245,59 @@ object Streams {
 
       client.tombstone(request, auth(creds)) >>= mkDeleteResult[F]
     }
-  }
 
+    private[sec] def getStreamMetadata(
+      stream: String,
+      creds: Option[UserCredentials]
+    ): F[Option[StreamMetadataResult]] = {
+      import constants.SystemStreams.MetadataPrefix
+      // TODO: Fix this with strong type for stream name/id
+      val metadataStream = s"$MetadataPrefix$stream"
+
+      readStream(metadataStream, ReadDirection.Backward, EventNumber.End, 1, false, creds)
+        .collect { case er: EventRecord => er }
+        .evalMap { er =>
+          er.eventData.data.bytes.decodeUtf8.leftMap(DecodingError(_)).liftTo[F] >>= { s =>
+            decode[StreamMetaData](s).leftMap(DecodingError(_)).liftTo[F].map(StreamMetadataResult(er.number, _))
+          }
+        }
+        .compile
+        .last
+        .handleError {
+          case StreamNotFound(`metadataStream`) => none[StreamMetadataResult]
+          case _                                => None // Deal with unexpected EOS on DATA frame from server
+        }
+    }
+
+    private[sec] def setStreamMetadata(
+      stream: String,
+      expectedRevision: StreamRevision,
+      data: StreamMetaData,
+      creds: Option[UserCredentials]
+    ): F[Unit] = modifyStreamMetadata(stream, expectedRevision, _ => data, creds)
+
+    private[sec] def modifyStreamMetadata(
+      stream: String,
+      expectedRevision: StreamRevision,
+      fn: StreamMetaData => StreamMetaData,
+      creds: Option[UserCredentials]
+    ): F[Unit] = uuid[F] >>= { id =>
+      import constants.SystemEventTypes.StreamDeleted
+      import constants.SystemStreams.MetadataPrefix
+      // TODO: Fix this with strong type for stream name/id
+      val metadataStream = s"$MetadataPrefix$stream"
+
+      getStreamMetadata(metadataStream, creds) >>= { res =>
+        val modified  = fn(res.fold(StreamMetaData.empty)(_.data))
+        val json      = Encoder[StreamMetaData].apply(modified)
+        val printer   = Printer.noSpaces.copy(dropNullValues = true)
+        val eventData = Content.Json(printer.print(json)) >>= (EventData(StreamDeleted, id, _))
+
+        eventData.leftMap(EncodingError(_)).liftTo[F] >>= { d =>
+          appendToStream(metadataStream, expectedRevision, NonEmptyList.one(d), creds) *> F.unit
+        }
+      }
+    }
+
+  }
 }

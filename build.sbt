@@ -12,7 +12,7 @@ lazy val core = project
     name := "sec",
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     libraryDependencies ++= compileM(
-      cats, catsEffect, fs2, scodecBits, circe,
+      cats, catsEffect, fs2, scodecBits, circe, circeParser,
       scalaPb, grpcNetty, tcnative
     ) ++ protobufM(scalaPb)
   )
