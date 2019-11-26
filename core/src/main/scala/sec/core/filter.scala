@@ -6,6 +6,8 @@ import cats.implicits._
 import cats.data.NonEmptyList
 import EventFilter._
 
+//======================================================================================================================
+
 final case class EventFilter(
   kind: Kind,
   maxSearchWindow: Option[Int],
@@ -36,3 +38,5 @@ object EventFilter {
   }
 
 }
+
+//======================================================================================================================

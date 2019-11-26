@@ -1,10 +1,12 @@
 package sec
-package core
+package api
 
 import cats.implicits._
 
+//======================================================================================================================
+
 sealed abstract case class UserCredentials(username: String, password: String) {
-  override def toString = s"UserCredentials($username,***)"
+  override def toString = s"UserCredentials(username = $username, password = 🤐)"
 }
 
 object UserCredentials {
@@ -29,3 +31,5 @@ object UserCredentials {
     (validate(password, "password"), validate(username, "username")).mapN(UserCredentials.unsafe)
   }
 }
+
+//======================================================================================================================

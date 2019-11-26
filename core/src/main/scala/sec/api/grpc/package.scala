@@ -1,12 +1,15 @@
 package sec
+package api
 
 import cats.implicits._
 import io.grpc.{Metadata, StatusRuntimeException}
 import sec.core._
-import grpc.Constants.Headers._
-import grpc.Constants.{Exceptions => ce}
+import grpc.constants.Headers._
+import grpc.constants.{Exceptions => ce}
 
 package object grpc {
+
+//======================================================================================================================
 
   private[grpc] object keys {
     val authKey: Metadata.Key[UserCredentials] = Metadata.Key.of(Authorization, UserCredentialsMarshaller)
@@ -18,6 +21,8 @@ package object grpc {
     val actualVersion: Metadata.Key[Long]      = Metadata.Key.of(ce.ActualVersion, LongMarshaller)
   }
 
+//======================================================================================================================
+
   implicit final class UserCredentialsOps(val uc: UserCredentials) extends AnyVal {
     def toMetadata: Metadata = {
       val md = new Metadata()
@@ -25,6 +30,8 @@ package object grpc {
       md
     }
   }
+
+//======================================================================================================================
 
   val convertToEs: StatusRuntimeException => Option[EsException] = ex => {
 
@@ -41,6 +48,7 @@ package object grpc {
     exception.map {
       case ce.AccessDenied                       => AccessDenied
       case ce.InvalidTransaction                 => InvalidTransaction
+      case ce.MaximumAppendSizeExceeded          => MaximumAppendSizeExceeded
       case ce.StreamDeleted                      => StreamDeleted(streamName)
       case ce.WrongExpectedVersion               => WrongExpectedVersion(streamName, expected, actual)
       case ce.StreamNotFound                     => StreamNotFound(streamName)
@@ -51,8 +59,12 @@ package object grpc {
     }
   }
 
+//======================================================================================================================
+
   implicit final class MetadataOps(val md: Metadata) extends AnyVal {
     def getOpt[T](key: Metadata.Key[T]): Option[T] = Either.catchNonFatal(Option(md.get(key))).toOption.flatten
   }
+
+//======================================================================================================================
 
 }
