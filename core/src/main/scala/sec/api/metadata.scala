@@ -4,19 +4,22 @@ package api
 import cats.data.NonEmptyList
 import cats.effect.Sync
 import cats.implicits._
-import io.circe._
+import io.circe.{Decoder, Encoder, Printer}
 import io.circe.parser.decode
 import sec.core._
 import sec.api.mapping._
 import sec.api.Streams._
 
 /* TODO:
+  - Questionable API, too low-level, perhaps.
+  - Lenses should be added for StreamState, if it should be surfaced in that shape.
+  - Name StreamState is perhaps not appropriate or too strange.
   - Use strong type for stream name/id
   - Surface custom metadata
   - Verify that we get metadata stream back - questionable
  */
 
-trait StreamMeta[F[_]] {
+private[sec] trait StreamMeta[F[_]] {
 
   def getStreamMetadata(
     stream: String,
@@ -25,21 +28,21 @@ trait StreamMeta[F[_]] {
 
   def setStreamMetadata(
     stream: String,
-    expectedRevision: StreamRevision,
     data: StreamState,
+    expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
   ): F[Unit]
 
   def modifyStreamMetadata(
     stream: String,
-    expectedRevision: StreamRevision,
     modFn: StreamState => StreamState,
+    expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
   ): F[Unit]
 
 }
 
-object StreamMeta {
+private[sec] object StreamMeta {
 
   // Questionable
   final case class Result(
@@ -114,15 +117,15 @@ object StreamMeta {
 
     def setStreamMetadata(
       stream: String,
-      expectedRevision: StreamRevision,
       data: StreamState,
+      expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
-    ): F[Unit] = modifyStreamMetadata(stream, expectedRevision, _ => data, creds)
+    ): F[Unit] = modifyStreamMetadata(stream, _ => data, expectedRevision, creds)
 
     def modifyStreamMetadata(
       stream: String,
-      expectedRevision: StreamRevision,
       modFn: StreamState => StreamState,
+      expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
     ): F[Unit] = uuid[F] >>= { id =>
       getStreamMetadata(stream, creds) >>= { res =>
@@ -136,6 +139,5 @@ object StreamMeta {
         }
       }
     }
-
   }
 }
