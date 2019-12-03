@@ -5,13 +5,13 @@ object Dependencies {
   object versions {
     val catsCore      = "2.0.0"
     val catsEffect    = "2.0.0"
-    val fs2           = "2.0.1"
+    val fs2           = "2.1.0"
     val scodecBits    = "1.1.12"
-    val circe         = "0.12.2"
+    val circe         = "0.12.3"
     val scalaPb       = scalapb.compiler.Version.scalapbVersion
     val grpc          = scalapb.compiler.Version.grpcJavaVersion
     val fs2Grpc       = org.lyranthe.fs2_grpc.buildinfo.BuildInfo.version
-    val specs2        = "4.8.0"
+    val specs2        = "4.8.1"
     val kindProjector = "0.11.0"
   }
 

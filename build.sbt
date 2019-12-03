@@ -11,10 +11,11 @@ lazy val core = project
   .settings(
     name := "sec",
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    libraryDependencies ++= compileM(
-      cats, catsEffect, fs2, scodecBits, circe, circeParser,
-      scalaPb, grpcNetty, tcnative
-    ) ++ protobufM(scalaPb)
+    libraryDependencies ++=
+      compileM(
+        cats, catsEffect, fs2, scodecBits, circe, circeParser, scalaPb,
+        grpcNetty, tcnative
+      ) ++ protobufM(scalaPb)
   )
 
 // General Settings

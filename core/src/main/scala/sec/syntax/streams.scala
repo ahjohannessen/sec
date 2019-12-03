@@ -6,7 +6,7 @@ import fs2.Stream
 import sec.core.{Event, EventData, EventFilter, EventNumber, Position, StreamRevision}
 import sec.api._
 
-final class StreamsSyntax[F[_]](val esc: Streams[F]) extends AnyVal {
+final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
 
   /// Subscription
 
@@ -16,7 +16,7 @@ final class StreamsSyntax[F[_]](val esc: Streams[F]) extends AnyVal {
     filter: Option[EventFilter] = None,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    esc.subscribeToAll(exclusiveFrom, resolveLinkTos, filter, credentials)
+    s.subscribeToAll(exclusiveFrom, resolveLinkTos, filter, credentials)
 
   def subscribeToStream(
     stream: String,
@@ -24,7 +24,7 @@ final class StreamsSyntax[F[_]](val esc: Streams[F]) extends AnyVal {
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    esc.subscribeToStream(stream, exclusiveFrom, resolveLinkTos, credentials)
+    s.subscribeToStream(stream, exclusiveFrom, resolveLinkTos, credentials)
 
   /// Read
 
@@ -35,7 +35,7 @@ final class StreamsSyntax[F[_]](val esc: Streams[F]) extends AnyVal {
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    esc.readStream(stream, ReadDirection.Forward, from, count, resolveLinkTos, credentials)
+    s.readStream(stream, ReadDirection.Forward, from, count, resolveLinkTos, credentials)
 
   def readStreamBackwards(
     stream: String,
@@ -44,7 +44,7 @@ final class StreamsSyntax[F[_]](val esc: Streams[F]) extends AnyVal {
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    esc.readStream(stream, ReadDirection.Backward, from, count, resolveLinkTos, credentials)
+    s.readStream(stream, ReadDirection.Backward, from, count, resolveLinkTos, credentials)
 
   def readAllForwards(
     position: Position,
@@ -53,7 +53,7 @@ final class StreamsSyntax[F[_]](val esc: Streams[F]) extends AnyVal {
     filter: Option[EventFilter] = None,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    esc.readAll(position, ReadDirection.Forward, maxCount, resolveLinkTos, filter, credentials)
+    s.readAll(position, ReadDirection.Forward, maxCount, resolveLinkTos, filter, credentials)
 
   def readAllBackwards(
     position: Position,
@@ -62,7 +62,7 @@ final class StreamsSyntax[F[_]](val esc: Streams[F]) extends AnyVal {
     filter: Option[EventFilter] = None,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    esc.readAll(position, ReadDirection.Backward, maxCount, resolveLinkTos, filter, credentials)
+    s.readAll(position, ReadDirection.Backward, maxCount, resolveLinkTos, filter, credentials)
 
   /// Append
 
@@ -71,7 +71,8 @@ final class StreamsSyntax[F[_]](val esc: Streams[F]) extends AnyVal {
     expectedRevision: StreamRevision,
     events: NonEmptyList[EventData],
     credentials: Option[UserCredentials] = None
-  ): F[Streams.WriteResult] = esc.appendToStream(stream, expectedRevision, events, credentials)
+  ): F[Streams.WriteResult] =
+    s.appendToStream(stream, expectedRevision, events, credentials)
 
   /// Delete
 
@@ -79,12 +80,14 @@ final class StreamsSyntax[F[_]](val esc: Streams[F]) extends AnyVal {
     stream: String,
     expectedRevision: StreamRevision,
     credentials: Option[UserCredentials] = None
-  ): F[Streams.DeleteResult] = esc.softDelete(stream, expectedRevision, credentials)
+  ): F[Streams.DeleteResult] =
+    s.softDelete(stream, expectedRevision, credentials)
 
   def hardDelete(
     stream: String,
     expectedRevision: StreamRevision,
     credentials: Option[UserCredentials] = None
-  ): F[Streams.DeleteResult] = esc.hardDelete(stream, expectedRevision, credentials)
+  ): F[Streams.DeleteResult] =
+    s.hardDelete(stream, expectedRevision, credentials)
 
 }

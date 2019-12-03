@@ -2,6 +2,7 @@ package sec
 package core
 
 import scala.concurrent.duration._
+import cats.Show
 import cats.implicits._
 import io.circe._
 import io.circe.syntax._
@@ -46,12 +47,36 @@ private[sec] object StreamMetadata {
 
 //======================================================================================================================
 
+/**
+ * @param maxAge The maximum age of events in the stream.
+ * Items older than this will be automatically removed.
+ * This value must be >= 1 second.
+ *
+ * @param maxCount The maximum count of events in the stream.
+ * When you have more than count the oldest will be removed.
+ * This value must be >= 1.
+ *
+ * @param truncateBefore When set says that items prior to event 'E' can
+ * be truncated and will be removed.
+ *
+ * @param cacheControl The head of a feed in the atom api is not cacheable.
+ * This allows you to specify a period of time you want it to be cacheable.
+ * Low numbers are best here (say 30-60 seconds) and introducing values
+ * here will introduce latency over the atom protocol if caching is occuring.
+ * This value must be >= 1 second.
+ *
+ * @param acl The access control list for this stream.
+ * */
+//
+// TODO: If this type should be surfaced then either newtypes or builder that ensure valid values is needed.
+// Include some details from https://eventstore.org/docs/server/deleting-streams-and-events/index.html
+
 private[sec] final case class StreamState(
-  maxAge: Option[FiniteDuration],
-  truncateBefore: Option[EventNumber],
-  maxCount: Option[Int],
-  acl: Option[StreamAcl],
-  cacheControl: Option[FiniteDuration]
+  maxAge: Option[FiniteDuration],       // newtype that ensures >=1s
+  maxCount: Option[Int],                // newtype that ensures >=1
+  truncateBefore: Option[EventNumber],  // EventNumber.Start valid? If invalid then >= Start, e.g. 0 => None
+  cacheControl: Option[FiniteDuration], // newtype that ensures >=1s
+  acl: Option[StreamAcl]
 )
 
 private[sec] object StreamState {
@@ -91,9 +116,21 @@ private[sec] object StreamState {
           acl            <- c.get[Option[StreamAcl]](Acl)
           cacheControl   <- c.get[Option[FiniteDuration]](CacheControl)
 
-        } yield StreamState(maxAge, truncateBefore, maxCount, acl, cacheControl)
+        } yield StreamState(maxAge, maxCount, truncateBefore, cacheControl, acl)
 
     }
+
+  implicit val showForStreamState: Show[StreamState] = Show.show[StreamState] { ss =>
+    s"""
+       |StreamState:
+       |  max-age         = ${ss.maxAge.getOrElse(" - ")}
+       |  max-count       = ${ss.maxCount.map(c => if (c == 1) s"$c event" else s"$c events").getOrElse(" - ")}
+       |  cache-control   = ${ss.cacheControl.getOrElse(" - ")}
+       |  truncate-before = ${ss.truncateBefore.map(_.show).getOrElse(" - ")}
+       |  access-list     = ${ss.acl.map(_.show).getOrElse(" - ")}
+       |""".stripMargin
+
+  }
 
 }
 
@@ -149,4 +186,18 @@ object StreamAcl {
       (get(Read), get(Write), get(Delete), get(MetaRead), get(MetaWrite)).mapN(StreamAcl.apply)
     }
   }
+
+  implicit val showForStreamAcl: Show[StreamAcl] = Show.show[StreamAcl] { ss =>
+    def show(label: String, roles: Set[String]): String =
+      s"$label: ${roles.mkString("[", ", ", "]")}"
+
+    val r  = show("read", ss.readRoles)
+    val w  = show("write", ss.writeRoles)
+    val d  = show("delete", ss.deleteRoles)
+    val mr = show("meta-read", ss.metaReadRoles)
+    val mw = show("meta-write", ss.metaWriteRoles)
+
+    s"$r, $w, $d, $mr, $mw"
+  }
+
 }
