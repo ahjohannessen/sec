@@ -1,7 +1,10 @@
 package sec
+package api
 package grpc
 
-object Constants {
+private[sec] object constants {
+
+//======================================================================================================================
 
   object Exceptions {
 
@@ -11,6 +14,7 @@ object Constants {
     val StreamDeleted: String                      = "stream-deleted"
     val WrongExpectedVersion: String               = "wrong-expected-version"
     val StreamNotFound: String                     = "stream-not-found"
+    val MaximumAppendSizeExceeded: String          = "max-append-size-exceeded"
     val PersistentSubscriptionFailed: String       = "persistent-subscription-failed"
     val PersistentSubscriptionDoesNotExist: String = "persistent-subscription-does-not-exist"
     val PersistentSubscriptionExists: String       = "persistent-subscription-exists"
@@ -28,15 +32,21 @@ object Constants {
     val LoginName = "login-name"
   }
 
+//======================================================================================================================
+
   object Metadata {
     val IsJson: String  = "is-json"
     val Type: String    = "type"
     val Created: String = "created"
   }
 
+//======================================================================================================================
+
   object Headers {
     val Authorization: String = "authorization"
     val BasicScheme: String   = "Basic"
   }
+
+//======================================================================================================================
 
 }

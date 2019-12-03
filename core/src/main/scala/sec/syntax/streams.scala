@@ -3,7 +3,8 @@ package syntax
 
 import cats.data.NonEmptyList
 import fs2.Stream
-import sec.core._
+import sec.core.{Event, EventData, EventFilter, EventNumber, Position, StreamRevision}
+import sec.api._
 
 final class StreamsSyntax[F[_]](val esc: Streams[F]) extends AnyVal {
 
