@@ -12,7 +12,8 @@ final case class StreamNotFound(streamName: String) extends EsException(s"Event 
 final case class MaximumAppendSizeExceeded(size: Option[Int]) extends EsException(MaximumAppendSizeExceeded.msg(size)) // Streams.Append
 
 object MaximumAppendSizeExceeded {
-  def msg(maxSize: Option[Int]): String = s"Maximum Append Size of ${maxSize.getOrElse("<unknown>")} Exceeded."
+  def msg(maxSize: Option[Int]): String =
+    s"Maximum append size ${maxSize.map(max => s"of $max bytes ").getOrElse("")}exceeded."
 }
 
 final case class WrongExpectedVersion(streamName: String, expected: Option[Long], actual: Option[Long]) // Streams.Delete + Streams.Append
