@@ -5,10 +5,15 @@ sealed abstract class EsException(msg: String) extends RuntimeException(msg)
 
 case object AccessDenied                            extends EsException("Access Denied.")                             // All
 case object InvalidTransaction                      extends EsException("Invalid Transaction.")                       // Streams.Delete + Streams.Append
-case object MaximumAppendSizeExceeded               extends EsException("Maximum Append Size Exceeded.")              // Streams.Append
 final case class UserNotFound(loginName: String)    extends EsException(s"User '$loginName' was not found.")          // Users
 final case class StreamDeleted(streamName: String)  extends EsException(s"Event stream '$streamName' is deleted.")    // Streams
 final case class StreamNotFound(streamName: String) extends EsException(s"Event stream '$streamName' was not found.") // Streams.Read/Subscribe
+
+final case class MaximumAppendSizeExceeded(size: Option[Int]) extends EsException(MaximumAppendSizeExceeded.msg(size)) // Streams.Append
+
+object MaximumAppendSizeExceeded {
+  def msg(maxSize: Option[Int]): String = s"Maximum Append Size of ${maxSize.getOrElse("<unknown>")} Exceeded."
+}
 
 final case class WrongExpectedVersion(streamName: String, expected: Option[Long], actual: Option[Long]) // Streams.Delete + Streams.Append
   extends EsException(WrongExpectedVersion.msg(streamName, expected, actual))

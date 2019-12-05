@@ -9,10 +9,16 @@ import constants.Headers.BasicScheme
 
 //======================================================================================================================
 
-private[grpc] object LongMarshaller extends AsciiMarshaller[Long] {
-  def toAsciiString(value: Long): String         = value.toString
-  def parseAsciiString(serialized: String): Long = serialized.toLong
+private[grpc] object IntMarshaller  extends NumericAsciiMarshaller[Int]("Int")
+private[grpc] object LongMarshaller extends NumericAsciiMarshaller[Long]("Long")
+
+private[grpc] abstract sealed class NumericAsciiMarshaller[T: Numeric](tpe: String) extends AsciiMarshaller[T] {
+  final def toAsciiString(v: T): String    = v.toString
+  final def parseAsciiString(s: String): T = Numeric[T].parseString(s).getOrElse(throw InvalidInput(s, tpe))
 }
+
+private[grpc] final case class InvalidInput(input: String, tpe: String)
+  extends RuntimeException(s"Could not parse $input to $tpe")
 
 //======================================================================================================================
 
@@ -34,7 +40,7 @@ private[grpc] object UserCredentialsMarshaller extends AsciiMarshaller[UserCrede
   }
 
   def parseAsciiString(serialized: String): UserCredentials =
-    UserCredentials.unsafe("<decoding>", "<not-supported>")
+    UserCredentials.unsafe("decoding-not-supported", "n/a")
 
 }
 

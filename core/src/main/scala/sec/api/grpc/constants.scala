@@ -23,11 +23,12 @@ private[sec] object constants {
     val UserNotFound: String                       = "user-not-found"
     val UserConflict: String                       = "user-conflict"
 
-    val ExpectedVersion: String = "expected-version"
-    val ActualVersion: String   = "actual-version"
-    val StreamName: String      = "stream-name"
-    val GroupName: String       = "group-name"
-    val Reason: String          = "reason"
+    val ExpectedVersion: String   = "expected-version"
+    val ActualVersion: String     = "actual-version"
+    val MaximumAppendSize: String = "maximum-append-size"
+    val StreamName: String        = "stream-name"
+    val GroupName: String         = "group-name"
+    val Reason: String            = "reason"
 
     val LoginName = "login-name"
   }

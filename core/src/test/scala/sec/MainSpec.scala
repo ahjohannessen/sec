@@ -35,7 +35,6 @@ class MainSpec extends mutable.Specification {
       println(Printer.spaces2.copy(dropNullValues = true).print(enc))
       println(dec.map(_.settings))
       println(cus)
-      println(UserCredentials.unsafe("shrug", "abcdefgh"))
 
       val x =
         """

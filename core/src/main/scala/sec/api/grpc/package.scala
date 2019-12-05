@@ -19,6 +19,7 @@ package object grpc {
     val loginName: Metadata.Key[String]        = Metadata.Key.of(ce.LoginName, StringMarshaller)
     val expectedVersion: Metadata.Key[Long]    = Metadata.Key.of(ce.ExpectedVersion, LongMarshaller)
     val actualVersion: Metadata.Key[Long]      = Metadata.Key.of(ce.ActualVersion, LongMarshaller)
+    val maximumAppendSize: Metadata.Key[Int]   = Metadata.Key.of(ce.MaximumAppendSize, IntMarshaller)
   }
 
 //======================================================================================================================
@@ -35,20 +36,20 @@ package object grpc {
 
   val convertToEs: StatusRuntimeException => Option[EsException] = ex => {
 
-    val unknown = "<unknown>"
-
-    val md         = ex.getTrailers
-    val exception  = md.getOpt(keys.exception)
-    def streamName = md.getOpt(keys.streamName).getOrElse(unknown)
-    def groupName  = md.getOpt(keys.groupName).getOrElse(unknown)
-    def expected   = md.getOpt(keys.expectedVersion)
-    def actual     = md.getOpt(keys.actualVersion)
-    def loginName  = md.getOpt(keys.loginName).getOrElse(unknown)
+    val unknown           = "<unknown>"
+    val md                = ex.getTrailers
+    val exception         = md.getOpt(keys.exception)
+    def streamName        = md.getOpt(keys.streamName).getOrElse(unknown)
+    def groupName         = md.getOpt(keys.groupName).getOrElse(unknown)
+    def expected          = md.getOpt(keys.expectedVersion)
+    def actual            = md.getOpt(keys.actualVersion)
+    def loginName         = md.getOpt(keys.loginName).getOrElse(unknown)
+    def maximumAppendSize = md.getOpt(keys.maximumAppendSize)
 
     exception.map {
       case ce.AccessDenied                       => AccessDenied
       case ce.InvalidTransaction                 => InvalidTransaction
-      case ce.MaximumAppendSizeExceeded          => MaximumAppendSizeExceeded
+      case ce.MaximumAppendSizeExceeded          => MaximumAppendSizeExceeded(maximumAppendSize)
       case ce.StreamDeleted                      => StreamDeleted(streamName)
       case ce.WrongExpectedVersion               => WrongExpectedVersion(streamName, expected, actual)
       case ce.StreamNotFound                     => StreamNotFound(streamName)
