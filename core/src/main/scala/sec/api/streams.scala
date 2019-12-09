@@ -90,11 +90,10 @@ object Streams {
     options: Options
   ): Streams[F] = new Impl[F](client, options)
 
-  private[sec] final class Impl[F[_]](
+  private[sec] final class Impl[F[_]: ConcurrentEffect: Timer](
     val client: StreamsFs2Grpc[F, Metadata],
     val options: Options
-  )(implicit F: ConcurrentEffect[F], T: Timer[F])
-    extends Streams[F] {
+  ) extends Streams[F] {
 
     import EventFilter._
 
