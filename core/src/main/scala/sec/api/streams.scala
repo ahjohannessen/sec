@@ -195,11 +195,11 @@ object Streams {
           if (retriesLeft > 0) subscribeWithRetry(retriesLeft - 1).delayBy(delayWhenNotFound) else Stream.never
       }
 
-    val waitForSourceAndGlobal: Stream[F, Event] =
+    val waitForSourceOrGlobal: Stream[F, Event] =
       subscribeWithRetry(retriesWhenNotFound).take(1).mergeHaltBoth(allSubscription.take(1))
 
     source.recoverWith {
-      case _: StreamNotFound if !failIfNotFound => waitForSourceAndGlobal >> source
+      case _: StreamNotFound if !failIfNotFound => waitForSourceOrGlobal >> source
     }
 
   }
