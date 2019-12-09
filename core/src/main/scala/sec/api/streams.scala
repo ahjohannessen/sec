@@ -1,8 +1,9 @@
 package sec
 package api
 
+import scala.concurrent.duration._
 import cats.data.NonEmptyList
-import cats.effect.Sync
+import cats.effect._
 import cats.implicits._
 import io.grpc.Metadata
 import fs2.Stream
@@ -26,6 +27,7 @@ trait Streams[F[_]] {
     stream: String,
     exclusiveFrom: Option[EventNumber],
     resolveLinkTos: Boolean,
+    failIfNotFound: Boolean,
     creds: Option[UserCredentials]
   ): Stream[F, Event]
 
@@ -83,7 +85,7 @@ object Streams {
 //                                                  Impl
 //======================================================================================================================
 
-  private[sec] def apply[F[_]: Sync](
+  private[sec] def apply[F[_]: ConcurrentEffect: Timer](
     client: StreamsFs2Grpc[F, Metadata],
     options: Options
   ): Streams[F] = new Impl[F](client, options)
@@ -91,8 +93,10 @@ object Streams {
   private[sec] final class Impl[F[_]](
     val client: StreamsFs2Grpc[F, Metadata],
     val options: Options
-  )(implicit F: Sync[F])
+  )(implicit F: ConcurrentEffect[F], T: Timer[F])
     extends Streams[F] {
+
+    import EventFilter._
 
     val auth: Option[UserCredentials] => Metadata =
       _.orElse(options.defaultCreds).map(_.toMetadata).getOrElse(new Metadata())
@@ -112,9 +116,16 @@ object Streams {
       stream: String,
       exclusiveFrom: Option[EventNumber],
       resolveLinkTos: Boolean,
+      failIfNotFound: Boolean,
       creds: Option[UserCredentials]
-    ): Stream[F, Event] =
-      client.read(mkSubscribeToStreamReq(stream, exclusiveFrom, resolveLinkTos), auth(creds)).through(mkEvents)
+    ): Stream[F, Event] = subscribeToStream0[F](
+      stream,
+      retriesWhenNotFound = 20,
+      delayWhenNotFound   = 150.millis,
+      client.read(mkSubscribeToStreamReq(stream, exclusiveFrom, resolveLinkTos), auth(creds)).through(mkEvents),
+      subscribeToAll(None, resolveLinkTos = false, prefix(StreamName, None, PrefixFilter(stream)).some, creds),
+      failIfNotFound
+    )
 
     def readAll(
       position: Position,
@@ -141,12 +152,11 @@ object Streams {
       expectedRevision: StreamRevision,
       events: NonEmptyList[EventData],
       creds: Option[UserCredentials]
-    ): F[WriteResult] = {
-      val header    = mkAppendHeaderReq(stream, expectedRevision)
-      val proposals = mkAppendProposalsReq(events).toList
-      val request   = Stream.emit(header) ++ Stream.emits(proposals)
-      client.append(request, auth(creds)) >>= mkWriteResult[F]
-    }
+    ): F[WriteResult] =
+      client.append(
+        Stream.emit(mkAppendHeaderReq(stream, expectedRevision)) ++ Stream.emits(mkAppendProposalsReq(events).toList),
+        auth(creds)
+      ) >>= mkWriteResult[F]
 
     def softDelete(
       stream: String,
@@ -163,6 +173,35 @@ object Streams {
       client.tombstone(mkHardDeleteReq(stream, expectedRevision), auth(creds)) >>= mkDeleteResult[F]
 
     private[sec] val metadata: StreamMeta[F] = StreamMeta[F](this)
+  }
+
+//======================================================================================================================
+
+  private[sec] def subscribeToStream0[F[_]: ConcurrentEffect: Timer](
+    stream: String,
+    retriesWhenNotFound: Int,
+    delayWhenNotFound: FiniteDuration,
+    source: Stream[F, Event],
+    globalSource: Stream[F, Event],
+    failIfNotFound: Boolean
+  ): Stream[F, Event] = {
+
+    def allSubscription: Stream[F, Event] =
+      globalSource.filter(_.streamId === stream)
+
+    def subscribeWithRetry(retriesLeft: Int): Stream[F, Event] =
+      source.recoverWith {
+        case _: StreamNotFound =>
+          if (retriesLeft > 0) subscribeWithRetry(retriesLeft - 1).delayBy(delayWhenNotFound) else Stream.never
+      }
+
+    val waitForSourceAndGlobal: Stream[F, Event] =
+      subscribeWithRetry(retriesWhenNotFound).take(1).mergeHaltBoth(allSubscription.take(1))
+
+    source.recoverWith {
+      case _: StreamNotFound if !failIfNotFound => waitForSourceAndGlobal >> source
+    }
+
   }
 
 }

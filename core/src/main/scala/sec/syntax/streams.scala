@@ -22,9 +22,10 @@ final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
     stream: String,
     exclusiveFrom: Option[EventNumber],
     resolveLinkTos: Boolean = false,
+    failIfNotFound: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.subscribeToStream(stream, exclusiveFrom, resolveLinkTos, credentials)
+    s.subscribeToStream(stream, exclusiveFrom, resolveLinkTos, failIfNotFound, credentials)
 
   /// Read
 

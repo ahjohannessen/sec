@@ -17,8 +17,8 @@ final case class EventFilter(
 object EventFilter {
 
   sealed trait Kind
-  case object Stream    extends Kind
-  case object EventType extends Kind
+  case object StreamName extends Kind
+  case object EventType  extends Kind
 
   def prefix(kind: Kind, maxSearchWindow: Option[Int], fst: PrefixFilter, rest: PrefixFilter*): EventFilter =
     EventFilter(kind, maxSearchWindow, NonEmptyList(fst, rest.toList).asLeft)

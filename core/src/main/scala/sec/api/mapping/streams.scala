@@ -47,8 +47,8 @@ private[sec] object streams {
           .getOrElse(ReadReq.Options.FilterOptions.Window.Count(ReadReq.Empty()))
 
         val result = filter.kind match {
-          case EventFilter.Stream    => ReadReq.Options.FilterOptions().withStreamName(expr).withWindow(window)
-          case EventFilter.EventType => ReadReq.Options.FilterOptions().withEventType(expr).withWindow(window)
+          case EventFilter.StreamName => ReadReq.Options.FilterOptions().withStreamName(expr).withWindow(window)
+          case EventFilter.EventType  => ReadReq.Options.FilterOptions().withEventType(expr).withWindow(window)
         }
 
         FilterOptionsOneof.Filter(result)
