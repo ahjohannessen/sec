@@ -5,14 +5,12 @@ import scala.concurrent.duration._
 import cats.data.NonEmptyList
 import cats.effect._
 import cats.implicits._
-import io.grpc.Metadata
 import fs2.Stream
 import com.eventstore.client.streams._
 import sec.core._
 import sec.syntax.StreamsSyntax
 import mapping.streams.outgoing._
 import mapping.streams.incoming._
-import grpc._
 
 trait Streams[F[_]] {
 
@@ -86,19 +84,20 @@ object Streams {
 //======================================================================================================================
 
   private[sec] def apply[F[_]: ConcurrentEffect: Timer](
-    client: StreamsFs2Grpc[F, Metadata],
+    client: StreamsFs2Grpc[F, Context],
     options: Options
   ): Streams[F] = new Impl[F](client, options)
 
   private[sec] final class Impl[F[_]: ConcurrentEffect: Timer](
-    val client: StreamsFs2Grpc[F, Metadata],
+    val client: StreamsFs2Grpc[F, Context],
     val options: Options
   ) extends Streams[F] {
 
     import EventFilter._
 
-    val auth: Option[UserCredentials] => Metadata =
-      _.orElse(options.defaultCreds).map(_.toMetadata).getOrElse(new Metadata())
+    val ctx: Option[UserCredentials] => Context = uc => {
+      Context(uc.orElse(options.defaultCreds), options.connectionName)
+    }
 
     private val mkEvents: Stream[F, ReadResp] => Stream[F, Event] =
       _.evalMap(_.event.map(mkEvent[F]).getOrElse(none[Event].pure[F])).unNone
@@ -109,7 +108,7 @@ object Streams {
       filter: Option[EventFilter],
       creds: Option[UserCredentials]
     ): Stream[F, Event] =
-      client.read(mkSubscribeToAllReq(exclusiveFrom, resolveLinkTos, filter), auth(creds)).through(mkEvents)
+      client.read(mkSubscribeToAllReq(exclusiveFrom, resolveLinkTos, filter), ctx(creds)).through(mkEvents)
 
     def subscribeToStream(
       stream: String,
@@ -121,7 +120,7 @@ object Streams {
       stream,
       retriesWhenNotFound = 20,
       delayWhenNotFound   = 150.millis,
-      client.read(mkSubscribeToStreamReq(stream, exclusiveFrom, resolveLinkTos), auth(creds)).through(mkEvents),
+      client.read(mkSubscribeToStreamReq(stream, exclusiveFrom, resolveLinkTos), ctx(creds)).through(mkEvents),
       subscribeToAll(None, resolveLinkTos = false, prefix(StreamName, None, PrefixFilter(stream)).some, creds),
       failIfNotFound
     )
@@ -134,7 +133,7 @@ object Streams {
       filter: Option[EventFilter],
       creds: Option[UserCredentials]
     ): Stream[F, Event] =
-      client.read(mkReadAllReq(position, direction, maxCount, resolveLinkTos, filter), auth(creds)).through(mkEvents)
+      client.read(mkReadAllReq(position, direction, maxCount, resolveLinkTos, filter), ctx(creds)).through(mkEvents)
 
     def readStream(
       stream: String,
@@ -144,7 +143,7 @@ object Streams {
       resolveLinkTos: Boolean,
       creds: Option[UserCredentials]
     ): Stream[F, Event] =
-      client.read(mkReadStreamReq(stream, direction, from, count, resolveLinkTos), auth(creds)).through(mkEvents)
+      client.read(mkReadStreamReq(stream, direction, from, count, resolveLinkTos), ctx(creds)).through(mkEvents)
 
     def appendToStream(
       stream: String,
@@ -154,7 +153,7 @@ object Streams {
     ): F[WriteResult] =
       client.append(
         Stream.emit(mkAppendHeaderReq(stream, expectedRevision)) ++ Stream.emits(mkAppendProposalsReq(events).toList),
-        auth(creds)
+        ctx(creds)
       ) >>= mkWriteResult[F]
 
     def softDelete(
@@ -162,14 +161,14 @@ object Streams {
       expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
     ): F[DeleteResult] =
-      client.delete(mkSoftDeleteReq(stream, expectedRevision), auth(creds)) >>= mkDeleteResult[F]
+      client.delete(mkSoftDeleteReq(stream, expectedRevision), ctx(creds)) >>= mkDeleteResult[F]
 
     def hardDelete(
       stream: String,
       expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
     ): F[DeleteResult] =
-      client.tombstone(mkHardDeleteReq(stream, expectedRevision), auth(creds)) >>= mkDeleteResult[F]
+      client.tombstone(mkHardDeleteReq(stream, expectedRevision), ctx(creds)) >>= mkDeleteResult[F]
 
     private[sec] val metadata: StreamMeta[F] = StreamMeta[F](this)
   }

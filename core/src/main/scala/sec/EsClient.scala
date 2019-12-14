@@ -3,9 +3,10 @@ package sec
 import cats.effect.{ConcurrentEffect, Resource, Timer}
 import org.lyranthe.fs2_grpc.java_runtime.implicits._
 import com.eventstore.client.streams.StreamsFs2Grpc
-import io.grpc.{ManagedChannel, ManagedChannelBuilder, Metadata}
+import io.grpc.{ManagedChannel, ManagedChannelBuilder}
 import fs2.Stream
 import sec.api._
+import sec.api.grpc._
 
 trait EsClient[F[_]] {
   def streams: Streams[F]
@@ -27,7 +28,7 @@ object EsClient {
 
   private final class Impl[F[_]: ConcurrentEffect: Timer](mc: ManagedChannel, options: Options) extends EsClient[F] {
     val streams: Streams[F] =
-      Streams(StreamsFs2Grpc.client[F, Metadata](mc, identity, identity, grpc.convertToEs), options)
+      Streams(StreamsFs2Grpc.client[F, Context](mc, _.toMetadata, identity, grpc.convertToEs), options)
   }
 
 }

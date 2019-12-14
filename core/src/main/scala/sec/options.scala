@@ -6,11 +6,12 @@ import api._
 //======================================================================================================================
 
 final case class Options(
+  connectionName: String,
   defaultCreds: Option[UserCredentials]
 )
 
 object Options {
-  val default = Options(UserCredentials.unsafe("admin", "changeit").some)
+  val default = Options("sec", UserCredentials.unsafe("admin", "changeit").some)
 }
 
 //======================================================================================================================
