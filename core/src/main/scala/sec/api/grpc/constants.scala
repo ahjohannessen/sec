@@ -44,8 +44,9 @@ private[sec] object constants {
 //======================================================================================================================
 
   object Headers {
-    val Authorization: String = "authorization"
-    val BasicScheme: String   = "Basic"
+    val Authorization: String  = "authorization"
+    val BasicScheme: String    = "Basic"
+    val ConnectionName: String = "connection-name"
   }
 
 //======================================================================================================================

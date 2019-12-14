@@ -13,6 +13,7 @@ package object grpc {
 
   private[grpc] object keys {
     val authKey: Metadata.Key[UserCredentials] = Metadata.Key.of(Authorization, UserCredentialsMarshaller)
+    val cnKey: Metadata.Key[String]            = Metadata.Key.of(ConnectionName, StringMarshaller)
     val exception: Metadata.Key[String]        = Metadata.Key.of(ce.ExceptionKey, StringMarshaller)
     val streamName: Metadata.Key[String]       = Metadata.Key.of(ce.StreamName, StringMarshaller)
     val groupName: Metadata.Key[String]        = Metadata.Key.of(ce.GroupName, StringMarshaller)
@@ -24,10 +25,11 @@ package object grpc {
 
 //======================================================================================================================
 
-  implicit final class UserCredentialsOps(val uc: UserCredentials) extends AnyVal {
+  implicit final class ContextOps(val ctx: Context) extends AnyVal {
     def toMetadata: Metadata = {
       val md = new Metadata()
-      md.put(keys.authKey, uc)
+      ctx.userCreds.foreach(md.put(keys.authKey, _))
+      md.put(keys.cnKey, ctx.connectionName)
       md
     }
   }

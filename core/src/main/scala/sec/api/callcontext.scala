@@ -5,6 +5,13 @@ import cats.implicits._
 
 //======================================================================================================================
 
+private[sec] final case class Context(
+  userCreds: Option[UserCredentials],
+  connectionName: String
+)
+
+//======================================================================================================================
+
 sealed abstract case class UserCredentials(username: String, password: String) {
   override def toString = s"UserCredentials(username = $username, password = 🤐)"
 }
