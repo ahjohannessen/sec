@@ -95,7 +95,6 @@ private[sec] object StreamMeta {
   def create[F[_]](metaRW: MetaRW[F])(implicit F: Sync[F]): StreamMeta[F] = new StreamMeta[F] {
 
     import core.constants.SystemStreams.MetadataPrefix
-    import core.constants.SystemEventTypes.{StreamMetadata => StreamMetadataType}
 
     val metaForStream: String => String = stream => s"$MetadataPrefix$stream"
     val recoverRead: PartialFunction[Throwable, Option[EventRecord]] = {
@@ -132,7 +131,7 @@ private[sec] object StreamMeta {
         val modified  = modFn(res.fold(StreamState.empty)(_.data))
         val json      = Encoder[StreamState].apply(modified)
         val printer   = Printer.noSpaces.copy(dropNullValues = true)
-        val eventData = Content.json(printer.print(json)) >>= (EventData(StreamMetadataType, id, _))
+        val eventData = Content.json(printer.print(json)) >>= (EventData(EventType.StreamMetadata, id, _))
 
         eventData.leftMap(EncodingError(_)).liftTo[F] >>= { d =>
           metaRW.writeMeta(metaForStream(stream), expectedRevision, NonEmptyList.one(d), creds) *> F.unit

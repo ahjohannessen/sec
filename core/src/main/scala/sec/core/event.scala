@@ -46,11 +46,11 @@ object EventRecord {
 
   implicit final class EventRecordOps(val e: EventRecord) extends AnyVal {
 
-    import constants.SystemEventTypes.LinkTo
-
     def createLink(eventId: UUID): Attempt[EventData] =
-      Either.cond(e.eventData.eventType != LinkTo, (), "Linking to a link is not supported.") >> {
-        Content.binary(s"${e.number.value}@${e.streamId}") >>= (EventData(eventType = LinkTo, eventId, _))
+      Either.cond(e.eventData.eventType != EventType.LinkTo, (), "Linking to a link is not supported.") >> {
+        Content.binary(s"${e.number.value}@${e.streamId}") >>= { data =>
+          EventData(EventType.LinkTo, eventId, data, Content.BinaryEmpty)
+        }
       }
   }
 
@@ -91,8 +91,89 @@ object ResolvedEvent {
 
 //======================================================================================================================
 
+sealed trait EventType
+object EventType {
+
+  sealed trait SystemType     extends EventType
+  case object StreamDeleted   extends SystemType
+  case object StatsCollection extends SystemType
+  case object LinkTo          extends SystemType
+  case object StreamMetadata  extends SystemType
+  case object Settings        extends SystemType
+  case object UserCreated     extends SystemType
+  case object UserUpdated     extends SystemType
+  case object PasswordChanged extends SystemType
+
+  sealed abstract case class SystemDefined(name: String) extends SystemType
+  sealed abstract case class UserDefined(name: String)   extends EventType
+
+  def apply(name: String): Attempt[UserDefined] = userDefined(name)
+
+  ///
+
+  private val guardNonEmpty: String => Attempt[String] = name =>
+    Either.fromOption(Option(name).filter(_.nonEmpty), "Event type name cannot be empty")
+
+  private val guardNonSystemType: String => Attempt[String] = n =>
+    if (n.startsWith("$")) "Event type names starting with $ are reserved to system types".asLeft else n.asRight
+
+  private[sec] def systemDefined(name: String): Attempt[SystemDefined] =
+    guardNonEmpty(name) >>= (n => new SystemDefined(n) {}.asRight)
+
+  private[sec] def userDefined(name: String): Attempt[UserDefined] =
+    guardNonEmpty(name) >>= guardNonSystemType >>= (n => new UserDefined(n) {}.asRight)
+
+  ///
+
+  private[sec] def toStr: EventType => String = {
+    case StreamDeleted    => systemTypes.StreamDeleted
+    case StatsCollection  => systemTypes.StatsCollection
+    case LinkTo           => systemTypes.LinkTo
+    case StreamMetadata   => systemTypes.StreamMetadata
+    case Settings         => systemTypes.Settings
+    case UserCreated      => systemTypes.UserCreated
+    case UserUpdated      => systemTypes.UserUpdated
+    case PasswordChanged  => systemTypes.PasswordChanged
+    case SystemDefined(t) => t
+    case UserDefined(t)   => t
+  }
+
+  private[sec] def fromStr: String => Attempt[EventType] = {
+    case systemTypes.StreamDeleted   => StreamDeleted.asRight
+    case systemTypes.StatsCollection => StatsCollection.asRight
+    case systemTypes.LinkTo          => LinkTo.asRight
+    case systemTypes.StreamMetadata  => StreamMetadata.asRight
+    case systemTypes.Settings        => Settings.asRight
+    case systemTypes.UserCreated     => UserCreated.asRight
+    case systemTypes.UserUpdated     => UserUpdated.asRight
+    case systemTypes.PasswordChanged => PasswordChanged.asRight
+    case sd if sd.startsWith("$")    => systemDefined(sd)
+    case ud                          => userDefined(ud)
+  }
+
+  private object systemTypes {
+
+    final val StreamDeleted: String   = "$streamDeleted"
+    final val StatsCollection: String = "$statsCollected"
+    final val LinkTo: String          = "$>"
+    final val StreamMetadata: String  = "$metadata"
+    final val Settings: String        = "$settings"
+    final val UserCreated: String     = "$UserCreated"
+    final val UserUpdated: String     = "$UserUpdated"
+    final val PasswordChanged: String = "$PasswordChanged"
+
+  }
+
+  ///
+
+  implicit val showForEventType: Show[EventType] = Show.show[EventType](toStr)
+
+}
+
+//======================================================================================================================
+
 sealed abstract case class EventData(
-  eventType: String, // Strong types: User & SystemEventTypes
+  eventType: EventType,
   eventId: UUID,
   data: Content,
   metadata: Content
@@ -103,30 +184,21 @@ object EventData {
   def apply(eventType: String, eventId: UUID, data: Content): Attempt[EventData] =
     EventData(eventType, eventId, data, Content(ByteVector.empty, data.contentType))
 
-  def apply(eventType: String, eventId: UUID, data: Content, metadata: Content): Attempt[EventData] = {
+  def apply(eventType: String, eventId: UUID, data: Content, metadata: Content): Attempt[EventData] =
+    EventType(eventType) >>= (EventData(_, eventId, data, metadata))
 
-    val guardEventType = Either.fromOption(
-      Option(eventType).filter(_.nonEmpty),
-      "eventType cannot be empty"
-    )
+  private[sec] def apply(et: EventType, eventId: UUID, data: Content): Attempt[EventData] =
+    EventData(et, eventId, data, Content(ByteVector.empty, data.contentType))
 
-    val guardContentType = Either.cond(
-      data.contentType == metadata.contentType,
-      (data, metadata),
-      "ES does not support different content types for data & metadata."
-    )
+  private[sec] def apply(et: EventType, eventId: UUID, data: Content, metadata: Content): Attempt[EventData] =
+    if (data.contentType == metadata.contentType) new EventData(et, eventId, data, metadata) {}.asRight
+    else "Different content types for data & metadata is not supported.".asLeft
 
-    (guardContentType, guardEventType).mapN {
-      case ((gdata, gmeta), gtype) => new EventData(gtype, eventId, gdata, gmeta) {}
-    }
+  private[sec] def json(et: EventType, eventId: UUID, data: ByteVector, metadata: ByteVector): Attempt[EventData] =
+    EventData(et, eventId, Content(data, Content.Type.Json), Content(metadata, Content.Type.Json))
 
-  }
-
-  def json(eventType: String, eventId: UUID, data: ByteVector, metadata: ByteVector): Attempt[EventData] =
-    EventData(eventType, eventId, Content(data, Content.Type.Json), Content(metadata, Content.Type.Json))
-
-  def binary(eventType: String, eventId: UUID, data: ByteVector, metadata: ByteVector): Attempt[EventData] =
-    EventData(eventType, eventId, Content(data, Content.Type.Binary), Content(metadata, Content.Type.Binary))
+  private[sec] def binary(et: EventType, eventId: UUID, data: ByteVector, metadata: ByteVector): Attempt[EventData] =
+    EventData(et, eventId, Content(data, Content.Type.Binary), Content(metadata, Content.Type.Binary))
 
   ///
 
@@ -171,7 +243,9 @@ object Content {
 
   ///
 
-  val Empty: Content = Content(ByteVector.empty, Type.Binary)
+  def empty(t: Type): Content = Content(ByteVector.empty, t)
+  val BinaryEmpty: Content    = empty(Type.Binary)
+  val JsonEmpty: Content      = empty(Type.Json)
 
   def apply(data: String, ct: Type): Attempt[Content] =
     ByteVector.encodeUtf8(data).map(Content(_, ct)).leftMap(_.getMessage)

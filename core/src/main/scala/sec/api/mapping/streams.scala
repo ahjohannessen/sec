@@ -176,7 +176,7 @@ private[sec] object streams {
       val id         = UUID().withString(e.eventId.toString)
       val customMeta = e.metadata.bytes.toByteString
       val data       = e.data.bytes.toByteString
-      val meta       = Map(Type -> e.eventType, IsJson -> e.isJson.fold("true", "false"))
+      val meta       = Map(Type -> EventType.toStr(e.eventType), IsJson -> e.isJson.fold("true", "false"))
       val proposal   = AppendReq.ProposedMessage(id.some, meta, customMeta, data)
       AppendReq().withProposedMessage(proposal)
     }
@@ -206,7 +206,7 @@ private[sec] object streams {
       val data        = e.data.toByteVector
       val customMeta  = e.customMetadata.toByteVector
       val eventId     = e.id.require[F]("UUID") >>= mkUUID[F]
-      val eventType   = e.metadata.get(Type).require[F](Type)
+      val eventType   = e.metadata.get(Type).require[F](Type) >>= mkEventType[F]
       val isJson      = e.metadata.get(IsJson).flatMap(_.toBooleanOption).require[F](IsJson)
       val created     = e.metadata.get(Created).flatMap(_.toLongOption).require[F](Created) >>= fromTicksSinceEpoch[F]
 
@@ -217,6 +217,9 @@ private[sec] object streams {
       (eventData.flatten, created).mapN((ed, c) => EventRecord(streamId, eventNumber, position, ed, c))
 
     }
+
+    def mkEventType[F[_]: ErrorA](name: String): F[EventType] =
+      EventType.fromStr(name).leftMap(ProtoResultError(_)).liftTo[F]
 
     def mkUUID[F[_]: ErrorA](uuid: UUID): F[JUUID] = {
 

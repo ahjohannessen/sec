@@ -5,16 +5,6 @@ private[sec] object constants {
 
 //======================================================================================================================
 
-  object SystemEventTypes {
-    final val StreamDeleted: String   = "$streamDeleted"
-    final val StatsCollection: String = "$statsCollected"
-    final val LinkTo: String          = "$>"
-    final val StreamMetadata: String  = "$metadata"
-    final val Settings: String        = "$settings"
-  }
-
-//======================================================================================================================
-
   object SystemMetadata {
 
     final val MaxAge: String         = "$maxAge"
@@ -37,10 +27,13 @@ private[sec] object constants {
 //======================================================================================================================
 
   object SystemStreams {
-    final val StreamsStream: String     = "$streams"
-    final val SettingsStream: String    = "$settings"
-    final val StatsStreamPrefix: String = "$stats"
-    final val MetadataPrefix: String    = "$$"
+
+    final val StreamsStream: String                   = "$streams"
+    final val SettingsStream: String                  = "$settings"
+    final val UsersPasswordNotificationStream: String = "$users-password-notifications"
+    final val StatsStream: String                     = "$stats"
+
+    final val MetadataPrefix: String = "$$"
   }
 
 //======================================================================================================================
