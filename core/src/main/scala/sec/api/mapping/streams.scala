@@ -18,12 +18,24 @@ private[sec] object streams {
 
   object outgoing {
 
+    val mapPositionOpt: Option[Position] => ReadReq.Options.AllOptions.AllOptions = {
+      case Some(v) => mapPosition(v)
+      case None    => ReadReq.Options.AllOptions.AllOptions.Start(ReadReq.Empty())
+    }
+
     val mapPosition: Position => ReadReq.Options.AllOptions.AllOptions = {
-      case Position(c, p) => ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(c, p))
+      case Position.Exact(c, p) => ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(c, p))
+      case Position.End         => ReadReq.Options.AllOptions.AllOptions.End(ReadReq.Empty())
+    }
+
+    val mapEventNumberOpt: Option[EventNumber] => ReadReq.Options.StreamOptions.RevisionOptions = {
+      case Some(v) => mapEventNumber(v)
+      case None    => ReadReq.Options.StreamOptions.RevisionOptions.Start(ReadReq.Empty())
     }
 
     val mapEventNumber: EventNumber => ReadReq.Options.StreamOptions.RevisionOptions = {
-      case EventNumber(nr) => ReadReq.Options.StreamOptions.RevisionOptions.Revision(nr)
+      case EventNumber.Exact(nr) => ReadReq.Options.StreamOptions.RevisionOptions.Revision(nr)
+      case EventNumber.End       => ReadReq.Options.StreamOptions.RevisionOptions.End(ReadReq.Empty())
     }
 
     val mapDirection: ReadDirection => ReadReq.Options.ReadDirection = {
@@ -65,13 +77,9 @@ private[sec] object streams {
       resolveLinkTos: Boolean
     ): ReadReq = {
 
-      val revisionOptions = exclusiveFrom
-        .map(mapEventNumber)
-        .getOrElse(ReadReq.Options.StreamOptions.RevisionOptions.Start(ReadReq.Empty()))
-
       val options = ReadReq
         .Options()
-        .withStream(ReadReq.Options.StreamOptions(stream, revisionOptions))
+        .withStream(ReadReq.Options.StreamOptions(stream, mapEventNumberOpt(exclusiveFrom)))
         .withSubscription(ReadReq.Options.SubscriptionOptions())
         .withReadDirection(mapDirection(ReadDirection.Forward))
         .withResolveLinks(resolveLinkTos)
@@ -86,13 +94,9 @@ private[sec] object streams {
       filter: Option[EventFilter]
     ): ReadReq = {
 
-      val allOptions = exclusiveFrom
-        .map(mapPosition)
-        .getOrElse(ReadReq.Options.AllOptions.AllOptions.Start(ReadReq.Empty()))
-
       val options = ReadReq
         .Options()
-        .withAll(ReadReq.Options.AllOptions(allOptions))
+        .withAll(ReadReq.Options.AllOptions(mapPositionOpt(exclusiveFrom)))
         .withSubscription(ReadReq.Options.SubscriptionOptions())
         .withReadDirection(mapDirection(ReadDirection.Forward))
         .withResolveLinks(resolveLinkTos)
@@ -201,8 +205,8 @@ private[sec] object streams {
       import grpc.constants.Metadata.{Created, IsJson, Type}
 
       val streamId    = e.streamName
-      val eventNumber = EventNumber.Exact(e.streamRevision)
-      val position    = Position.Exact(e.commitPosition, e.preparePosition)
+      val eventNumber = EventNumber.exact(e.streamRevision)
+      val position    = Position.exact(e.commitPosition, e.preparePosition)
       val data        = e.data.toByteVector
       val customMeta  = e.customMetadata.toByteVector
       val eventId     = e.id.require[F]("UUID") >>= mkUUID[F]
@@ -219,7 +223,7 @@ private[sec] object streams {
     }
 
     def mkEventType[F[_]: ErrorA](name: String): F[EventType] =
-      EventType.fromStr(name).leftMap(ProtoResultError(_)).liftTo[F]
+      EventType.fromStr(name).leftMap(ProtoResultError).liftTo[F]
 
     def mkUUID[F[_]: ErrorA](uuid: UUID): F[JUUID] = {
 
@@ -235,7 +239,7 @@ private[sec] object streams {
     def mkWriteResult[F[_]: ErrorA](ar: AppendResp): F[WriteResult] = {
 
       val currentRevision = ar.currentRevisionOptions match {
-        case AppendResp.CurrentRevisionOptions.CurrentRevision(v) => EventNumber.Exact(v).asRight
+        case AppendResp.CurrentRevisionOptions.CurrentRevision(v) => EventNumber.exact(v).asRight
         case AppendResp.CurrentRevisionOptions.NoStream(_)        => "Did not expect NoStream when using NonEmptyList".asLeft
         case AppendResp.CurrentRevisionOptions.Empty              => "CurrentRevisionOptions is missing".asLeft
       }
@@ -245,12 +249,12 @@ private[sec] object streams {
 
     def mkDeleteResult[F[_]: ErrorA](dr: DeleteResp): F[DeleteResult] =
       dr.positionOptions.position
-        .map(p => DeleteResult(Position.Exact(p.commitPosition, p.preparePosition)))
+        .map(p => DeleteResult(Position.exact(p.commitPosition, p.preparePosition)))
         .require[F]("DeleteResp.PositionOptions.Position")
 
     def mkDeleteResult[F[_]: ErrorA](tr: TombstoneResp): F[DeleteResult] =
       tr.positionOptions.position
-        .map(p => DeleteResult(Position.Exact(p.commitPosition, p.preparePosition)))
+        .map(p => DeleteResult(Position.exact(p.commitPosition, p.preparePosition)))
         .require[F]("TombstoneResp.PositionOptions.Position")
 
   }

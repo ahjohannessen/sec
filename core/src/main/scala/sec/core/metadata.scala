@@ -72,10 +72,10 @@ private[sec] object StreamMetadata {
 // Include some details from https://eventstore.org/docs/server/deleting-streams-and-events/index.html
 
 private[sec] final case class StreamState(
-  maxAge: Option[FiniteDuration],       // newtype that ensures >=1s
-  maxCount: Option[Int],                // newtype that ensures >=1
-  truncateBefore: Option[EventNumber],  // EventNumber.Start valid? If invalid then >= Start, e.g. 0 => None
-  cacheControl: Option[FiniteDuration], // newtype that ensures >=1s
+  maxAge: Option[FiniteDuration],            // newtype that ensures >=1s
+  maxCount: Option[Int],                     // newtype that ensures >=1
+  truncateBefore: Option[EventNumber.Exact], // EventNumber.Exact(0L) does not make sense, i.e. >= 1L.
+  cacheControl: Option[FiniteDuration],      // newtype that ensures >=1s
   acl: Option[StreamAcl]
 )
 
@@ -91,8 +91,8 @@ private[sec] object StreamState {
       implicit val codecForFiniteDuration: Codec[FiniteDuration] =
         Codec.from(Decoder.decodeLong.map(l => FiniteDuration(l, SECONDS)), Encoder[Long].contramap(_.toSeconds))
 
-      implicit val codecForEventNumber: Codec[EventNumber] =
-        Codec.from(Decoder.decodeLong.map(EventNumber(_)), Encoder[Long].contramap { case EventNumber(v) => v })
+      implicit val codecForEventNumber: Codec[EventNumber.Exact] =
+        Codec.from(Decoder.decodeLong.map(EventNumber.exact), Encoder[Long].contramap(_.value))
 
       def encodeObject(a: StreamState): JsonObject = {
 
@@ -111,7 +111,7 @@ private[sec] object StreamState {
         for {
 
           maxAge         <- c.get[Option[FiniteDuration]](MaxAge)
-          truncateBefore <- c.get[Option[EventNumber]](TruncateBefore)
+          truncateBefore <- c.get[Option[EventNumber.Exact]](TruncateBefore)
           maxCount       <- c.get[Option[Int]](MaxCount)
           acl            <- c.get[Option[StreamAcl]](Acl)
           cacheControl   <- c.get[Option[FiniteDuration]](CacheControl)
