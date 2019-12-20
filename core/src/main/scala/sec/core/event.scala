@@ -80,11 +80,11 @@ object ResolvedEvent {
 
   implicit val showForResolvedEvent: Show[ResolvedEvent] = Show.show[ResolvedEvent] { re =>
     s"""
-         |ResolvedEvent(
-         |  event = ${re.event.show},
-         |  link  = ${re.link.show}
-         |)
-         |""".stripMargin
+       |ResolvedEvent(
+       |  event = ${re.event.show},
+       |  link  = ${re.link.show}
+       |)
+       |""".stripMargin
   }
 
 }
