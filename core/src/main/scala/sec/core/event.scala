@@ -19,7 +19,7 @@ object Event {
       case re: ResolvedEvent => g(re)
     }
 
-    def streamId: String          = e.fold(_.streamId, _.event.streamId)
+    def streamId: StreamId        = e.fold(_.streamId, _.event.streamId)
     def number: EventNumber.Exact = e.fold(_.number, _.event.number)
     def position: Position.Exact  = e.fold(_.position, _.event.position)
     def eventData: EventData      = e.fold(_.eventData, _.event.eventData)
@@ -35,7 +35,7 @@ object Event {
 }
 
 final case class EventRecord(
-  streamId: String, // Strong types: User & SystemStreams,
+  streamId: StreamId,
   number: EventNumber.Exact,
   position: Position.Exact,
   eventData: EventData,
@@ -48,7 +48,7 @@ object EventRecord {
 
     def createLink(eventId: UUID): Attempt[EventData] =
       Either.cond(e.eventData.eventType != EventType.LinkTo, (), "Linking to a link is not supported.") >> {
-        Content.binary(s"${e.number.value}@${e.streamId}") >>= { data =>
+        Content.binary(s"${e.number.value}@${e.streamId.stringValue}") >>= { data =>
           EventData(EventType.LinkTo, eventId, data, Content.BinaryEmpty)
         }
       }
@@ -59,7 +59,7 @@ object EventRecord {
   implicit val showForEventRecord: Show[EventRecord] = Show.show[EventRecord] { er =>
     s"""
        |EventRecord(
-       |  streamId = ${er.streamId}, 
+       |  streamId = ${er.streamId.show}, 
        |  number   = ${er.number.show},
        |  position = ${er.position.show},
        |  data     = ${er.eventData.data.show}, 
@@ -111,21 +111,19 @@ object EventType {
 
   ///
 
-  private val guardNonEmpty: String => Attempt[String] = name =>
-    Either.fromOption(Option(name).filter(_.nonEmpty), "Event type name cannot be empty")
-
-  private val guardNonSystemType: String => Attempt[String] = n =>
-    if (n.startsWith("$")) "Event type names starting with $ are reserved to system types".asLeft else n.asRight
+  private val guardNonEmptyName: String => Attempt[String] = guardNonEmpty("Event type name")
+  private val guardNonSystemName: String => Attempt[String] = n =>
+    Either.cond(!n.startsWith(systemPrefix), n, s"names starting with $systemPrefix are reserved to system types")
 
   private[sec] def systemDefined(name: String): Attempt[SystemDefined] =
-    guardNonEmpty(name) >>= (n => new SystemDefined(n) {}.asRight)
+    guardNonEmptyName(name) >>= (n => new SystemDefined(n) {}.asRight)
 
   private[sec] def userDefined(name: String): Attempt[UserDefined] =
-    guardNonEmpty(name) >>= guardNonSystemType >>= (n => new UserDefined(n) {}.asRight)
+    guardNonEmptyName(name) >>= guardNonSystemName >>= (n => new UserDefined(n) {}.asRight)
 
   ///
 
-  private[sec] def toStr: EventType => String = {
+  private[sec] val eventTypeToString: EventType => String = {
     case StreamDeleted    => systemTypes.StreamDeleted
     case StatsCollection  => systemTypes.StatsCollection
     case LinkTo           => systemTypes.LinkTo
@@ -138,18 +136,20 @@ object EventType {
     case UserDefined(t)   => t
   }
 
-  private[sec] def fromStr: String => Attempt[EventType] = {
-    case systemTypes.StreamDeleted   => StreamDeleted.asRight
-    case systemTypes.StatsCollection => StatsCollection.asRight
-    case systemTypes.LinkTo          => LinkTo.asRight
-    case systemTypes.StreamMetadata  => StreamMetadata.asRight
-    case systemTypes.Settings        => Settings.asRight
-    case systemTypes.UserCreated     => UserCreated.asRight
-    case systemTypes.UserUpdated     => UserUpdated.asRight
-    case systemTypes.PasswordChanged => PasswordChanged.asRight
-    case sd if sd.startsWith("$")    => systemDefined(sd)
-    case ud                          => userDefined(ud)
+  private[sec] val stringToEventType: String => Attempt[EventType] = {
+    case systemTypes.StreamDeleted         => StreamDeleted.asRight
+    case systemTypes.StatsCollection       => StatsCollection.asRight
+    case systemTypes.LinkTo                => LinkTo.asRight
+    case systemTypes.StreamMetadata        => StreamMetadata.asRight
+    case systemTypes.Settings              => Settings.asRight
+    case systemTypes.UserCreated           => UserCreated.asRight
+    case systemTypes.UserUpdated           => UserUpdated.asRight
+    case systemTypes.PasswordChanged       => PasswordChanged.asRight
+    case sd if sd.startsWith(systemPrefix) => systemDefined(sd)
+    case ud                                => userDefined(ud)
   }
+
+  private val systemPrefix: String = "$"
 
   private object systemTypes {
 
@@ -166,7 +166,7 @@ object EventType {
 
   ///
 
-  implicit val showForEventType: Show[EventType] = Show.show[EventType](toStr)
+  implicit val showForEventType: Show[EventType] = Show.show[EventType](eventTypeToString)
 
 }
 

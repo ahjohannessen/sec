@@ -26,16 +26,4 @@ private[sec] object constants {
 
 //======================================================================================================================
 
-  object SystemStreams {
-
-    final val StreamsStream: String                   = "$streams"
-    final val SettingsStream: String                  = "$settings"
-    final val UsersPasswordNotificationStream: String = "$users-password-notifications"
-    final val StatsStream: String                     = "$stats"
-
-    final val MetadataPrefix: String = "$$"
-  }
-
-//======================================================================================================================
-
 }

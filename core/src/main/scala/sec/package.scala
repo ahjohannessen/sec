@@ -1,8 +1,13 @@
+import cats.implicits._
+
 package object sec {
 
 //======================================================================================================================
 
   private[sec] type Attempt[T] = Either[String, T]
+
+  private[sec] def guardNonEmpty(param: String): String => Attempt[String] =
+    p => Either.fromOption(Option(p).filter(_.nonEmpty), s"$param cannot be empty")
 
 //======================================================================================================================
 
