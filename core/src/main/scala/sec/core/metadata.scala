@@ -7,7 +7,6 @@ import cats.implicits._
 import io.circe._
 import io.circe.syntax._
 import io.circe.Decoder.Result
-import constants.SystemMetadata._
 
 //======================================================================================================================
 
@@ -22,7 +21,15 @@ private[sec] object StreamMetadata {
 
   ///
 
-  final val reservedKeys: Set[String] = Set(MaxAge, TruncateBefore, MaxCount, Acl, CacheControl)
+  import StreamState.metadataKeys
+
+  final val reservedKeys: Set[String] = Set(
+    metadataKeys.MaxAge,
+    metadataKeys.TruncateBefore,
+    metadataKeys.MaxCount,
+    metadataKeys.Acl,
+    metadataKeys.CacheControl
+  )
 
   implicit val codecForStreamMetadata: Codec.AsObject[StreamMetadata] = new Codec.AsObject[StreamMetadata] {
 
@@ -97,11 +104,11 @@ private[sec] object StreamState {
       def encodeObject(a: StreamState): JsonObject = {
 
         val data = Map(
-          MaxAge         -> a.maxAge.asJson,
-          TruncateBefore -> a.truncateBefore.asJson,
-          MaxCount       -> a.maxCount.asJson,
-          Acl            -> a.acl.asJson,
-          CacheControl   -> a.cacheControl.asJson
+          metadataKeys.MaxAge         -> a.maxAge.asJson,
+          metadataKeys.TruncateBefore -> a.truncateBefore.asJson,
+          metadataKeys.MaxCount       -> a.maxCount.asJson,
+          metadataKeys.Acl            -> a.acl.asJson,
+          metadataKeys.CacheControl   -> a.cacheControl.asJson
         )
 
         JsonObject.fromMap(data).mapValues(_.dropNullValues)
@@ -110,15 +117,25 @@ private[sec] object StreamState {
       def apply(c: HCursor): Result[StreamState] =
         for {
 
-          maxAge         <- c.get[Option[FiniteDuration]](MaxAge)
-          truncateBefore <- c.get[Option[EventNumber.Exact]](TruncateBefore)
-          maxCount       <- c.get[Option[Int]](MaxCount)
-          acl            <- c.get[Option[StreamAcl]](Acl)
-          cacheControl   <- c.get[Option[FiniteDuration]](CacheControl)
+          maxAge         <- c.get[Option[FiniteDuration]](metadataKeys.MaxAge)
+          truncateBefore <- c.get[Option[EventNumber.Exact]](metadataKeys.TruncateBefore)
+          maxCount       <- c.get[Option[Int]](metadataKeys.MaxCount)
+          acl            <- c.get[Option[StreamAcl]](metadataKeys.Acl)
+          cacheControl   <- c.get[Option[FiniteDuration]](metadataKeys.CacheControl)
 
         } yield StreamState(maxAge, maxCount, truncateBefore, cacheControl, acl)
 
     }
+
+  private[sec] object metadataKeys {
+
+    final val MaxAge: String         = "$maxAge"
+    final val MaxCount: String       = "$maxCount"
+    final val TruncateBefore: String = "$tb"
+    final val CacheControl: String   = "$cacheControl"
+    final val Acl: String            = "$acl"
+
+  }
 
   implicit val showForStreamState: Show[StreamState] = Show.show[StreamState] { ss =>
     s"""
@@ -159,16 +176,14 @@ object StreamAcl {
 
   private[sec] implicit val codecForStreamAcl: Codec.AsObject[StreamAcl] = new Codec.AsObject[StreamAcl] {
 
-    import constants.SystemMetadata.AclKeys._
-
     def encodeObject(a: StreamAcl): JsonObject = {
 
       val roles: Map[String, Set[String]] = Map(
-        Read      -> a.readRoles,
-        Write     -> a.writeRoles,
-        Delete    -> a.deleteRoles,
-        MetaRead  -> a.metaReadRoles,
-        MetaWrite -> a.metaWriteRoles
+        aclKeys.Read      -> a.readRoles,
+        aclKeys.Write     -> a.writeRoles,
+        aclKeys.Delete    -> a.deleteRoles,
+        aclKeys.MetaRead  -> a.metaReadRoles,
+        aclKeys.MetaWrite -> a.metaWriteRoles
       )
 
       val nonEmptyRoles = roles.collect {
@@ -183,8 +198,21 @@ object StreamAcl {
       def get(k: String): Result[Set[String]] =
         c.getOrElse[Set[String]](k)(Set.empty)(Decoder[Set[String]].or(Decoder[String].map(Set(_))))
 
-      (get(Read), get(Write), get(Delete), get(MetaRead), get(MetaWrite)).mapN(StreamAcl.apply)
+      (get(aclKeys.Read), get(aclKeys.Write), get(aclKeys.Delete), get(aclKeys.MetaRead), get(aclKeys.MetaWrite))
+        .mapN(StreamAcl.apply)
     }
+  }
+
+  private[sec] object aclKeys {
+
+    final val Read: String            = "$r"
+    final val Write: String           = "$w"
+    final val Delete: String          = "$d"
+    final val MetaRead: String        = "$mr"
+    final val MetaWrite: String       = "$mw"
+    final val UserStreamAcl: String   = "$userStreamAcl"
+    final val SystemStreamAcl: String = "$systemStreamAcl"
+
   }
 
   implicit val showForStreamAcl: Show[StreamAcl] = Show.show[StreamAcl] { ss =>
