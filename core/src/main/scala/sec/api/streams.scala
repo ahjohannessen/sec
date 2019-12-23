@@ -22,7 +22,7 @@ trait Streams[F[_]] {
   ): Stream[F, Event]
 
   def subscribeToStream(
-    stream: String,
+    streamId: StreamId,
     exclusiveFrom: Option[EventNumber],
     resolveLinkTos: Boolean,
     failIfNotFound: Boolean,
@@ -39,7 +39,7 @@ trait Streams[F[_]] {
   ): Stream[F, Event]
 
   def readStream(
-    stream: String,
+    streamId: StreamId,
     direction: ReadDirection,
     from: EventNumber,
     count: Int,
@@ -48,20 +48,20 @@ trait Streams[F[_]] {
   ): Stream[F, Event]
 
   def appendToStream(
-    stream: String,
+    streamId: StreamId,
     expectedRevision: StreamRevision,
     events: NonEmptyList[EventData],
     creds: Option[UserCredentials]
   ): F[Streams.WriteResult]
 
   def softDelete(
-    stream: String,
+    streamId: StreamId,
     expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
   ): F[Streams.DeleteResult]
 
   def hardDelete(
-    stream: String,
+    streamId: StreamId,
     expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
   ): F[Streams.DeleteResult]
@@ -111,17 +111,17 @@ object Streams {
       client.read(mkSubscribeToAllReq(exclusiveFrom, resolveLinkTos, filter), ctx(creds)).through(mkEvents)
 
     def subscribeToStream(
-      stream: String,
+      streamId: StreamId,
       exclusiveFrom: Option[EventNumber],
       resolveLinkTos: Boolean,
       failIfNotFound: Boolean,
       creds: Option[UserCredentials]
     ): Stream[F, Event] = subscribeToStream0[F](
-      stream,
+      streamId,
       retriesWhenNotFound = 20,
       delayWhenNotFound   = 150.millis,
-      client.read(mkSubscribeToStreamReq(stream, exclusiveFrom, resolveLinkTos), ctx(creds)).through(mkEvents),
-      subscribeToAll(None, resolveLinkTos = false, prefix(StreamName, None, PrefixFilter(stream)).some, creds),
+      client.read(mkSubscribeToStreamReq(streamId, exclusiveFrom, resolveLinkTos), ctx(creds)).through(mkEvents),
+      subscribeToAll(None, false, prefix(StreamName, None, PrefixFilter(streamId.stringValue)).some, creds),
       failIfNotFound
     )
 
@@ -136,39 +136,39 @@ object Streams {
       client.read(mkReadAllReq(position, direction, maxCount, resolveLinkTos, filter), ctx(creds)).through(mkEvents)
 
     def readStream(
-      stream: String,
+      streamId: StreamId,
       direction: ReadDirection,
       from: EventNumber,
       count: Int,
       resolveLinkTos: Boolean,
       creds: Option[UserCredentials]
     ): Stream[F, Event] =
-      client.read(mkReadStreamReq(stream, direction, from, count, resolveLinkTos), ctx(creds)).through(mkEvents)
+      client.read(mkReadStreamReq(streamId, direction, from, count, resolveLinkTos), ctx(creds)).through(mkEvents)
 
     def appendToStream(
-      stream: String,
+      streamId: StreamId,
       expectedRevision: StreamRevision,
       events: NonEmptyList[EventData],
       creds: Option[UserCredentials]
     ): F[WriteResult] =
       client.append(
-        Stream.emit(mkAppendHeaderReq(stream, expectedRevision)) ++ Stream.emits(mkAppendProposalsReq(events).toList),
+        Stream.emit(mkAppendHeaderReq(streamId, expectedRevision)) ++ Stream.emits(mkAppendProposalsReq(events).toList),
         ctx(creds)
       ) >>= mkWriteResult[F]
 
     def softDelete(
-      stream: String,
+      streamId: StreamId,
       expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
     ): F[DeleteResult] =
-      client.delete(mkSoftDeleteReq(stream, expectedRevision), ctx(creds)) >>= mkDeleteResult[F]
+      client.delete(mkSoftDeleteReq(streamId, expectedRevision), ctx(creds)) >>= mkDeleteResult[F]
 
     def hardDelete(
-      stream: String,
+      streamId: StreamId,
       expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
     ): F[DeleteResult] =
-      client.tombstone(mkHardDeleteReq(stream, expectedRevision), ctx(creds)) >>= mkDeleteResult[F]
+      client.tombstone(mkHardDeleteReq(streamId, expectedRevision), ctx(creds)) >>= mkDeleteResult[F]
 
     private[sec] val metadata: StreamMeta[F] = StreamMeta[F](this)
   }
@@ -176,7 +176,7 @@ object Streams {
 //======================================================================================================================
 
   private[sec] def subscribeToStream0[F[_]: ConcurrentEffect: Timer](
-    stream: String,
+    streamId: StreamId,
     retriesWhenNotFound: Int,
     delayWhenNotFound: FiniteDuration,
     source: Stream[F, Event],
@@ -185,7 +185,7 @@ object Streams {
   ): Stream[F, Event] = {
 
     def allSubscription: Stream[F, Event] =
-      globalSource.filter(_.streamId === stream)
+      globalSource.filter(_.streamId === streamId)
 
     def subscribeWithRetry(retriesLeft: Int): Stream[F, Event] =
       source.recoverWith {

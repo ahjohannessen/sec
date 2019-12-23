@@ -72,14 +72,14 @@ private[sec] object streams {
     }
 
     def mkSubscribeToStreamReq(
-      stream: String,
+      streamId: StreamId,
       exclusiveFrom: Option[EventNumber],
       resolveLinkTos: Boolean
     ): ReadReq = {
 
       val options = ReadReq
         .Options()
-        .withStream(ReadReq.Options.StreamOptions(stream, mapEventNumberOpt(exclusiveFrom)))
+        .withStream(ReadReq.Options.StreamOptions(streamId.stringValue, mapEventNumberOpt(exclusiveFrom)))
         .withSubscription(ReadReq.Options.SubscriptionOptions())
         .withReadDirection(mapDirection(ReadDirection.Forward))
         .withResolveLinks(resolveLinkTos)
@@ -125,7 +125,7 @@ private[sec] object streams {
     }
 
     def mkReadStreamReq(
-      stream: String,
+      streamId: StreamId,
       direction: ReadDirection,
       from: EventNumber,
       count: Int,
@@ -134,7 +134,7 @@ private[sec] object streams {
 
       val options = ReadReq
         .Options()
-        .withStream(ReadReq.Options.StreamOptions(stream, mapEventNumber(from)))
+        .withStream(ReadReq.Options.StreamOptions(streamId.stringValue, mapEventNumber(from)))
         .withCount(count)
         .withReadDirection(mapDirection(direction))
         .withResolveLinks(resolveLinkTos)
@@ -143,7 +143,7 @@ private[sec] object streams {
       ReadReq().withOptions(options)
     }
 
-    def mkSoftDeleteReq(stream: String, expectedRevision: StreamRevision): DeleteReq = {
+    def mkSoftDeleteReq(streamId: StreamId, expectedRevision: StreamRevision): DeleteReq = {
       def empty = DeleteReq.Empty()
       val mapDeleteRevision: StreamRevision => DeleteReq.Options.ExpectedStreamRevision = {
         case EventNumber.Exact(v)        => DeleteReq.Options.ExpectedStreamRevision.Revision(v)
@@ -151,10 +151,10 @@ private[sec] object streams {
         case StreamRevision.StreamExists => DeleteReq.Options.ExpectedStreamRevision.StreamExists(empty)
         case StreamRevision.Any          => DeleteReq.Options.ExpectedStreamRevision.Any(empty)
       }
-      DeleteReq().withOptions(DeleteReq.Options(stream, mapDeleteRevision(expectedRevision)))
+      DeleteReq().withOptions(DeleteReq.Options(streamId.stringValue, mapDeleteRevision(expectedRevision)))
     }
 
-    def mkHardDeleteReq(stream: String, expectedRevision: StreamRevision): TombstoneReq = {
+    def mkHardDeleteReq(streamId: StreamId, expectedRevision: StreamRevision): TombstoneReq = {
       def empty = TombstoneReq.Empty()
       val mapTombstoneRevision: StreamRevision => TombstoneReq.Options.ExpectedStreamRevision = {
         case EventNumber.Exact(v)        => TombstoneReq.Options.ExpectedStreamRevision.Revision(v)
@@ -162,10 +162,10 @@ private[sec] object streams {
         case StreamRevision.StreamExists => TombstoneReq.Options.ExpectedStreamRevision.StreamExists(empty)
         case StreamRevision.Any          => TombstoneReq.Options.ExpectedStreamRevision.Any(empty)
       }
-      TombstoneReq().withOptions(TombstoneReq.Options(stream, mapTombstoneRevision(expectedRevision)))
+      TombstoneReq().withOptions(TombstoneReq.Options(streamId.stringValue, mapTombstoneRevision(expectedRevision)))
     }
 
-    def mkAppendHeaderReq(stream: String, expectedRevision: StreamRevision): AppendReq = {
+    def mkAppendHeaderReq(streamId: StreamId, expectedRevision: StreamRevision): AppendReq = {
       def empty = AppendReq.Empty()
       val mapAppendRevision: StreamRevision => AppendReq.Options.ExpectedStreamRevision = {
         case EventNumber.Exact(v)        => AppendReq.Options.ExpectedStreamRevision.Revision(v)
@@ -173,14 +173,14 @@ private[sec] object streams {
         case StreamRevision.StreamExists => AppendReq.Options.ExpectedStreamRevision.StreamExists(empty)
         case StreamRevision.Any          => AppendReq.Options.ExpectedStreamRevision.Any(empty)
       }
-      AppendReq().withOptions(AppendReq.Options(stream, mapAppendRevision(expectedRevision)))
+      AppendReq().withOptions(AppendReq.Options(streamId.stringValue, mapAppendRevision(expectedRevision)))
     }
 
     def mkAppendProposalsReq(events: NonEmptyList[EventData]): NonEmptyList[AppendReq] = events.map { e =>
       val id         = UUID().withString(e.eventId.toString)
       val customMeta = e.metadata.bytes.toByteString
       val data       = e.data.bytes.toByteString
-      val meta       = Map(Type -> EventType.toStr(e.eventType), IsJson -> e.isJson.fold("true", "false"))
+      val meta       = Map(Type -> EventType.eventTypeToString(e.eventType), IsJson -> e.isJson.fold("true", "false"))
       val proposal   = AppendReq.ProposedMessage(id.some, meta, customMeta, data)
       AppendReq().withProposedMessage(proposal)
     }
@@ -204,7 +204,7 @@ private[sec] object streams {
       import EventData.{binary, json}
       import grpc.constants.Metadata.{Created, IsJson, Type}
 
-      val streamId    = e.streamName
+      val streamId    = mkStreamId[F](e.streamName)
       val eventNumber = EventNumber.exact(e.streamRevision)
       val position    = Position.exact(e.commitPosition, e.preparePosition)
       val data        = e.data.toByteVector
@@ -218,12 +218,15 @@ private[sec] object streams {
         j.fold(json(t, i, data, customMeta), binary(t, i, data, customMeta)).leftMap(ProtoResultError).liftTo[F]
       }
 
-      (eventData.flatten, created).mapN((ed, c) => EventRecord(streamId, eventNumber, position, ed, c))
+      (streamId, eventData.flatten, created).mapN((id, ed, c) => EventRecord(id, eventNumber, position, ed, c))
 
     }
 
+    def mkStreamId[F[_]: ErrorA](streamName: String): F[StreamId] =
+      StreamId.stringToStreamId(streamName).leftMap(ProtoResultError).liftTo[F]
+
     def mkEventType[F[_]: ErrorA](name: String): F[EventType] =
-      EventType.fromStr(name).leftMap(ProtoResultError).liftTo[F]
+      EventType.stringToEventType(name).leftMap(ProtoResultError).liftTo[F]
 
     def mkUUID[F[_]: ErrorA](uuid: UUID): F[JUUID] = {
 

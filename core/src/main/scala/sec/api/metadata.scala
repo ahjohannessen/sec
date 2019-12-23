@@ -22,19 +22,19 @@ import sec.api.Streams._
 private[sec] trait StreamMeta[F[_]] {
 
   def getStreamMetadata(
-    stream: String,
+    streamId: StreamId.Id,
     creds: Option[UserCredentials]
   ): F[Option[StreamMeta.Result]]
 
   def setStreamMetadata(
-    stream: String,
+    streamId: StreamId.Id,
     data: StreamState,
     expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
   ): F[Unit]
 
   def modifyStreamMetadata(
-    stream: String,
+    streamId: StreamId.Id,
     modFn: StreamState => StreamState,
     expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
@@ -55,12 +55,12 @@ private[sec] object StreamMeta {
   private[sec] trait MetaRW[F[_]] {
 
     def readMeta(
-      stream: String,
+      streamId: StreamId.Id,
       creds: Option[UserCredentials]
     ): F[Option[EventRecord]]
 
     def writeMeta(
-      stream: String,
+      streamId: StreamId.Id,
       expectedRevision: StreamRevision,
       data: NonEmptyList[EventData],
       creds: Option[UserCredentials]
@@ -72,20 +72,20 @@ private[sec] object StreamMeta {
     def apply[F[_]: Sync](s: Streams[F]): MetaRW[F] = new MetaRW[F] {
 
       def readMeta(
-        stream: String,
+        streamId: StreamId.Id,
         creds: Option[UserCredentials]
       ): F[Option[EventRecord]] =
-        s.readStream(stream, ReadDirection.Backward, EventNumber.End, 1, resolveLinkTos = false, creds)
+        s.readStream(streamId.meta, ReadDirection.Backward, EventNumber.End, 1, false, creds)
           .collect { case er: EventRecord => er }
           .compile
           .last
 
       def writeMeta(
-        stream: String,
+        streamId: StreamId.Id,
         expectedRevision: StreamRevision,
         data: NonEmptyList[EventData],
         creds: Option[UserCredentials]
-      ): F[WriteResult] = s.appendToStream(stream, expectedRevision, data, creds)
+      ): F[WriteResult] = s.appendToStream(streamId.meta, expectedRevision, data, creds)
     }
   }
 
@@ -94,9 +94,6 @@ private[sec] object StreamMeta {
   def apply[F[_]: Sync](s: Streams[F]): StreamMeta[F] = create[F](MetaRW[F](s))
   def create[F[_]](metaRW: MetaRW[F])(implicit F: Sync[F]): StreamMeta[F] = new StreamMeta[F] {
 
-    import core.constants.SystemStreams.MetadataPrefix
-
-    val metaForStream: String => String = stream => s"$MetadataPrefix$stream"
     val recoverRead: PartialFunction[Throwable, Option[EventRecord]] = {
       case _: StreamNotFound | _: StreamDeleted => none[EventRecord]
     }
@@ -107,34 +104,34 @@ private[sec] object StreamMeta {
       }
 
     def getStreamMetadata(
-      stream: String,
+      streamId: StreamId.Id,
       creds: Option[UserCredentials]
     ): F[Option[Result]] =
-      metaRW.readMeta(metaForStream(stream), creds).recover(recoverRead) >>= {
+      metaRW.readMeta(streamId, creds).recover(recoverRead) >>= {
         _.traverse(er => decodeJson[StreamState](er).map(Result(er.number, _)))
       }
 
     def setStreamMetadata(
-      stream: String,
+      streamId: StreamId.Id,
       data: StreamState,
       expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
-    ): F[Unit] = modifyStreamMetadata(stream, _ => data, expectedRevision, creds)
+    ): F[Unit] = modifyStreamMetadata(streamId, _ => data, expectedRevision, creds)
 
     def modifyStreamMetadata(
-      stream: String,
+      streamId: StreamId.Id,
       modFn: StreamState => StreamState,
       expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
     ): F[Unit] = uuid[F] >>= { id =>
-      getStreamMetadata(stream, creds) >>= { res =>
+      getStreamMetadata(streamId, creds) >>= { res =>
         val modified  = modFn(res.fold(StreamState.empty)(_.data))
         val json      = Encoder[StreamState].apply(modified)
         val printer   = Printer.noSpaces.copy(dropNullValues = true)
         val eventData = Content.json(printer.print(json)) >>= (EventData(EventType.StreamMetadata, id, _))
 
         eventData.leftMap(EncodingError(_)).liftTo[F] >>= { d =>
-          metaRW.writeMeta(metaForStream(stream), expectedRevision, NonEmptyList.one(d), creds) *> F.unit
+          metaRW.writeMeta(streamId, expectedRevision, NonEmptyList.one(d), creds) *> F.unit
         }
       }
     }

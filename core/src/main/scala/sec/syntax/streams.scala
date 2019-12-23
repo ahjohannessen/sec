@@ -3,7 +3,7 @@ package syntax
 
 import cats.data.NonEmptyList
 import fs2.Stream
-import sec.core.{Event, EventData, EventFilter, EventNumber, Position, StreamRevision}
+import sec.core.{Event, EventData, EventFilter, EventNumber, Position, StreamId, StreamRevision}
 import sec.api._
 
 final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
@@ -19,33 +19,33 @@ final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
     s.subscribeToAll(exclusiveFrom, resolveLinkTos, filter, credentials)
 
   def subscribeToStream(
-    stream: String,
+    streamId: StreamId,
     exclusiveFrom: Option[EventNumber],
     resolveLinkTos: Boolean = false,
     failIfNotFound: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.subscribeToStream(stream, exclusiveFrom, resolveLinkTos, failIfNotFound, credentials)
+    s.subscribeToStream(streamId, exclusiveFrom, resolveLinkTos, failIfNotFound, credentials)
 
   /// Read
 
   def readStreamForwards(
-    stream: String,
+    streamId: StreamId,
     from: EventNumber,
     count: Int,
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.readStream(stream, ReadDirection.Forward, from, count, resolveLinkTos, credentials)
+    s.readStream(streamId, ReadDirection.Forward, from, count, resolveLinkTos, credentials)
 
   def readStreamBackwards(
-    stream: String,
+    streamId: StreamId,
     from: EventNumber,
     count: Int,
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.readStream(stream, ReadDirection.Backward, from, count, resolveLinkTos, credentials)
+    s.readStream(streamId, ReadDirection.Backward, from, count, resolveLinkTos, credentials)
 
   def readAllForwards(
     position: Position,
@@ -68,27 +68,27 @@ final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
   /// Append
 
   def appendToStream(
-    stream: String,
+    streamId: StreamId,
     expectedRevision: StreamRevision,
     events: NonEmptyList[EventData],
     credentials: Option[UserCredentials] = None
   ): F[Streams.WriteResult] =
-    s.appendToStream(stream, expectedRevision, events, credentials)
+    s.appendToStream(streamId, expectedRevision, events, credentials)
 
   /// Delete
 
   def softDelete(
-    stream: String,
+    streamId: StreamId,
     expectedRevision: StreamRevision,
     credentials: Option[UserCredentials] = None
   ): F[Streams.DeleteResult] =
-    s.softDelete(stream, expectedRevision, credentials)
+    s.softDelete(streamId, expectedRevision, credentials)
 
   def hardDelete(
-    stream: String,
+    streamId: StreamId,
     expectedRevision: StreamRevision,
     credentials: Option[UserCredentials] = None
   ): F[Streams.DeleteResult] =
-    s.hardDelete(stream, expectedRevision, credentials)
+    s.hardDelete(streamId, expectedRevision, credentials)
 
 }
