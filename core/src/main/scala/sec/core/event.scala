@@ -109,15 +109,13 @@ object EventType {
 
   ///
 
-  private val guardNonEmptyName: String => Attempt[String] = guardNonEmpty("Event type name")
-  private val guardNonSystemName: String => Attempt[String] = n =>
-    Either.cond(!n.startsWith(systemPrefix), n, s"names starting with $systemPrefix are reserved to system types")
+  private[sec] val guardNonEmptyName: String => Attempt[String] = guardNonEmpty("Event type name")
 
   private[sec] def systemDefined(name: String): Attempt[SystemDefined] =
-    guardNonEmptyName(name) >>= (n => new SystemDefined(n) {}.asRight)
+    guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix) >>= (n => new SystemDefined(n) {}.asRight)
 
   private[sec] def userDefined(name: String): Attempt[UserDefined] =
-    guardNonEmptyName(name) >>= guardNonSystemName >>= (n => new UserDefined(n) {}.asRight)
+    guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix) >>= (n => new UserDefined(n) {}.asRight)
 
   ///
 
@@ -128,8 +126,8 @@ object EventType {
     case StreamReference  => systemTypes.StreamReference
     case StreamMetadata   => systemTypes.StreamMetadata
     case Settings         => systemTypes.Settings
-    case SystemDefined(t) => t
-    case UserDefined(t)   => t
+    case SystemDefined(n) => s"$systemPrefix$n"
+    case UserDefined(n)   => n
   }
 
   private[sec] val stringToEventType: String => Attempt[EventType] = {
@@ -139,14 +137,14 @@ object EventType {
     case systemTypes.StreamReference       => StreamReference.asRight
     case systemTypes.StreamMetadata        => StreamMetadata.asRight
     case systemTypes.Settings              => Settings.asRight
-    case sd if sd.startsWith(systemPrefix) => systemDefined(sd)
+    case sd if sd.startsWith(systemPrefix) => systemDefined(sd.substring(systemPrefixLength))
     case ud                                => userDefined(ud)
   }
 
-  private val systemPrefix: String = "$"
+  private[sec] final val systemPrefix: String    = "$"
+  private[sec] final val systemPrefixLength: Int = systemPrefix.length
 
-  private object systemTypes {
-
+  private[sec] object systemTypes {
     final val StreamDeleted: String   = "$streamDeleted"
     final val StatsCollected: String  = "$statsCollected"
     final val LinkTo: String          = "$>"

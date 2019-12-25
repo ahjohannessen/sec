@@ -9,6 +9,9 @@ package object sec {
   private[sec] def guardNonEmpty(param: String): String => Attempt[String] =
     p => Either.fromOption(Option(p).filter(_.nonEmpty), s"$param cannot be empty")
 
+  private[sec] def guardNotStartsWith(prefix: String): String => Attempt[String] =
+    n => Either.cond(!n.startsWith(prefix), n, s"value must not start with $prefix, but is $n")
+
 //======================================================================================================================
 
   private[sec] implicit final class BooleanOps(private val b: Boolean) extends AnyVal {

@@ -17,14 +17,14 @@ final case class EventFilter(
 object EventFilter {
 
   sealed trait Kind
-  case object StreamName extends Kind
-  case object EventType  extends Kind
+  case object ByStreamId  extends Kind
+  case object ByEventType extends Kind
 
-  def prefix(kind: Kind, maxSearchWindow: Option[Int], fst: PrefixFilter, rest: PrefixFilter*): EventFilter =
-    EventFilter(kind, maxSearchWindow, NonEmptyList(fst, rest.toList).asLeft)
+  def prefix(kind: Kind, maxSearchWindow: Option[Int], fst: String, rest: String*): EventFilter =
+    EventFilter(kind, maxSearchWindow, NonEmptyList(PrefixFilter(fst), rest.toList.map(PrefixFilter)).asLeft)
 
-  def regex(kind: Kind, maxSearchWindow: Option[Int], filter: RegexFilter): EventFilter =
-    EventFilter(kind, maxSearchWindow, filter.asRight)
+  def regex(kind: Kind, maxSearchWindow: Option[Int], filter: String): EventFilter =
+    EventFilter(kind, maxSearchWindow, RegexFilter(filter).asRight)
 
   ///
 
