@@ -96,13 +96,11 @@ object EventType {
 
   sealed trait SystemType     extends EventType
   case object StreamDeleted   extends SystemType
-  case object StatsCollection extends SystemType
+  case object StatsCollected  extends SystemType
   case object LinkTo          extends SystemType
+  case object StreamReference extends SystemType
   case object StreamMetadata  extends SystemType
   case object Settings        extends SystemType
-  case object UserCreated     extends SystemType
-  case object UserUpdated     extends SystemType
-  case object PasswordChanged extends SystemType
 
   sealed abstract case class SystemDefined(name: String) extends SystemType
   sealed abstract case class UserDefined(name: String)   extends EventType
@@ -125,26 +123,22 @@ object EventType {
 
   private[sec] val eventTypeToString: EventType => String = {
     case StreamDeleted    => systemTypes.StreamDeleted
-    case StatsCollection  => systemTypes.StatsCollection
+    case StatsCollected   => systemTypes.StatsCollected
     case LinkTo           => systemTypes.LinkTo
+    case StreamReference  => systemTypes.StreamReference
     case StreamMetadata   => systemTypes.StreamMetadata
     case Settings         => systemTypes.Settings
-    case UserCreated      => systemTypes.UserCreated
-    case UserUpdated      => systemTypes.UserUpdated
-    case PasswordChanged  => systemTypes.PasswordChanged
     case SystemDefined(t) => t
     case UserDefined(t)   => t
   }
 
   private[sec] val stringToEventType: String => Attempt[EventType] = {
     case systemTypes.StreamDeleted         => StreamDeleted.asRight
-    case systemTypes.StatsCollection       => StatsCollection.asRight
+    case systemTypes.StatsCollected        => StatsCollected.asRight
     case systemTypes.LinkTo                => LinkTo.asRight
+    case systemTypes.StreamReference       => StreamReference.asRight
     case systemTypes.StreamMetadata        => StreamMetadata.asRight
     case systemTypes.Settings              => Settings.asRight
-    case systemTypes.UserCreated           => UserCreated.asRight
-    case systemTypes.UserUpdated           => UserUpdated.asRight
-    case systemTypes.PasswordChanged       => PasswordChanged.asRight
     case sd if sd.startsWith(systemPrefix) => systemDefined(sd)
     case ud                                => userDefined(ud)
   }
@@ -154,14 +148,11 @@ object EventType {
   private object systemTypes {
 
     final val StreamDeleted: String   = "$streamDeleted"
-    final val StatsCollection: String = "$statsCollected"
+    final val StatsCollected: String  = "$statsCollected"
     final val LinkTo: String          = "$>"
+    final val StreamReference: String = "$@"
     final val StreamMetadata: String  = "$metadata"
     final val Settings: String        = "$settings"
-    final val UserCreated: String     = "$UserCreated"
-    final val UserUpdated: String     = "$UserUpdated"
-    final val PasswordChanged: String = "$PasswordChanged"
-
   }
 
   ///

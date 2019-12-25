@@ -15,12 +15,11 @@ object StreamId {
 
   final case class MetaId(id: Id) extends StreamId
 
-  case object PersistentSubscriptionConfig extends SystemId
-  case object All                          extends SystemId
-  case object Settings                     extends SystemId
-  case object Stats                        extends SystemId
-  case object Streams                      extends SystemId
-  case object UsersPasswordNotifications   extends SystemId
+  case object All       extends SystemId
+  case object Settings  extends SystemId
+  case object Stats     extends SystemId
+  case object Scavenges extends SystemId
+  case object Streams   extends SystemId
 
   sealed abstract case class System(name: String) extends SystemId
   sealed abstract case class Normal(name: String) extends NormalId
@@ -30,7 +29,7 @@ object StreamId {
 
   def from(name: String): Attempt[Id] = {
     guardNonEmptyName(name) >>= guardNotStartWith(metadataPrefix) >>= { n =>
-      if (n.startsWith(systemPrefix)) system(n.substring(1)) else normal(n)
+      if (n.startsWith(systemPrefix)) system(n.substring(systemPrefixLength)) else normal(n)
     }
   }
 
@@ -56,43 +55,42 @@ object StreamId {
   }
 
   private[sec] val stringToStreamId: String => Attempt[StreamId] = {
-    case id if id.startsWith(metadataPrefix) => stringToId(id.substring(2)).map(MetaId)
+    case id if id.startsWith(metadataPrefix) => stringToId(id.substring(metadataPrefixLength)).map(MetaId)
     case id                                  => stringToId(id)
   }
 
   private[sec] val idToString: Id => String = {
-    case PersistentSubscriptionConfig => systemStreams.PersistentSubscriptionConfig
-    case All                          => systemStreams.All
-    case Settings                     => systemStreams.Settings
-    case Stats                        => systemStreams.Stats
-    case Streams                      => systemStreams.Streams
-    case UsersPasswordNotifications   => systemStreams.UsersPasswordNotifications
-    case System(n)                    => s"$systemPrefix$n"
-    case Normal(n)                    => n
+    case All       => systemStreams.All
+    case Settings  => systemStreams.Settings
+    case Stats     => systemStreams.Stats
+    case Scavenges => systemStreams.Scavenges
+    case Streams   => systemStreams.Streams
+    case System(n) => s"$systemPrefix$n"
+    case Normal(n) => n
   }
 
   private[sec] val stringToId: String => Attempt[Id] = {
-    case systemStreams.PersistentSubscriptionConfig => PersistentSubscriptionConfig.asRight
-    case systemStreams.All                          => All.asRight
-    case systemStreams.Settings                     => Settings.asRight
-    case systemStreams.Streams                      => Streams.asRight
-    case systemStreams.UsersPasswordNotifications   => UsersPasswordNotifications.asRight
-    case sid if sid.startsWith(systemPrefix)        => system(sid.substring(1))
-    case sid                                        => normal(sid)
+    case systemStreams.All                   => All.asRight
+    case systemStreams.Settings              => Settings.asRight
+    case systemStreams.Stats                 => Stats.asRight
+    case systemStreams.Scavenges             => Scavenges.asRight
+    case systemStreams.Streams               => Streams.asRight
+    case sid if sid.startsWith(systemPrefix) => system(sid.substring(systemPrefixLength))
+    case sid                                 => normal(sid)
   }
 
-  private[sec] val systemPrefix: String   = "$"
-  private[sec] val metadataPrefix: String = "$$"
+  private[sec] final val systemPrefix: String      = "$"
+  private[sec] final val systemPrefixLength: Int   = systemPrefix.length
+  private[sec] final val metadataPrefix: String    = "$$"
+  private[sec] final val metadataPrefixLength: Int = metadataPrefix.length
 
   private object systemStreams {
 
-    final val PersistentSubscriptionConfig       = "$persistentSubscriptionConfig"
-    final val All: String                        = "$all"
-    final val Settings: String                   = "$settings"
-    final val Stats: String                      = "$stats"
-    final val Scavenges: String                  = "$scavenges"
-    final val Streams: String                    = "$streams"
-    final val UsersPasswordNotifications: String = "$users-password-notifications"
+    final val All: String       = "$all"
+    final val Settings: String  = "$settings"
+    final val Stats: String     = "$stats"
+    final val Scavenges: String = "$scavenges"
+    final val Streams: String   = "$streams"
 
   }
 

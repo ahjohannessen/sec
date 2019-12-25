@@ -23,7 +23,7 @@ object Main extends IOApp {
     val result: Stream[IO, Unit] = for {
       builder <- Stream.eval(nettyBuilder[IO])
       client  <- EsClient.stream[IO, NettyChannelBuilder](builder, Options.default).map(_.streams)
-      _       <- run5[IO](client)
+      _       <- run6[IO](client)
     } yield ()
 
     result.compile.drain.as(ExitCode.Success)
@@ -101,6 +101,9 @@ object Main extends IOApp {
     } yield ()
 
   }
+
+  def run6[F[_]: ConcurrentEffect](client: Streams[F]): Stream[F, Unit] =
+    client.readAllForwards(Position.Start, Int.MaxValue).evalTap(print[F]).void
 
   ///
 
