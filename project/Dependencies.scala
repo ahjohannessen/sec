@@ -28,7 +28,7 @@ object Dependencies {
   val scalaPb = "com.thesamet.scalapb" %% "scalapb-runtime" % versions.scalaPb
 
   val grpcNetty = "io.grpc"  % "grpc-netty"                      % versions.grpc
-  val tcnative  = "io.netty" % "netty-tcnative-boringssl-static" % "2.0.25.Final"
+  val tcnative  = "io.netty" % "netty-tcnative-boringssl-static" % "2.0.28.Final"
 
   // Testing
 
