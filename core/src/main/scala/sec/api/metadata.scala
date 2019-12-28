@@ -75,7 +75,7 @@ private[sec] object StreamMeta {
         streamId: StreamId.Id,
         creds: Option[UserCredentials]
       ): F[Option[EventRecord]] =
-        s.readStream(streamId.meta, ReadDirection.Backward, EventNumber.End, 1, false, creds)
+        s.readStream(streamId.meta, EventNumber.End, ReadDirection.Backward, 1, false, creds)
           .collect { case er: EventRecord => er }
           .compile
           .last

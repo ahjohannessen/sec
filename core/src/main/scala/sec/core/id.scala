@@ -28,7 +28,7 @@ object StreamId {
     from(name).leftMap(StreamIdError).liftTo[F]
 
   def from(name: String): Attempt[Id] = {
-    guardNonEmptyName(name) >>= guardNotStartWith(metadataPrefix) >>= { n =>
+    guardNonEmptyName(name) >>= guardNotStartsWith(metadataPrefix) >>= { n =>
       if (n.startsWith(systemPrefix)) system(n.substring(systemPrefixLength)) else normal(n)
     }
   }
@@ -37,15 +37,13 @@ object StreamId {
 
   ///
 
-  private val guardNonEmptyName: String => Attempt[String] = guardNonEmpty("name")
-  private def guardNotStartWith(prefix: String): String => Attempt[String] =
-    n => Either.cond(!n.startsWith(prefix), n, s"name must not start with $prefix, but is $n")
+  private[sec] val guardNonEmptyName: String => Attempt[String] = guardNonEmpty("name")
 
   private[sec] def normal(name: String): Attempt[Normal] =
-    (guardNonEmptyName(name) >>= guardNotStartWith(systemPrefix)).map(new Normal(_) {})
+    (guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix)).map(new Normal(_) {})
 
   private[sec] def system(name: String): Attempt[System] =
-    (guardNonEmptyName(name) >>= guardNotStartWith(systemPrefix)).map(new System(_) {})
+    (guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix)).map(new System(_) {})
 
   ///
 
@@ -85,13 +83,11 @@ object StreamId {
   private[sec] final val metadataPrefixLength: Int = metadataPrefix.length
 
   private object systemStreams {
-
     final val All: String       = "$all"
     final val Settings: String  = "$settings"
     final val Stats: String     = "$stats"
     final val Scavenges: String = "$scavenges"
     final val Streams: String   = "$streams"
-
   }
 
   ///

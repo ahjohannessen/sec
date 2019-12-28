@@ -18,24 +18,24 @@ private[sec] object streams {
 
   object outgoing {
 
-    val mapPositionOpt: Option[Position] => ReadReq.Options.AllOptions.AllOptions = {
-      case Some(v) => mapPosition(v)
-      case None    => ReadReq.Options.AllOptions.AllOptions.Start(ReadReq.Empty())
-    }
-
     val mapPosition: Position => ReadReq.Options.AllOptions.AllOptions = {
       case Position.Exact(c, p) => ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(c, p))
       case Position.End         => ReadReq.Options.AllOptions.AllOptions.End(ReadReq.Empty())
     }
 
-    val mapEventNumberOpt: Option[EventNumber] => ReadReq.Options.StreamOptions.RevisionOptions = {
-      case Some(v) => mapEventNumber(v)
-      case None    => ReadReq.Options.StreamOptions.RevisionOptions.Start(ReadReq.Empty())
+    val mapPositionOpt: Option[Position] => ReadReq.Options.AllOptions.AllOptions = {
+      case Some(v) => mapPosition(v)
+      case None    => ReadReq.Options.AllOptions.AllOptions.Start(ReadReq.Empty())
     }
 
     val mapEventNumber: EventNumber => ReadReq.Options.StreamOptions.RevisionOptions = {
       case EventNumber.Exact(nr) => ReadReq.Options.StreamOptions.RevisionOptions.Revision(nr)
       case EventNumber.End       => ReadReq.Options.StreamOptions.RevisionOptions.End(ReadReq.Empty())
+    }
+
+    val mapEventNumberOpt: Option[EventNumber] => ReadReq.Options.StreamOptions.RevisionOptions = {
+      case Some(v) => mapEventNumber(v)
+      case None    => ReadReq.Options.StreamOptions.RevisionOptions.Start(ReadReq.Empty())
     }
 
     val mapDirection: ReadDirection => ReadReq.Options.ReadDirection = {
@@ -59,8 +59,8 @@ private[sec] object streams {
           .getOrElse(ReadReq.Options.FilterOptions.Window.Count(ReadReq.Empty()))
 
         val result = filter.kind match {
-          case EventFilter.StreamName => ReadReq.Options.FilterOptions().withStreamName(expr).withWindow(window)
-          case EventFilter.EventType  => ReadReq.Options.FilterOptions().withEventType(expr).withWindow(window)
+          case EventFilter.ByStreamId  => ReadReq.Options.FilterOptions().withStreamName(expr).withWindow(window)
+          case EventFilter.ByEventType => ReadReq.Options.FilterOptions().withEventType(expr).withWindow(window)
         }
 
         FilterOptionsOneof.Filter(result)
@@ -105,6 +105,25 @@ private[sec] object streams {
       ReadReq().withOptions(options)
     }
 
+    def mkReadStreamReq(
+      streamId: StreamId,
+      from: EventNumber,
+      direction: ReadDirection,
+      count: Int,
+      resolveLinkTos: Boolean
+    ): ReadReq = {
+
+      val options = ReadReq
+        .Options()
+        .withStream(ReadReq.Options.StreamOptions(streamId.stringValue, mapEventNumber(from)))
+        .withCount(count)
+        .withReadDirection(mapDirection(direction))
+        .withResolveLinks(resolveLinkTos)
+        .withNoFilter(ReadReq.Empty())
+
+      ReadReq().withOptions(options)
+    }
+
     def mkReadAllReq(
       position: Position,
       direction: ReadDirection,
@@ -120,25 +139,6 @@ private[sec] object streams {
         .withReadDirection(mapDirection(direction))
         .withResolveLinks(resolveLinkTos)
         .withFilterOptionsOneof(mapReadEventFilter(filter))
-
-      ReadReq().withOptions(options)
-    }
-
-    def mkReadStreamReq(
-      streamId: StreamId,
-      direction: ReadDirection,
-      from: EventNumber,
-      count: Int,
-      resolveLinkTos: Boolean
-    ): ReadReq = {
-
-      val options = ReadReq
-        .Options()
-        .withStream(ReadReq.Options.StreamOptions(streamId.stringValue, mapEventNumber(from)))
-        .withCount(count)
-        .withReadDirection(mapDirection(direction))
-        .withResolveLinks(resolveLinkTos)
-        .withNoFilter(ReadReq.Empty())
 
       ReadReq().withOptions(options)
     }
@@ -177,12 +177,12 @@ private[sec] object streams {
     }
 
     def mkAppendProposalsReq(events: NonEmptyList[EventData]): NonEmptyList[AppendReq] = events.map { e =>
-      val id         = UUID().withString(e.eventId.toString)
+      val strucured  = UUID.Structured(e.eventId.getMostSignificantBits(), e.eventId.getLeastSignificantBits())
+      val id         = UUID().withStructured(strucured)
       val customMeta = e.metadata.bytes.toByteString
       val data       = e.data.bytes.toByteString
       val meta       = Map(Type -> EventType.eventTypeToString(e.eventType), IsJson -> e.isJson.fold("true", "false"))
-      val proposal   = AppendReq.ProposedMessage(id.some, meta, customMeta, data)
-      AppendReq().withProposedMessage(proposal)
+      AppendReq().withProposedMessage(AppendReq.ProposedMessage(id.some, meta, customMeta, data))
     }
   }
 
@@ -222,17 +222,17 @@ private[sec] object streams {
 
     }
 
-    def mkStreamId[F[_]: ErrorA](streamName: String): F[StreamId] =
-      StreamId.stringToStreamId(streamName).leftMap(ProtoResultError).liftTo[F]
+    def mkStreamId[F[_]: ErrorA](name: String): F[StreamId] =
+      StreamId.stringToStreamId(Option(name).getOrElse("")).leftMap(ProtoResultError).liftTo[F]
 
     def mkEventType[F[_]: ErrorA](name: String): F[EventType] =
-      EventType.stringToEventType(name).leftMap(ProtoResultError).liftTo[F]
+      EventType.stringToEventType(Option(name).getOrElse("")).leftMap(ProtoResultError).liftTo[F]
 
     def mkUUID[F[_]: ErrorA](uuid: UUID): F[JUUID] = {
 
       val juuid = uuid.value match {
         case UUID.Value.Structured(v) => new JUUID(v.mostSignificantBits, v.leastSignificantBits).asRight
-        case UUID.Value.String(v)     => JUUID.fromString(v).asRight
+        case UUID.Value.String(v)     => Either.catchNonFatal(JUUID.fromString(v)).leftMap(_.getMessage())
         case UUID.Value.Empty         => "UUID is missing".asLeft
       }
 

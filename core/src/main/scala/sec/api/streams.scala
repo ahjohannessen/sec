@@ -40,8 +40,8 @@ trait Streams[F[_]] {
 
   def readStream(
     streamId: StreamId,
-    direction: ReadDirection,
     from: EventNumber,
+    direction: ReadDirection,
     count: Int,
     resolveLinkTos: Boolean,
     creds: Option[UserCredentials]
@@ -121,7 +121,7 @@ object Streams {
       retriesWhenNotFound = 20,
       delayWhenNotFound   = 150.millis,
       client.read(mkSubscribeToStreamReq(streamId, exclusiveFrom, resolveLinkTos), ctx(creds)).through(mkEvents),
-      subscribeToAll(None, false, prefix(StreamName, None, PrefixFilter(streamId.stringValue)).some, creds),
+      subscribeToAll(None, false, prefix(ByStreamId, None, streamId.stringValue).some, creds),
       failIfNotFound
     )
 
@@ -137,13 +137,13 @@ object Streams {
 
     def readStream(
       streamId: StreamId,
-      direction: ReadDirection,
       from: EventNumber,
+      direction: ReadDirection,
       count: Int,
       resolveLinkTos: Boolean,
       creds: Option[UserCredentials]
     ): Stream[F, Event] =
-      client.read(mkReadStreamReq(streamId, direction, from, count, resolveLinkTos), ctx(creds)).through(mkEvents)
+      client.read(mkReadStreamReq(streamId, from, direction, count, resolveLinkTos), ctx(creds)).through(mkEvents)
 
     def appendToStream(
       streamId: StreamId,
