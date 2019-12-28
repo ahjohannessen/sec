@@ -1,0 +1,33 @@
+language: scala
+
+scala:
+  - 2.13.1
+
+env:
+  global:
+  - COURSIER_VERBOSITY=0
+
+jdk:
+  - oraclejdk8
+  - openjdk11
+
+branches:
+  only:
+    - master
+
+build:
+
+  pre_ci_boot:
+    image_name: drydock/u16scaall
+    image_tag: v7.1.4
+    pull: true
+    options: "-e HOME=/root"
+
+  ci:
+    - java -Xss6M -Xmx3600M -jar /usr/local/bin/sbt-launch.jar ++$SHIPPABLE_SCALA_VERSION "core/test:compile" "core/test"
+
+  cache: true
+  cache_dir_list:
+      - $HOME/.ivy2
+      - $HOME/.sbt
+      - $HOME/.coursier
