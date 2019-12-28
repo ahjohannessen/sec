@@ -12,7 +12,7 @@ import com.eventstore.client.streams._
 import sec.{core => c}
 import sec.api.mapping.streams.outgoing
 import sec.api.mapping.streams.incoming
-import sec.api.mapping.helpers._
+import sec.api.mapping.implicits._
 class StreamsMappingSpec extends mutable.Specification {
 
   "outgoing" should {
