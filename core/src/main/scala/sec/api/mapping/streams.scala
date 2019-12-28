@@ -8,7 +8,9 @@ import cats.implicits._
 import com.eventstore.client.streams._
 import sec.core._
 import sec.api.Streams._
-import grpc.constants.Metadata.{IsJson, Type}
+import sec.api.grpc.constants.Metadata.{IsJson, Type}
+import sec.api.mapping.implicits._
+import sec.api.mapping.time._
 
 private[sec] object streams {
 
