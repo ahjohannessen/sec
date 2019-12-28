@@ -8,8 +8,7 @@ env:
   - COURSIER_VERBOSITY=0
 
 jdk:
-  - oraclejdk8
-  - openjdk11
+  - openjdk8
 
 branches:
   only:
@@ -28,6 +27,6 @@ build:
 
   cache: true
   cache_dir_list:
-      - $HOME/.ivy2
+      - $HOME/.ivy2/cache
       - $HOME/.sbt
       - $HOME/.coursier
