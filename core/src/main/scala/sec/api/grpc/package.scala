@@ -25,17 +25,6 @@ package object grpc {
 
 //======================================================================================================================
 
-  implicit final class ContextOps(val ctx: Context) extends AnyVal {
-    def toMetadata: Metadata = {
-      val md = new Metadata()
-      ctx.userCreds.foreach(md.put(keys.authKey, _))
-      md.put(keys.cnKey, ctx.connectionName)
-      md
-    }
-  }
-
-//======================================================================================================================
-
   val convertToEs: StatusRuntimeException => Option[EsException] = ex => {
 
     val unknown           = "<unknown>"
@@ -64,7 +53,7 @@ package object grpc {
 
 //======================================================================================================================
 
-  implicit final class MetadataOps(val md: Metadata) extends AnyVal {
+  private[grpc] implicit final class MetadataOps(val md: Metadata) extends AnyVal {
     def getOpt[T](key: Metadata.Key[T]): Option[T] = Either.catchNonFatal(Option(md.get(key))).toOption.flatten
   }
 

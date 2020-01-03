@@ -6,7 +6,6 @@ import java.time.{Instant, ZoneOffset, ZonedDateTime}
 import cats.implicits._
 import org.specs2._
 import sec.api.mapping.time.fromTicksSinceEpoch
-import sec.api.mapping.implicits._
 
 class TimeSpec extends mutable.Specification {
 
