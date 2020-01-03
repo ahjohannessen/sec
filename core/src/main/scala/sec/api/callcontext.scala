@@ -23,7 +23,6 @@ object UserCredentials {
 
   def apply(username: String, password: String): Attempt[UserCredentials] = {
 
-    // TODO: Consult ES devs about valid chars
     def validate(value: String, name: String) = {
 
       def nonEmpty(v: String): Attempt[String] =

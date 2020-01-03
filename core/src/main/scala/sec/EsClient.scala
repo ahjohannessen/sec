@@ -6,7 +6,7 @@ import com.eventstore.client.streams.StreamsFs2Grpc
 import io.grpc.{ManagedChannel, ManagedChannelBuilder}
 import fs2.Stream
 import sec.api._
-import sec.api.grpc._
+import sec.api.grpc.implicits._
 
 trait EsClient[F[_]] {
   def streams: Streams[F]
