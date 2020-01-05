@@ -20,24 +20,24 @@ private[sec] object streams {
 
   object outgoing {
 
-    val mapPosition: Position => ReadReq.Options.AllOptions.AllOptions = {
-      case Position.Exact(c, p) => ReadReq.Options.AllOptions.AllOptions.Position(ReadReq.Options.Position(c, p))
-      case Position.End         => ReadReq.Options.AllOptions.AllOptions.End(ReadReq.Empty())
+    val mapPosition: Position => ReadReq.Options.AllOptions.AllOption = {
+      case Position.Exact(c, p) => ReadReq.Options.AllOptions.AllOption.Position(ReadReq.Options.Position(c, p))
+      case Position.End         => ReadReq.Options.AllOptions.AllOption.End(ReadReq.Empty())
     }
 
-    val mapPositionOpt: Option[Position] => ReadReq.Options.AllOptions.AllOptions = {
+    val mapPositionOpt: Option[Position] => ReadReq.Options.AllOptions.AllOption = {
       case Some(v) => mapPosition(v)
-      case None    => ReadReq.Options.AllOptions.AllOptions.Start(ReadReq.Empty())
+      case None    => ReadReq.Options.AllOptions.AllOption.Start(ReadReq.Empty())
     }
 
-    val mapEventNumber: EventNumber => ReadReq.Options.StreamOptions.RevisionOptions = {
-      case EventNumber.Exact(nr) => ReadReq.Options.StreamOptions.RevisionOptions.Revision(nr)
-      case EventNumber.End       => ReadReq.Options.StreamOptions.RevisionOptions.End(ReadReq.Empty())
+    val mapEventNumber: EventNumber => ReadReq.Options.StreamOptions.RevisionOption = {
+      case EventNumber.Exact(nr) => ReadReq.Options.StreamOptions.RevisionOption.Revision(nr)
+      case EventNumber.End       => ReadReq.Options.StreamOptions.RevisionOption.End(ReadReq.Empty())
     }
 
-    val mapEventNumberOpt: Option[EventNumber] => ReadReq.Options.StreamOptions.RevisionOptions = {
+    val mapEventNumberOpt: Option[EventNumber] => ReadReq.Options.StreamOptions.RevisionOption = {
       case Some(v) => mapEventNumber(v)
-      case None    => ReadReq.Options.StreamOptions.RevisionOptions.Start(ReadReq.Empty())
+      case None    => ReadReq.Options.StreamOptions.RevisionOption.Start(ReadReq.Empty())
     }
 
     val mapDirection: ReadDirection => ReadReq.Options.ReadDirection = {
@@ -45,11 +45,11 @@ private[sec] object streams {
       case ReadDirection.Backward => ReadReq.Options.ReadDirection.Backwards
     }
 
-    val mapReadEventFilter: Option[EventFilter] => ReadReq.Options.FilterOptionsOneof = {
+    val mapReadEventFilter: Option[EventFilter] => ReadReq.Options.FilterOption = {
 
-      import ReadReq.Options.FilterOptionsOneof
+      import ReadReq.Options.FilterOption
 
-      def filter(filter: EventFilter): FilterOptionsOneof = {
+      def filter(filter: EventFilter): FilterOption = {
 
         val expr = filter.option.fold(
           nel => ReadReq.Options.FilterOptions.Expression().withPrefix(nel.map(_.value).toList),
@@ -65,10 +65,10 @@ private[sec] object streams {
           case EventFilter.ByEventType => ReadReq.Options.FilterOptions().withEventType(expr).withWindow(window)
         }
 
-        FilterOptionsOneof.Filter(result)
+        FilterOption.Filter(result)
       }
 
-      def noFilter: FilterOptionsOneof = FilterOptionsOneof.NoFilter(ReadReq.Empty())
+      def noFilter: FilterOption = FilterOption.NoFilter(ReadReq.Empty())
 
       _.fold(noFilter)(filter)
     }
@@ -102,7 +102,7 @@ private[sec] object streams {
         .withSubscription(ReadReq.Options.SubscriptionOptions())
         .withReadDirection(mapDirection(ReadDirection.Forward))
         .withResolveLinks(resolveLinkTos)
-        .withFilterOptionsOneof(mapReadEventFilter(filter))
+        .withFilterOption(mapReadEventFilter(filter))
 
       ReadReq().withOptions(options)
     }
@@ -140,7 +140,7 @@ private[sec] object streams {
         .withCount(maxCount)
         .withReadDirection(mapDirection(direction))
         .withResolveLinks(resolveLinkTos)
-        .withFilterOptionsOneof(mapReadEventFilter(filter))
+        .withFilterOption(mapReadEventFilter(filter))
 
       ReadReq().withOptions(options)
     }
@@ -243,22 +243,22 @@ private[sec] object streams {
 
     def mkWriteResult[F[_]: ErrorA](ar: AppendResp): F[WriteResult] = {
 
-      val currentRevision = ar.currentRevisionOptions match {
-        case AppendResp.CurrentRevisionOptions.CurrentRevision(v) => EventNumber.exact(v).asRight
-        case AppendResp.CurrentRevisionOptions.NoStream(_)        => "Did not expect NoStream when using NonEmptyList".asLeft
-        case AppendResp.CurrentRevisionOptions.Empty              => "CurrentRevisionOptions is missing".asLeft
+      val currentRevision = ar.currentRevisionOption match {
+        case AppendResp.CurrentRevisionOption.CurrentRevision(v) => EventNumber.exact(v).asRight
+        case AppendResp.CurrentRevisionOption.NoStream(_)        => "Did not expect NoStream when using NonEmptyList".asLeft
+        case AppendResp.CurrentRevisionOption.Empty              => "CurrentRevisionOptions is missing".asLeft
       }
 
       currentRevision.map(WriteResult).leftMap(ProtoResultError).liftTo[F]
     }
 
     def mkDeleteResult[F[_]: ErrorA](dr: DeleteResp): F[DeleteResult] =
-      dr.positionOptions.position
+      dr.positionOption.position
         .map(p => DeleteResult(Position.exact(p.commitPosition, p.preparePosition)))
         .require[F]("DeleteResp.PositionOptions.Position")
 
     def mkDeleteResult[F[_]: ErrorA](tr: TombstoneResp): F[DeleteResult] =
-      tr.positionOptions.position
+      tr.positionOption.position
         .map(p => DeleteResult(Position.exact(p.commitPosition, p.preparePosition)))
         .require[F]("TombstoneResp.PositionOptions.Position")
 
