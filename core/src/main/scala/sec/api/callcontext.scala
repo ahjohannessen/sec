@@ -26,15 +26,15 @@ object UserCredentials {
     def validate(value: String, name: String) = {
 
       def nonEmpty(v: String): Attempt[String] =
-        Option(v).filter(_.isEmpty).toLeft(s"$name is empty")
+        Option(v).filter(_.nonEmpty).toRight(s"$name is empty")
 
       def validChars(v: String): Attempt[String] =
-        Option.unless(v.contains(':'))(v).toLeft(s"$name cannot contain invalid characters [':']")
+        Option.unless(v.contains(':'))(v).toRight(s"$name cannot contain characters [':']")
 
       nonEmpty(value) >>= validChars
     }
 
-    (validate(password, "password"), validate(username, "username")).mapN(UserCredentials.unsafe)
+    (validate(username, "username"), validate(password, "password")).mapN(UserCredentials.unsafe)
   }
 }
 
