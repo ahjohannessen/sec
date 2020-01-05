@@ -22,7 +22,7 @@ lazy val core = project
 lazy val commonSettings = Seq(
   scalaVersion := "2.13.1",
   addCompilerPlugin(kindProjector),
-  libraryDependencies ++= testM(specs2, specs2ScalaCheck, circeGeneric)
+  libraryDependencies ++= testM(catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck, circeGeneric)
 )
 
 inThisBuild(
