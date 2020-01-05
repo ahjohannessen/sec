@@ -75,7 +75,7 @@ object Position {
     private[Position] def create(commit: Long, prepare: Long): Exact =
       new Exact(commit, prepare) {}
 
-    def apply(commit: Long, prepare: Long): Attempt[Position] =
+    def apply(commit: Long, prepare: Long): Attempt[Exact] =
       for {
         c <- Either.cond(commit >= 0, commit, s"commit must be >= 0, but is $commit")
         p <- Either.cond(prepare >= 0, prepare, s"prepare must be >= 0, but is $prepare")
