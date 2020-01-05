@@ -7,6 +7,7 @@ import org.scalacheck._
 import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
 import sec.Arbitraries._
+
 class VersionSpec extends Specification with Discipline {
 
   "StreamRevision" >> {
