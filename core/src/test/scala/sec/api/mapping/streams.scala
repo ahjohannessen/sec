@@ -18,25 +18,25 @@ class StreamsMappingSpec extends mutable.Specification {
   "outgoing" should {
 
     import outgoing._
-    import ReadReq.Options.AllOptions.AllOptions
-    import ReadReq.Options.StreamOptions.RevisionOptions
+    import ReadReq.Options.AllOptions.AllOption
+    import ReadReq.Options.StreamOptions.RevisionOption
 
     val empty = ReadReq.Empty()
 
     ///
 
     "mapPosition" >> {
-      mapPosition(c.Position.exact(1L, 2L)) shouldEqual AllOptions.Position(ReadReq.Options.Position(1L, 2L))
-      mapPosition(c.Position.End) shouldEqual AllOptions.End(empty)
-      mapPositionOpt(c.Position.exact(0L, 0L).some) shouldEqual AllOptions.Position(ReadReq.Options.Position(0L, 0L))
-      mapPositionOpt(None) shouldEqual AllOptions.Start(empty)
+      mapPosition(c.Position.exact(1L, 2L)) shouldEqual AllOption.Position(ReadReq.Options.Position(1L, 2L))
+      mapPosition(c.Position.End) shouldEqual AllOption.End(empty)
+      mapPositionOpt(c.Position.exact(0L, 0L).some) shouldEqual AllOption.Position(ReadReq.Options.Position(0L, 0L))
+      mapPositionOpt(None) shouldEqual AllOption.Start(empty)
     }
 
     "mapEventNumber" >> {
-      mapEventNumber(c.EventNumber.exact(1L)) shouldEqual RevisionOptions.Revision(1L)
-      mapEventNumber(c.EventNumber.End) shouldEqual RevisionOptions.End(empty)
-      mapEventNumberOpt(c.EventNumber.exact(0L).some) shouldEqual RevisionOptions.Revision(0L)
-      mapEventNumberOpt(None) shouldEqual RevisionOptions.Start(empty)
+      mapEventNumber(c.EventNumber.exact(1L)) shouldEqual RevisionOption.Revision(1L)
+      mapEventNumber(c.EventNumber.End) shouldEqual RevisionOption.End(empty)
+      mapEventNumberOpt(c.EventNumber.exact(0L).some) shouldEqual RevisionOption.Revision(0L)
+      mapEventNumberOpt(None) shouldEqual RevisionOption.Start(empty)
     }
 
     "mapDirection" >> {
@@ -49,7 +49,7 @@ class StreamsMappingSpec extends mutable.Specification {
       import c.EventFilter._
       import ReadReq.Options.FilterOptions
       import ReadReq.Options.FilterOptions.Expression
-      import ReadReq.Options.FilterOptionsOneof.{Filter, NoFilter}
+      import ReadReq.Options.FilterOption.{Filter, NoFilter}
 
       mapReadEventFilter(None) shouldEqual NoFilter(empty)
 
@@ -114,7 +114,7 @@ class StreamsMappingSpec extends mutable.Specification {
             .withSubscription(ReadReq.Options.SubscriptionOptions())
             .withReadDirection(ReadReq.Options.ReadDirection.Forwards)
             .withResolveLinks(resolveLinkTos)
-            .withFilterOptionsOneof(mapReadEventFilter(filter))
+            .withFilterOption(mapReadEventFilter(filter))
         )
 
       for {
@@ -160,7 +160,7 @@ class StreamsMappingSpec extends mutable.Specification {
             .withCount(maxCount)
             .withReadDirection(mapDirection(rd))
             .withResolveLinks(rlt)
-            .withFilterOptionsOneof(mapReadEventFilter(filter))
+            .withFilterOption(mapReadEventFilter(filter))
         )
 
       for {

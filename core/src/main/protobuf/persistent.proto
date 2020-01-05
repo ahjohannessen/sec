@@ -32,7 +32,7 @@ message ReadReq {
 		repeated UUID ids = 2;
 		Action action = 3;
 		string reason = 4;
-
+		
 		enum Action {
 			Unknown = 0;
 			Park = 1;
@@ -57,7 +57,7 @@ message ReadResp {
 		}
 		oneof count {
 			int32 retry_count = 5;
-			Empty empty = 6;
+			Empty empty = 6;			
 		}
 		message RecordedEvent {
 			UUID id = 1;
