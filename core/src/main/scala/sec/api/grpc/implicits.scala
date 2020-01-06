@@ -3,7 +3,6 @@ package api
 package grpc
 
 import io.grpc.Metadata
-import cats.implicits._
 
 object implicits {
 

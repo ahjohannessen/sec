@@ -2,7 +2,7 @@ package sec
 package api
 package mapping
 
-import java.time.{Instant, ZoneOffset, ZonedDateTime}
+import java.time.{Instant, ZoneOffset}
 import java.util.{UUID => JUUID}
 import cats.implicits._
 import cats.data.NonEmptyList
@@ -15,7 +15,7 @@ import sec.api.mapping.streams.incoming
 import sec.api.mapping.implicits._
 class StreamsMappingSpec extends mutable.Specification {
 
-  "outgoing" should {
+  "outgoing" >> {
 
     import outgoing._
     import ReadReq.Options.AllOptions.AllOption
@@ -260,7 +260,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
   }
 
-  "incoming" should {
+  "incoming" >> {
 
     import incoming._
     import Streams.{DeleteResult, WriteResult}
@@ -400,11 +400,11 @@ class StreamsMappingSpec extends mutable.Specification {
         ProtoResultError("Invalid UUID string: invalid").asLeft
 
       // Missing EventType
-      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.filterKeys(_ != Type).toMap)) shouldEqual
+      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.view.filterKeys(_ != Type).toMap)) shouldEqual
         ProtoResultError(s"Required value $Type missing or invalid.").asLeft
 
       // Missing IsJson
-      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.filterKeys(_ != IsJson).toMap)) shouldEqual
+      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.view.filterKeys(_ != IsJson).toMap)) shouldEqual
         ProtoResultError(s"Required value $IsJson missing or invalid.").asLeft
 
       // Bad IsJson
@@ -412,7 +412,7 @@ class StreamsMappingSpec extends mutable.Specification {
         ProtoResultError(s"Required value $IsJson missing or invalid.").asLeft
 
       // Missing Created
-      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.filterKeys(_ != Created).toMap)) shouldEqual
+      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.view.filterKeys(_ != Created).toMap)) shouldEqual
         ProtoResultError(s"Required value $Created missing or invalid.").asLeft
 
       // Bad Created

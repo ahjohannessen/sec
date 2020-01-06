@@ -3,7 +3,6 @@ package sec
 import scala.annotation.tailrec
 import cats.implicits._
 import org.scalacheck._
-import cats.laws.discipline.arbitrary
 import sec.core._
 import sec.core.StreamRevision.{Any, NoStream, StreamExists}
 

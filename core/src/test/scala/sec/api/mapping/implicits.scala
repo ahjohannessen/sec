@@ -2,7 +2,6 @@ package sec
 package api
 package mapping
 
-import java.nio.charset.CharacterCodingException
 import com.google.protobuf.ByteString
 import scodec.bits.ByteVector
 import org.specs2._

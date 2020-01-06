@@ -2,8 +2,6 @@ package sec
 package api
 package grpc
 
-import java.{util => ju}
-import java.nio.charset.StandardCharsets.US_ASCII
 import io.grpc.Metadata
 import org.specs2._
 import cats.implicits._

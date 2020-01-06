@@ -21,8 +21,8 @@ final case class WrongExpectedVersion(streamId: String, expected: Option[Long], 
 
 object WrongExpectedVersion {
   def msg(streamId: String, expected: Option[Long], actual: Option[Long]): String = {
-    val exp = expected.getOrElse("<unknown>")
-    val act = actual.getOrElse("<unknown>")
+    val exp = expected.map(_.toString).getOrElse("<unknown>")
+    val act = actual.map(_.toString).getOrElse("<unknown>")
     s"WrongExpectedVersion for stream: $streamId, expected version: $exp, actual version: $act"
   }
 }

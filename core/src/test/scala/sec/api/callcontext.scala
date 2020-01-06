@@ -1,7 +1,6 @@
 package sec
 package api
 
-import cats.implicits._
 import org.specs2._
 
 class UserCredentialsSpec extends mutable.Specification {
