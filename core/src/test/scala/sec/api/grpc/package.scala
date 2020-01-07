@@ -128,5 +128,15 @@ class GrpcPackageSpec extends mutable.Specification {
       m.put(ek, ce.UserNotFound)
     } should beSome(UserNotFound(unknown))
 
+    /// Unknown Exception Key
+
+    convert { m =>
+      m.put(ek, "not-handled")
+    } should beSome(UnknownError("Exception key: not-handled"))
+
+    /// From Status Codes
+
+    convertToEs(Status.UNAVAILABLE.asRuntimeException()) should beSome(ServerUnavailable("UNAVAILABLE"))
+
   }
 }

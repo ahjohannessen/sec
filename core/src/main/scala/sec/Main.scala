@@ -24,7 +24,7 @@ object Main extends IOApp {
     val result: Stream[IO, Unit] = for {
       builder <- Stream.eval(nettyBuilder[IO])
       client  <- EsClient.stream[IO, NettyChannelBuilder](builder, Options.default).map(_.streams)
-      _       <- run6[IO](client)
+      _       <- run2[IO](client)
     } yield ()
 
     result.compile.drain.as(ExitCode.Success)

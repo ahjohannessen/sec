@@ -3,11 +3,13 @@ package core
 
 sealed abstract class EsException(msg: String) extends RuntimeException(msg)
 
-case object AccessDenied                          extends EsException("Access Denied.")                           // All
-case object InvalidTransaction                    extends EsException("Invalid Transaction.")                     // Streams.Delete + Streams.Append
-final case class UserNotFound(loginName: String)  extends EsException(s"User '$loginName' was not found.")        // Users
-final case class StreamDeleted(streamId: String)  extends EsException(s"Event stream '$streamId' is deleted.")    // Streams
+case object AccessDenied                          extends EsException("Access Denied.") // All
+case object InvalidTransaction                    extends EsException("Invalid Transaction.") // Streams.Delete + Streams.Append
+final case class UserNotFound(loginName: String)  extends EsException(s"User '$loginName' was not found.") // Users
+final case class StreamDeleted(streamId: String)  extends EsException(s"Event stream '$streamId' is deleted.") // Streams
 final case class StreamNotFound(streamId: String) extends EsException(s"Event stream '$streamId' was not found.") // Streams.Read/Subscribe
+final case class UnknownError(msg: String)        extends EsException(msg)
+final case class ServerUnavailable(msg: String)   extends EsException(msg)
 
 final case class MaximumAppendSizeExceeded(size: Option[Int]) extends EsException(MaximumAppendSizeExceeded.msg(size)) // Streams.Append
 

@@ -2,7 +2,7 @@ package sec
 package api
 
 import cats.implicits._
-import io.grpc.{Metadata, StatusRuntimeException}
+import io.grpc.{Metadata, Status, StatusRuntimeException}
 import sec.core._
 import grpc.constants.Headers._
 import grpc.constants.{Exceptions => ce}
@@ -29,6 +29,7 @@ package object grpc {
 
     val unknown           = "<unknown>"
     val md                = ex.getTrailers
+    val status            = ex.getStatus()
     val exception         = md.getOpt(keys.exception)
     def streamName        = md.getOpt(keys.streamName).getOrElse(unknown)
     def groupName         = md.getOpt(keys.groupName).getOrElse(unknown)
@@ -37,7 +38,7 @@ package object grpc {
     def loginName         = md.getOpt(keys.loginName).getOrElse(unknown)
     def maximumAppendSize = md.getOpt(keys.maximumAppendSize)
 
-    exception.map {
+    val reified: Option[EsException] = exception.map {
       case ce.AccessDenied                       => AccessDenied
       case ce.InvalidTransaction                 => InvalidTransaction
       case ce.MaximumAppendSizeExceeded          => MaximumAppendSizeExceeded(maximumAppendSize)
@@ -48,7 +49,14 @@ package object grpc {
       case ce.MaximumSubscribersReached          => PersistentSubscriptionMaximumSubscribersReached(streamName, groupName)
       case ce.PersistentSubscriptionDropped      => PersistentSubscriptionDroppedByServer(streamName, groupName)
       case ce.UserNotFound                       => UserNotFound(loginName)
+      case unknown                               => UnknownError(s"Exception key: $unknown")
     }
+
+    def serverUnavailable: Option[EsException] = Option.when(status.getCode == Status.Code.UNAVAILABLE)(
+      ServerUnavailable(Option(ex.getMessage()).getOrElse("Server unavailable"))
+    )
+
+    reified orElse serverUnavailable
   }
 
 //======================================================================================================================

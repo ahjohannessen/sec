@@ -2,9 +2,11 @@ package sec
 package api
 
 import scala.concurrent.duration._
+import scala.util.control.NonFatal
 import cats.data.NonEmptyList
-import cats.effect._
 import cats.implicits._
+import cats.effect._
+import cats.effect.concurrent.Ref
 import fs2.Stream
 import com.eventstore.client.streams._
 import sec.core._
@@ -107,8 +109,13 @@ object Streams {
       resolveLinkTos: Boolean,
       filter: Option[EventFilter],
       creds: Option[UserCredentials]
-    ): Stream[F, Event] =
-      client.read(mkSubscribeToAllReq(exclusiveFrom, resolveLinkTos, filter), ctx(creds)).through(mkEvents)
+    ): Stream[F, Event] = {
+
+      val subscription: Option[Position] => Stream[F, Event] =
+        ef => client.read(mkSubscribeToAllReq(ef, resolveLinkTos, filter), ctx(creds)).through(mkEvents)
+
+      subscribeToAllWithRetry[F](exclusiveFrom, subscription)
+    }
 
     def subscribeToStream(
       streamId: StreamId,
@@ -116,14 +123,20 @@ object Streams {
       resolveLinkTos: Boolean,
       failIfNotFound: Boolean,
       creds: Option[UserCredentials]
-    ): Stream[F, Event] = subscribeToStream0[F](
-      streamId,
-      retriesWhenNotFound = 20,
-      delayWhenNotFound   = 150.millis,
-      client.read(mkSubscribeToStreamReq(streamId, exclusiveFrom, resolveLinkTos), ctx(creds)).through(mkEvents),
-      subscribeToAll(None, false, prefix(ByStreamId, None, streamId.stringValue).some, creds),
-      failIfNotFound
-    )
+    ): Stream[F, Event] = {
+
+      val subscription: Option[EventNumber] => Stream[F, Event] = ef =>
+        subscribeToStream0[F](
+          streamId,
+          retriesWhenNotFound = 20,
+          delayWhenNotFound   = 150.millis,
+          client.read(mkSubscribeToStreamReq(streamId, ef, resolveLinkTos), ctx(creds)).through(mkEvents),
+          subscribeToAll(None, false, prefix(ByStreamId, None, streamId.stringValue).some, creds),
+          failIfNotFound
+        )
+
+      subscribeToStreamWithRetry[F](exclusiveFrom, subscription)
+    }
 
     def readAll(
       position: Position,
@@ -200,6 +213,39 @@ object Streams {
       case _: StreamNotFound if !failIfNotFound => waitForSourceOrGlobal >> source
     }
 
+  }
+
+  private[sec] def subscribeToAllWithRetry[F[_]: Sync: Timer](
+    exclusiveFrom: Option[Position],
+    subscription: Option[Position] => Stream[F, Event]
+  ): Stream[F, Event] =
+    subscribeWithRetry[F, Position](exclusiveFrom, subscription, _.record.position)
+
+  private[sec] def subscribeToStreamWithRetry[F[_]: Sync: Timer](
+    exclusiveFrom: Option[EventNumber],
+    subscription: Option[EventNumber] => Stream[F, Event]
+  ): Stream[F, Event] =
+    subscribeWithRetry[F, EventNumber](exclusiveFrom, subscription, _.record.number)
+
+  private[sec] def subscribeWithRetry[F[_]: Sync: Timer, T](
+    exclusiveFrom: Option[T],
+    subscription: Option[T] => Stream[F, Event],
+    fn: Event => T,
+    delay: FiniteDuration = 200.millis,
+    nextDelay: FiniteDuration => FiniteDuration = identity,
+    maxAttempts: Int = 100,
+    retriable: Throwable => Boolean = _.isInstanceOf[ServerUnavailable]
+  ): Stream[F, Event] = {
+
+    def eval(ef: Option[T], attempts: Int, d: FiniteDuration): Stream[F, Event] =
+      Stream.eval(Ref.of[F, Option[T]](ef)).flatMap { r =>
+        subscription(ef).changesBy(_.record.position).evalTap(e => r.set(fn(e).some)).recoverWith {
+          case NonFatal(t) if retriable(t) && attempts < maxAttempts =>
+            Stream.eval(r.get).flatMap(n => eval(n, attempts + 1, nextDelay(d)).delayBy(d))
+        }
+      }
+
+    eval(exclusiveFrom, 0, delay)
   }
 
 }

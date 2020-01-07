@@ -46,11 +46,13 @@ object EventNumber {
   def apply(number: Long): EventNumber = if (number < 0) End else exact(number)
 
   implicit val orderForEventNumber: Order[EventNumber] = Order.from {
-    case (x: Exact, y: Exact) => x.value compare y.value
+    case (x: Exact, y: Exact) => Order[Exact].compare(x, y)
     case (_: Exact, End)      => -1
     case (End, _: Exact)      => 1
     case (End, End)           => 0
   }
+
+  implicit val orderForExact: Order[Exact] = Order.by(_.value)
 
   implicit val showForExact: Show[Exact] = Show.show[Exact] {
     case Exact(v) => s"EventNumber($v)"
