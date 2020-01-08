@@ -25,6 +25,10 @@ class StreamsMappingSpec extends mutable.Specification {
 
     ///
 
+    "uuidOption" >> {
+      uuidOption shouldEqual ReadReq.Options.UUIDOption().withStructured(ReadReq.Empty())
+    }
+
     "mapPosition" >> {
       mapPosition(c.Position.exact(1L, 2L)) shouldEqual AllOption.Position(ReadReq.Options.Position(1L, 2L))
       mapPosition(c.Position.End) shouldEqual AllOption.End(empty)
@@ -93,6 +97,7 @@ class StreamsMappingSpec extends mutable.Specification {
             .withReadDirection(ReadReq.Options.ReadDirection.Forwards)
             .withResolveLinks(resolveLinkTos)
             .withNoFilter(empty)
+            .withUuidOption(uuidOption)
         )
 
       for {
@@ -115,6 +120,7 @@ class StreamsMappingSpec extends mutable.Specification {
             .withReadDirection(ReadReq.Options.ReadDirection.Forwards)
             .withResolveLinks(resolveLinkTos)
             .withFilterOption(mapReadEventFilter(filter))
+            .withUuidOption(uuidOption)
         )
 
       for {
@@ -137,6 +143,7 @@ class StreamsMappingSpec extends mutable.Specification {
             .withReadDirection(mapDirection(rd))
             .withResolveLinks(rlt)
             .withNoFilter(empty)
+            .withUuidOption(uuidOption)
         )
 
       for {
@@ -161,6 +168,7 @@ class StreamsMappingSpec extends mutable.Specification {
             .withReadDirection(mapDirection(rd))
             .withResolveLinks(rlt)
             .withFilterOption(mapReadEventFilter(filter))
+            .withUuidOption(uuidOption)
         )
 
       for {

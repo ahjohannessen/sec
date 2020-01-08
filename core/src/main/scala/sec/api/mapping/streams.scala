@@ -20,6 +20,8 @@ private[sec] object streams {
 
   object outgoing {
 
+    val uuidOption: ReadReq.Options.UUIDOption = ReadReq.Options.UUIDOption().withStructured(ReadReq.Empty())
+
     val mapPosition: Position => ReadReq.Options.AllOptions.AllOption = {
       case Position.Exact(c, p) => ReadReq.Options.AllOptions.AllOption.Position(ReadReq.Options.Position(c, p))
       case Position.End         => ReadReq.Options.AllOptions.AllOption.End(ReadReq.Empty())
@@ -86,6 +88,7 @@ private[sec] object streams {
         .withReadDirection(mapDirection(ReadDirection.Forward))
         .withResolveLinks(resolveLinkTos)
         .withNoFilter(ReadReq.Empty())
+        .withUuidOption(uuidOption)
 
       ReadReq().withOptions(options)
     }
@@ -103,6 +106,7 @@ private[sec] object streams {
         .withReadDirection(mapDirection(ReadDirection.Forward))
         .withResolveLinks(resolveLinkTos)
         .withFilterOption(mapReadEventFilter(filter))
+        .withUuidOption(uuidOption)
 
       ReadReq().withOptions(options)
     }
@@ -122,6 +126,7 @@ private[sec] object streams {
         .withReadDirection(mapDirection(direction))
         .withResolveLinks(resolveLinkTos)
         .withNoFilter(ReadReq.Empty())
+        .withUuidOption(uuidOption)
 
       ReadReq().withOptions(options)
     }
@@ -141,6 +146,7 @@ private[sec] object streams {
         .withReadDirection(mapDirection(direction))
         .withResolveLinks(resolveLinkTos)
         .withFilterOption(mapReadEventFilter(filter))
+        .withUuidOption(uuidOption)
 
       ReadReq().withOptions(options)
     }
