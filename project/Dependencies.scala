@@ -12,7 +12,7 @@ object Dependencies {
     val grpc             = scalapb.compiler.Version.grpcJavaVersion
     val fs2Grpc          = org.lyranthe.fs2_grpc.buildinfo.BuildInfo.version
     val disciplineSpecs2 = "1.0.0"
-    val specs2           = "4.8.1"
+    val specs2           = "4.8.3"
     val kindProjector    = "0.11.0"
   }
 
