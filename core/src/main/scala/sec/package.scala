@@ -20,4 +20,8 @@ package object sec {
 
 //======================================================================================================================
 
+  private[sec] implicit final class AttemptOps[T](inner: Attempt[T]) {
+    def unsafe: T = inner.leftMap(require(false, _)).toOption.get
+  }
+
 }

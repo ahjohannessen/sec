@@ -9,11 +9,13 @@ import sec.core.StreamRevision.{Any, NoStream, StreamExists}
 object Arbitraries {
 
   @tailrec
-  private final def sampleOf[T](implicit ev: Arbitrary[T]): T =
+  final def sampleOf[T](implicit ev: Arbitrary[T]): T =
     ev.arbitrary.sample match {
       case Some(t) => t
       case None    => sampleOf[T]
     }
+
+//======================================================================================================================
 
   implicit val arbEventNumberExact: Arbitrary[EventNumber.Exact] = Arbitrary[EventNumber.Exact](
     Gen.chooseNum(0L, Long.MaxValue).map(EventNumber.Exact(_).leftMap(require(false, _)).toOption.get)
@@ -32,5 +34,32 @@ object Arbitraries {
 
   implicit val arbStreamRevision: Arbitrary[StreamRevision] =
     Arbitrary[StreamRevision](Gen.oneOf(List(NoStream, Any, StreamExists, sampleOf[EventNumber.Exact])))
+
+//======================================================================================================================
+
+  implicit val arbStreamIdNormal: Arbitrary[StreamId.Normal] = Arbitrary[StreamId.Normal](
+    Gen.asciiStr.suchThat(s => s.nonEmpty && !s.startsWith(StreamId.systemPrefix)).map(StreamId.normal).map(_.unsafe)
+  )
+
+  implicit val arbStreamIdSystem: Arbitrary[StreamId.System] = Arbitrary[StreamId.System](
+    Arbitrary.arbitrary[StreamId.Normal].map(n => StreamId.system(n.name)).map(_.unsafe)
+  )
+
+  implicit val arbStreamIdNormalId: Arbitrary[StreamId.NormalId] =
+    Arbitrary(sampleOf[StreamId.NormalId])
+
+  implicit val arbStreamIdSystemId: Arbitrary[StreamId.SystemId] = Arbitrary[StreamId.SystemId] {
+    import StreamId._
+    Gen.oneOf(All, Settings, Stats, Scavenges, Streams, sampleOf[System])
+  }
+
+  implicit val arbStreamIdId: Arbitrary[StreamId.Id] =
+    Arbitrary[StreamId.Id](Gen.oneOf(sampleOf[StreamId.Normal], sampleOf[StreamId.SystemId]))
+
+  implicit val arbStreamIdMetaId: Arbitrary[StreamId.MetaId] =
+    Arbitrary[StreamId.MetaId](Gen.oneOf(sampleOf[StreamId.SystemId], sampleOf[StreamId.Normal]).map(_.meta))
+
+  implicit val arbStreamId: Arbitrary[StreamId] =
+    Arbitrary[StreamId](Gen.oneOf(sampleOf[StreamId.Id], sampleOf[StreamId.MetaId]))
 
 }

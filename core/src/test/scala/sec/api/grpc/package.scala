@@ -2,9 +2,9 @@ package sec
 package api
 package grpc
 
+import cats.implicits._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
 import org.specs2._
-import cats.implicits._
 import sec.core._
 import constants.{Exceptions => ce}
 import grpc.{keys => k}

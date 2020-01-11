@@ -23,8 +23,4 @@ private[sec] object implicits {
       o.toRight(ProtoResultError(s"Required value $value missing or invalid.")).liftTo[F]
   }
 
-  implicit final class AttemptOps[T](inner: Attempt[T]) {
-    def unsafe: T = inner.leftMap(require(false, _)).toOption.get
-  }
-
 }
