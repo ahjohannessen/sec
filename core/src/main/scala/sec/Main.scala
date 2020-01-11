@@ -5,7 +5,7 @@ import scala.concurrent.duration._
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect._
-import io.grpc.netty.NettyChannelBuilder
+import io.grpc.netty.{GrpcSslContexts, NettyChannelBuilder}
 import fs2.Stream
 import core._
 import StreamRevision.NoStream
@@ -15,7 +15,8 @@ import api.Streams._
 object Main extends IOApp {
 
   def nettyBuilder[F[_]: Sync]: F[NettyChannelBuilder] = Sync[F].delay {
-    NettyChannelBuilder.forAddress("localhost", 2113).usePlaintext()
+    val ssl = GrpcSslContexts.forClient().trustManager(getClass.getResourceAsStream("/dev-cert.pem")).build()
+    NettyChannelBuilder.forAddress("localhost", 2113).sslContext(ssl)
   }
 
   def run(args: List[String]): IO[ExitCode] = {
