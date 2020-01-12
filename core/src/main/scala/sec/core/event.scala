@@ -44,18 +44,6 @@ final case class EventRecord(
 
 object EventRecord {
 
-  implicit final class EventRecordOps(val e: EventRecord) extends AnyVal {
-
-    def createLink(eventId: UUID): Attempt[EventData] =
-      Either.cond(e.eventData.eventType != EventType.LinkTo, (), "Linking to a link is not supported.") >> {
-        Content.binary(s"${e.number.value}@${e.streamId.stringValue}") >>= { data =>
-          EventData(EventType.LinkTo, eventId, data, Content.BinaryEmpty)
-        }
-      }
-  }
-
-  ///
-
   implicit val showForEventRecord: Show[EventRecord] = Show.show[EventRecord] { er =>
     s"""
        |EventRecord(
@@ -220,7 +208,7 @@ object Content {
       }
 
       def isJson: Boolean   = tpe.fold(false, true)
-      def isBinary: Boolean = tpe.fold(true, false)
+      def isBinary: Boolean = !isJson
     }
 
     implicit val showForType: Show[Type] = Show.show[Type] {
@@ -244,7 +232,7 @@ object Content {
 
   ///
 
-  implicit val showByteVector: Show[ByteVector] = Show.show[ByteVector] { bv =>
+  private[sec] implicit val showByteVector: Show[ByteVector] = Show.show[ByteVector] { bv =>
     if (bv.isEmpty) s"empty"
     else if (bv.size < 32) s"${bv.size} bytes, 0x${bv.toHex}"
     else s"${bv.size} bytes, #${bv.hashCode}"

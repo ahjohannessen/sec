@@ -14,6 +14,9 @@ class StreamIdSpec extends Specification with Discipline {
 
   type ErrorOr[A] = Either[Throwable, A]
 
+  val normalId = StreamId.normal("normal").unsafe
+  val systemId = StreamId.system("system").unsafe
+
   "from" >> {
     StreamId.from("") should beLeft("name cannot be empty")
     StreamId.from("$$meta") should beLeft("value must not start with $$, but is $$meta")
@@ -39,10 +42,6 @@ class StreamIdSpec extends Specification with Discipline {
   }
 
   "streamIdToString" >> {
-
-    val normalId = StreamId.normal("normal").unsafe
-    val systemId = StreamId.system("system").unsafe
-
     StreamId.streamIdToString(StreamId.All) shouldEqual ss.All
     StreamId.streamIdToString(StreamId.Settings) shouldEqual ss.Settings
     StreamId.streamIdToString(StreamId.Stats) shouldEqual ss.Stats
@@ -55,10 +54,6 @@ class StreamIdSpec extends Specification with Discipline {
   }
 
   "stringToStreamId" >> {
-
-    val normalId = StreamId.normal("normal").unsafe
-    val systemId = StreamId.system("system").unsafe
-
     StreamId.stringToStreamId("$$normal") shouldEqual normalId.meta.asRight
     StreamId.stringToStreamId("$$$system") shouldEqual systemId.meta.asRight
     StreamId.stringToStreamId(ss.All) shouldEqual StreamId.All.asRight

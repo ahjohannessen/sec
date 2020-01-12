@@ -1,5 +1,6 @@
 package sec
 
+import java.time.{LocalDate, ZoneOffset, ZonedDateTime}
 import scala.annotation.tailrec
 import cats.implicits._
 import org.scalacheck._
@@ -15,6 +16,20 @@ object Arbitraries {
       case None    => sampleOf[T]
     }
 
+//======================================================================================================================
+// Common Std Instances
+//======================================================================================================================
+
+  implicit val arbLocalDate: Arbitrary[LocalDate] = Arbitrary(
+    Gen.choose(-1000L, 1000L).map(LocalDate.now(ZoneOffset.UTC).plusDays(_))
+  )
+
+  implicit val arbZonedDateTime: Arbitrary[ZonedDateTime] = Arbitrary(
+    Gen.choose(-86400000L, 86400000L).map(ZonedDateTime.now(ZoneOffset.UTC).plusSeconds(_))
+  )
+
+//======================================================================================================================
+// EventNumber & Position
 //======================================================================================================================
 
   implicit val arbEventNumberExact: Arbitrary[EventNumber.Exact] = Arbitrary[EventNumber.Exact](
@@ -36,17 +51,18 @@ object Arbitraries {
     Arbitrary[StreamRevision](Gen.oneOf(List(NoStream, Any, StreamExists, sampleOf[EventNumber.Exact])))
 
 //======================================================================================================================
+// StreamId
+//======================================================================================================================
 
   implicit val arbStreamIdNormal: Arbitrary[StreamId.Normal] = Arbitrary[StreamId.Normal](
-    Gen.asciiStr.suchThat(s => s.nonEmpty && !s.startsWith(StreamId.systemPrefix)).map(StreamId.normal).map(_.unsafe)
+    Gen.asciiStr.suchThat(s => s.nonEmpty && !s.startsWith(StreamId.systemPrefix)).map(n => StreamId.normal(n).unsafe)
   )
 
-  implicit val arbStreamIdSystem: Arbitrary[StreamId.System] = Arbitrary[StreamId.System](
-    Arbitrary.arbitrary[StreamId.Normal].map(n => StreamId.system(n.name)).map(_.unsafe)
-  )
+  implicit val arbStreamIdSystem: Arbitrary[StreamId.System] =
+    Arbitrary[StreamId.System](StreamId.system(sampleOf[StreamId.Normal].name).unsafe)
 
   implicit val arbStreamIdNormalId: Arbitrary[StreamId.NormalId] =
-    Arbitrary(sampleOf[StreamId.NormalId])
+    Arbitrary[StreamId.NormalId](sampleOf[StreamId.Normal])
 
   implicit val arbStreamIdSystemId: Arbitrary[StreamId.SystemId] = Arbitrary[StreamId.SystemId] {
     import StreamId._
@@ -61,5 +77,25 @@ object Arbitraries {
 
   implicit val arbStreamId: Arbitrary[StreamId] =
     Arbitrary[StreamId](Gen.oneOf(sampleOf[StreamId.Id], sampleOf[StreamId.MetaId]))
+
+//======================================================================================================================
+// EventType
+//======================================================================================================================
+
+  implicit val arbEventTypeUserDefined: Arbitrary[EventType.UserDefined] = Arbitrary {
+    import EventType._
+    Gen.asciiStr.suchThat(s => s.nonEmpty && !s.startsWith(systemPrefix)).map(n => userDefined(n).unsafe)
+  }
+
+  implicit val arbEventTypeSystemDefined: Arbitrary[EventType.SystemDefined] =
+    Arbitrary[EventType.SystemDefined](EventType.systemDefined(sampleOf[EventType.UserDefined].name).unsafe)
+
+  implicit val arbEventTypeSystemType: Arbitrary[EventType.SystemType] = Arbitrary[EventType.SystemType] {
+    import EventType._
+    Gen.oneOf(StreamDeleted, StatsCollected, LinkTo, StreamReference, StreamMetadata, Settings, sampleOf[SystemDefined])
+  }
+
+  implicit val arbEventType: Arbitrary[EventType] =
+    Arbitrary[EventType](Gen.oneOf(sampleOf[EventType.SystemType], sampleOf[EventType.UserDefined]))
 
 }
