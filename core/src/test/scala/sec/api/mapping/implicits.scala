@@ -18,12 +18,6 @@ class ImplicitsSpec extends mutable.Specification {
     Option(1).require[Either[Throwable, *]]("test") should beRight(1)
   }
 
-  "AttemptOps.unsafe" >> {
-    "oops".asLeft[Int].unsafe should throwA[IllegalArgumentException]("oops")
-
-    1.asRight[String].unsafe shouldEqual 1
-  }
-
   "ByteVectorOps.toByteString" >> {
     ByteVector.encodeUtf8("abc").map(_.toByteString) should beRight(ByteString.copyFromUtf8("abc"))
   }

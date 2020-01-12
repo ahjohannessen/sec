@@ -27,11 +27,8 @@ object StreamId {
   def apply[F[_]](name: String)(implicit F: ApplicativeError[F, Throwable]): F[Id] =
     from(name).leftMap(StreamIdError).liftTo[F]
 
-  def from(name: String): Attempt[Id] = {
-    guardNonEmptyName(name) >>= guardNotStartsWith(metadataPrefix) >>= { n =>
-      if (n.startsWith(systemPrefix)) system(n.substring(systemPrefixLength)) else normal(n)
-    }
-  }
+  def from(name: String): Attempt[Id] =
+    guardNonEmptyName(name) >>= guardNotStartsWith(metadataPrefix) >>= stringToId
 
   final case class StreamIdError(msg: String) extends RuntimeException(msg)
 
@@ -82,7 +79,7 @@ object StreamId {
   private[sec] final val metadataPrefix: String    = "$$"
   private[sec] final val metadataPrefixLength: Int = metadataPrefix.length
 
-  private object systemStreams {
+  private[sec] object systemStreams {
     final val All: String       = "$all"
     final val Settings: String  = "$settings"
     final val Stats: String     = "$stats"

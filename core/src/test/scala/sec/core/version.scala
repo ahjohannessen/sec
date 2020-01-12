@@ -24,9 +24,7 @@ class VersionSpec extends Specification with Discipline {
     }
 
     "Eq" >> {
-      implicit val cogen: Cogen[StreamRevision] =
-        Cogen[String].contramap[StreamRevision](_.show)
-
+      implicit val cogen: Cogen[StreamRevision] = Cogen[String].contramap[StreamRevision](_.show)
       checkAll("StreamRevision", EqTests[StreamRevision].eqv)
     }
   }
@@ -50,9 +48,7 @@ class VersionSpec extends Specification with Discipline {
     }
 
     "Order" >> {
-      implicit val cogen: Cogen[EventNumber] =
-        Cogen[String].contramap[EventNumber](_.show)
-
+      implicit val cogen: Cogen[EventNumber] = Cogen[String].contramap[EventNumber](_.show)
       checkAll("EventNumber", OrderTests[EventNumber].order)
     }
   }
@@ -83,9 +79,7 @@ class VersionSpec extends Specification with Discipline {
     }
 
     "Order" >> {
-      implicit val cogen: Cogen[Position] =
-        Cogen[String].contramap[Position](_.show)
-
+      implicit val cogen: Cogen[Position] = Cogen[String].contramap[Position](_.show)
       checkAll("Position", OrderTests[Position].order)
     }
   }
