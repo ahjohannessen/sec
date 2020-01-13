@@ -2,10 +2,12 @@ package sec
 
 import java.time.{LocalDate, ZoneOffset, ZonedDateTime}
 import scala.annotation.tailrec
+import scala.collection.immutable.SortedSet
+import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import cats.implicits._
-import org.scalacheck._
 import sec.core._
 import sec.core.StreamRevision.{Any, NoStream, StreamExists}
+import org.scalacheck._
 
 object Arbitraries {
 
@@ -97,5 +99,42 @@ object Arbitraries {
 
   implicit val arbEventType: Arbitrary[EventType] =
     Arbitrary[EventType](Gen.oneOf(sampleOf[EventType.SystemType], sampleOf[EventType.UserDefined]))
+
+//======================================================================================================================
+// Metadata
+//======================================================================================================================
+
+  implicit val arbStreamAcl: Arbitrary[StreamAcl] = Arbitrary {
+
+    val roles: Set[String]                      = Set("role1", "role2", "role3", "role4", "role5")
+    val someOf: Set[String] => Gen[Set[String]] = Gen.someOf(_).map(s => SortedSet(s.toSeq: _*))
+
+    for {
+      rr  <- someOf(roles).label("read")
+      wr  <- someOf(rr).label("write")
+      dr  <- someOf(wr).label("delete")
+      mrr <- someOf(rr).label("meta-read")
+      mwr <- someOf(dr).label("meta-write")
+    } yield StreamAcl(rr, wr, dr, mrr, mwr)
+
+  }
+
+  implicit val arbStreamState: Arbitrary[StreamState] = Arbitrary {
+
+    val oneYear = 31536000L
+    val seconds = Gen.chooseNum(1L, oneYear).map(FiniteDuration(_, SECONDS))
+
+    for {
+
+      maxAge         <- Gen.option(seconds)
+      maxCount       <- Gen.option(Gen.chooseNum(1, Int.MaxValue))
+      truncateBefore <- Gen.option(arbEventNumberExact.arbitrary.suchThat(_ > EventNumber.Start))
+      cacheControl   <- Gen.option(seconds)
+      acl            <- Gen.option(arbStreamAcl.arbitrary)
+
+    } yield {
+      StreamState(maxAge, maxCount, truncateBefore, cacheControl, acl)
+    }
+  }
 
 }

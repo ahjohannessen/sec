@@ -137,14 +137,16 @@ private[sec] object StreamState {
 
   }
 
+  private val na: String = "n/a"
+
   implicit val showForStreamState: Show[StreamState] = Show.show[StreamState] { ss =>
     s"""
        |StreamState:
-       |  max-age         = ${ss.maxAge.getOrElse(" - ")}
-       |  max-count       = ${ss.maxCount.map(c => if (c == 1) s"$c event" else s"$c events").getOrElse(" - ")}
-       |  cache-control   = ${ss.cacheControl.getOrElse(" - ")}
-       |  truncate-before = ${ss.truncateBefore.map(_.show).getOrElse(" - ")}
-       |  access-list     = ${ss.acl.map(_.show).getOrElse(" - ")}
+       |  max-age         = ${ss.maxAge.getOrElse(na)}
+       |  max-count       = ${ss.maxCount.map(c => if (c == 1) s"$c event" else s"$c events").getOrElse(na)}
+       |  cache-control   = ${ss.cacheControl.getOrElse(na)}
+       |  truncate-before = ${ss.truncateBefore.map(_.show).getOrElse(na)}
+       |  access-list     = ${ss.acl.map(_.show).getOrElse(na)}
        |""".stripMargin
 
   }
