@@ -20,21 +20,16 @@ lazy val core = project
 
 // General Settings
 lazy val commonSettings = Seq(
-  scalaVersion := "2.13.1",
   addCompilerPlugin(kindProjector),
   libraryDependencies ++= testM(catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck, circeGeneric)
 )
 
 inThisBuild(
   List(
+    scalaVersion := "2.13.1",
     organization := "io.ahjohannessen",
     developers := List(
-      Developer(
-        "ahjohannessen",
-        "Alex Henning Johannessen",
-        "ahjohannessen@gmail.com",
-        url("https://github.com/ahjohannessen")
-      )
+      Developer("ahjohannessen", "Alex Henning Johannessen", "ahjohannessen@gmail.com", url("https://github.com/ahjohannessen"))
     ),
     homepage := Some(url("https://github.com/ahjohannessen/sec")),
     licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
