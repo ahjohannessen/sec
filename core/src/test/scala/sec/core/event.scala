@@ -76,7 +76,9 @@ class EventSpec extends Specification {
     er.show shouldEqual (
       s"""
         |EventRecord(
-        |  streamId = ${er.streamId.show}, 
+        |  streamId = ${er.streamId.show},
+        |  eventId  = ${er.eventData.eventId},
+        |  type     = ${er.eventData.eventType.show},
         |  number   = ${er.number.show},
         |  position = ${er.position.show},
         |  data     = ${er.eventData.data.show}, 
@@ -147,7 +149,7 @@ class EventTypeSpec extends Specification {
 
 class EventDataSpec extends Specification {
 
-  import Content.Type.{Binary => Bin, Json}
+  import Content.Type.{Binary, Json}
 
   val bve = ByteVector.empty
   val et  = EventType("eventType").unsafe
@@ -184,8 +186,13 @@ class EventDataSpec extends Specification {
     EventData(et, id, dataBinary, metaJson) should beLeft(errContent)
     EventData(et, id, dataJson, metaBinary) should beLeft(errContent)
 
-    EventData.json(et, id, bve, bve).map(e => (e.data.contentType, e.metadata.contentType)) should beRight((Json, Json))
-    EventData.binary(et, id, bve, bve).map(e => (e.data.contentType, e.metadata.contentType)) should beRight((Bin, Bin))
+    val json = EventData.json(et, id, bve, bve)
+    json.data.contentType shouldEqual Json
+    json.metadata.contentType shouldEqual Json
+
+    val binary = EventData.binary(et, id, bve, bve)
+    binary.data.contentType shouldEqual Binary
+    binary.metadata.contentType shouldEqual Binary
   }
 
   "EventDataOps" >> {

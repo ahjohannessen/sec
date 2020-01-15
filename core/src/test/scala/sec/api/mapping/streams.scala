@@ -327,7 +327,7 @@ class StreamsMappingSpec extends mutable.Specification {
         c.StreamId.from(streamId).unsafe,
         c.EventNumber.exact(revision),
         c.Position.exact(commit, prepare),
-        c.EventData.json(c.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta).unsafe,
+        c.EventData.json(c.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta),
         created
       )
 
@@ -335,7 +335,7 @@ class StreamsMappingSpec extends mutable.Specification {
         c.StreamId.from(linkStreamId).unsafe,
         c.EventNumber.exact(linkRevision),
         c.Position.exact(linkCommit, linkPrepare),
-        c.EventData.binary(c.EventType.LinkTo, JUUID.fromString(linkId), linkData, linkCustomMeta).unsafe,
+        c.EventData.binary(c.EventType.LinkTo, JUUID.fromString(linkId), linkData, linkCustomMeta),
         linkCreated
       )
 
@@ -388,7 +388,7 @@ class StreamsMappingSpec extends mutable.Specification {
         c.StreamId.from(streamId).unsafe,
         c.EventNumber.exact(revision),
         c.Position.exact(commit, prepare),
-        c.EventData.binary(c.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta).unsafe,
+        c.EventData.binary(c.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta),
         created
       )
 
