@@ -44,8 +44,8 @@ class StreamsMappingSpec extends mutable.Specification {
     }
 
     "mapDirection" >> {
-      mapDirection(ReadDirection.Forward) shouldEqual ReadReq.Options.ReadDirection.Forwards
-      mapDirection(ReadDirection.Backward) shouldEqual ReadReq.Options.ReadDirection.Backwards
+      mapDirection(Direction.Forwards) shouldEqual ReadReq.Options.ReadDirection.Forwards
+      mapDirection(Direction.Backwards) shouldEqual ReadReq.Options.ReadDirection.Backwards
     }
 
     "mapReadEventFilter" >> {
@@ -134,7 +134,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
       val sid = c.StreamId.from("abc").unsafe
 
-      def test(rd: ReadDirection, from: c.EventNumber, count: Int, rlt: Boolean) =
+      def test(rd: Direction, from: c.EventNumber, count: Int, rlt: Boolean) =
         mkReadStreamReq(sid, from, rd, count, rlt) shouldEqual ReadReq().withOptions(
           ReadReq
             .Options()
@@ -147,7 +147,7 @@ class StreamsMappingSpec extends mutable.Specification {
         )
 
       for {
-        rd <- List(ReadDirection.Forward, ReadDirection.Backward)
+        rd <- List(Direction.Forwards, Direction.Backwards)
         fr <- List(c.EventNumber.Start, c.EventNumber.exact(2200), c.EventNumber.End)
         ct <- List(100, 1000, 10000)
         rt <- List(true, false)
@@ -158,7 +158,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
       import c.EventFilter._
 
-      def test(from: c.Position, rd: ReadDirection, maxCount: Int, rlt: Boolean, filter: Option[c.EventFilter]) =
+      def test(from: c.Position, rd: Direction, maxCount: Int, rlt: Boolean, filter: Option[c.EventFilter]) =
         mkReadAllReq(from, rd, maxCount, rlt, filter) shouldEqual ReadReq().withOptions(
           ReadReq
             .Options()
@@ -173,7 +173,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
       for {
         fr <- List(c.Position.Start, c.Position.exact(1337L, 1337L), c.Position.End)
-        rd <- List(ReadDirection.Forward, ReadDirection.Backward)
+        rd <- List(Direction.Forwards, Direction.Backwards)
         mc <- List(100, 1000, 10000)
         rt <- List(true, false)
         fi <- List(Option.empty[c.EventFilter], prefix(ByStreamId, None, "abc").some)

@@ -3,10 +3,10 @@ package api
 
 //======================================================================================================================
 
-sealed trait ReadDirection
-object ReadDirection {
-  case object Forward  extends ReadDirection
-  case object Backward extends ReadDirection
+sealed trait Direction
+object Direction {
+  case object Forwards  extends Direction
+  case object Backwards extends Direction
 }
 
 //======================================================================================================================

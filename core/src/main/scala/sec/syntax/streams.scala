@@ -36,7 +36,7 @@ final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.readStream(streamId, from, ReadDirection.Forward, count, resolveLinkTos, credentials)
+    s.readStream(streamId, from, Direction.Forwards, count, resolveLinkTos, credentials)
 
   def readStreamBackwards(
     streamId: StreamId,
@@ -45,7 +45,7 @@ final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.readStream(streamId, from, ReadDirection.Backward, count, resolveLinkTos, credentials)
+    s.readStream(streamId, from, Direction.Backwards, count, resolveLinkTos, credentials)
 
   def readAllForwards(
     position: Position,
@@ -54,7 +54,7 @@ final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
     filter: Option[EventFilter] = None,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.readAll(position, ReadDirection.Forward, maxCount, resolveLinkTos, filter, credentials)
+    s.readAll(position, Direction.Forwards, maxCount, resolveLinkTos, filter, credentials)
 
   def readAllBackwards(
     position: Position,
@@ -63,7 +63,7 @@ final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
     filter: Option[EventFilter] = None,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.readAll(position, ReadDirection.Backward, maxCount, resolveLinkTos, filter, credentials)
+    s.readAll(position, Direction.Backwards, maxCount, resolveLinkTos, filter, credentials)
 
   /// Append
 

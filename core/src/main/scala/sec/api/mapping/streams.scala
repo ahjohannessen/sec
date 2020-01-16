@@ -42,9 +42,9 @@ private[sec] object streams {
       case None    => ReadReq.Options.StreamOptions.RevisionOption.Start(ReadReq.Empty())
     }
 
-    val mapDirection: ReadDirection => ReadReq.Options.ReadDirection = {
-      case ReadDirection.Forward  => ReadReq.Options.ReadDirection.Forwards
-      case ReadDirection.Backward => ReadReq.Options.ReadDirection.Backwards
+    val mapDirection: Direction => ReadReq.Options.ReadDirection = {
+      case Direction.Forwards  => ReadReq.Options.ReadDirection.Forwards
+      case Direction.Backwards => ReadReq.Options.ReadDirection.Backwards
     }
 
     val mapReadEventFilter: Option[EventFilter] => ReadReq.Options.FilterOption = {
@@ -85,7 +85,7 @@ private[sec] object streams {
         .Options()
         .withStream(ReadReq.Options.StreamOptions(streamId.stringValue, mapEventNumberOpt(exclusiveFrom)))
         .withSubscription(ReadReq.Options.SubscriptionOptions())
-        .withReadDirection(mapDirection(ReadDirection.Forward))
+        .withReadDirection(mapDirection(Direction.Forwards))
         .withResolveLinks(resolveLinkTos)
         .withNoFilter(ReadReq.Empty())
         .withUuidOption(uuidOption)
@@ -103,7 +103,7 @@ private[sec] object streams {
         .Options()
         .withAll(ReadReq.Options.AllOptions(mapPositionOpt(exclusiveFrom)))
         .withSubscription(ReadReq.Options.SubscriptionOptions())
-        .withReadDirection(mapDirection(ReadDirection.Forward))
+        .withReadDirection(mapDirection(Direction.Forwards))
         .withResolveLinks(resolveLinkTos)
         .withFilterOption(mapReadEventFilter(filter))
         .withUuidOption(uuidOption)
@@ -114,7 +114,7 @@ private[sec] object streams {
     def mkReadStreamReq(
       streamId: StreamId,
       from: EventNumber,
-      direction: ReadDirection,
+      direction: Direction,
       count: Int,
       resolveLinkTos: Boolean
     ): ReadReq = {
@@ -133,7 +133,7 @@ private[sec] object streams {
 
     def mkReadAllReq(
       position: Position,
-      direction: ReadDirection,
+      direction: Direction,
       maxCount: Int,
       resolveLinkTos: Boolean,
       filter: Option[EventFilter]
