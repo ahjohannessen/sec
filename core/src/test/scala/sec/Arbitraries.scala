@@ -1,37 +1,40 @@
 package sec
 
-import java.time.{LocalDate, ZoneOffset, ZonedDateTime}
+import java.time.{ZoneOffset, ZonedDateTime}
+import java.{util => ju}
+import scala.util.Random
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import cats.implicits._
+import scodec.bits.ByteVector
 import sec.core._
 import sec.core.StreamRevision.{Any, NoStream, StreamExists}
 import org.scalacheck._
+import cats.data.NonEmptyList
+import scala.collection.immutable.Nil
 
 object Arbitraries {
 
-  @tailrec
   final def sampleOf[T](implicit ev: Arbitrary[T]): T =
-    ev.arbitrary.sample match {
-      case Some(t) => t
-      case None    => sampleOf[T]
-    }
+    sampleOfGen(ev.arbitrary)
+
+  @tailrec
+  final def sampleOfGen[T](implicit g: Gen[T]): T = g.sample match {
+    case Some(t) => t
+    case None    => sampleOfGen[T](g)
+  }
 
 //======================================================================================================================
-// Common Std Instances
+// Std Instances
 //======================================================================================================================
-
-  implicit val arbLocalDate: Arbitrary[LocalDate] = Arbitrary(
-    Gen.choose(-1000L, 1000L).map(LocalDate.now(ZoneOffset.UTC).plusDays(_))
-  )
 
   implicit val arbZonedDateTime: Arbitrary[ZonedDateTime] = Arbitrary(
-    Gen.choose(-86400000L, 86400000L).map(ZonedDateTime.now(ZoneOffset.UTC).plusSeconds(_))
+    Gen.choose(-86400000L, 0L).map(ZonedDateTime.now(ZoneOffset.UTC).plusSeconds(_))
   )
 
 //======================================================================================================================
-// EventNumber & Position
+// EventNumber, Position & StreamRevision
 //======================================================================================================================
 
   implicit val arbEventNumberExact: Arbitrary[EventNumber.Exact] = Arbitrary[EventNumber.Exact](
@@ -56,9 +59,17 @@ object Arbitraries {
 // StreamId
 //======================================================================================================================
 
-  implicit val arbStreamIdNormal: Arbitrary[StreamId.Normal] = Arbitrary[StreamId.Normal](
-    Gen.asciiStr.suchThat(s => s.nonEmpty && !s.startsWith(StreamId.systemPrefix)).map(n => StreamId.normal(n).unsafe)
-  )
+  private[sec] object idGen {
+
+    def genStreamIdNormal(prefix: String): Gen[StreamId.Normal] =
+      Gen.identifier
+        .suchThat(s => s.nonEmpty && s.size <= 15 && !s.startsWith(StreamId.systemPrefix))
+        .map(n => StreamId.normal(s"$prefix$n").unsafe)
+
+  }
+
+  implicit val arbStreamIdNormal: Arbitrary[StreamId.Normal] =
+    Arbitrary[StreamId.Normal](idGen.genStreamIdNormal(""))
 
   implicit val arbStreamIdSystem: Arbitrary[StreamId.System] =
     Arbitrary[StreamId.System](StreamId.system(sampleOf[StreamId.Normal].name).unsafe)
@@ -85,8 +96,14 @@ object Arbitraries {
 //======================================================================================================================
 
   implicit val arbEventTypeUserDefined: Arbitrary[EventType.UserDefined] = Arbitrary {
-    import EventType._
-    Gen.asciiStr.suchThat(s => s.nonEmpty && !s.startsWith(systemPrefix)).map(n => userDefined(n).unsafe)
+
+    val prefix = "com.eventstore.client.Event"
+    val gen: Gen[String] = for {
+      c  <- Gen.alphaUpperChar
+      cs <- Gen.listOfN(2, Gen.alphaLowerChar)
+    } yield s"$prefix${(c :: cs).mkString}"
+
+    gen.map(et => EventType.userDefined(et).unsafe)
   }
 
   implicit val arbEventTypeSystemDefined: Arbitrary[EventType.SystemDefined] =
@@ -104,7 +121,7 @@ object Arbitraries {
 // Metadata
 //======================================================================================================================
 
-  implicit val arbStreamAcl: Arbitrary[StreamAcl] = Arbitrary {
+  implicit val arbStreamAcl: Arbitrary[StreamAcl] = Arbitrary[StreamAcl] {
 
     val roles: Set[String]                      = Set("role1", "role2", "role3", "role4", "role5")
     val someOf: Set[String] => Gen[Set[String]] = Gen.someOf(_).map(s => SortedSet(s.toSeq: _*))
@@ -119,22 +136,109 @@ object Arbitraries {
 
   }
 
-  implicit val arbStreamState: Arbitrary[StreamState] = Arbitrary {
+  implicit val arbStreamState: Arbitrary[StreamState] = Arbitrary[StreamState] {
 
     val oneYear = 31536000L
     val seconds = Gen.chooseNum(1L, oneYear).map(FiniteDuration(_, SECONDS))
 
     for {
-
       maxAge         <- Gen.option(seconds)
       maxCount       <- Gen.option(Gen.chooseNum(1, Int.MaxValue))
       truncateBefore <- Gen.option(arbEventNumberExact.arbitrary.suchThat(_ > EventNumber.Start))
       cacheControl   <- Gen.option(seconds)
       acl            <- Gen.option(arbStreamAcl.arbitrary)
+    } yield StreamState(maxAge, maxCount, truncateBefore, cacheControl, acl)
 
-    } yield {
-      StreamState(maxAge, maxCount, truncateBefore, cacheControl, acl)
-    }
   }
+
+//======================================================================================================================
+// EventData
+//======================================================================================================================
+
+  private[sec] object eventdataGen {
+
+    private def bv(content: String, ct: Content.Type): ByteVector =
+      ct.fold(Content.binary(content).map(_.bytes).unsafe, Content.json(content).map(_.bytes).unsafe)
+
+    private def dataBV(id: ju.UUID, ct: Content.Type): ByteVector =
+      ct.fold(bv(s"data@$id", ct), bv(s"""{ "data" : "$id" }""", ct))
+
+    private def metaBV(id: ju.UUID, ct: Content.Type, empty: Boolean): ByteVector =
+      Option.unless(empty)(ct.fold(bv(s"meta@$id", ct), bv(s"""{ "meta" : "$id" }""", ct))).getOrElse(ByteVector.empty)
+
+    private val eventIdAndType: Gen[(ju.UUID, EventType)] = for {
+      uuid      <- Gen.uuid
+      eventType <- arbEventTypeUserDefined.arbitrary
+    } yield (uuid, eventType)
+
+    val genMeta: Gen[Boolean]    = Gen.oneOf(true, false)
+    val genCT: Gen[Content.Type] = Gen.oneOf(Content.Type.Binary, Content.Type.Json)
+
+    def eventDataN(n: Int): Gen[List[EventData]] =
+      for {
+        gm         <- genMeta
+        ct         <- genCT
+        idAndTypes <- Gen.infiniteStream(eventIdAndType).flatMap(_.take(n).toList)
+        gen        <- idAndTypes
+        (id, et)   = gen
+        data       = dataBV(id, ct)
+        meta       = metaBV(id, ct, gm)
+      } yield ct.fold(EventData.binary(et, id, data, meta), EventData.json(et, id, data, meta))
+
+    val eventDataOne: Gen[EventData] = for {
+      ct        <- genCT
+      idAndType <- eventIdAndType
+      (id, et)  = idAndType
+      data      = dataBV(id, ct)
+      meta      = metaBV(id, ct, false)
+    } yield ct.fold(EventData.binary(et, id, data, meta), EventData.json(et, id, data, meta))
+
+    @tailrec
+    def eventDataNelN(n: Int): Gen[NonEmptyList[EventData]] =
+      sampleOfGen(eventDataN(math.max(1, n))) match {
+        case head :: tail => NonEmptyList[EventData](head, tail)
+        case Nil          => eventDataNelN(n)
+      }
+  }
+
+  def arbEventDataNelOfN(n: Int): Arbitrary[NonEmptyList[EventData]] = Arbitrary(eventdataGen.eventDataNelN(n))
+  implicit val arbEventData: Arbitrary[EventData]                    = Arbitrary(eventdataGen.eventDataOne)
+  implicit val arbEventDataNN: Arbitrary[NonEmptyList[EventData]]    = arbEventDataNelOfN(25)
+
+//======================================================================================================================
+// Event
+//======================================================================================================================
+
+  private[sec] object eventGen {
+
+    val eventRecordOne: Gen[EventRecord] = for {
+      sid <- arbStreamIdNormal.arbitrary
+      p   <- arbPositionExact.arbitrary
+      n   <- arbEventNumberExact.arbitrary.suchThat(_.value < p.commit)
+      ed  <- arbEventData.arbitrary
+      c   <- arbZonedDateTime.arbitrary
+    } yield EventRecord(sid, n, p, ed, c)
+
+    def eventRecordNelN(n: Int, prefix: Option[String] = "sec-".some): Gen[NonEmptyList[EventRecord]] = {
+
+      val sid  = sampleOfGen(idGen.genStreamIdNormal(prefix.getOrElse("")))
+      val data = sampleOfGen(eventdataGen.eventDataNelN(n))
+      val zdt  = sampleOf[ZonedDateTime]
+
+      data.zipWithIndex.map {
+        case (ed, i) =>
+          val commit   = Random.between(i.toLong, i.toLong + 1000)
+          val position = Position.exact(commit, commit)
+          val number   = EventNumber.exact(i.toLong)
+          val created  = zdt.plusSeconds(i.toLong)
+          EventRecord(sid, number, position, ed, created)
+      }
+    }
+
+  }
+
+  def arbEventRecordNelOfN(n: Int): Arbitrary[NonEmptyList[EventRecord]] = Arbitrary(eventGen.eventRecordNelN(n))
+  implicit val arbEventRecord: Arbitrary[EventRecord]                    = Arbitrary[EventRecord](eventGen.eventRecordOne)
+  implicit val arbEventRecordN: Arbitrary[NonEmptyList[EventRecord]]     = arbEventRecordNelOfN(25)
 
 }

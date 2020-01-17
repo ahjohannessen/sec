@@ -47,7 +47,9 @@ object EventRecord {
   implicit val showForEventRecord: Show[EventRecord] = Show.show[EventRecord] { er =>
     s"""
        |EventRecord(
-       |  streamId = ${er.streamId.show}, 
+       |  streamId = ${er.streamId.show},
+       |  eventId  = ${er.eventData.eventId},
+       |  type     = ${er.eventData.eventType.show},
        |  number   = ${er.number.show},
        |  position = ${er.position.show},
        |  data     = ${er.eventData.data.show}, 
@@ -158,6 +160,11 @@ sealed abstract case class EventData(
 
 object EventData {
 
+  private def create(et: EventType, eventId: UUID, data: Content, metadata: Content): EventData =
+    new EventData(et, eventId, data, metadata) {}
+
+  ///
+
   def apply(eventType: String, eventId: UUID, data: Content): Attempt[EventData] =
     EventData(eventType, eventId, data, Content(ByteVector.empty, data.contentType))
 
@@ -168,14 +175,14 @@ object EventData {
     EventData(et, eventId, data, Content(ByteVector.empty, data.contentType))
 
   private[sec] def apply(et: EventType, eventId: UUID, data: Content, metadata: Content): Attempt[EventData] =
-    if (data.contentType == metadata.contentType) new EventData(et, eventId, data, metadata) {}.asRight
+    if (data.contentType == metadata.contentType) create(et, eventId, data, metadata).asRight
     else "Different content types for data & metadata is not supported.".asLeft
 
-  private[sec] def json(et: EventType, eventId: UUID, data: ByteVector, metadata: ByteVector): Attempt[EventData] =
-    EventData(et, eventId, Content(data, Content.Type.Json), Content(metadata, Content.Type.Json))
+  private[sec] def json(et: EventType, eventId: UUID, data: ByteVector, metadata: ByteVector): EventData =
+    create(et, eventId, Content(data, Content.Type.Json), Content(metadata, Content.Type.Json))
 
-  private[sec] def binary(et: EventType, eventId: UUID, data: ByteVector, metadata: ByteVector): Attempt[EventData] =
-    EventData(et, eventId, Content(data, Content.Type.Binary), Content(metadata, Content.Type.Binary))
+  private[sec] def binary(et: EventType, eventId: UUID, data: ByteVector, metadata: ByteVector): EventData =
+    create(et, eventId, Content(data, Content.Type.Binary), Content(metadata, Content.Type.Binary))
 
   ///
 

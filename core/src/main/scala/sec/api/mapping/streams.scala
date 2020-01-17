@@ -223,7 +223,7 @@ private[sec] object streams {
       val created     = e.metadata.get(Created).flatMap(_.toLongOption).require[F](Created) >>= fromTicksSinceEpoch[F]
 
       val eventData = (eventId, eventType, isJson).mapN { (i, t, j) =>
-        j.fold(json(t, i, data, customMeta), binary(t, i, data, customMeta)).leftMap(ProtoResultError).liftTo[F]
+        j.fold(json(t, i, data, customMeta), binary(t, i, data, customMeta)).pure[F]
       }
 
       (streamId, eventData.flatten, created).mapN((id, ed, c) => EventRecord(id, eventNumber, position, ed, c))
