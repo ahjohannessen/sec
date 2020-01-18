@@ -1,29 +1,31 @@
 package sec
 package api
+package grpc
 
 import cats.implicits._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
-import sec.core._
-import grpc.constants.Headers._
 import grpc.constants.{Exceptions => ce}
+import sec.core._
 
-package object grpc {
+private[sec] object convert {
 
 //======================================================================================================================
 
   private[grpc] object keys {
-    val authKey: Metadata.Key[UserCredentials] = Metadata.Key.of(Authorization, UserCredentialsMarshaller)
-    val cnKey: Metadata.Key[String]            = Metadata.Key.of(ConnectionName, StringMarshaller)
-    val exception: Metadata.Key[String]        = Metadata.Key.of(ce.ExceptionKey, StringMarshaller)
-    val streamName: Metadata.Key[String]       = Metadata.Key.of(ce.StreamName, StringMarshaller)
-    val groupName: Metadata.Key[String]        = Metadata.Key.of(ce.GroupName, StringMarshaller)
-    val loginName: Metadata.Key[String]        = Metadata.Key.of(ce.LoginName, StringMarshaller)
-    val expectedVersion: Metadata.Key[Long]    = Metadata.Key.of(ce.ExpectedVersion, LongMarshaller)
-    val actualVersion: Metadata.Key[Long]      = Metadata.Key.of(ce.ActualVersion, LongMarshaller)
-    val maximumAppendSize: Metadata.Key[Int]   = Metadata.Key.of(ce.MaximumAppendSize, IntMarshaller)
+    val exception: Metadata.Key[String]      = Metadata.Key.of(ce.ExceptionKey, StringMarshaller)
+    val streamName: Metadata.Key[String]     = Metadata.Key.of(ce.StreamName, StringMarshaller)
+    val groupName: Metadata.Key[String]      = Metadata.Key.of(ce.GroupName, StringMarshaller)
+    val loginName: Metadata.Key[String]      = Metadata.Key.of(ce.LoginName, StringMarshaller)
+    val expectedVersion: Metadata.Key[Long]  = Metadata.Key.of(ce.ExpectedVersion, LongMarshaller)
+    val actualVersion: Metadata.Key[Long]    = Metadata.Key.of(ce.ActualVersion, LongMarshaller)
+    val maximumAppendSize: Metadata.Key[Int] = Metadata.Key.of(ce.MaximumAppendSize, IntMarshaller)
   }
 
 //======================================================================================================================
+
+  private[grpc] implicit final class MetadataOps(val md: Metadata) extends AnyVal {
+    def getOpt[T](key: Metadata.Key[T]): Option[T] = Either.catchNonFatal(Option(md.get(key))).toOption.flatten
+  }
 
   val convertToEs: StatusRuntimeException => Option[EsException] = ex => {
 
@@ -57,12 +59,6 @@ package object grpc {
     )
 
     reified orElse serverUnavailable
-  }
-
-//======================================================================================================================
-
-  private[grpc] implicit final class MetadataOps(val md: Metadata) extends AnyVal {
-    def getOpt[T](key: Metadata.Key[T]): Option[T] = Either.catchNonFatal(Option(md.get(key))).toOption.flatten
   }
 
 //======================================================================================================================

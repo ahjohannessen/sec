@@ -5,11 +5,11 @@ package grpc
 import cats.implicits._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
 import org.specs2._
-import sec.core._
 import constants.{Exceptions => ce}
-import grpc.{keys => k}
+import convert.{keys => k, convertToEs}
+import sec.core._
 
-class GrpcPackageSpec extends mutable.Specification {
+class ConvertSpec extends mutable.Specification {
 
   "convertToEs" >> {
 

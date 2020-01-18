@@ -7,6 +7,7 @@ import io.grpc.{ManagedChannel, ManagedChannelBuilder}
 import fs2.Stream
 import sec.api._
 import sec.api.grpc.implicits._
+import sec.api.grpc.convert.convertToEs
 
 trait EsClient[F[_]] {
   def streams: Streams[F]
@@ -28,7 +29,7 @@ object EsClient {
 
   private final class Impl[F[_]: ConcurrentEffect: Timer](mc: ManagedChannel, options: Options) extends EsClient[F] {
     val streams: Streams[F] =
-      Streams(StreamsFs2Grpc.client[F, Context](mc, _.toMetadata, identity, grpc.convertToEs), options)
+      Streams(StreamsFs2Grpc.client[F, Context](mc, _.toMetadata, identity, convertToEs), options)
   }
 
 }
