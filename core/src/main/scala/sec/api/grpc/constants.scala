@@ -2,7 +2,7 @@ package sec
 package api
 package grpc
 
-private[sec] object constants {
+private[api] object constants {
 
 //======================================================================================================================
 
