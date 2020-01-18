@@ -5,7 +5,7 @@ object Dependencies {
   object versions {
     val catsCore         = "2.1.0"
     val catsEffect       = "2.0.0"
-    val fs2              = "2.1.0"
+    val fs2              = "2.2.0"
     val scodecBits       = "1.1.12"
     val circe            = "0.12.3"
     val scalaPb          = scalapb.compiler.Version.scalapbVersion
