@@ -134,7 +134,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
       val sid = c.StreamId.from("abc").unsafe
 
-      def test(rd: Direction, from: c.EventNumber, count: Int, rlt: Boolean) =
+      def test(rd: Direction, from: c.EventNumber, count: Long, rlt: Boolean) =
         mkReadStreamReq(sid, from, rd, count, rlt) shouldEqual ReadReq().withOptions(
           ReadReq
             .Options()
@@ -149,7 +149,7 @@ class StreamsMappingSpec extends mutable.Specification {
       for {
         rd <- List(Direction.Forwards, Direction.Backwards)
         fr <- List(c.EventNumber.Start, c.EventNumber.exact(2200), c.EventNumber.End)
-        ct <- List(100, 1000, 10000)
+        ct <- List(100L, 1000L, 10000L)
         rt <- List(true, false)
       } yield test(rd, fr, ct, rt)
     }
@@ -158,7 +158,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
       import c.EventFilter._
 
-      def test(from: c.Position, rd: Direction, maxCount: Int, rlt: Boolean, filter: Option[c.EventFilter]) =
+      def test(from: c.Position, rd: Direction, maxCount: Long, rlt: Boolean, filter: Option[c.EventFilter]) =
         mkReadAllReq(from, rd, maxCount, rlt, filter) shouldEqual ReadReq().withOptions(
           ReadReq
             .Options()
@@ -174,7 +174,7 @@ class StreamsMappingSpec extends mutable.Specification {
       for {
         fr <- List(c.Position.Start, c.Position.exact(1337L, 1337L), c.Position.End)
         rd <- List(Direction.Forwards, Direction.Backwards)
-        mc <- List(100, 1000, 10000)
+        mc <- List(100L, 1000L, 10000L)
         rt <- List(true, false)
         fi <- List(Option.empty[c.EventFilter], prefix(ByStreamId, None, "abc").some)
       } yield test(fr, rd, mc, rt, fi)

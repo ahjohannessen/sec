@@ -34,7 +34,7 @@ trait Streams[F[_]] {
   def readAll(
     position: Position,
     direction: Direction,
-    maxCount: Int,
+    maxCount: Long,
     resolveLinkTos: Boolean,
     filter: Option[EventFilter],
     creds: Option[UserCredentials]
@@ -44,7 +44,7 @@ trait Streams[F[_]] {
     streamId: StreamId,
     from: EventNumber,
     direction: Direction,
-    count: Int,
+    count: Long,
     resolveLinkTos: Boolean,
     creds: Option[UserCredentials]
   ): Stream[F, Event]
@@ -141,7 +141,7 @@ object Streams {
     def readAll(
       position: Position,
       direction: Direction,
-      maxCount: Int,
+      maxCount: Long,
       resolveLinkTos: Boolean,
       filter: Option[EventFilter],
       creds: Option[UserCredentials]
@@ -152,7 +152,7 @@ object Streams {
       streamId: StreamId,
       from: EventNumber,
       direction: Direction,
-      count: Int,
+      count: Long,
       resolveLinkTos: Boolean,
       creds: Option[UserCredentials]
     ): Stream[F, Event] =

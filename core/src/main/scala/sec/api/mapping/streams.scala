@@ -115,7 +115,7 @@ private[sec] object streams {
       streamId: StreamId,
       from: EventNumber,
       direction: Direction,
-      count: Int,
+      count: Long,
       resolveLinkTos: Boolean
     ): ReadReq = {
 
@@ -134,7 +134,7 @@ private[sec] object streams {
     def mkReadAllReq(
       position: Position,
       direction: Direction,
-      maxCount: Int,
+      maxCount: Long,
       resolveLinkTos: Boolean,
       filter: Option[EventFilter]
     ): ReadReq = {
