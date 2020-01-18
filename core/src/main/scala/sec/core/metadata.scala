@@ -3,6 +3,7 @@ package core
 
 import scala.concurrent.duration._
 import cats.Show
+import cats.Endo
 import cats.implicits._
 import io.circe._
 import io.circe.syntax._
@@ -11,13 +12,44 @@ import io.circe.Decoder.Result
 //======================================================================================================================
 
 private[sec] final case class StreamMetadata(
-  settings: StreamState,
+  state: StreamState,
   custom: Option[JsonObject]
 )
 
 private[sec] object StreamMetadata {
 
-  def apply(settings: StreamState): StreamMetadata = StreamMetadata(settings, None)
+  final val empty: StreamMetadata               = StreamMetadata(StreamState.empty)
+  def apply(state: StreamState): StreamMetadata = StreamMetadata(state, None)
+
+  implicit final class StreamMetadataOps(val sm: StreamMetadata) extends AnyVal {
+
+    def modifyState(fn: StreamState => StreamState): StreamMetadata =
+      sm.copy(state = fn(sm.state))
+
+    def withTruncateBefore(tb: Option[EventNumber.Exact]): StreamMetadata =
+      sm.modifyState(_.copy(truncateBefore = tb))
+
+    def withMaxAge(ma: Option[MaxAge]): StreamMetadata =
+      sm.modifyState(_.copy(maxAge = ma))
+
+    def withMaxCount(mc: Option[MaxCount]): StreamMetadata =
+      sm.modifyState(_.copy(maxCount = mc))
+
+    def withCacheControl(cc: Option[CacheControl]): StreamMetadata =
+      sm.modifyState(_.copy(cacheControl = cc))
+
+    def withAcl(sa: Option[StreamAcl]): StreamMetadata =
+      sm.modifyState(_.copy(acl = sa))
+
+    ///
+
+    def decodeCustom[F[_]: ErrorA, A: Decoder]: F[Option[A]] =
+      sm.custom.traverse(jo => Decoder[A].apply(Json.fromJsonObject(jo).hcursor).liftTo[F])
+
+    def modifyCustom[F[_]: ErrorA, A: Codec.AsObject](fn: Endo[Option[A]]): F[StreamMetadata] =
+      decodeCustom[F, A].map(c => sm.copy(custom = fn(c).map(Encoder.AsObject[A].encodeObject)))
+
+  }
 
   ///
 
@@ -37,8 +69,8 @@ private[sec] object StreamMetadata {
     val decodeSS: JsonObject => Result[StreamState] = jo => Decoder[StreamState].apply(jo.asJson.hcursor)
 
     def encodeObject(sm: StreamMetadata): JsonObject = sm.custom match {
-      case Some(c) if c.nonEmpty => encodeSS(sm.settings).toList.foldLeft(c) { case (i, (k, v)) => i.add(k, v) }
-      case _                     => encodeSS(sm.settings)
+      case Some(c) if c.nonEmpty => encodeSS(sm.state).toList.foldLeft(c) { case (i, (k, v)) => i.add(k, v) }
+      case _                     => encodeSS(sm.state)
     }
 
     def apply(c: HCursor): Result[StreamMetadata] =
@@ -54,14 +86,58 @@ private[sec] object StreamMetadata {
 
 //======================================================================================================================
 
+sealed abstract case class MaxAge(value: FiniteDuration)
+object MaxAge {
+
+  /**
+   * @param maxAge must be greater than or equal to 1 second.
+   * @return [[Attempt[MaxAge]]]
+   */
+  def apply(maxAge: FiniteDuration): Attempt[MaxAge] =
+    if (maxAge < 1.second) s"maxAge must be >= 1 second, it was $maxAge.".asLeft
+    else new MaxAge(maxAge) {}.asRight
+
+  implicit val showForMaxAge: Show[MaxAge] = Show.show(_.value.toString())
+}
+
+sealed abstract case class MaxCount(value: Int)
+object MaxCount {
+
+  /**
+   * @param maxCount must be greater than or equal to 1.
+   * @return [[Attempt[MaxCount]]]
+   */
+  def apply(maxCount: Int): Attempt[MaxCount] =
+    if (maxCount < 1) s"max count must be >= 1, it was $maxCount.".asLeft
+    else new MaxCount(maxCount) {}.asRight
+
+  implicit val showForMaxCount: Show[MaxCount] = Show.show { mc =>
+    s"${mc.value} event${if (mc.value == 1) "" else "s"}"
+  }
+}
+
+sealed abstract case class CacheControl(value: FiniteDuration)
+object CacheControl {
+
+  /**
+   * @param cacheControl must be greater than or equal to 1 second.
+   * @return [[Attempt[CacheControl]]]
+   */
+  def apply(cacheControl: FiniteDuration): Attempt[CacheControl] =
+    if (cacheControl < 1.second) s"cache control must be >= 1, it was $cacheControl.".asLeft
+    else new CacheControl(cacheControl) {}.asRight
+
+  implicit val showForCacheControl: Show[CacheControl] = Show.show(_.value.toString())
+}
+
+//======================================================================================================================
+
 /**
  * @param maxAge The maximum age of events in the stream.
  * Items older than this will be automatically removed.
- * This value must be >= 1 second.
  *
  * @param maxCount The maximum count of events in the stream.
  * When you have more than count the oldest will be removed.
- * This value must be >= 1.
  *
  * @param truncateBefore When set says that items prior to event 'E' can
  * be truncated and will be removed.
@@ -70,19 +146,18 @@ private[sec] object StreamMetadata {
  * This allows you to specify a period of time you want it to be cacheable.
  * Low numbers are best here (say 30-60 seconds) and introducing values
  * here will introduce latency over the atom protocol if caching is occuring.
- * This value must be >= 1 second.
  *
  * @param acl The access control list for this stream.
+ *
+ *
+ * @note More details are here https://eventstore.org/docs/server/deleting-streams-and-events/index.html
+ *
  * */
-//
-// TODO: If this type should be surfaced then either newtypes or builder that ensure valid values is needed.
-// Include some details from https://eventstore.org/docs/server/deleting-streams-and-events/index.html
-
 private[sec] final case class StreamState(
-  maxAge: Option[FiniteDuration],            // newtype that ensures >=1s
-  maxCount: Option[Int],                     // newtype that ensures >=1
-  truncateBefore: Option[EventNumber.Exact], // EventNumber.Exact(0L) does not make sense, i.e. >= 1L.
-  cacheControl: Option[FiniteDuration],      // newtype that ensures >=1s
+  maxAge: Option[MaxAge],
+  maxCount: Option[MaxCount],
+  truncateBefore: Option[EventNumber.Exact],
+  cacheControl: Option[CacheControl],
   acl: Option[StreamAcl]
 )
 
@@ -95,11 +170,25 @@ private[sec] object StreamState {
   private[sec] implicit val codecForStreamMetadata: Codec.AsObject[StreamState] =
     new Codec.AsObject[StreamState] {
 
-      implicit val codecForFiniteDuration: Codec[FiniteDuration] =
-        Codec.from(Decoder.decodeLong.map(l => FiniteDuration(l, SECONDS)), Encoder[Long].contramap(_.toSeconds))
+      import Decoder.{decodeInt => di, decodeLong => dl}
+      import Encoder.{encodeInt => ei, encodeLong => el}
+
+      private final val cfd: Codec[FiniteDuration] =
+        Codec.from(dl.map(FiniteDuration(_, SECONDS)), el.contramap(_.toSeconds))
+
+      implicit val codecForMaxAge: Codec[MaxAge] =
+        Codec.from(cfd.emap(MaxAge(_)), cfd.contramap(_.value))
+
+      implicit val codecForMaxCount: Codec[MaxCount] =
+        Codec.from(di.emap(MaxCount(_)), ei.contramap(_.value))
+
+      implicit val codecForCacheControl: Codec[CacheControl] =
+        Codec.from(cfd.emap(CacheControl(_)), cfd.contramap(_.value))
 
       implicit val codecForEventNumber: Codec[EventNumber.Exact] =
-        Codec.from(Decoder.decodeLong.map(EventNumber.exact), Encoder[Long].contramap(_.value))
+        Codec.from(dl.map(EventNumber.exact), el.contramap(_.value))
+
+      //
 
       def encodeObject(a: StreamState): JsonObject = {
 
@@ -117,11 +206,11 @@ private[sec] object StreamState {
       def apply(c: HCursor): Result[StreamState] =
         for {
 
-          maxAge         <- c.get[Option[FiniteDuration]](metadataKeys.MaxAge)
+          maxAge         <- c.get[Option[MaxAge]](metadataKeys.MaxAge)
           truncateBefore <- c.get[Option[EventNumber.Exact]](metadataKeys.TruncateBefore)
-          maxCount       <- c.get[Option[Int]](metadataKeys.MaxCount)
+          maxCount       <- c.get[Option[MaxCount]](metadataKeys.MaxCount)
           acl            <- c.get[Option[StreamAcl]](metadataKeys.Acl)
-          cacheControl   <- c.get[Option[FiniteDuration]](metadataKeys.CacheControl)
+          cacheControl   <- c.get[Option[CacheControl]](metadataKeys.CacheControl)
 
         } yield StreamState(maxAge, maxCount, truncateBefore, cacheControl, acl)
 
@@ -137,18 +226,15 @@ private[sec] object StreamState {
 
   }
 
-  private val na: String = "n/a"
-
   implicit val showForStreamState: Show[StreamState] = Show.show[StreamState] { ss =>
     s"""
        |StreamState:
-       |  max-age         = ${ss.maxAge.getOrElse(na)}
-       |  max-count       = ${ss.maxCount.map(c => if (c == 1) s"$c event" else s"$c events").getOrElse(na)}
-       |  cache-control   = ${ss.cacheControl.getOrElse(na)}
-       |  truncate-before = ${ss.truncateBefore.map(_.show).getOrElse(na)}
-       |  access-list     = ${ss.acl.map(_.show).getOrElse(na)}
+       |  max-age         = ${ss.maxAge.map(_.show).getOrElse("n/a")}
+       |  max-count       = ${ss.maxCount.map(_.show).getOrElse("n/a")}
+       |  cache-control   = ${ss.cacheControl.map(_.show).getOrElse("n/a")}
+       |  truncate-before = ${ss.truncateBefore.map(_.show).getOrElse("n/a")}
+       |  access-list     = ${ss.acl.map(_.show).getOrElse("n/a")}
        |""".stripMargin
-
   }
 
 }

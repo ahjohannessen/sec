@@ -1,10 +1,15 @@
+import cats.{ApplicativeError, MonadError}
 import cats.implicits._
 
 package object sec {
 
 //======================================================================================================================
 
-  private[sec] type Attempt[T] = Either[String, T]
+  private[sec] type ErrorM[F[_]] = MonadError[F, Throwable]
+  private[sec] type ErrorA[F[_]] = ApplicativeError[F, Throwable]
+  private[sec] type Attempt[T]   = Either[String, T]
+
+//======================================================================================================================
 
   private[sec] def guardNonEmpty(param: String): String => Attempt[String] =
     p => Either.fromOption(Option(p).filter(_.nonEmpty), s"$param cannot be empty")
@@ -20,8 +25,9 @@ package object sec {
 
 //======================================================================================================================
 
-  private[sec] implicit final class AttemptOps[T](inner: Attempt[T]) {
-    def unsafe: T = inner.leftMap(require(false, _)).toOption.get
+  private[sec] implicit final class AttemptOps[A](inner: Attempt[A]) {
+    def unsafe: A                                           = inner.leftMap(require(false, _)).toOption.get
+    def orFail[F[_]: ErrorA](fn: String => Throwable): F[A] = inner.leftMap(fn(_)).liftTo[F]
   }
 
 }

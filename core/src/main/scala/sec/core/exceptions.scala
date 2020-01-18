@@ -1,6 +1,8 @@
 package sec
 package core
 
+import EventNumber.Exact
+
 sealed abstract class EsException(msg: String) extends RuntimeException(msg)
 
 case object AccessDenied                          extends EsException("Access Denied.") // All
@@ -22,6 +24,10 @@ final case class WrongExpectedVersion(streamId: String, expected: Option[Long], 
   extends EsException(WrongExpectedVersion.msg(streamId, expected, actual))
 
 object WrongExpectedVersion {
+
+  def apply(sid: StreamId, expected: Option[Exact], actual: Option[Exact]): WrongExpectedVersion =
+    WrongExpectedVersion(sid.stringValue, expected.map(_.value), actual.map(_.value))
+
   def msg(streamId: String, expected: Option[Long], actual: Option[Long]): String = {
     val exp = expected.map(_.toString).getOrElse("<unknown>")
     val act = actual.map(_.toString).getOrElse("<unknown>")
