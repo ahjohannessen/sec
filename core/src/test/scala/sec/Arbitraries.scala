@@ -2,17 +2,16 @@ package sec
 
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.{util => ju}
-import scala.util.Random
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
+import scala.collection.immutable.Nil
+import cats.data.NonEmptyList
 import cats.implicits._
 import scodec.bits.ByteVector
 import sec.core._
 import sec.core.StreamRevision.{Any, NoStream, StreamExists}
 import org.scalacheck._
-import cats.data.NonEmptyList
-import scala.collection.immutable.Nil
 
 object Arbitraries {
 
@@ -227,7 +226,7 @@ object Arbitraries {
 
       data.zipWithIndex.map {
         case (ed, i) =>
-          val commit   = Random.between(i.toLong, i.toLong + 1000)
+          val commit   = i + 1000L
           val position = Position.exact(commit, commit)
           val number   = EventNumber.exact(i.toLong)
           val created  = zdt.plusSeconds(i.toLong)
