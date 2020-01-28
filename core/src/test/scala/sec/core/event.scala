@@ -24,7 +24,7 @@ class EventSpec extends Specification {
     StreamId.system("ce-abc").unsafe,
     EventNumber.exact(10L),
     Position.exact(1337L, 1337L),
-    EventData(EventType.LinkTo, sampleOf[ju.UUID], Content.binary("5@abc-1234").unsafe).unsafe,
+    EventData(EventType.LinkTo, sampleOf[ju.UUID], Content.binary("5@abc-1234").unsafe),
     sampleOf[ZonedDateTime]
   )
 
@@ -174,7 +174,7 @@ class EventDataSpec extends Specification {
       EventData("", id, data, meta) should beLeft(errEmpty)
       EventData("$system", id, data) should beLeft(errStart)
       EventData("$system", id, data, meta) should beLeft(errStart)
-      EventData(et, id, data) should beLike { case Right(EventData(`et`, `id`, `data`, `empty`))      => ok }
+      EventData(et, id, data) should beLike { case EventData(`et`, `id`, `data`, `empty`)             => ok }
       EventData(et, id, data, meta) should beLike { case Right(EventData(`et`, `id`, `data`, `meta`)) => ok }
     }
 
@@ -197,8 +197,8 @@ class EventDataSpec extends Specification {
 
   "EventDataOps" >> {
     "isJson" >> {
-      EventData(et, id, dataJson).map(_.isJson) should beRight(true)
-      EventData(et, id, dataBinary).map(_.isJson) should beRight(false)
+      EventData(et, id, dataJson).isJson should beTrue
+      EventData(et, id, dataBinary).isJson should beFalse
     }
   }
 

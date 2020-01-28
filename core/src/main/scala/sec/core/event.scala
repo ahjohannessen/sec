@@ -171,8 +171,8 @@ object EventData {
   def apply(eventType: String, eventId: UUID, data: Content, metadata: Content): Attempt[EventData] =
     EventType(eventType) >>= (EventData(_, eventId, data, metadata))
 
-  private[sec] def apply(et: EventType, eventId: UUID, data: Content): Attempt[EventData] =
-    EventData(et, eventId, data, Content(ByteVector.empty, data.contentType))
+  private[sec] def apply(et: EventType, eventId: UUID, data: Content): EventData =
+    create(et, eventId, data, Content(ByteVector.empty, data.contentType))
 
   private[sec] def apply(et: EventType, eventId: UUID, data: Content, metadata: Content): Attempt[EventData] =
     if (data.contentType == metadata.contentType) create(et, eventId, data, metadata).asRight
@@ -232,10 +232,15 @@ object Content {
   val JsonEmpty: Content      = empty(Type.Json)
 
   def apply(data: String, ct: Type): Attempt[Content] =
-    ByteVector.encodeUtf8(data).map(Content(_, ct)).leftMap(_.getMessage)
+    encode[Either[Throwable, *]](data, ct).leftMap(_.getMessage)
 
-  def binary(data: String): Attempt[Content] = Content(data, Type.Binary)
-  def json(data: String): Attempt[Content]   = Content(data, Type.Json)
+  def encode[F[_]: ErrorA](data: String, ct: Type): F[Content] =
+    ByteVector.encodeUtf8(data).map(Content(_, ct)).liftTo[F]
+
+  def binary(data: String): Attempt[Content]          = Content(data, Type.Binary)
+  def binaryF[F[_]: ErrorA](data: String): F[Content] = encode[F](data, Type.Binary)
+  def json(data: String): Attempt[Content]            = Content(data, Type.Json)
+  def jsonF[F[_]: ErrorA](data: String): F[Content]   = encode[F](data, Type.Json)
 
   ///
 
