@@ -1,0 +1,16 @@
+pull_request_rules:
+
+  - name: Automatically merge pull requests
+    conditions:
+      - status-success=Shippable
+      - label=merge
+    actions:
+      merge:
+        strict: smart
+        method: squash
+
+  - name: Delete head branch after merge
+    conditions:
+      - merged
+    actions:
+      delete_head_branch: {}
