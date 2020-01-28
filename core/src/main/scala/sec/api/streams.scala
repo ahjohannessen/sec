@@ -68,7 +68,7 @@ trait Streams[F[_]] {
     creds: Option[UserCredentials]
   ): F[Streams.DeleteResult]
 
-  private[sec] def metadata: StreamMeta[F]
+  private[sec] def metadata: MetaStreams[F]
 
 }
 
@@ -183,7 +183,7 @@ object Streams {
     ): F[DeleteResult] =
       client.tombstone(mkHardDeleteReq(streamId, expectedRevision), ctx(creds)) >>= mkDeleteResult[F]
 
-    private[sec] val metadata: StreamMeta[F] = StreamMeta[F](this)
+    private[sec] val metadata: MetaStreams[F] = MetaStreams[F](this)
   }
 
 //======================================================================================================================

@@ -35,9 +35,9 @@ class StreamMetadataSpec extends Specification {
     val reserved = StreamMetadata.reservedKeys
 
     val system = StreamState(
-      maxAge         = 1000.seconds.some,
+      maxAge         = MaxAge(1000.seconds).unsafe.some,
       maxCount       = None,
-      cacheControl   = 12.hours.some,
+      cacheControl   = CacheControl(12.hours).unsafe.some,
       truncateBefore = EventNumber.exact(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
     )
@@ -88,11 +88,11 @@ class StreamStateSpec extends Specification {
     val ss = sampleOf[StreamState]
 
     val expectedMap = Map(
-      "$maxAge"       -> ss.maxAge.map(_.toSeconds).asJson,
-      "$maxCount"     -> ss.maxCount.asJson,
+      "$maxAge"       -> ss.maxAge.map(_.value.toSeconds).asJson,
+      "$maxCount"     -> ss.maxCount.map(_.value).asJson,
       "$tb"           -> ss.truncateBefore.map(_.value).asJson,
       "$acl"          -> ss.acl.asJson,
-      "$cacheControl" -> ss.cacheControl.map(_.toSeconds).asJson
+      "$cacheControl" -> ss.cacheControl.map(_.value.toSeconds).asJson
     )
 
     val expectedJson = JsonObject.fromMap(expectedMap).mapValues(_.dropNullValues).asJson
@@ -104,7 +104,7 @@ class StreamStateSpec extends Specification {
 
   "show" >> {
 
-    StreamState.empty.copy(maxAge = 10.days.some, maxCount = 1.some).show shouldEqual (
+    StreamState.empty.copy(maxAge = MaxAge(10.days).unsafe.some, maxCount = MaxCount(1).unsafe.some).show shouldEqual (
       s"""
        |StreamState:
        |  max-age         = 10 days
@@ -117,8 +117,8 @@ class StreamStateSpec extends Specification {
 
     StreamState(
       maxAge         = None,
-      maxCount       = 50.some,
-      cacheControl   = 12.hours.some,
+      maxCount       = MaxCount(50).unsafe.some,
+      cacheControl   = CacheControl(12.hours).unsafe.some,
       truncateBefore = EventNumber.exact(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
     ).show shouldEqual (

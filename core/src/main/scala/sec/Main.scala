@@ -24,7 +24,7 @@ object Main extends IOApp {
     val result: Stream[IO, Unit] = for {
       builder <- Stream.eval(nettyBuilder[IO])
       client  <- EsClient.stream[IO, NettyChannelBuilder](builder, Options.default).map(_.streams)
-      _       <- run2[IO](client)
+      _       <- run1[IO](client)
     } yield ()
 
     result.compile.drain.as(ExitCode.Success)
@@ -38,11 +38,11 @@ object Main extends IOApp {
 
     for {
       streamId   <- Stream.eval(uuid[F] >>= (id => StreamId[F](s"test_stream-$id")))
-      eventData1 <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orFail[F])
-      eventData2 <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orFail[F])
+      eventData1 <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orError[F])
+      eventData2 <- Stream.eval(data.map(l => NonEmptyList(l.head, l.tail)).orError[F])
       _          <- Stream.eval(client.appendToStream(streamId, NoStream, eventData1)).evalTap(print[F])
       _          <- Stream.eval(client.appendToStream(streamId, EventNumber.exact(19), eventData2)).evalTap(print[F])
-      _          <- client.readStreamForwards(streamId, EventNumber.Start, 39).evalTap(print[F])
+      _          <- client.readStreamForwards(streamId, EventNumber.Start, 40).evalTap(print[F])
     } yield ()
   }
 
@@ -50,7 +50,7 @@ object Main extends IOApp {
 
     val streamId           = StreamId[F](s"not-here-${UUID.randomUUID()}")
     def sub(sid: StreamId) = client.subscribeToStream(sid, Some(EventNumber.Start)).evalMap(print[F])
-    val event              = (Content.json(f"""{ "a" : "b" }""") >>= (j => EventData("test", UUID.randomUUID(), j))).orFail[F]
+    val event              = (Content.json(f"""{ "a" : "b" }""") >>= (j => EventData("test", UUID.randomUUID(), j))).orError[F]
     def app(id: StreamId)  = Stream.eval(event >>= (e => client.appendToStream(id, NoStream, NonEmptyList.one(e))))
 
     // subscribeToStream works when stream does not exist.
@@ -77,7 +77,7 @@ object Main extends IOApp {
   def run5[F[_]](client: Streams[F])(implicit F: ConcurrentEffect[F]): Stream[F, Unit] = {
 
     val streamId              = StreamId[F](s"delete-${UUID.randomUUID()}")
-    val event                 = (Content.json(f"""{ "de" : "l" }""") >>= (j => EventData("test", UUID.randomUUID(), j))).orFail[F]
+    val event                 = (Content.json(f"""{ "de" : "l" }""") >>= (j => EventData("test", UUID.randomUUID(), j))).orError[F]
     def append(sid: StreamId) = Stream.eval(event >>= (e => client.appendToStream(sid, NoStream, NonEmptyList.one(e))))
     def read(sid: StreamId)   = client.readStreamForwards(sid, EventNumber.Start, 1).take(1).evalTap(print[F]).void
     def delete(sid: StreamId) = Stream.eval(client.softDelete(sid, EventNumber.Start))
@@ -90,11 +90,10 @@ object Main extends IOApp {
       _ <- read(sid).recoverWith {
             case snf: StreamNotFound =>
               Stream
-                .eval(client.metadata.getStreamMetadata(sid, None))
-                .collect { case Some(v) => v.data.truncateBefore.fold(0L)(_.value) }
-                .evalMap { n =>
-                  if (n == Long.MaxValue) F.raiseError(StreamDeleted(sid.stringValue)) else F.raiseError(snf)
-                }
+                .eval(client.metadata.getTruncateBefore(sid, None))
+                .map(_.data.fold(0L)(_.value))
+                .evalMap(n =>
+                  if (n == Long.MaxValue) F.raiseError(StreamDeleted(sid.stringValue)) else F.raiseError(snf))
                 .void
           }
       _ <- append(sid)
@@ -111,8 +110,8 @@ object Main extends IOApp {
   def print[F[_]: Sync](v: AnyRef): F[Unit] = Sync[F].delay(println(v))
   def print[F[_]: Sync](e: Event): F[Unit]  = Sync[F].delay(println(e.show))
 
-  implicit class AttemptOps[A](a: Attempt[A]) {
-    def orFail[F[_]: ErrorA]: F[A] = a.leftMap(new RuntimeException(_)).liftTo[F]
+  implicit final class TemporaryAttemptOps[A](a: Attempt[A]) {
+    def orError[F[_]: ErrorA]: F[A] = a.orFail[F]((s: String) => new RuntimeException(s))
   }
 
 }
