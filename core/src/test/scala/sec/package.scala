@@ -2,6 +2,7 @@ package sec
 
 import cats.implicits._
 import org.specs2.mutable.Specification
+import core.ValidationError
 
 class SecPackageSpec extends Specification {
 
@@ -9,6 +10,10 @@ class SecPackageSpec extends Specification {
     "unsafe" >> {
       "oops".asLeft[Int].unsafe should throwA[IllegalArgumentException]("oops")
       1.asRight[String].unsafe shouldEqual 1
+    }
+
+    "orFail" >> {
+      "oops".asLeft[Int].orFail[Either[Throwable, *]](ValidationError(_)) shouldEqual ValidationError("oops").asLeft
     }
   }
 

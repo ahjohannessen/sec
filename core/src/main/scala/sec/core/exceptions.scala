@@ -12,6 +12,7 @@ final case class StreamDeleted(streamId: String)  extends EsException(s"Event st
 final case class StreamNotFound(streamId: String) extends EsException(s"Event stream '$streamId' was not found.") // Streams.Read/Subscribe
 final case class UnknownError(msg: String)        extends EsException(msg)
 final case class ServerUnavailable(msg: String)   extends EsException(msg)
+final case class ValidationError(msg: String)     extends EsException(msg)
 
 final case class MaximumAppendSizeExceeded(size: Option[Int]) extends EsException(MaximumAppendSizeExceeded.msg(size)) // Streams.Append
 

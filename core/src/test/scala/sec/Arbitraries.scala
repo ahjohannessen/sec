@@ -85,7 +85,7 @@ object Arbitraries {
     Arbitrary[StreamId.Id](Gen.oneOf(sampleOf[StreamId.Normal], sampleOf[StreamId.SystemId]))
 
   implicit val arbStreamIdMetaId: Arbitrary[StreamId.MetaId] =
-    Arbitrary[StreamId.MetaId](Gen.oneOf(sampleOf[StreamId.SystemId], sampleOf[StreamId.Normal]).map(_.meta))
+    Arbitrary[StreamId.MetaId](Gen.oneOf(sampleOf[StreamId.SystemId], sampleOf[StreamId.Normal]).map(_.metaId))
 
   implicit val arbStreamId: Arbitrary[StreamId] =
     Arbitrary[StreamId](Gen.oneOf(sampleOf[StreamId.Id], sampleOf[StreamId.MetaId]))
@@ -141,10 +141,10 @@ object Arbitraries {
     val seconds = Gen.chooseNum(1L, oneYear).map(FiniteDuration(_, SECONDS))
 
     for {
-      maxAge         <- Gen.option(seconds.map(MaxAge(_).unsafe))
-      maxCount       <- Gen.option(Gen.chooseNum(1, Int.MaxValue).map(MaxCount(_).unsafe))
+      maxAge         <- Gen.option(seconds.map(MaxAge.from(_).unsafe))
+      maxCount       <- Gen.option(Gen.chooseNum(1, Int.MaxValue).map(MaxCount.from(_).unsafe))
       truncateBefore <- Gen.option(arbEventNumberExact.arbitrary.suchThat(_ > EventNumber.Start))
-      cacheControl   <- Gen.option(seconds.map(CacheControl(_).unsafe))
+      cacheControl   <- Gen.option(seconds.map(CacheControl.from(_).unsafe))
       acl            <- Gen.option(arbStreamAcl.arbitrary)
     } yield StreamState(maxAge, maxCount, truncateBefore, cacheControl, acl)
 
