@@ -94,7 +94,7 @@ object StreamId {
   }
 
   implicit final class IdOps(val id: Id) extends AnyVal {
-    def meta: MetaId = MetaId(id)
+    def metaId: MetaId = MetaId(id)
   }
 
   implicit val eqForStreamId: Eq[StreamId]     = Eq.fromUniversalEquals[StreamId]

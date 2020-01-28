@@ -93,9 +93,12 @@ object MaxAge {
    * @param maxAge must be greater than or equal to 1 second.
    * @return [[Attempt[MaxAge]]]
    */
-  def apply(maxAge: FiniteDuration): Attempt[MaxAge] =
+  def from(maxAge: FiniteDuration): Attempt[MaxAge] =
     if (maxAge < 1.second) s"maxAge must be >= 1 second, it was $maxAge.".asLeft
     else new MaxAge(maxAge) {}.asRight
+
+  def apply[F[_]: ErrorA](maxAge: FiniteDuration): F[MaxAge] =
+    from(maxAge).orFail[F](ValidationError)
 
   implicit val showForMaxAge: Show[MaxAge] = Show.show(_.value.toString())
 }
@@ -107,9 +110,12 @@ object MaxCount {
    * @param maxCount must be greater than or equal to 1.
    * @return [[Attempt[MaxCount]]]
    */
-  def apply(maxCount: Int): Attempt[MaxCount] =
+  def from(maxCount: Int): Attempt[MaxCount] =
     if (maxCount < 1) s"max count must be >= 1, it was $maxCount.".asLeft
     else new MaxCount(maxCount) {}.asRight
+
+  def apply[F[_]: ErrorA](maxCount: Int): F[MaxCount] =
+    from(maxCount).orFail[F](ValidationError)
 
   implicit val showForMaxCount: Show[MaxCount] = Show.show { mc =>
     s"${mc.value} event${if (mc.value == 1) "" else "s"}"
@@ -123,9 +129,12 @@ object CacheControl {
    * @param cacheControl must be greater than or equal to 1 second.
    * @return [[Attempt[CacheControl]]]
    */
-  def apply(cacheControl: FiniteDuration): Attempt[CacheControl] =
+  def from(cacheControl: FiniteDuration): Attempt[CacheControl] =
     if (cacheControl < 1.second) s"cache control must be >= 1, it was $cacheControl.".asLeft
     else new CacheControl(cacheControl) {}.asRight
+
+  def apply[F[_]: ErrorA](maxAge: FiniteDuration): F[CacheControl] =
+    from(maxAge).orFail[F](ValidationError)
 
   implicit val showForCacheControl: Show[CacheControl] = Show.show(_.value.toString())
 }
@@ -177,13 +186,13 @@ private[sec] object StreamState {
         Codec.from(dl.map(FiniteDuration(_, SECONDS)), el.contramap(_.toSeconds))
 
       implicit val codecForMaxAge: Codec[MaxAge] =
-        Codec.from(cfd.emap(MaxAge(_)), cfd.contramap(_.value))
+        Codec.from(cfd.emap(MaxAge.from), cfd.contramap(_.value))
 
       implicit val codecForMaxCount: Codec[MaxCount] =
-        Codec.from(di.emap(MaxCount(_)), ei.contramap(_.value))
+        Codec.from(di.emap(MaxCount.from), ei.contramap(_.value))
 
       implicit val codecForCacheControl: Codec[CacheControl] =
-        Codec.from(cfd.emap(CacheControl(_)), cfd.contramap(_.value))
+        Codec.from(cfd.emap(CacheControl.from), cfd.contramap(_.value))
 
       implicit val codecForEventNumber: Codec[EventNumber.Exact] =
         Codec.from(dl.map(EventNumber.exact), el.contramap(_.value))

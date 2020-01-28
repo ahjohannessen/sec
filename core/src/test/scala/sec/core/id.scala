@@ -49,13 +49,13 @@ class StreamIdSpec extends Specification with Discipline {
     StreamId.streamIdToString(StreamId.Streams) shouldEqual ss.Streams
     StreamId.streamIdToString(systemId) shouldEqual "$system"
     StreamId.streamIdToString(normalId) shouldEqual "normal"
-    StreamId.streamIdToString(systemId.meta) shouldEqual "$$$system"
-    StreamId.streamIdToString(normalId.meta) shouldEqual "$$normal"
+    StreamId.streamIdToString(systemId.metaId) shouldEqual "$$$system"
+    StreamId.streamIdToString(normalId.metaId) shouldEqual "$$normal"
   }
 
   "stringToStreamId" >> {
-    StreamId.stringToStreamId("$$normal") shouldEqual normalId.meta.asRight
-    StreamId.stringToStreamId("$$$system") shouldEqual systemId.meta.asRight
+    StreamId.stringToStreamId("$$normal") shouldEqual normalId.metaId.asRight
+    StreamId.stringToStreamId("$$$system") shouldEqual systemId.metaId.asRight
     StreamId.stringToStreamId(ss.All) shouldEqual StreamId.All.asRight
     StreamId.stringToStreamId(ss.Settings) shouldEqual StreamId.Settings.asRight
     StreamId.stringToStreamId(ss.Stats) shouldEqual StreamId.Stats.asRight
@@ -80,7 +80,7 @@ class StreamIdSpec extends Specification with Discipline {
   "IdOps" >> {
     "meta" >> {
       val id = sampleOf[StreamId.Id]
-      id.meta shouldEqual StreamId.MetaId(id)
+      id.metaId shouldEqual StreamId.MetaId(id)
     }
   }
 
