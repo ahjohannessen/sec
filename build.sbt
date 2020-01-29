@@ -27,7 +27,7 @@ lazy val commonSettings = Seq(
 inThisBuild(
   List(
     scalaVersion := "2.13.1",
-    organization := "io.github.ahjohannessen",
+    organization := "com.github.ahjohannessen",
     developers := List(
       Developer("ahjohannessen", "Alex Henning Johannessen", "ahjohannessen@gmail.com", url("https://github.com/ahjohannessen"))
     ),

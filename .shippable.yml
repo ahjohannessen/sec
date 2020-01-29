@@ -31,7 +31,9 @@ build:
     options: "-e HOME=/root"
 
   ci:
+    - git fetch --tags
     - sbt ++$SHIPPABLE_SCALA_VERSION test
+  on_success:
     - if [ "$BRANCH" == "master" -a "$IS_PULL_REQUEST" == false ] || [ "$IS_GIT_TAG" == true -a "$IS_FORK" == false ]; then sbt ci-release; fi
 
   cache: true
