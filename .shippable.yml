@@ -18,6 +18,11 @@ env:
 jdk:
   - openjdk8
 
+branches:
+  only:
+    - master
+    - refs/tags/*
+
 build:
 
   pre_ci_boot:
