@@ -30,7 +30,10 @@ build:
     - git fetch --tags
     - sbt ++$SHIPPABLE_SCALA_VERSION test
   on_success:
-    - if [ "$BRANCH" == "master" -a "$IS_PULL_REQUEST" == false ] || [ "$IS_GIT_TAG" == true -a "$IS_FORK" == false ]; then sbt ci-release; fi
+    - > 
+      if [ "$BRANCH" == "master" -a "$IS_PULL_REQUEST" == false ] || [ "$IS_GIT_TAG" == true -a "$IS_FORK" == false ]; then
+        TRAVIS_TAG="$GIT_TAG_NAME"; sbt ci-release;
+      fi
 
   cache: true
   cache_dir_list:
