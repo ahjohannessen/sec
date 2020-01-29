@@ -30,7 +30,6 @@ build:
 
   ci:
     - git fetch --tags
-    - apt-get install gnupg -y
     - sbt ++$SHIPPABLE_SCALA_VERSION test
   on_success:
     - > 
