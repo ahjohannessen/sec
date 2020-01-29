@@ -91,7 +91,6 @@ object MaxAge {
 
   /**
    * @param maxAge must be greater than or equal to 1 second.
-   * @return [[Attempt[MaxAge]]]
    */
   def from(maxAge: FiniteDuration): Attempt[MaxAge] =
     if (maxAge < 1.second) s"maxAge must be >= 1 second, it was $maxAge.".asLeft
@@ -108,7 +107,6 @@ object MaxCount {
 
   /**
    * @param maxCount must be greater than or equal to 1.
-   * @return [[Attempt[MaxCount]]]
    */
   def from(maxCount: Int): Attempt[MaxCount] =
     if (maxCount < 1) s"max count must be >= 1, it was $maxCount.".asLeft
@@ -127,7 +125,6 @@ object CacheControl {
 
   /**
    * @param cacheControl must be greater than or equal to 1 second.
-   * @return [[Attempt[CacheControl]]]
    */
   def from(cacheControl: FiniteDuration): Attempt[CacheControl] =
     if (cacheControl < 1.second) s"cache control must be >= 1, it was $cacheControl.".asLeft

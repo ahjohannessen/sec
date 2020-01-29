@@ -24,9 +24,6 @@ branches:
 
 build:
 
-  pre_ci:
-    - git fetch --tags
-
   pre_ci_boot:
     image_name: drydock/u16scaall
     image_tag: v7.1.4
