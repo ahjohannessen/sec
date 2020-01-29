@@ -30,6 +30,7 @@ build:
 
   ci:
     - git fetch --tags
+    - apt-get install gpg -y
     - sbt ++$SHIPPABLE_SCALA_VERSION test
   on_success:
     - > 
