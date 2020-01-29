@@ -6,6 +6,10 @@ scala:
 env:
   global:
   - COURSIER_VERBOSITY=0
+  #SONATYPE_USERNAME=???
+  - secure: Dke7DifaELLPp78pqRyjmpXUDpVwIETFb0q4pxZ2m+IWJgWYiXlDqpNrc/u+O2py8ZTHMFY48sgmDWh+anj+ptYGHP0yc+GA/WDBMa45m01BRx9VAckYinTu11ossH2x+GR20q2wwZS8/4zoxW0/4hKhV+ZOvFCzytbqnfrskaHbeFHYPaKlG0dIL5NNyd9efeqf1NYPYJEOVXyfIfvAi59vH4L9YX5GyNUGOzzPn2bGCs4MMG8IEgGiqX/VCehAuS/RR4MPyd34Qspd5xoArNvtca2ptI6IVFvNqF3hSzTJEvf2g1p6jSDzlSg4XkoLv/R2Pam7I1/hXJ1PprwnaA==
+  #SONATYPE_PASSWORD=???
+  - secure: VpTrliTsKA6doZ7VME9gOXG2lEHQceh1/VR8T9I+0TpagetDvBhhZ2c7rqIxh88VrmA36eflZ1W0xYK7qkIZp8M75vAyWmzoO6WgXVirmOLrgLvpOrq2N72H3cwIxD5e7C3wp54OZtnaJjyHaPRTsjGA0lXXa2pzzG3ZJ4RfxEirv4jdVfXbjUSVxBnNCvUEox+h8JL7Ndo5v/J/Dm7U5T4Ing2/k8IhvGqgYiC7JM2hTH7vvKfIlInro6RLi5hA3+pH7Rx0Qva8UjKlcUrEUvdaEMO36KXuA+gt4dvsu69bcEK0sReT7WkCASf3N252SJh1dZE4NO0t4g77zq81tw==
 
 jdk:
   - openjdk8
@@ -23,7 +27,8 @@ build:
     options: "-e HOME=/root"
 
   ci:
-    - java -Xss6M -Xmx3600M -jar /usr/local/bin/sbt-launch.jar ++$SHIPPABLE_SCALA_VERSION "core/test:compile" "core/test"
+    - sbt ++$SHIPPABLE_SCALA_VERSION test
+    - if [ "$BRANCH" == "master" -a "$IS_PULL_REQUEST" == false ] || [ "$IS_GIT_TAG" == true -a "$IS_FORK" == false ]; then sbt ci-release; fi
 
   cache: true
   cache_dir_list:
