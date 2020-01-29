@@ -21,6 +21,7 @@ jdk:
 branches:
   only:
     - master
+    - releases/*
 
 build:
 
