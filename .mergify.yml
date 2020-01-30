@@ -9,6 +9,16 @@ pull_request_rules:
         strict: smart
         method: squash
 
+  - name: Automatically merge scala-steward's PRs
+    conditions:
+      - author=scala-steward
+      - status-success=Shippable
+      - body~=labels:.*semver-patch.*
+    actions:
+      merge:
+        strict: smart
+        method: squash
+
   - name: Delete head branch after merge
     conditions:
       - merged
