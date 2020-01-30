@@ -20,6 +20,11 @@ env:
 jdk:
   - openjdk8
 
+branches:
+  only:
+    - master
+    - v*
+
 build:
 
   pre_ci_boot:
