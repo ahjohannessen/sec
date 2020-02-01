@@ -44,6 +44,9 @@ jobs:
       - uses: olafurpg/setup-scala@v7
       - uses: olafurpg/setup-gpg@v2
 
+      - name: fetch git tags
+        run: git fetch --tags
+
       - name: release
         run: sbt ci-release
         env:
