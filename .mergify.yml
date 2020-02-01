@@ -2,7 +2,7 @@ pull_request_rules:
 
   - name: Automatically merge pull requests
     conditions:
-      - status-success=Shippable
+      - status-success=test
       - label=merge
     actions:
       merge:
@@ -12,7 +12,7 @@ pull_request_rules:
   - name: Automatically merge scala-steward's PRs
     conditions:
       - author=scala-steward
-      - status-success=Shippable
+      - status-success=test
       - body~=labels:.*semver-patch.*
     actions:
       merge:
