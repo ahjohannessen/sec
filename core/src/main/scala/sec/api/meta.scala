@@ -12,6 +12,7 @@ import sec.core.StreamId.Id
 import sec.core.EventNumber.Exact
 import sec.api.mapping._
 import sec.api.Streams._
+import sec.core.StreamId.MetaId
 
 trait MetaStreams[F[_]] {
 
@@ -145,8 +146,6 @@ object MetaStreams {
 
   private[sec] def create[F[_]](meta: MetaRW[F])(implicit F: Sync[F]): MetaStreams[F] = new MetaStreams[F] {
 
-    final val printer: Printer = Printer.noSpaces.copy(dropNullValues = true)
-
     //======================================================================================================================
 
     def getMaxAge(id: Id, creds: Option[UserCredentials]): F[Result[MaxAge]] =
@@ -246,7 +245,7 @@ object MetaStreams {
         case _: StreamNotFound => none[EventRecord]
       }
 
-      meta.read(id, creds).recover(recoverRead) >>= {
+      meta.read(id.metaId, creds).recover(recoverRead) >>= {
         _.fold(StreamMetadataResult.empty.pure[F])(er => decodeJson(er).map(StreamMetadataResult(er.number.some, _)))
       }
     }
@@ -266,55 +265,44 @@ object MetaStreams {
       zoom: StreamMetadata => F[Option[A]],
       emv: Option[Exact],
       creds: Creds
-    ): F[Result[A]] = {
-
-      def guardVersion(expected: Option[Exact], actual: Option[Exact]): F[Unit] =
-        if (expected === actual) F.unit else F.raiseError(WrongExpectedVersion(id.metaId, expected, actual))
-
-      def mkEventData(eventId: ju.UUID, sm: StreamMetadata): F[EventData] =
-        Content
-          .json(printer.print(Encoder[StreamMetadata].apply(sm)))
-          .flatMap(EventData(EventType.StreamMetadata, eventId, _))
-          .orFail[F](EncodingError(_))
-
-      def write(metaVersion: Option[Exact], ed: EventData): F[WriteResult] =
-        meta.write(id, metaVersion.getOrElse(StreamRevision.NoStream), ed, creds)
-
-      def zoomA(sm: StreamMetadata, currentRevision: EventNumber.Exact): F[Result[A]] =
-        zoom(sm).map(d => Result(currentRevision.some, d))
-
+    ): F[Result[A]] =
       for {
         smr         <- getMeta(id, creds)
-        _           <- guardVersion(emv, smr.version)
         modified    <- mod(smr)
         eid         <- uuid[F]
-        eventData   <- mkEventData(eid, modified)
-        writeResult <- write(emv, eventData)
-        result      <- zoomA(modified, writeResult.currentRevision)
+        eventData   <- mkEventData[F](eid, modified)
+        writeResult <- meta.write(id.metaId, emv.getOrElse(StreamRevision.NoStream), eventData, creds)
+        result      <- zoom(modified).map(Result(writeResult.currentRevision.some, _))
       } yield result
-    }
 
   }
 
   ///
 
+  private[sec] def mkEventData[F[_]: ErrorA](eventId: ju.UUID, sm: StreamMetadata): F[EventData] = {
+    val json = jsonPrinter.print(Encoder[StreamMetadata].apply(sm))
+    Content.jsonF[F](json).map(EventData(EventType.StreamMetadata, eventId, _))
+  }
+
+  ///
+
   private[sec] trait MetaRW[F[_]] {
-    def read(id: Id, creds: Creds): F[Option[EventRecord]]
-    def write(id: Id, expectedRevision: StreamRevision, data: EventData, creds: Creds): F[WriteResult]
+    def read(mid: MetaId, creds: Creds): F[Option[EventRecord]]
+    def write(mid: MetaId, er: StreamRevision, data: EventData, creds: Creds): F[WriteResult]
   }
 
   private[sec] object MetaRW {
 
     def apply[F[_]](s: Streams[F])(implicit F: Sync[F]): MetaRW[F] = new MetaRW[F] {
 
-      def read(id: Id, creds: Creds): F[Option[EventRecord]] =
-        s.readStream(id.metaId, EventNumber.End, Direction.Backwards, count = 1, resolveLinkTos = false, creds)
+      def read(mid: MetaId, creds: Creds): F[Option[EventRecord]] =
+        s.readStream(mid, EventNumber.End, Direction.Backwards, count = 1, resolveLinkTos = false, creds)
           .collect { case er: EventRecord => er }
           .compile
           .last
 
-      def write(id: Id, er: StreamRevision, data: EventData, creds: Creds): F[WriteResult] =
-        s.appendToStream(id.metaId, er, NonEmptyList.one(data), creds)
+      def write(mid: MetaId, er: StreamRevision, data: EventData, creds: Creds): F[WriteResult] =
+        s.appendToStream(mid, er, NonEmptyList.one(data), creds)
     }
   }
 

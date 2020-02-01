@@ -3,8 +3,13 @@ package sec
 import java.util.UUID
 import cats.implicits._
 import cats.effect.Sync
+import io.circe.Printer
 
 package object api {
+
+//======================================================================================================================
+
+  private[sec] val jsonPrinter: Printer = Printer.noSpaces.copy(dropNullValues = true)
 
 //======================================================================================================================
 
