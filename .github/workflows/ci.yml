@@ -41,13 +41,11 @@ jobs:
     steps:
 
       - uses: actions/checkout@v2
+      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
       - uses: olafurpg/setup-scala@v7
       - uses: olafurpg/setup-gpg@v2
 
-      - name: fetch git tags
-        run: git fetch --tags
-
-      - name: release
+      - name: publish
         run: sbt ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
