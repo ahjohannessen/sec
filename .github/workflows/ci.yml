@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - master
+    tags:
+    - "v*"
+  pull_request:
+
+jobs:
+
+  test:
+
+    runs-on: ubuntu-latest
+
+    services:
+      eventstore:
+        image: quay.io/ahjohannessen/es-v6:latest
+        env:
+          EVENTSTORE_MEM_DB: True
+          EVENTSTORE_STATS_PERIOD_SEC: 10000
+          EVENTSTORE_DEV: True
+          EVENTSTORE_START_STANDARD_PROJECTIONS: True
+        ports:
+          - 1113:1113
+          - 2113:2113
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: olafurpg/setup-scala@v7
+    - name: run tests
+      run: sbt test
+
+  publish:
+    needs: test
+    if: github.event_name == 'push'
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v2
+      - uses: olafurpg/setup-scala@v7
+      - uses: olafurpg/setup-gpg@v2
+
+      - name: release
+        run: sbt ci-release
+        env:
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
