@@ -25,7 +25,10 @@ object EsClient {
     builder: MCB,
     options: Options
   ): Resource[F, EsClient[F]] =
-    builder.resource[F].map(new Impl[F](_, options))
+    builder.resource[F].map(apply[F](_, options))
+
+  private[sec] def apply[F[_]: ConcurrentEffect: Timer](mc: ManagedChannel, options: Options): EsClient[F] =
+    new Impl[F](mc, options)
 
   private final class Impl[F[_]: ConcurrentEffect: Timer](mc: ManagedChannel, options: Options) extends EsClient[F] {
     val streams: Streams[F] =

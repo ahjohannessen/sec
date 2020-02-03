@@ -62,7 +62,7 @@ object Arbitraries {
 
     def genStreamIdNormal(prefix: String): Gen[StreamId.Normal] =
       Gen.identifier
-        .suchThat(s => s.nonEmpty && s.size <= 15 && !s.startsWith(StreamId.systemPrefix))
+        .suchThat(s => s.nonEmpty && s.size >= 3 && s.size <= 15 && !s.startsWith(StreamId.systemPrefix))
         .map(n => StreamId.normal(s"$prefix$n").unsafe)
 
   }
@@ -94,15 +94,25 @@ object Arbitraries {
 // EventType
 //======================================================================================================================
 
-  implicit val arbEventTypeUserDefined: Arbitrary[EventType.UserDefined] = Arbitrary {
+  private[sec] object eventTypeGen {
 
-    val prefix = "com.eventstore.client.Event"
-    val gen: Gen[String] = for {
-      c  <- Gen.alphaUpperChar
-      cs <- Gen.listOfN(2, Gen.alphaLowerChar)
-    } yield s"$prefix${(c :: cs).mkString}"
+    val defaultPrefix = "com.eventstore.client.Event"
 
-    gen.map(et => EventType.userDefined(et).unsafe)
+    def genEventTypeUserDefined(prefix: String): Gen[EventType.UserDefined] = {
+
+      val gen: Gen[String] = for {
+        c  <- Gen.alphaUpperChar
+        cs <- Gen.listOfN(2, Gen.alphaLowerChar)
+      } yield s"$prefix${(c :: cs).mkString}"
+
+      gen.map(et => EventType.userDefined(et).unsafe)
+    }
+
+  }
+
+  implicit val arbEventTypeUserDefined: Arbitrary[EventType.UserDefined] = {
+    import eventTypeGen._
+    Arbitrary[EventType.UserDefined](genEventTypeUserDefined(defaultPrefix))
   }
 
   implicit val arbEventTypeSystemDefined: Arbitrary[EventType.SystemDefined] =
@@ -165,19 +175,20 @@ object Arbitraries {
     private def metaBV(id: ju.UUID, ct: Content.Type, empty: Boolean): ByteVector =
       Option.unless(empty)(ct.fold(bv(s"meta@$id", ct), bv(s"""{ "meta" : "$id" }""", ct))).getOrElse(ByteVector.empty)
 
-    private val eventIdAndType: Gen[(ju.UUID, EventType)] = for {
-      uuid      <- Gen.uuid
-      eventType <- arbEventTypeUserDefined.arbitrary
-    } yield (uuid, eventType)
+    private def eventIdAndType(etPrefix: String): Gen[(ju.UUID, EventType)] =
+      for {
+        uuid      <- Gen.uuid
+        eventType <- eventTypeGen.genEventTypeUserDefined(etPrefix)
+      } yield (uuid, eventType)
 
     val genMeta: Gen[Boolean]    = Gen.oneOf(true, false)
     val genCT: Gen[Content.Type] = Gen.oneOf(Content.Type.Binary, Content.Type.Json)
 
-    def eventDataN(n: Int): Gen[List[EventData]] =
+    def eventDataN(n: Int, etPrefix: String): Gen[List[EventData]] =
       for {
         gm         <- genMeta
         ct         <- genCT
-        idAndTypes <- Gen.infiniteStream(eventIdAndType).flatMap(_.take(n).toList)
+        idAndTypes <- Gen.infiniteStream(eventIdAndType(etPrefix)).flatMap(_.take(n).toList)
         gen        <- idAndTypes
         (id, et)   = gen
         data       = dataBV(id, ct)
@@ -186,23 +197,25 @@ object Arbitraries {
 
     val eventDataOne: Gen[EventData] = for {
       ct        <- genCT
-      idAndType <- eventIdAndType
+      idAndType <- eventIdAndType(eventTypeGen.defaultPrefix)
       (id, et)  = idAndType
       data      = dataBV(id, ct)
       meta      = metaBV(id, ct, false)
     } yield ct.fold(EventData.binary(et, id, data, meta), EventData.json(et, id, data, meta))
 
     @tailrec
-    def eventDataNelN(n: Int): Gen[NonEmptyList[EventData]] =
-      sampleOfGen(eventDataN(math.max(1, n))) match {
+    def eventDataNelN(n: Int, etPrefix: String): Gen[NonEmptyList[EventData]] =
+      sampleOfGen(eventDataN(math.max(1, n), etPrefix)) match {
         case head :: tail => NonEmptyList[EventData](head, tail)
-        case Nil          => eventDataNelN(n)
+        case Nil          => eventDataNelN(n, etPrefix)
       }
   }
 
-  def arbEventDataNelOfN(n: Int): Arbitrary[NonEmptyList[EventData]] = Arbitrary(eventdataGen.eventDataNelN(n))
-  implicit val arbEventData: Arbitrary[EventData]                    = Arbitrary(eventdataGen.eventDataOne)
-  implicit val arbEventDataNN: Arbitrary[NonEmptyList[EventData]]    = arbEventDataNelOfN(25)
+  def arbEventDataNelOfN(n: Int, etPrefix: String): Arbitrary[NonEmptyList[EventData]] =
+    Arbitrary(eventdataGen.eventDataNelN(n, etPrefix))
+
+  implicit val arbEventData: Arbitrary[EventData]                 = Arbitrary(eventdataGen.eventDataOne)
+  implicit val arbEventDataNN: Arbitrary[NonEmptyList[EventData]] = arbEventDataNelOfN(25, eventTypeGen.defaultPrefix)
 
 //======================================================================================================================
 // Event
@@ -218,10 +231,14 @@ object Arbitraries {
       c   <- arbZonedDateTime.arbitrary
     } yield EventRecord(sid, n, p, ed, c)
 
-    def eventRecordNelN(n: Int, prefix: Option[String] = "sec-".some): Gen[NonEmptyList[EventRecord]] = {
+    def eventRecordNelN(
+      n: Int,
+      streamPrefix: Option[String] = "sec-".some,
+      etPrefix: Option[String] = eventTypeGen.defaultPrefix.some
+    ): Gen[NonEmptyList[EventRecord]] = {
 
-      val sid  = sampleOfGen(idGen.genStreamIdNormal(prefix.getOrElse("")))
-      val data = sampleOfGen(eventdataGen.eventDataNelN(n))
+      val sid  = sampleOfGen(idGen.genStreamIdNormal(streamPrefix.getOrElse("")))
+      val data = sampleOfGen(eventdataGen.eventDataNelN(n, etPrefix.getOrElse("")))
       val zdt  = sampleOf[ZonedDateTime]
 
       data.zipWithIndex.map {

@@ -7,12 +7,13 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect._
 import cats.effect.concurrent.Ref
-import fs2.Stream
+import fs2.{Pull, Stream}
 import com.eventstore.client.streams._
 import sec.core._
 import sec.syntax.StreamsSyntax
 import mapping.streams.outgoing._
 import mapping.streams.incoming._
+import mapping.implicits._
 
 trait Streams[F[_]] {
 
@@ -32,7 +33,7 @@ trait Streams[F[_]] {
   ): Stream[F, Event]
 
   def readAll(
-    position: Position,
+    from: Position,
     direction: Direction,
     maxCount: Long,
     resolveLinkTos: Boolean,
@@ -44,7 +45,7 @@ trait Streams[F[_]] {
     streamId: StreamId,
     from: EventNumber,
     direction: Direction,
-    count: Long,
+    maxCount: Long,
     resolveLinkTos: Boolean,
     creds: Option[UserCredentials]
   ): Stream[F, Event]
@@ -95,14 +96,27 @@ object Streams {
     val options: Options
   ) extends Streams[F] {
 
-    import EventFilter._
-
     val ctx: Option[UserCredentials] => Context = uc => {
       Context(uc.orElse(options.defaultCreds), options.connectionName)
     }
 
-    private val mkEvents: Stream[F, ReadResp] => Stream[F, Event] =
-      _.evalMap(_.content.event.map(mkEvent[F]).getOrElse(none[Event].pure[F])).unNone
+    private val readPipe: Stream[F, ReadResp] => Stream[F, Event] =
+      _.evalMap(_.content.event.require[F]("ReadEvent expected!").flatMap(mkEvent[F])).unNone
+
+    private val subscriptionPipe: Stream[F, ReadResp] => Stream[F, Event] = in => {
+
+      val extractConfirmation: ReadResp => F[String] =
+        _.content.confirmation.map(_.subscriptionId).require[F]("SubscriptionConfirmation expected!")
+
+      val initialPull = in.pull.uncons1.flatMap {
+        case Some((hd, tail)) => Pull.eval(extractConfirmation(hd)) >> tail.pull.echo
+        case None             => Pull.done
+      }
+
+      initialPull.stream.through(readPipe)
+    }
+
+    ///
 
     def subscribeToAll(
       exclusiveFrom: Option[Position],
@@ -111,8 +125,8 @@ object Streams {
       creds: Option[UserCredentials]
     ): Stream[F, Event] = {
 
-      val subscription: Option[Position] => Stream[F, Event] =
-        ef => client.read(mkSubscribeToAllReq(ef, resolveLinkTos, filter), ctx(creds)).through(mkEvents)
+      val subscription: Option[Position] => Stream[F, Event] = ef =>
+        client.read(mkSubscribeToAllReq(ef, resolveLinkTos, filter), ctx(creds)).through(subscriptionPipe)
 
       subscribeToAllWithRetry[F](exclusiveFrom, subscription)
     }
@@ -126,37 +140,49 @@ object Streams {
     ): Stream[F, Event] = {
 
       val subscription: Option[EventNumber] => Stream[F, Event] = ef =>
-        subscribeToStream0[F](
-          streamId,
-          retriesWhenNotFound = 20,
-          delayWhenNotFound   = 150.millis,
-          client.read(mkSubscribeToStreamReq(streamId, ef, resolveLinkTos), ctx(creds)).through(mkEvents),
-          subscribeToAll(None, false, prefix(ByStreamId, None, streamId.stringValue).some, creds),
-          failIfNotFound
-        )
+        client.read(mkSubscribeToStreamReq(streamId, ef, resolveLinkTos), ctx(creds)).through(subscriptionPipe)
 
       subscribeToStreamWithRetry[F](exclusiveFrom, subscription)
     }
 
     def readAll(
-      position: Position,
+      from: Position,
       direction: Direction,
       maxCount: Long,
       resolveLinkTos: Boolean,
       filter: Option[EventFilter],
       creds: Option[UserCredentials]
-    ): Stream[F, Event] =
-      client.read(mkReadAllReq(position, direction, maxCount, resolveLinkTos, filter), ctx(creds)).through(mkEvents)
+    ): Stream[F, Event] = {
+
+      def validateFilter: F[Unit] = filter.flatMap(_.maxSearchWindow.filterNot(_ > maxCount)).fold(().pure[F]) { msw =>
+        ValidationError(s"maxSearchWindow: $msw must be > maxCount: $maxCount").raiseError[F, Unit]
+      }
+
+      if (maxCount > 0) {
+
+        Stream.eval(validateFilter) >>
+          client.read(mkReadAllReq(from, direction, maxCount, resolveLinkTos, filter), ctx(creds)).through(readPipe)
+
+      } else Stream.empty
+    }
 
     def readStream(
       streamId: StreamId,
       from: EventNumber,
       direction: Direction,
-      count: Long,
+      maxCount: Long,
       resolveLinkTos: Boolean,
       creds: Option[UserCredentials]
-    ): Stream[F, Event] =
-      client.read(mkReadStreamReq(streamId, from, direction, count, resolveLinkTos), ctx(creds)).through(mkEvents)
+    ): Stream[F, Event] = {
+
+      val valid = direction.fold(from =!= EventNumber.End, true)
+
+      if (valid && maxCount > 0) {
+
+        client.read(mkReadStreamReq(streamId, from, direction, maxCount, resolveLinkTos), ctx(creds)).through(readPipe)
+
+      } else Stream.empty
+    }
 
     def appendToStream(
       streamId: StreamId,
@@ -187,33 +213,6 @@ object Streams {
   }
 
 //======================================================================================================================
-
-  private[sec] def subscribeToStream0[F[_]: ConcurrentEffect: Timer](
-    streamId: StreamId,
-    retriesWhenNotFound: Int,
-    delayWhenNotFound: FiniteDuration,
-    source: Stream[F, Event],
-    globalSource: Stream[F, Event],
-    failIfNotFound: Boolean
-  ): Stream[F, Event] = {
-
-    def allSubscription: Stream[F, Event] =
-      globalSource.filter(_.streamId === streamId)
-
-    def subscribeWithRetry(retriesLeft: Int): Stream[F, Event] =
-      source.recoverWith {
-        case _: StreamNotFound =>
-          if (retriesLeft > 0) subscribeWithRetry(retriesLeft - 1).delayBy(delayWhenNotFound) else Stream.never
-      }
-
-    val waitForSourceOrGlobal: Stream[F, Event] =
-      subscribeWithRetry(retriesWhenNotFound).take(1).mergeHaltBoth(allSubscription.take(1))
-
-    source.recoverWith {
-      case _: StreamNotFound if !failIfNotFound => waitForSourceOrGlobal >> source
-    }
-
-  }
 
   private[sec] def subscribeToAllWithRetry[F[_]: Sync: Timer](
     exclusiveFrom: Option[Position],

@@ -32,20 +32,20 @@ final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
   def readStreamForwards(
     streamId: StreamId,
     from: EventNumber,
-    count: Long,
+    maxCount: Long,
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.readStream(streamId, from, Direction.Forwards, count, resolveLinkTos, credentials)
+    s.readStream(streamId, from, Direction.Forwards, maxCount, resolveLinkTos, credentials)
 
   def readStreamBackwards(
     streamId: StreamId,
     from: EventNumber,
-    count: Long,
+    maxCount: Long,
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.readStream(streamId, from, Direction.Backwards, count, resolveLinkTos, credentials)
+    s.readStream(streamId, from, Direction.Backwards, maxCount, resolveLinkTos, credentials)
 
   def readAllForwards(
     position: Position,

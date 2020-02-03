@@ -30,7 +30,7 @@ jobs:
     - uses: actions/checkout@v1
     - uses: olafurpg/setup-scala@v7
     - name: run tests
-      run: sbt test
+      run: sbt "core/test" "core/it:test"
 
   publish:
     needs: test
