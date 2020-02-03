@@ -35,8 +35,8 @@ class EventSpec extends Specification {
   "EventOps" >> {
 
     "fold" >> {
-      er.fold(_ => "er", _ => "re") shouldEqual "er"
-      re.fold(_ => "er", _ => "re") shouldEqual "re"
+      er.fold(_ => ok, _ => ko)
+      re.fold(_ => ko, _ => ok)
     }
 
     "streamId" >> {
