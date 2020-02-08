@@ -7,7 +7,7 @@ object Dependencies {
     val catsEffect       = "2.1.1"
     val fs2              = "2.2.2"
     val scodecBits       = "1.1.13"
-    val circe            = "0.12.3"
+    val circe            = "0.13.0"
     val scalaPb          = scalapb.compiler.Version.scalapbVersion
     val grpc             = scalapb.compiler.Version.grpcJavaVersion
     val fs2Grpc          = org.lyranthe.fs2_grpc.buildinfo.BuildInfo.version
