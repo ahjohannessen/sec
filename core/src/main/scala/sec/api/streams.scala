@@ -102,7 +102,7 @@ object Streams {
     }
 
     private val mkEvents: Stream[F, ReadResp] => Stream[F, Event] =
-      _.evalMap(_.event.map(mkEvent[F]).getOrElse(none[Event].pure[F])).unNone
+      _.evalMap(_.content.event.map(mkEvent[F]).getOrElse(none[Event].pure[F])).unNone
 
     def subscribeToAll(
       exclusiveFrom: Option[Position],
