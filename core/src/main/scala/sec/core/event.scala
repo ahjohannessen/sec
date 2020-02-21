@@ -187,7 +187,7 @@ object EventData {
   ///
 
   implicit class EventDataOps(ed: EventData) {
-    def isJson: Boolean = ed.data.contentType.isJson
+    def contentType: Content.Type = ed.data.contentType
   }
 
 }

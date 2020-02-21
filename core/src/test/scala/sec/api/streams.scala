@@ -155,9 +155,7 @@ class StreamsITest extends ITest {
             .compile
             .toList
 
-          val setup = write >>= { wr =>
-            delete(wr.currentRevision).void >> verifyDeleted >> read
-          }
+          val setup = write >>= { wr => delete(wr.currentRevision).void >> verifyDeleted >> read }
 
           def verify(es: List[Event]) =
             es.lastOption.toRight(ValidationError("expected metadata")).liftTo[IO] >>= { ts =>

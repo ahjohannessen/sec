@@ -196,9 +196,9 @@ class EventDataSpec extends Specification {
   }
 
   "EventDataOps" >> {
-    "isJson" >> {
-      EventData(et, id, dataJson).isJson should beTrue
-      EventData(et, id, dataBinary).isJson should beFalse
+    "contentType" >> {
+      EventData(et, id, dataJson).contentType shouldEqual Content.Type.Json
+      EventData(et, id, dataBinary).contentType shouldEqual Content.Type.Binary
     }
   }
 

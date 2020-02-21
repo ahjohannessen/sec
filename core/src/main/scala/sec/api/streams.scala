@@ -3,6 +3,7 @@ package api
 
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
+import cats.Eq
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect._
@@ -20,15 +21,20 @@ trait Streams[F[_]] {
   def subscribeToAll(
     exclusiveFrom: Option[Position],
     resolveLinkTos: Boolean,
-    filter: Option[EventFilter],
     creds: Option[UserCredentials]
   ): Stream[F, Event]
+
+  def subscribeToAll(
+    exclusiveFrom: Option[Position],
+    filter: EventFilter,
+    resolveLinkTos: Boolean,
+    creds: Option[UserCredentials]
+  ): Stream[F, Either[Position, Event]]
 
   def subscribeToStream(
     streamId: StreamId,
     exclusiveFrom: Option[EventNumber],
     resolveLinkTos: Boolean,
-    failIfNotFound: Boolean,
     creds: Option[UserCredentials]
   ): Stream[F, Event]
 
@@ -91,10 +97,11 @@ object Streams {
     options: Options
   ): Streams[F] = new Impl[F](client, options)
 
-  private[sec] final class Impl[F[_]: ConcurrentEffect: Timer](
+  private[sec] final class Impl[F[_]: Timer](
     val client: StreamsFs2Grpc[F, Context],
     val options: Options
-  ) extends Streams[F] {
+  )(implicit F: ConcurrentEffect[F])
+    extends Streams[F] {
 
     val ctx: Option[UserCredentials] => Context = uc => {
       Context(uc.orElse(options.defaultCreds), options.connectionName)
@@ -103,7 +110,7 @@ object Streams {
     private val readPipe: Stream[F, ReadResp] => Stream[F, Event] =
       _.evalMap(_.content.event.require[F]("ReadEvent expected!").flatMap(mkEvent[F])).unNone
 
-    private val subscriptionPipe: Stream[F, ReadResp] => Stream[F, Event] = in => {
+    private val subConfirmationPipe: Stream[F, ReadResp] => Stream[F, ReadResp] = in => {
 
       val extractConfirmation: ReadResp => F[String] =
         _.content.confirmation.map(_.subscriptionId).require[F]("SubscriptionConfirmation expected!")
@@ -113,29 +120,63 @@ object Streams {
         case None             => Pull.done
       }
 
-      initialPull.stream.through(readPipe)
+      initialPull.stream
+    }
+
+    private val subscriptionPipe: Stream[F, ReadResp] => Stream[F, Event] =
+      _.through(subConfirmationPipe).through(readPipe)
+
+    private val subAllFilteredPipe: Stream[F, ReadResp] => Stream[F, Either[Position, Event]] = {
+
+      import ReadResp._
+
+      type R = Option[Either[Position, Event]]
+
+      val checkpointOrEvent: Stream[F, ReadResp] => Stream[F, Either[Position, Event]] =
+        _.evalMap(_.content match {
+          case Content.Event(e)      => mkEvent[F](e).map[R](_.map(_.asRight))
+          case Content.Checkpoint(c) => F.pure[R](Position.exact(c.commitPosition, c.preparePosition).asLeft.some)
+          case _                     => F.pure[R](None)
+        }).unNone
+
+      _.through(subConfirmationPipe).through(checkpointOrEvent)
+    }
+
+//======================================================================================================================
+
+    def subscribeToAll(
+      exclusiveFrom: Option[Position],
+      resolveLinkTos: Boolean,
+      creds: Option[UserCredentials]
+    ): Stream[F, Event] = {
+
+      val subscription: Option[Position] => Stream[F, Event] = ef =>
+        client.read(mkSubscribeToAllReq(ef, resolveLinkTos, None), ctx(creds)).through(subscriptionPipe)
+
+      subscribeToAllWithRetry[F, Event](exclusiveFrom, subscription, _.record.position)
     }
 
     ///
 
     def subscribeToAll(
       exclusiveFrom: Option[Position],
+      filter: EventFilter,
       resolveLinkTos: Boolean,
-      filter: Option[EventFilter],
       creds: Option[UserCredentials]
-    ): Stream[F, Event] = {
+    ): Stream[F, Either[Position, Event]] = {
 
-      val subscription: Option[Position] => Stream[F, Event] = ef =>
-        client.read(mkSubscribeToAllReq(ef, resolveLinkTos, filter), ctx(creds)).through(subscriptionPipe)
+      val subscription: Option[Position] => Stream[F, Either[Position, Event]] = ef =>
+        client.read(mkSubscribeToAllReq(ef, resolveLinkTos, filter.some), ctx(creds)).through(subAllFilteredPipe)
 
-      subscribeToAllWithRetry[F](exclusiveFrom, subscription)
+      val posFn: Either[Position, Event] => Position = _.fold(identity, _.record.position)
+
+      subscribeToAllWithRetry[F, Either[Position, Event]](exclusiveFrom, subscription, posFn)
     }
 
     def subscribeToStream(
       streamId: StreamId,
       exclusiveFrom: Option[EventNumber],
       resolveLinkTos: Boolean,
-      failIfNotFound: Boolean,
       creds: Option[UserCredentials]
     ): Stream[F, Event] = {
 
@@ -214,31 +255,32 @@ object Streams {
 
 //======================================================================================================================
 
-  private[sec] def subscribeToAllWithRetry[F[_]: Sync: Timer](
+  private[sec] def subscribeToAllWithRetry[F[_]: Sync: Timer, O](
     exclusiveFrom: Option[Position],
-    subscription: Option[Position] => Stream[F, Event]
-  ): Stream[F, Event] =
-    subscribeWithRetry[F, Position](exclusiveFrom, subscription, _.record.position)
+    subscription: Option[Position] => Stream[F, O],
+    posFn: O => Position
+  ): Stream[F, O] =
+    subscribeWithRetry[F, Position, O](exclusiveFrom, subscription, posFn)
 
   private[sec] def subscribeToStreamWithRetry[F[_]: Sync: Timer](
     exclusiveFrom: Option[EventNumber],
     subscription: Option[EventNumber] => Stream[F, Event]
   ): Stream[F, Event] =
-    subscribeWithRetry[F, EventNumber](exclusiveFrom, subscription, _.record.number)
+    subscribeWithRetry[F, EventNumber, Event](exclusiveFrom, subscription, _.record.number)
 
-  private[sec] def subscribeWithRetry[F[_]: Sync: Timer, T](
+  private[sec] def subscribeWithRetry[F[_]: Sync: Timer, T: Eq, O](
     exclusiveFrom: Option[T],
-    subscription: Option[T] => Stream[F, Event],
-    fn: Event => T,
+    subscription: Option[T] => Stream[F, O],
+    fn: O => T,
     delay: FiniteDuration = 200.millis,
     nextDelay: FiniteDuration => FiniteDuration = identity,
     maxAttempts: Int = 100,
     retriable: Throwable => Boolean = _.isInstanceOf[ServerUnavailable]
-  ): Stream[F, Event] = {
+  ): Stream[F, O] = {
 
-    def eval(ef: Option[T], attempts: Int, d: FiniteDuration): Stream[F, Event] =
+    def eval(ef: Option[T], attempts: Int, d: FiniteDuration): Stream[F, O] =
       Stream.eval(Ref.of[F, Option[T]](ef)).flatMap { r =>
-        subscription(ef).changesBy(_.record.position).evalTap(e => r.set(fn(e).some)).recoverWith {
+        subscription(ef).changesBy(fn).evalTap(o => r.set(fn(o).some)).recoverWith {
           case NonFatal(t) if retriable(t) && attempts < maxAttempts =>
             Stream.eval(r.get).flatMap(n => eval(n, attempts + 1, nextDelay(d)).delayBy(d))
         }
