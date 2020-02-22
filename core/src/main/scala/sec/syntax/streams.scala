@@ -3,7 +3,7 @@ package syntax
 
 import cats.data.NonEmptyList
 import fs2.Stream
-import sec.core.{Event, EventData, EventFilter, EventNumber, Position, StreamId, StreamRevision}
+import sec.core._
 import sec.api._
 
 final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
@@ -13,19 +13,25 @@ final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
   def subscribeToAll(
     exclusiveFrom: Option[Position],
     resolveLinkTos: Boolean = false,
-    filter: Option[EventFilter] = None,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.subscribeToAll(exclusiveFrom, resolveLinkTos, filter, credentials)
+    s.subscribeToAll(exclusiveFrom, resolveLinkTos, credentials)
+
+  def subscribeToAllFiltered(
+    exclusiveFrom: Option[Position],
+    filter: EventFilter,
+    resolveLinkTos: Boolean = false,
+    credentials: Option[UserCredentials] = None
+  ): Stream[F, Either[Position, Event]] =
+    s.subscribeToAll(exclusiveFrom, filter, resolveLinkTos, credentials)
 
   def subscribeToStream(
     streamId: StreamId,
     exclusiveFrom: Option[EventNumber],
     resolveLinkTos: Boolean = false,
-    failIfNotFound: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.subscribeToStream(streamId, exclusiveFrom, resolveLinkTos, failIfNotFound, credentials)
+    s.subscribeToStream(streamId, exclusiveFrom, resolveLinkTos, credentials)
 
   /// Read
 

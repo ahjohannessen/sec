@@ -1,5 +1,5 @@
 package sec
-package core
+package api
 
 import scala.util.matching.Regex
 import cats.implicits._
