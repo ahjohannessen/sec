@@ -92,7 +92,7 @@ object Streams {
 //                                                  Impl
 //======================================================================================================================
 
-  private[sec] def apply[F[_]: ConcurrentEffect: Timer](
+  private[sec] def apply[F[_]: Sync: Timer](
     client: StreamsFs2Grpc[F, Context],
     options: Options
   ): Streams[F] = new Impl[F](client, options)
@@ -100,7 +100,7 @@ object Streams {
   private[sec] final class Impl[F[_]: Timer](
     val client: StreamsFs2Grpc[F, Context],
     val options: Options
-  )(implicit F: ConcurrentEffect[F])
+  )(implicit F: Sync[F])
     extends Streams[F] {
 
     val ctx: Option[UserCredentials] => Context = uc => {
