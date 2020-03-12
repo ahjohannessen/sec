@@ -10,8 +10,7 @@ object Dependencies {
     val scodecBits        = "1.1.14"
     val circe             = "0.13.0"
     val scalaPb           = scalapb.compiler.Version.scalapbVersion
-    val grpc              = scalapb.compiler.Version.grpcJavaVersion
-    val fs2Grpc           = org.lyranthe.fs2_grpc.buildinfo.BuildInfo.version
+    val grpc              = org.lyranthe.fs2_grpc.buildinfo.BuildInfo.grpcVersion
     val disciplineSpecs2  = "1.1.0"
     val specs2            = "4.9.2"
     val catsEffectTesting = "0.4.0"
@@ -31,7 +30,7 @@ object Dependencies {
   val circeGeneric = "io.circe"             %% "circe-generic"                  % versions.circe
   val scalaPb      = "com.thesamet.scalapb" %% "scalapb-runtime"                % versions.scalaPb
   val grpcNetty    = "io.grpc"              % "grpc-netty"                      % versions.grpc
-  val tcnative     = "io.netty"             % "netty-tcnative-boringssl-static" % "2.0.25.Final"
+  val tcnative     = "io.netty"             % "netty-tcnative-boringssl-static" % "2.0.28.Final"
 
   // Testing
 
