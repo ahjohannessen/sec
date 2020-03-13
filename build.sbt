@@ -27,7 +27,6 @@ lazy val core = project
 // General Settings
 lazy val commonSettings = Seq(
   addCompilerPlugin(kindProjector),
-  resolvers += Resolver.sonatypeRepo("public"),
   Compile         / scalacOptions ~= devScalacOptions,
   Test            / scalacOptions ~= devScalacOptions,
   IntegrationTest / scalacOptions ~= devScalacOptions,
