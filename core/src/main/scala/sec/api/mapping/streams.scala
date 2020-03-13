@@ -138,8 +138,7 @@ private[sec] object streams {
       position: Position,
       direction: Direction,
       maxCount: Long,
-      resolveLinkTos: Boolean,
-      filter: Option[EventFilter]
+      resolveLinkTos: Boolean
     ): ReadReq = {
 
       val options = ReadReq
@@ -148,7 +147,7 @@ private[sec] object streams {
         .withCount(maxCount)
         .withReadDirection(mapDirection(direction))
         .withResolveLinks(resolveLinkTos)
-        .withFilterOption(mapReadEventFilter(filter))
+        .withNoFilter(empty)
         .withUuidOption(uuidOption)
 
       ReadReq().withOptions(options)

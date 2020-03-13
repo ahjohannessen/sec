@@ -43,7 +43,6 @@ trait Streams[F[_]] {
     direction: Direction,
     maxCount: Long,
     resolveLinkTos: Boolean,
-    filter: Option[EventFilter],
     creds: Option[UserCredentials]
   ): Stream[F, Event]
 
@@ -191,18 +190,12 @@ object Streams {
       direction: Direction,
       maxCount: Long,
       resolveLinkTos: Boolean,
-      filter: Option[EventFilter],
       creds: Option[UserCredentials]
     ): Stream[F, Event] = {
 
-      def validateFilter: F[Unit] = filter.flatMap(_.maxSearchWindow.filterNot(_ > maxCount)).fold(().pure[F]) { msw =>
-        ValidationError(s"maxSearchWindow: $msw must be > maxCount: $maxCount").raiseError[F, Unit]
-      }
-
       if (maxCount > 0) {
 
-        Stream.eval(validateFilter) >>
-          client.read(mkReadAllReq(from, direction, maxCount, resolveLinkTos, filter), ctx(creds)).through(readPipe)
+        client.read(mkReadAllReq(from, direction, maxCount, resolveLinkTos), ctx(creds)).through(readPipe)
 
       } else Stream.empty
     }

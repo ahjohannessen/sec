@@ -22,82 +22,28 @@ class StreamsITest extends ITest {
     "readAll" >> {
 
       import Position._
-      import EventFilter._
 
       val streamPrefix    = s"streams_read_all_${genIdentifier}_"
       val eventTypePrefix = s"sec.${genIdentifier}.Event"
 
       val id1     = genStreamId(streamPrefix)
       val id2     = genStreamId(streamPrefix)
-      val events1 = genEvents(50, eventTypePrefix)
-      val events2 = genEvents(50, eventTypePrefix)
+      val events1 = genEvents(500, eventTypePrefix)
+      val events2 = genEvents(500, eventTypePrefix)
       val written = events1 ::: events2
 
       val writeEvents =
         streams.appendToStream(id1, StreamRevision.NoStream, events1, None) *>
           streams.appendToStream(id2, StreamRevision.NoStream, events2, None)
 
-      def read(position: Position, direction: Direction, maxCount: Long = 1, filter: Option[EventFilter] = None) =
-        streams.readAll(position, direction, maxCount, false, filter, None).compile.toList
-
-      def readData(position: Position, direction: Direction, maxCount: Long, filter: Option[EventFilter]) =
-        read(position, direction, maxCount, filter).map(_.map(_.eventData))
+      def read(position: Position, direction: Direction, maxCount: Long = 1) =
+        streams.readAll(position, direction, maxCount, false, None).compile.toList
 
       //
 
       "init" >> writeEvents.as(ok)
 
       //
-
-      def testFiltered(direction: Direction) = "filtered" >> {
-
-        sealed trait FilterType
-        case object Regex  extends FilterType
-        case object Prefix extends FilterType
-
-        val position = direction.fold(Start, End)
-        val expected = direction.fold(written.toList, written.toList.reverse)
-
-        def testFilterType(ft: FilterType) = {
-
-          def byStreamId(msw: Option[Int]): Option[EventFilter] = ft match {
-            case Prefix => EventFilter.prefix(ByStreamId, msw, streamPrefix).some
-            case Regex  => EventFilter.regex(ByStreamId, msw, s"^$streamPrefix").some
-          }
-
-          def byEventType(msq: Option[Int]): Option[EventFilter] = ft match {
-            case Prefix => EventFilter.prefix(ByEventType, msq, eventTypePrefix).some
-            case Regex  => EventFilter.regex(ByEventType, msq, s"^${eventTypePrefix.replace(".", """\.""")}").some
-          }
-
-          def test(filter: Option[EventFilter]) =
-            readData(position, direction, 999, filter).map(_ shouldEqual expected)
-
-          "yield relevant events with max search window > max count" >> {
-            test(byStreamId(1000.some)) *> test(byEventType(1000.some))
-          }
-
-          "yield relevant events with no max search window" >> {
-            test(byStreamId(None)) *> test(byEventType(None))
-          }
-
-          "fail when search window <= max count" >> {
-
-            def test(filter: Option[EventFilter]) = read(position, direction, 5, filter).attempt.map(
-              _ should beLeft(ValidationError(s"maxSearchWindow: 5 must be > maxCount: 5"))
-            )
-
-            test(byStreamId(5.some)) >> test(byEventType(5.some))
-          }
-
-        }
-
-        "prefix" >> testFilterType(Prefix)
-        "regex" >> testFilterType(Regex)
-
-      }
-
-      ///
 
       "forwards" >> {
 
@@ -121,7 +67,7 @@ class StreamsITest extends ITest {
 
         "max count is respected" >> {
           streams
-            .readAll(Start, Forwards, events1.length / 2L, false, None, None)
+            .readAll(Start, Forwards, events1.length / 2L, false, None)
             .take(events1.length.toLong)
             .compile
             .toList
@@ -219,8 +165,6 @@ class StreamsITest extends ITest {
             readLink(resolve = false).map(_ shouldEqual (l1 ::: l2 ::: l3).toList)
         }
 
-        testFiltered(Forwards)
-
       }
 
       "backwards" >> {
@@ -245,14 +189,13 @@ class StreamsITest extends ITest {
 
         "max count is respected" >> {
           streams
-            .readAll(End, Backwards, events1.length / 2L, false, None, None)
+            .readAll(End, Backwards, events1.length / 2L, false, None)
             .take(events1.length.toLong)
             .compile
             .toList
             .map(_.size shouldEqual events1.length / 2)
         }
 
-        testFiltered(Backwards)
       }
 
     }
