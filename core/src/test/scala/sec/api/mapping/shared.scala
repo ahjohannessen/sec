@@ -5,8 +5,9 @@ package mapping
 import java.util.{UUID => JUUID}
 import cats.implicits._
 import org.specs2._
-import com.eventstore.client.shared._
+import com.eventstore.client._
 import sec.api.mapping.shared._
+import sec.core.StreamId
 
 class SharedMappingSpec extends mutable.Specification {
 
@@ -26,6 +27,16 @@ class SharedMappingSpec extends mutable.Specification {
 
     "mkUuid" >> {
       mkUuid(juuid) shouldEqual UUID().withStructured(uuidStructured)
+    }
+
+    "mkStreamId" >> {
+      mkStreamId[ErrorOr](StreamIdentifier()) shouldEqual ProtoResultError("name cannot be empty").asLeft
+      mkStreamId[ErrorOr]("".toStreamIdentifer) shouldEqual ProtoResultError("name cannot be empty").asLeft
+      mkStreamId[ErrorOr]("abc".toStreamIdentifer) shouldEqual StreamId.normal("abc").unsafe.asRight
+      mkStreamId[ErrorOr]("$abc".toStreamIdentifer) shouldEqual StreamId.system("abc").unsafe.asRight
+      mkStreamId[ErrorOr]("$all".toStreamIdentifer) shouldEqual StreamId.All.asRight
+      mkStreamId[ErrorOr]("$$abc".toStreamIdentifer) shouldEqual StreamId.MetaId(StreamId.normal("abc").unsafe).asRight
+      mkStreamId[ErrorOr]("$$$streams".toStreamIdentifer) shouldEqual StreamId.MetaId(StreamId.Streams).asRight
     }
 
   }

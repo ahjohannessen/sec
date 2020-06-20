@@ -81,6 +81,18 @@ class ConvertSpec extends mutable.Specification {
     } should beSome(WrongExpectedVersion(unknown, 2L.some, 1L.some))
 
     convert { m =>
+      m.put(ek, ce.NotLeader)
+      m.put(k.leaderEndpointHost, "127.0.0.1")
+      m.put(k.leaderEndpointPort, 2113)
+    } should beSome(NotLeader("127.0.0.1".some, 2113.some))
+
+    convert { m =>
+      m.put(ek, ce.NotLeader)
+      m.put(k.leaderEndpointHost, "127.0.0.1")
+      m.put(Metadata.Key.of(ce.LeaderEndpointPort, StringMarshaller), "b")
+    } should beSome(NotLeader("127.0.0.1".some, None))
+
+    convert { m =>
       m.put(ek, ce.StreamNotFound)
       m.put(k.streamName, streamId)
     } should beSome(StreamNotFound(streamId))

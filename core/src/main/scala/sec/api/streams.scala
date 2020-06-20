@@ -8,10 +8,11 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect._
 import cats.effect.concurrent.Ref
-import fs2.{Pull, Stream}
+import fs2.{Pipe, Pull, Stream}
 import com.eventstore.client.streams._
 import sec.core._
 import sec.syntax.StreamsSyntax
+import mapping.shared._
 import mapping.streams.outgoing._
 import mapping.streams.incoming._
 import mapping.implicits._
@@ -103,11 +104,20 @@ object Streams {
     extends Streams[F] {
 
     val ctx: Option[UserCredentials] => Context = uc => {
-      Context(uc.orElse(options.defaultCreds), options.connectionName)
+      Context(uc.orElse(options.defaultCreds), options.connectionName, options.nodePreference.isLeader)
     }
 
-    private val readPipe: Stream[F, ReadResp] => Stream[F, Event] =
+    private val readEventPipe: Stream[F, ReadResp] => Stream[F, Event] =
       _.evalMap(_.content.event.require[F]("ReadEvent expected!").flatMap(mkEvent[F])).unNone
+
+    private val failStreamNotFound: Pipe[F, ReadResp, ReadResp] =
+      _.evalMap(r =>
+        r.content.streamNotFound.fold(r.pure[F])(
+          _.streamIdentifier
+            .require[F]("StreamIdentifer expected!")
+            .flatMap(_.utf8[F].map(StreamNotFound(_)))
+            .flatMap(F.raiseError)
+        ))
 
     private val subConfirmationPipe: Stream[F, ReadResp] => Stream[F, ReadResp] = in => {
 
@@ -123,7 +133,7 @@ object Streams {
     }
 
     private val subscriptionPipe: Stream[F, ReadResp] => Stream[F, Event] =
-      _.through(subConfirmationPipe).through(readPipe)
+      _.through(subConfirmationPipe).through(readEventPipe)
 
     private val subAllFilteredPipe: Stream[F, ReadResp] => Stream[F, Either[Position, Event]] = {
 
@@ -193,11 +203,9 @@ object Streams {
       creds: Option[UserCredentials]
     ): Stream[F, Event] = {
 
-      if (maxCount > 0) {
-
-        client.read(mkReadAllReq(from, direction, maxCount, resolveLinkTos), ctx(creds)).through(readPipe)
-
-      } else Stream.empty
+      if (maxCount > 0)
+        client.read(mkReadAllReq(from, direction, maxCount, resolveLinkTos), ctx(creds)).through(readEventPipe)
+      else Stream.empty
     }
 
     def readStream(
@@ -210,12 +218,11 @@ object Streams {
     ): Stream[F, Event] = {
 
       val valid = direction.fold(from =!= EventNumber.End, true)
+      def req   = mkReadStreamReq(streamId, from, direction, maxCount, resolveLinkTos)
 
-      if (valid && maxCount > 0) {
-
-        client.read(mkReadStreamReq(streamId, from, direction, maxCount, resolveLinkTos), ctx(creds)).through(readPipe)
-
-      } else Stream.empty
+      if (valid && maxCount > 0)
+        client.read(req, ctx(creds)).through(failStreamNotFound).through(readEventPipe)
+      else Stream.empty
     }
 
     def appendToStream(
@@ -227,7 +234,7 @@ object Streams {
       client.append(
         Stream.emit(mkAppendHeaderReq(streamId, expectedRevision)) ++ Stream.emits(mkAppendProposalsReq(events).toList),
         ctx(creds)
-      ) >>= mkWriteResult[F]
+      ) >>= { ar => mkWriteResult[F](streamId, ar) }
 
     def softDelete(
       streamId: StreamId,
