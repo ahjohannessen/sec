@@ -5,23 +5,32 @@ import EventNumber.Exact
 
 sealed abstract class EsException(msg: String) extends RuntimeException(msg)
 
-case object AccessDenied                          extends EsException("Access Denied.") // All
-case object InvalidTransaction                    extends EsException("Invalid Transaction.") // Streams.Delete + Streams.Append
-final case class UserNotFound(loginName: String)  extends EsException(s"User '$loginName' was not found.") // Users
-final case class StreamDeleted(streamId: String)  extends EsException(s"Event stream '$streamId' is deleted.") // Streams
-final case class StreamNotFound(streamId: String) extends EsException(s"Event stream '$streamId' was not found.") // Streams.Read/Subscribe
+case object AccessDenied                          extends EsException("Access Denied.")
+case object InvalidTransaction                    extends EsException("Invalid Transaction.")
+final case class UserNotFound(loginName: String)  extends EsException(s"User '$loginName' was not found.")
+final case class StreamDeleted(streamId: String)  extends EsException(s"Event stream '$streamId' is deleted.")
+final case class StreamNotFound(streamId: String) extends EsException(s"Event stream '$streamId' was not found.")
 final case class UnknownError(msg: String)        extends EsException(msg)
 final case class ServerUnavailable(msg: String)   extends EsException(msg)
 final case class ValidationError(msg: String)     extends EsException(msg)
 
-final case class MaximumAppendSizeExceeded(size: Option[Int]) extends EsException(MaximumAppendSizeExceeded.msg(size)) // Streams.Append
+final case class NotLeader(host: Option[String], port: Option[Int]) extends EsException(NotLeader.msg(host, port))
+
+object NotLeader {
+  def msg(host: Option[String], port: Option[Int]): String =
+    s"Not leader. New leader at ${host.getOrElse("<unknown>")}:${port.getOrElse("<unknown>")}."
+}
+
+final case class MaximumAppendSizeExceeded(size: Option[Int]) extends EsException(MaximumAppendSizeExceeded.msg(size))
 
 object MaximumAppendSizeExceeded {
   def msg(maxSize: Option[Int]): String =
     s"Maximum append size ${maxSize.map(max => s"of $max bytes ").getOrElse("")}exceeded."
 }
 
-final case class WrongExpectedVersion(streamId: String, expected: Option[Long], actual: Option[Long]) // Streams.Delete + Streams.Append
+final case class WrongExpectedVersion(streamId: String,
+                                      expected: Option[Long],
+                                      actual: Option[Long]) // Streams.Delete + Streams.Append
   extends EsException(WrongExpectedVersion.msg(streamId, expected, actual))
 
 object WrongExpectedVersion {

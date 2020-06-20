@@ -8,7 +8,7 @@ import cats.implicits._
 import cats.data.NonEmptyList
 import scodec.bits.ByteVector
 import org.specs2._
-import com.eventstore.client.shared._
+import com.eventstore.client._
 import com.eventstore.client.streams._
 import sec.{core => c}
 import sec.api.mapping.shared._
@@ -24,7 +24,7 @@ class StreamsMappingSpec extends mutable.Specification {
     import ReadReq.Options.AllOptions.AllOption
     import ReadReq.Options.StreamOptions.RevisionOption
 
-    val empty = com.eventstore.client.shared.Empty()
+    val empty = com.eventstore.client.Empty()
 
     ///
 
@@ -95,7 +95,7 @@ class StreamsMappingSpec extends mutable.Specification {
         mkSubscribeToStreamReq(sid, exclusiveFrom, resolveLinkTos) shouldEqual ReadReq().withOptions(
           ReadReq
             .Options()
-            .withStream(ReadReq.Options.StreamOptions(sid.stringValue, mapEventNumberOpt(exclusiveFrom)))
+            .withStream(ReadReq.Options.StreamOptions(sid.esSid.some, mapEventNumberOpt(exclusiveFrom)))
             .withSubscription(ReadReq.Options.SubscriptionOptions())
             .withReadDirection(ReadReq.Options.ReadDirection.Forwards)
             .withResolveLinks(resolveLinkTos)
@@ -141,7 +141,7 @@ class StreamsMappingSpec extends mutable.Specification {
         mkReadStreamReq(sid, from, rd, count, rlt) shouldEqual ReadReq().withOptions(
           ReadReq
             .Options()
-            .withStream(ReadReq.Options.StreamOptions(sid.stringValue, mapEventNumber(from)))
+            .withStream(ReadReq.Options.StreamOptions(sid.esSid.some, mapEventNumber(from)))
             .withCount(count)
             .withReadDirection(mapDirection(rd))
             .withResolveLinks(rlt)
@@ -187,7 +187,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
       def test(sr: c.StreamRevision, esr: ExpectedStreamRevision) =
         mkSoftDeleteReq(sid, sr) shouldEqual
-          DeleteReq().withOptions(DeleteReq.Options(sid.stringValue, esr))
+          DeleteReq().withOptions(DeleteReq.Options(sid.esSid.some, esr))
 
       test(c.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
       test(c.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
@@ -202,7 +202,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
       def test(sr: c.StreamRevision, esr: ExpectedStreamRevision) =
         mkHardDeleteReq(sid, sr) shouldEqual
-          TombstoneReq().withOptions(TombstoneReq.Options(sid.stringValue, esr))
+          TombstoneReq().withOptions(TombstoneReq.Options(sid.esSid.some, esr))
 
       test(c.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
       test(c.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
@@ -217,7 +217,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
       def test(sr: c.StreamRevision, esr: ExpectedStreamRevision) =
         mkAppendHeaderReq(sid, sr) shouldEqual
-          AppendReq().withOptions(AppendReq.Options(sid.stringValue, esr))
+          AppendReq().withOptions(AppendReq.Options(sid.esSid.some, esr))
 
       test(c.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
       test(c.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
@@ -275,7 +275,7 @@ class StreamsMappingSpec extends mutable.Specification {
     import grpc.constants.Metadata.{ContentType, ContentTypes, Created, Type}
     import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
 
-    val empty = com.eventstore.client.shared.Empty()
+    val empty = com.eventstore.client.Empty()
 
     type ErrorOr[A] = Either[Throwable, A]
 
@@ -295,7 +295,7 @@ class StreamsMappingSpec extends mutable.Specification {
       val eventProto =
         ReadResp.ReadEvent
           .RecordedEvent()
-          .withStreamName(streamId)
+          .withStreamIdentifier(streamId.toStreamIdentifer)
           .withStreamRevision(revision)
           .withCommitPosition(commit)
           .withPreparePosition(prepare)
@@ -317,7 +317,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
       val linkProto = ReadResp.ReadEvent
         .RecordedEvent()
-        .withStreamName(linkStreamId)
+        .withStreamIdentifier(linkStreamId.toStreamIdentifer)
         .withStreamRevision(linkRevision)
         .withCommitPosition(linkCommit)
         .withPreparePosition(linkPrepare)
@@ -378,7 +378,7 @@ class StreamsMappingSpec extends mutable.Specification {
       val recordedEvent =
         ReadResp.ReadEvent
           .RecordedEvent()
-          .withStreamName(streamId)
+          .withStreamIdentifier(streamId.toStreamIdentifer)
           .withStreamRevision(revision)
           .withCommitPosition(commit)
           .withPreparePosition(prepare)
@@ -399,7 +399,7 @@ class StreamsMappingSpec extends mutable.Specification {
       mkEventRecord[ErrorOr](recordedEvent) shouldEqual eventRecord.asRight
 
       // Bad StreamId
-      mkEventRecord[ErrorOr](recordedEvent.withStreamName("")) shouldEqual
+      mkEventRecord[ErrorOr](recordedEvent.withStreamIdentifier("".toStreamIdentifer)) shouldEqual
         ProtoResultError("name cannot be empty").asLeft
 
       // Missing UUID
@@ -431,16 +431,6 @@ class StreamsMappingSpec extends mutable.Specification {
         ProtoResultError(s"Required value $Created missing or invalid.").asLeft
     }
 
-    "mkStreamId" >> {
-      mkStreamId[ErrorOr](null) shouldEqual ProtoResultError("name cannot be empty").asLeft
-      mkStreamId[ErrorOr]("") shouldEqual ProtoResultError("name cannot be empty").asLeft
-      mkStreamId[ErrorOr]("abc") shouldEqual c.StreamId.normal("abc").unsafe.asRight
-      mkStreamId[ErrorOr]("$abc") shouldEqual c.StreamId.system("abc").unsafe.asRight
-      mkStreamId[ErrorOr]("$all") shouldEqual c.StreamId.All.asRight
-      mkStreamId[ErrorOr]("$$abc") shouldEqual c.StreamId.MetaId(c.StreamId.normal("abc").unsafe).asRight
-      mkStreamId[ErrorOr]("$$$streams") shouldEqual c.StreamId.MetaId(c.StreamId.Streams).asRight
-    }
-
     "mkEventType" >> {
       mkEventType[ErrorOr](null) shouldEqual ProtoResultError("Event type name cannot be empty").asLeft
       mkEventType[ErrorOr]("") shouldEqual ProtoResultError("Event type name cannot be empty").asLeft
@@ -450,14 +440,26 @@ class StreamsMappingSpec extends mutable.Specification {
     }
 
     "mkWriteResult" >> {
-      mkWriteResult[ErrorOr](AppendResp().withCurrentRevision(1L)) shouldEqual
+
+      import AppendResp.{Result, Success}
+
+      val test: AppendResp => ErrorOr[WriteResult] = mkWriteResult[ErrorOr](c.StreamId.from("abc").unsafe, _)
+
+      test(AppendResp().withSuccess(Success().withCurrentRevision(1L))) shouldEqual
         WriteResult(c.EventNumber.exact(1L)).asRight
 
-      mkWriteResult[ErrorOr](AppendResp().withNoStream(empty)) shouldEqual
+      test(AppendResp().withSuccess(Success().withNoStream(empty))) shouldEqual
         ProtoResultError("Did not expect NoStream when using NonEmptyList").asLeft
 
-      mkWriteResult[ErrorOr](AppendResp().withNoPosition(empty)) shouldEqual
+      test(
+        AppendResp().withSuccess(Success().withCurrentRevisionOption(Success.CurrentRevisionOption.Empty))) shouldEqual
         ProtoResultError("CurrentRevisionOptions is missing").asLeft
+
+      // TODO: WrongExpectedVersion
+
+      test(AppendResp().withResult(Result.Empty)) shouldEqual
+        ProtoResultError("Result is missing").asLeft
+
     }
 
     "mkDeleteResult" >> {

@@ -25,14 +25,15 @@ private[api] object constants {
     val UserConflict: String                       = "user-conflict"
     val ScavengeNotFound: String                   = "scavenge-not-found"
 
-    val ExpectedVersion: String   = "expected-version"
-    val ActualVersion: String     = "actual-version"
-    val StreamName: String        = "stream-name"
-    val GroupName: String         = "group-name"
-    val Reason: String            = "reason"
-    val MaximumAppendSize: String = "maximum-append-size"
-    val ScavengeId: String        = "scavenge-id"
-    val LeaderEndpoint: String    = "leader-endpoint"
+    val ExpectedVersion: String    = "expected-version"
+    val ActualVersion: String      = "actual-version"
+    val StreamName: String         = "stream-name"
+    val GroupName: String          = "group-name"
+    val Reason: String             = "reason"
+    val MaximumAppendSize: String  = "maximum-append-size"
+    val ScavengeId: String         = "scavenge-id"
+    val LeaderEndpointHost: String = "leader-endpoint-host"
+    val LeaderEndpointPort: String = "leader-endpoint-port"
 
     val LoginName = "login-name"
   }

@@ -9,6 +9,11 @@ import constants.Headers.BasicScheme
 
 //======================================================================================================================
 
+private[grpc] final case class InvalidInput(input: String, tpe: String)
+  extends RuntimeException(s"Could not parse $input to $tpe")
+
+//======================================================================================================================
+
 private[grpc] object IntMarshaller  extends NumericAsciiMarshaller[Int]("Int")
 private[grpc] object LongMarshaller extends NumericAsciiMarshaller[Long]("Long")
 
@@ -17,14 +22,18 @@ private[grpc] abstract sealed class NumericAsciiMarshaller[T: Numeric](tpe: Stri
   final def parseAsciiString(s: String): T = Numeric[T].parseString(s).getOrElse(throw InvalidInput(s, tpe))
 }
 
-private[grpc] final case class InvalidInput(input: String, tpe: String)
-  extends RuntimeException(s"Could not parse $input to $tpe")
-
 //======================================================================================================================
 
 private[grpc] object StringMarshaller extends AsciiMarshaller[String] {
   def toAsciiString(value: String): String         = value
   def parseAsciiString(serialized: String): String = serialized
+}
+
+//======================================================================================================================
+
+private[grpc] object BooleanMarshaller extends AsciiMarshaller[Boolean] {
+  def toAsciiString(v: Boolean): String    = v.toString()
+  def parseAsciiString(s: String): Boolean = s.toBooleanOption.getOrElse(throw InvalidInput(s, "Boolean"))
 }
 
 //======================================================================================================================

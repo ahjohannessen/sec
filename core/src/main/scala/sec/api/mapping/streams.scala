@@ -4,7 +4,7 @@ package mapping
 
 import cats.data.NonEmptyList
 import cats.implicits._
-import com.eventstore.client.shared.Empty
+import com.eventstore.client._
 import com.eventstore.client.streams._
 import sec.core._
 import sec.api.Streams._
@@ -86,7 +86,7 @@ private[sec] object streams {
 
       val options = ReadReq
         .Options()
-        .withStream(ReadReq.Options.StreamOptions(streamId.stringValue, mapEventNumberOpt(exclusiveFrom)))
+        .withStream(ReadReq.Options.StreamOptions(streamId.esSid.some, mapEventNumberOpt(exclusiveFrom)))
         .withSubscription(ReadReq.Options.SubscriptionOptions())
         .withReadDirection(mapDirection(Direction.Forwards))
         .withResolveLinks(resolveLinkTos)
@@ -124,7 +124,7 @@ private[sec] object streams {
 
       val options = ReadReq
         .Options()
-        .withStream(ReadReq.Options.StreamOptions(streamId.stringValue, mapEventNumber(from)))
+        .withStream(ReadReq.Options.StreamOptions(streamId.esSid.some, mapEventNumber(from)))
         .withCount(count)
         .withReadDirection(mapDirection(direction))
         .withResolveLinks(resolveLinkTos)
@@ -161,7 +161,7 @@ private[sec] object streams {
         case StreamRevision.StreamExists => DeleteReq.Options.ExpectedStreamRevision.StreamExists(empty)
         case StreamRevision.Any          => DeleteReq.Options.ExpectedStreamRevision.Any(empty)
       }
-      DeleteReq().withOptions(DeleteReq.Options(streamId.stringValue, mapDeleteRevision(expectedRevision)))
+      DeleteReq().withOptions(DeleteReq.Options(streamId.esSid.some, mapDeleteRevision(expectedRevision)))
     }
 
     def mkHardDeleteReq(streamId: StreamId, expectedRevision: StreamRevision): TombstoneReq = {
@@ -172,7 +172,7 @@ private[sec] object streams {
         case StreamRevision.StreamExists => TombstoneReq.Options.ExpectedStreamRevision.StreamExists(empty)
         case StreamRevision.Any          => TombstoneReq.Options.ExpectedStreamRevision.Any(empty)
       }
-      TombstoneReq().withOptions(TombstoneReq.Options(streamId.stringValue, mapTombstoneRevision(expectedRevision)))
+      TombstoneReq().withOptions(TombstoneReq.Options(streamId.esSid.some, mapTombstoneRevision(expectedRevision)))
     }
 
     def mkAppendHeaderReq(streamId: StreamId, expectedRevision: StreamRevision): AppendReq = {
@@ -183,17 +183,18 @@ private[sec] object streams {
         case StreamRevision.StreamExists => AppendReq.Options.ExpectedStreamRevision.StreamExists(empty)
         case StreamRevision.Any          => AppendReq.Options.ExpectedStreamRevision.Any(empty)
       }
-      AppendReq().withOptions(AppendReq.Options(streamId.stringValue, mapAppendRevision(expectedRevision)))
+      AppendReq().withOptions(AppendReq.Options(streamId.esSid.some, mapAppendRevision(expectedRevision)))
     }
 
-    def mkAppendProposalsReq(events: NonEmptyList[EventData]): NonEmptyList[AppendReq] = events.map { e =>
-      val id         = mkUuid(e.eventId)
-      val customMeta = e.metadata.bytes.toByteString
-      val data       = e.data.bytes.toByteString
-      val ct         = e.contentType.fold(ContentTypes.ApplicationOctetStream, ContentTypes.ApplicationJson)
-      val meta       = Map(Type -> EventType.eventTypeToString(e.eventType), ContentType -> ct)
-      AppendReq().withProposedMessage(AppendReq.ProposedMessage(id.some, meta, customMeta, data))
-    }
+    def mkAppendProposalsReq(events: NonEmptyList[EventData]): NonEmptyList[AppendReq] =
+      events.map { e =>
+        val id         = mkUuid(e.eventId)
+        val customMeta = e.metadata.bytes.toByteString
+        val data       = e.data.bytes.toByteString
+        val ct         = e.contentType.fold(ContentTypes.ApplicationOctetStream, ContentTypes.ApplicationJson)
+        val meta       = Map(Type -> EventType.eventTypeToString(e.eventType), ContentType -> ct)
+        AppendReq().withProposedMessage(AppendReq.ProposedMessage(id.some, meta, customMeta, data))
+      }
   }
 
 //======================================================================================================================
@@ -211,7 +212,7 @@ private[sec] object streams {
 
       import EventData.{binary, json}
 
-      val streamId    = mkStreamId[F](e.streamName)
+      val streamId    = mkStreamId[F](e.streamIdentifier)
       val eventNumber = EventNumber.exact(e.streamRevision)
       val position    = Position.exact(e.commitPosition, e.preparePosition)
       val data        = e.data.toByteVector
@@ -229,27 +230,44 @@ private[sec] object streams {
 
     }
 
-    def mkContentType[F[_]](ct: String)(implicit F: ErrorA[F]): F[Content.Type] = ct match {
-      case ContentTypes.ApplicationOctetStream => F.pure(Content.Type.Binary)
-      case ContentTypes.ApplicationJson        => F.pure(Content.Type.Json)
-      case unknown                             => F.raiseError(ProtoResultError(s"Required value $ContentType missing or invalid: $unknown"))
-    }
-
-    def mkStreamId[F[_]: ErrorA](name: String): F[StreamId] =
-      StreamId.stringToStreamId(Option(name).getOrElse("")).leftMap(ProtoResultError).liftTo[F]
+    def mkContentType[F[_]](ct: String)(implicit F: ErrorA[F]): F[Content.Type] =
+      ct match {
+        case ContentTypes.ApplicationOctetStream => F.pure(Content.Type.Binary)
+        case ContentTypes.ApplicationJson        => F.pure(Content.Type.Json)
+        case unknown                             => F.raiseError(ProtoResultError(s"Required value $ContentType missing or invalid: $unknown"))
+      }
 
     def mkEventType[F[_]: ErrorA](name: String): F[EventType] =
       EventType.stringToEventType(Option(name).getOrElse("")).leftMap(ProtoResultError).liftTo[F]
 
-    def mkWriteResult[F[_]: ErrorA](ar: AppendResp): F[WriteResult] = {
+    def mkWriteResult[F[_]: ErrorA](sid: StreamId, ar: AppendResp): F[WriteResult] = {
 
-      val currentRevision = ar.currentRevisionOption match {
-        case AppendResp.CurrentRevisionOption.CurrentRevision(v) => EventNumber.exact(v).asRight
-        case AppendResp.CurrentRevisionOption.NoStream(_)        => "Did not expect NoStream when using NonEmptyList".asLeft
-        case AppendResp.CurrentRevisionOption.Empty              => "CurrentRevisionOptions is missing".asLeft
+      import com.eventstore.client.streams.AppendResp.{Result, Success}
+
+      def error(msg: String): Either[Throwable, WriteResult] =
+        ProtoResultError(msg).asLeft
+
+      def success(s: Result.Success) =
+        s.value.currentRevisionOption match {
+          case Success.CurrentRevisionOption.CurrentRevision(v) => WriteResult(EventNumber.exact(v)).asRight
+          case Success.CurrentRevisionOption.NoStream(_)        => error("Did not expect NoStream when using NonEmptyList")
+          case Success.CurrentRevisionOption.Empty              => error("CurrentRevisionOptions is missing")
+        }
+
+      def wrongExpectedVersion(w: Result.WrongExpectedVersion) = {
+        // TODO: Decide what to do with other cases
+        val expected = w.value.expectedRevisionOption.expectedRevision
+        val actual   = w.value.currentRevisionOption.currentRevision
+        WrongExpectedVersion(sid.stringValue, expected, actual).asLeft
       }
 
-      currentRevision.map(WriteResult).leftMap(ProtoResultError).liftTo[F]
+      val result = ar.result match {
+        case s: Result.Success              => success(s)
+        case w: Result.WrongExpectedVersion => wrongExpectedVersion(w)
+        case Result.Empty                   => error("Result is missing")
+      }
+
+      result.liftTo[F]
     }
 
     def mkDeleteResult[F[_]: ErrorA](dr: DeleteResp): F[DeleteResult] =
