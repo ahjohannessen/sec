@@ -1,7 +1,6 @@
 package sec
 package api
 
-import org.specs2._
 import cats.implicits._
 import cats.kernel.laws.discipline._
 import org.scalacheck._

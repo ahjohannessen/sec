@@ -159,10 +159,8 @@ class StreamsMappingSpec extends mutable.Specification {
 
     "mkReadAllReq" >> {
 
-      import EventFilter._
-
-      def test(from: c.Position, rd: Direction, maxCount: Long, rlt: Boolean, filter: Option[EventFilter]) =
-        mkReadAllReq(from, rd, maxCount, rlt, filter) shouldEqual ReadReq().withOptions(
+      def test(from: c.Position, rd: Direction, maxCount: Long, rlt: Boolean) =
+        mkReadAllReq(from, rd, maxCount, rlt) shouldEqual ReadReq().withOptions(
           ReadReq
             .Options()
             .withAll(ReadReq.Options.AllOptions(mapPosition(from)))
@@ -170,7 +168,7 @@ class StreamsMappingSpec extends mutable.Specification {
             .withCount(maxCount)
             .withReadDirection(mapDirection(rd))
             .withResolveLinks(rlt)
-            .withFilterOption(mapReadEventFilter(filter))
+            .withNoFilter(empty)
             .withUuidOption(uuidOption)
         )
 
@@ -179,8 +177,7 @@ class StreamsMappingSpec extends mutable.Specification {
         rd <- List(Direction.Forwards, Direction.Backwards)
         mc <- List(100L, 1000L, 10000L)
         rt <- List(true, false)
-        fi <- List(Option.empty[EventFilter], prefix(ByStreamId, None, "abc").some)
-      } yield test(fr, rd, mc, rt, fi)
+      } yield test(fr, rd, mc, rt)
     }
 
     "mkSoftDeleteReq" >> {

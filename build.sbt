@@ -42,7 +42,7 @@ val devScalacOptions = { options: Seq[String] =>
 
 inThisBuild(
   List(
-    scalaVersion := "2.13.1",
+    scalaVersion := "2.13.2",
     organization := "io.github.ahjohannessen",
     developers := List(
       Developer("ahjohannessen", "Alex Henning Johannessen", "ahjohannessen@gmail.com", url("https://github.com/ahjohannessen"))

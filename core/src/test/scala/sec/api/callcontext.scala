@@ -1,7 +1,6 @@
 package sec
 package api
 
-import org.specs2._
 import org.specs2.mutable.Specification
 
 class UserCredentialsSpec extends Specification {
