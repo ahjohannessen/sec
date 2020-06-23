@@ -21,7 +21,7 @@ lazy val core = project
     libraryDependencies ++=
       compileM(cats, catsEffect, fs2, scodecBits, circe, circeParser, scalaPb) ++
         protobufM(scalaPb) ++
-        testM(specs2Cats, catsEffectTesting, specs2ScalaCheck, circeGeneric, grpcNetty, tcnative)
+        testM(specs2Cats, catsEffectTesting, catsEffectLaws, specs2ScalaCheck, circeGeneric, grpcNetty, tcnative)
   )
 
 // General Settings

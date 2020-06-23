@@ -20,25 +20,27 @@ object Dependencies {
 
   // Compile
 
-  val cats         = "org.typelevel"        %% "cats-core"                      % versions.catsCore
-  val catsLaws     = "org.typelevel"        %% "cats-laws"                      % versions.catsCore
-  val catsEffect   = "org.typelevel"        %% "cats-effect"                    % versions.catsEffect
-  val fs2          = "co.fs2"               %% "fs2-core"                       % versions.fs2
-  val scodecBits   = "org.scodec"           %% "scodec-bits"                    % versions.scodecBits
-  val circe        = "io.circe"             %% "circe-core"                     % versions.circe
-  val circeParser  = "io.circe"             %% "circe-parser"                   % versions.circe
-  val circeGeneric = "io.circe"             %% "circe-generic"                  % versions.circe
-  val scalaPb      = "com.thesamet.scalapb" %% "scalapb-runtime"                % versions.scalaPb
-  val grpcNetty    = "io.grpc"              % "grpc-netty"                      % versions.grpc
-  val tcnative     = "io.netty"             % "netty-tcnative-boringssl-static" % "2.0.28.Final"
+  val cats        = "org.typelevel"        %% "cats-core"       % versions.catsCore
+  val catsEffect  = "org.typelevel"        %% "cats-effect"     % versions.catsEffect
+  val fs2         = "co.fs2"               %% "fs2-core"        % versions.fs2
+  val scodecBits  = "org.scodec"           %% "scodec-bits"     % versions.scodecBits
+  val circe       = "io.circe"             %% "circe-core"      % versions.circe
+  val circeParser = "io.circe"             %% "circe-parser"    % versions.circe
+  val scalaPb     = "com.thesamet.scalapb" %% "scalapb-runtime" % versions.scalaPb
 
   // Testing
+
+  val grpcNetty = "io.grpc"  % "grpc-netty"                      % versions.grpc
+  val tcnative  = "io.netty" % "netty-tcnative-boringssl-static" % "2.0.28.Final"
 
   val specs2            = "org.specs2"     %% "specs2-core"                % versions.specs2
   val specs2ScalaCheck  = "org.specs2"     %% "specs2-scalacheck"          % versions.specs2
   val specs2Cats        = "org.specs2"     %% "specs2-cats"                % versions.specs2
+  val circeGeneric      = "io.circe"       %% "circe-generic"              % versions.circe
   val disciplineSpecs2  = "org.typelevel"  %% "discipline-specs2"          % versions.disciplineSpecs2
+  val catsLaws          = "org.typelevel"  %% "cats-laws"                  % versions.catsCore
   val catsEffectTesting = "com.codecommit" %% "cats-effect-testing-specs2" % versions.catsEffectTesting
+  val catsEffectLaws    = "org.typelevel"  %% "cats-effect-laws"           % versions.catsEffect
 
   // Compiler & SBT Plugins
 
