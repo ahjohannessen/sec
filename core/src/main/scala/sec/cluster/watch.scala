@@ -9,7 +9,7 @@ import cats.effect._
 import cats.effect.concurrent.Ref
 import fs2.Stream
 import org.lyranthe.fs2_grpc.java_runtime.implicits._
-import io.grpc.{ManagedChannel, ManagedChannelBuilder}
+import io.grpc.{LoadBalancerRegistry, ManagedChannel, ManagedChannelBuilder}
 import sec.core.ServerUnavailable
 import sec.api._
 import Gossip.{ClusterInfo, Endpoint}
@@ -30,9 +30,9 @@ private[sec] object ClusterWatch {
 
     def apply[F[_]: Sync](
       ci: ClusterInfo
-    ): F[Cache[F]] = Ref[F].of(ci).map(create)
+    ): F[Cache[F]] = Ref[F].of(ci).map(create[F])
 
-    def create[F[_]](ref: Ref[F, ClusterInfo]): Cache[F] =
+    def create[F[_]: Sync](ref: Ref[F, ClusterInfo]): Cache[F] =
       new Cache[F] {
         def set(ci: ClusterInfo): F[Unit] = ref.set(ci)
         def get: F[ClusterInfo]           = ref.get
@@ -41,25 +41,27 @@ private[sec] object ClusterWatch {
 
   ///
 
-  def apply[F[_]: ConcurrentEffect: Timer, MCB <: ManagedChannelBuilder[MCB]](
+  def apply[F[_]: Timer, MCB <: ManagedChannelBuilder[MCB]](
     bulderFromTarget: String => MCB,
     settings: Settings,
     gossipFn: ManagedChannel => Gossip[F],
     seed: NonEmptyList[Endpoint],
     authority: String
-  ): Resource[F, ClusterWatch[F]] = {
+  )(implicit F: ConcurrentEffect[F]): Resource[F, ClusterWatch[F]] = {
 
     val mkCache: Resource[F, Cache[F]] = Resource.liftF(Cache(ClusterInfo(Set.empty)))
+
+    val registerBalancer =
+      F.delay(LoadBalancerRegistry.getDefaultRegistry.register(GossipLbProvider))
 
     def mkChannel(updates: Stream[F, ClusterInfo]): Resource[F, ManagedChannel] =
       bulderFromTarget(ResolverProvider.gossipScheme)
         .nameResolverFactory(ResolverProvider.gossip(authority, seed, settings.preference, updates))
-        // TODO: Replace with Gossip Policy because pick_first and round_robin
-        // are not smart enough to optimize gossip source selection
-        .defaultLoadBalancingPolicy("pick_first")
+        .defaultLoadBalancingPolicy(GossipLbProvider.getPolicyName)
         .resource[F]
 
     for {
+      _       <- Resource.liftF(registerBalancer)
       store   <- mkCache
       initial  = mkWatch(store.get, settings.notificationInterval).subscribe
       channel <- mkChannel(initial)
@@ -85,7 +87,11 @@ private[sec] object ClusterWatch {
   def mkWatch[F[_]: Sync: Timer](get: F[ClusterInfo], interval: FiniteDuration): ClusterWatch[F] =
     new ClusterWatch[F] {
       val subscribe: Stream[F, ClusterInfo] =
-        Stream.eval(get).metered(interval).repeat.changesBy(_.members)
+        Stream
+          .eval(get)
+          .metered(interval)
+          .repeat
+          .changesBy(_.members)
     }
 
   def mkFetcher[F[_]: ConcurrentEffect: Timer](

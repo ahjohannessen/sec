@@ -29,9 +29,10 @@ object Notifier {
       updates: Stream[F, ClusterInfo]
     ): F[Notifier[F]] = {
       for {
-        signal    <- SignallingRef[F, Boolean](false)
-        endpoints <- Ref[F].of(seed)
-      } yield apply(seed, np, updates, endpoints, signal)
+        halt       <- SignallingRef[F, Boolean](false)
+        endpoints  <- Ref[F].of(seed)
+        hasStarted <- Ref[F].of(false)
+      } yield apply(seed, np, updates, endpoints, halt, hasStarted)
     }
 
     def apply[F[_]](
@@ -39,7 +40,8 @@ object Notifier {
       np: NodePreference,
       updates: Stream[F, ClusterInfo],
       endpoints: Ref[F, Nel[Endpoint]],
-      halt: SignallingRef[F, Boolean]
+      halt: SignallingRef[F, Boolean],
+      hasStarted: Ref[F, Boolean]
     )(implicit F: Concurrent[F]): Notifier[F] =
       new Notifier[F] {
 
@@ -48,22 +50,23 @@ object Notifier {
 
         def start(l: Listener[F]): F[Unit] = {
 
-          val bootstrap = l.onResult(mkResult(seed))
+          val bootstrap = hasStarted.set(true) *> l.onResult(mkResult(seed, Nil))
 
-          def update(ci: ClusterInfo): F[Unit] =
+          def update(ci: ClusterInfo): F[Unit] = {
             endpoints.get.flatMap { current =>
               next(current, ci) >>= { n =>
-                (endpoints.set(n) >> l.onResult(mkResult(n))).whenA(current =!= n)
+                (endpoints.set(n) >> l.onResult(mkResult(n, ci.members.toList))).whenA(current =!= n)
               }
             }
+          }
 
           val run = updates.evalMap(update).interruptWhen(halt)
 
-          bootstrap *> run.compile.drain.start.void
+          bootstrap >> run.compile.drain.start.void
 
         }
 
-        val stop: F[Unit] = halt.set(true)
+        val stop: F[Unit] = hasStarted.get >>= { hs => halt.set(true).whenA(hs) }
 
       }
 
@@ -80,11 +83,30 @@ object Notifier {
         }
       }
 
-    def mkResult(endpoints: Nel[Endpoint]): NameResolver.ResolutionResult =
-      NameResolver.ResolutionResult
-        .newBuilder()
-        .setAddresses(endpoints.map(_.toEquivalentAddressGroup).toList.asJava)
-        .build()
+    def mkResult(endpoints: Nel[Endpoint], members: List[MemberInfo]): NameResolver.ResolutionResult = {
+
+      val addresses = endpoints.toList.zipWithIndex.map {
+        case (e, i) =>
+          val additionalInfo =
+            members
+              .find(_.httpEndpoint === e)
+              .map(m => s"state=${m.state}, alive=${m.isAlive}, id=${m.instanceId}")
+
+          val tag =
+            Attributes
+              .newBuilder()
+              .set(endpointTag, s"priority=$i${additionalInfo.map(ai => s", $ai").getOrElse("")}")
+              .build()
+          e.toEquivalentAddressGroup(tag)
+      }
+
+      NameResolver.ResolutionResult.newBuilder().setAddresses(addresses.asJava).build()
+    }
+
+    ///
+
+    val endpointTag: Attributes.Key[String] =
+      Attributes.Key.create[String]("Endpoint Tag")
 
   }
 
@@ -92,13 +114,18 @@ object Notifier {
 
   object bestNodes {
 
-    def apply[F[_]: Concurrent](np: NodePreference, updates: Stream[F, ClusterInfo]): F[Notifier[F]] =
-      SignallingRef[F, Boolean](false).map(apply(np, updates, _))
+    def apply[F[_]: Concurrent](np: NodePreference, updates: Stream[F, ClusterInfo]): F[Notifier[F]] = {
+      for {
+        halt       <- SignallingRef[F, Boolean](false)
+        hasStarted <- Ref[F].of(false)
+      } yield apply(np, updates, halt, hasStarted)
+    }
 
     def apply[F[_]](
       np: NodePreference,
       updates: Stream[F, ClusterInfo],
-      halt: SignallingRef[F, Boolean]
+      halt: SignallingRef[F, Boolean],
+      hasStarted: Ref[F, Boolean]
     )(implicit F: Concurrent[F]): Notifier[F] =
       new Notifier[F] {
 
@@ -116,10 +143,10 @@ object Notifier {
             .evalMap(update)
             .interruptWhen(halt)
 
-          run.compile.drain.start.void
+          hasStarted.set(true) >> run.compile.drain.start.void
         }
 
-        val stop: F[Unit] = halt.set(true)
+        val stop: F[Unit] = hasStarted.get >>= { hs => halt.set(true).whenA(hs) }
 
       }
 

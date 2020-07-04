@@ -2,7 +2,7 @@ package sec
 package api
 
 import java.net.InetSocketAddress
-import io.grpc.EquivalentAddressGroup
+import io.grpc.{Attributes, EquivalentAddressGroup}
 import java.{util => ju}
 import java.time.ZonedDateTime
 import cats._
@@ -45,6 +45,16 @@ object Gossip {
     members: Set[MemberInfo]
   )
 
+  object ClusterInfo {
+    implicit val showForClusterInfo: Show[ClusterInfo] = Show.show { ci =>
+      if (ci.members.nonEmpty) {
+        s"""cluster-info:
+         | ${ci.members.map(_.show).mkString("- ", "\n - ", "")}
+         |""".stripMargin
+      } else "cluster-info: no members"
+    }
+  }
+
   final case class MemberInfo(
     instanceId: ju.UUID,
     timestamp: ZonedDateTime,
@@ -54,7 +64,17 @@ object Gossip {
   )
 
   object MemberInfo {
-    implicit val eqForMemberInfo: Eq[MemberInfo] = Eq.fromUniversalEquals[MemberInfo]
+
+    implicit val eqForMemberInfo: Eq[MemberInfo] = Eq.instance { (l, r) =>
+      l.httpEndpoint === r.httpEndpoint &&
+      l.state === r.state &&
+      l.isAlive === r.isAlive &&
+      l.instanceId === r.instanceId
+    }
+
+    implicit val showForMemberInfo: Show[MemberInfo] = Show.show { mi =>
+      s"${mi.state}[alive=${mi.isAlive}, addr=${mi.httpEndpoint.address}:${mi.httpEndpoint.port}, ts=${mi.timestamp}, id=${mi.instanceId}]"
+    }
   }
 
   final case class Endpoint(
@@ -69,6 +89,8 @@ object Gossip {
     implicit final class EndpointOps(val ep: Endpoint) extends AnyVal {
       def toInetSocketAddress: InetSocketAddress           = new InetSocketAddress(ep.address, ep.port)
       def toEquivalentAddressGroup: EquivalentAddressGroup = new EquivalentAddressGroup(ep.toInetSocketAddress)
+      def toEquivalentAddressGroup(attr: Attributes): EquivalentAddressGroup =
+        new EquivalentAddressGroup(ep.toInetSocketAddress, attr)
     }
   }
 
