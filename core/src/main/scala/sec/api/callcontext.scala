@@ -6,8 +6,8 @@ import cats.implicits._
 //======================================================================================================================
 
 private[sec] final case class Context(
-  userCreds: Option[UserCredentials],
   connectionName: String,
+  userCreds: Option[UserCredentials],
   requiresLeader: Boolean
 )
 

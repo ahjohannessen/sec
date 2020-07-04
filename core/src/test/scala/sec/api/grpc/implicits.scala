@@ -16,8 +16,8 @@ class ImplicitsSpec extends mutable.Specification {
     val creds = UserCredentials.unsafe("hello", "world")
     val name  = "abc"
 
-    val md1 = Context(None, name, false).toMetadata
-    val md2 = Context(creds.some, name, true).toMetadata
+    val md1 = Context(name, None, false).toMetadata
+    val md2 = Context(name, creds.some, true).toMetadata
 
     Option(md1.get(connectionName)) should beSome(name)
     Option(md1.get(authorization)) should beNone

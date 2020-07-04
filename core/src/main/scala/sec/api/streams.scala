@@ -61,19 +61,19 @@ trait Streams[F[_]] {
     expectedRevision: StreamRevision,
     events: NonEmptyList[EventData],
     creds: Option[UserCredentials]
-  ): F[Streams.WriteResult]
+  ): F[WriteResult]
 
   def softDelete(
     streamId: StreamId,
     expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
-  ): F[Streams.DeleteResult]
+  ): F[DeleteResult]
 
   def hardDelete(
     streamId: StreamId,
     expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
-  ): F[Streams.DeleteResult]
+  ): F[DeleteResult]
 
   private[sec] def metadata: MetaStreams[F]
 
@@ -104,7 +104,7 @@ object Streams {
     extends Streams[F] {
 
     val ctx: Option[UserCredentials] => Context = uc => {
-      Context(uc.orElse(options.defaultCreds), options.connectionName, options.nodePreference.isLeader)
+      Context(options.connectionName, uc.orElse(options.defaultCreds), options.nodePreference.isLeader)
     }
 
     private val readEventPipe: Stream[F, ReadResp] => Stream[F, Event] =

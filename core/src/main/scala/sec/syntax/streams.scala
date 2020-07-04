@@ -76,7 +76,7 @@ final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
     expectedRevision: StreamRevision,
     events: NonEmptyList[EventData],
     credentials: Option[UserCredentials] = None
-  ): F[Streams.WriteResult] =
+  ): F[WriteResult] =
     s.appendToStream(streamId, expectedRevision, events, credentials)
 
   /// Delete
@@ -85,14 +85,14 @@ final class StreamsSyntax[F[_]](val s: Streams[F]) extends AnyVal {
     streamId: StreamId,
     expectedRevision: StreamRevision,
     credentials: Option[UserCredentials] = None
-  ): F[Streams.DeleteResult] =
+  ): F[DeleteResult] =
     s.softDelete(streamId, expectedRevision, credentials)
 
   def hardDelete(
     streamId: StreamId,
     expectedRevision: StreamRevision,
     credentials: Option[UserCredentials] = None
-  ): F[Streams.DeleteResult] =
+  ): F[DeleteResult] =
     s.hardDelete(streamId, expectedRevision, credentials)
 
 }
