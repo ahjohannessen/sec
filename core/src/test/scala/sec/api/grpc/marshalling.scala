@@ -47,8 +47,10 @@ class MarshallingSpec extends mutable.Specification {
   }
 
   "UserCredentialsMarshaller" >> {
-    UserCredentialsMarshaller.toAsciiString(UserCredentials.unsafe("Kris", "Kristofferson")) shouldEqual "Basic S3JpczpLcmlzdG9mZmVyc29u"
-    UserCredentialsMarshaller.parseAsciiString("Basic S3JpczpLcmlzdG9mZmVyc29u") shouldEqual UserCredentialsMarshaller.decodingNotSupported
+    UserCredentialsMarshaller.toAsciiString(
+      UserCredentials.unsafe("Kris", "Kristofferson")) shouldEqual "Basic S3JpczpLcmlzdG9mZmVyc29u"
+    UserCredentialsMarshaller.parseAsciiString(
+      "Basic S3JpczpLcmlzdG9mZmVyc29u") shouldEqual UserCredentialsMarshaller.decodingNotSupported
   }
 
 }

@@ -15,7 +15,7 @@ import Arbitraries._
 
 trait ITest extends Specification with CatsIO with AfterAll {
 
-  private final val testName = ITest.snakeCaseTransformation(getClass().getSimpleName())
+  final private val testName = ITest.snakeCaseTransformation(getClass().getSimpleName())
 
   def genIdentifier: String                               = sampleOfGen(Gen.identifier.suchThat(id => id.size >= 5 && id.size <= 20))
   def genStreamId: StreamId.Id                            = genStreamId(s"${testName}_")
@@ -23,7 +23,7 @@ trait ITest extends Specification with CatsIO with AfterAll {
   def genEvents(n: Int): Nel[EventData]                   = genEvents(n, eventTypeGen.defaultPrefix)
   def genEvents(n: Int, etPrefix: String): Nel[EventData] = sampleOfGen(eventdataGen.eventDataNelN(n, etPrefix))
 
-  private final lazy val (client, shutdown): (EsClient[IO], IO[Unit]) = {
+  final private lazy val (client, shutdown): (EsClient[IO], IO[Unit]) = {
 
     val builder = IO.delay {
       NettyChannelBuilder
@@ -52,10 +52,10 @@ trait ITest extends Specification with CatsIO with AfterAll {
 object ITest {
   import java.util.regex.Pattern
 
-  private final val basePattern: Pattern = Pattern.compile("([A-Z]+)([A-Z][a-z])")
-  private final val swapPattern: Pattern = Pattern.compile("([a-z\\d])([A-Z])")
+  final private val basePattern: Pattern = Pattern.compile("([A-Z]+)([A-Z][a-z])")
+  final private val swapPattern: Pattern = Pattern.compile("([a-z\\d])([A-Z])")
 
-  private final val snakeCaseTransformation: String => String = s => {
+  final private val snakeCaseTransformation: String => String = s => {
     val partial = basePattern.matcher(s).replaceAll("$1_$2")
     swapPattern.matcher(partial).replaceAll("$1_$2").toLowerCase
   }

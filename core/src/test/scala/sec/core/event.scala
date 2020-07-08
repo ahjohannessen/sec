@@ -174,7 +174,7 @@ class EventDataSpec extends Specification {
       EventData("", id, data, meta) should beLeft(errEmpty)
       EventData("$system", id, data) should beLeft(errStart)
       EventData("$system", id, data, meta) should beLeft(errStart)
-      EventData(et, id, data) should beLike { case EventData(`et`, `id`, `data`, `empty`)             => ok }
+      EventData(et, id, data) should beLike { case EventData(`et`, `id`, `data`, `empty`) => ok }
       EventData(et, id, data, meta) should beLike { case Right(EventData(`et`, `id`, `data`, `meta`)) => ok }
     }
 

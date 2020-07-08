@@ -34,15 +34,15 @@ object shared {
       StreamId.stringToStreamId(sidStr).leftMap(ProtoResultError).liftTo[F]
     }
 
-  final implicit class StreamIdOps(val v: StreamId) extends AnyVal {
+  implicit final class StreamIdOps(val v: StreamId) extends AnyVal {
     def esSid: StreamIdentifier = v.stringValue.toStreamIdentifer
   }
 
-  final implicit class StringOps(val v: String) extends AnyVal {
+  implicit final class StringOps(val v: String) extends AnyVal {
     def toStreamIdentifer: StreamIdentifier = StreamIdentifier(ByteString.copyFromUtf8(v))
   }
 
-  final implicit class StreamIdentifierOps(val v: StreamIdentifier) extends AnyVal {
+  implicit final class StreamIdentifierOps(val v: StreamIdentifier) extends AnyVal {
     def utf8[F[_]](implicit F: ErrorA[F]): F[String] =
       F.catchNonFatal(Option(v.streamName.toStringUtf8()).getOrElse(""))
   }

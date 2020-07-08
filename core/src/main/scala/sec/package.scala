@@ -27,20 +27,20 @@ package object sec {
 
 //======================================================================================================================
 
-  private[sec] implicit final class BooleanOps(val b: Boolean) extends AnyVal {
+  implicit final private[sec] class BooleanOps(val b: Boolean) extends AnyVal {
     def fold[A](t: => A, f: => A): A = if (b) t else f
   }
 
 //======================================================================================================================
 
-  private[sec] implicit final class AttemptOps[A](val inner: Attempt[A]) extends AnyVal {
+  implicit final private[sec] class AttemptOps[A](val inner: Attempt[A]) extends AnyVal {
     def unsafe: A                                           = inner.leftMap(require(false, _)).toOption.get
     def orFail[F[_]: ErrorA](fn: String => Throwable): F[A] = inner.leftMap(fn(_)).liftTo[F]
   }
 
 //======================================================================================================================
 
-  private[sec] implicit final class ListOps[A](val inner: List[A]) extends AnyVal {
+  implicit final private[sec] class ListOps[A](val inner: List[A]) extends AnyVal {
     def shuffle[F[_]: Sync]: F[List[A]] = Sync[F].delay(Random.shuffle(inner))
   }
 
