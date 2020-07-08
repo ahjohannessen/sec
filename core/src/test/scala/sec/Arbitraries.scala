@@ -190,17 +190,17 @@ object Arbitraries {
         ct         <- genCT
         idAndTypes <- Gen.infiniteStream(eventIdAndType(etPrefix)).flatMap(_.take(n).toList)
         gen        <- idAndTypes
-        (id, et)   = gen
-        data       = dataBV(id, ct)
-        meta       = metaBV(id, ct, gm)
+        (id, et)    = gen
+        data        = dataBV(id, ct)
+        meta        = metaBV(id, ct, gm)
       } yield ct.fold(EventData.binary(et, id, data, meta), EventData.json(et, id, data, meta))
 
     val eventDataOne: Gen[EventData] = for {
       ct        <- genCT
       idAndType <- eventIdAndType(eventTypeGen.defaultPrefix)
-      (id, et)  = idAndType
-      data      = dataBV(id, ct)
-      meta      = metaBV(id, ct, false)
+      (id, et)   = idAndType
+      data       = dataBV(id, ct)
+      meta       = metaBV(id, ct, false)
     } yield ct.fold(EventData.binary(et, id, data, meta), EventData.json(et, id, data, meta))
 
     @tailrec

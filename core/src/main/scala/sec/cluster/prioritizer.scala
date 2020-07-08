@@ -9,7 +9,7 @@ import sec.api.Gossip.VNodeState._
 
 object NodePrioritizer {
 
-  private[sec] final val notAllowedStates: Set[VNodeState] =
+  final private[sec] val notAllowedStates: Set[VNodeState] =
     Set(
       Manager,
       ShuttingDown,

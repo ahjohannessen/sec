@@ -30,7 +30,7 @@ object EsClient {
   private[sec] def apply[F[_]: ConcurrentEffect: Timer](mc: ManagedChannel, options: Options): EsClient[F] =
     new Impl[F](mc, options)
 
-  private final class Impl[F[_]: ConcurrentEffect: Timer](mc: ManagedChannel, options: Options) extends EsClient[F] {
+  final private class Impl[F[_]: ConcurrentEffect: Timer](mc: ManagedChannel, options: Options) extends EsClient[F] {
     val streams: Streams[F] =
       Streams(StreamsFs2Grpc.client[F, Context](mc, _.toMetadata, identity, convertToEs), options)
   }

@@ -11,7 +11,7 @@ import io.circe.Decoder.Result
 
 //======================================================================================================================
 
-private[sec] final case class StreamMetadata(
+final private[sec] case class StreamMetadata(
   state: StreamState,
   custom: Option[JsonObject]
 )
@@ -155,11 +155,9 @@ object CacheControl {
  *
  * @param acl The access control list for this stream.
  *
- *
  * @note More details are here https://eventstore.org/docs/server/deleting-streams-and-events/index.html
- *
- * */
-private[sec] final case class StreamState(
+ */
+final private[sec] case class StreamState(
   maxAge: Option[MaxAge],
   maxCount: Option[MaxCount],
   truncateBefore: Option[EventNumber.Exact],
@@ -173,13 +171,13 @@ private[sec] object StreamState {
 
   ///
 
-  private[sec] implicit val codecForStreamMetadata: Codec.AsObject[StreamState] =
+  implicit private[sec] val codecForStreamMetadata: Codec.AsObject[StreamState] =
     new Codec.AsObject[StreamState] {
 
       import Decoder.{decodeInt => di, decodeLong => dl}
       import Encoder.{encodeInt => ei, encodeLong => el}
 
-      private final val cfd: Codec[FiniteDuration] =
+      final private val cfd: Codec[FiniteDuration] =
         Codec.from(dl.map(FiniteDuration(_, SECONDS)), el.contramap(_.toSeconds))
 
       implicit val codecForMaxAge: Codec[MaxAge] =
@@ -253,7 +251,7 @@ private[sec] object StreamState {
  * @param deleteRoles Roles and users permitted to delete the stream.
  * @param metaReadRoles Roles and users permitted to read stream metadata.
  * @param metaWriteRoles Roles and users permitted to write stream metadata.
- * */
+ */
 final case class StreamAcl(
   readRoles: Set[String],
   writeRoles: Set[String],
@@ -268,7 +266,7 @@ object StreamAcl {
 
   ///
 
-  private[sec] implicit val codecForStreamAcl: Codec.AsObject[StreamAcl] = new Codec.AsObject[StreamAcl] {
+  implicit private[sec] val codecForStreamAcl: Codec.AsObject[StreamAcl] = new Codec.AsObject[StreamAcl] {
 
     def encodeObject(a: StreamAcl): JsonObject = {
 

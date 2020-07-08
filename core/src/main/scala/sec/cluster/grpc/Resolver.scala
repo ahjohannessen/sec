@@ -11,7 +11,7 @@ import io.grpc.NameResolver.Listener2
 import fs2.Stream
 import sec.api.Gossip._
 
-private[sec] final case class Resolver[F[_]: Effect](
+final private[sec] case class Resolver[F[_]: Effect](
   authority: String,
   notifier: Notifier[F]
 ) extends NameResolver {

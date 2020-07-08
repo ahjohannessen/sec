@@ -11,7 +11,7 @@ import cats.effect.implicits._
 import fs2.Stream
 import sec.api.Gossip._
 
-private[sec] final case class ResolverProvider[F[_]: Effect](
+final private[sec] case class ResolverProvider[F[_]: Effect](
   authority: String,
   scheme: String,
   resolver: F[Resolver[F]]

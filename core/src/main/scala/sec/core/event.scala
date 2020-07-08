@@ -131,8 +131,8 @@ object EventType {
     case ud                                => userDefined(ud)
   }
 
-  private[sec] final val systemPrefix: String    = "$"
-  private[sec] final val systemPrefixLength: Int = systemPrefix.length
+  final private[sec] val systemPrefix: String    = "$"
+  final private[sec] val systemPrefixLength: Int = systemPrefix.length
 
   private[sec] object systemTypes {
     final val StreamDeleted: String   = "$streamDeleted"
@@ -207,7 +207,7 @@ object Content {
     case object Binary extends Type
     case object Json   extends Type
 
-    final implicit class TypeOps(val tpe: Type) extends AnyVal {
+    implicit final class TypeOps(val tpe: Type) extends AnyVal {
 
       def fold[A](binary: => A, json: => A): A = tpe match {
         case Binary => binary
@@ -244,7 +244,7 @@ object Content {
 
   ///
 
-  private[sec] implicit val showByteVector: Show[ByteVector] = Show.show[ByteVector] { bv =>
+  implicit private[sec] val showByteVector: Show[ByteVector] = Show.show[ByteVector] { bv =>
     if (bv.isEmpty) s"empty"
     else if (bv.size < 32) s"${bv.size} bytes, 0x${bv.toHex}"
     else s"${bv.size} bytes, #${bv.hashCode}"

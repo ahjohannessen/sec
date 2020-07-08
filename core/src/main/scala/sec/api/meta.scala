@@ -317,7 +317,7 @@ final case class Result[T](
 
 //======================================================================================================================
 
-private[sec] final case class StreamMetadataResult(
+final private[sec] case class StreamMetadataResult(
   version: Option[EventNumber.Exact],
   data: StreamMetadata
 )

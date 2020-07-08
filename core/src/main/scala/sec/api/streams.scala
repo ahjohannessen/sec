@@ -97,7 +97,7 @@ object Streams {
     options: Options
   ): Streams[F] = new Impl[F](client, options)
 
-  private[sec] final class Impl[F[_]: Timer](
+  final private[sec] class Impl[F[_]: Timer](
     val client: StreamsFs2Grpc[F, Context],
     val options: Options
   )(implicit F: Sync[F])

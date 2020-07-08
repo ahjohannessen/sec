@@ -26,7 +26,7 @@ object Gossip {
     options: Options
   ): Gossip[F] = new Impl[F](client, options)
 
-  private[sec] final class Impl[F[_]: Sync](
+  final private[sec] class Impl[F[_]: Sync](
     val client: GossipFs2Grpc[F, Context],
     val options: Options
   ) extends Gossip[F] {

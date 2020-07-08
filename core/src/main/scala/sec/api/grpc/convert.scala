@@ -25,7 +25,7 @@ private[sec] object convert {
 
 //======================================================================================================================
 
-  private[grpc] implicit final class MetadataOps(val md: Metadata) extends AnyVal {
+  implicit final private[grpc] class MetadataOps(val md: Metadata) extends AnyVal {
     def getOpt[T](key: Metadata.Key[T]): Option[T] = Either.catchNonFatal(Option(md.get(key))).toOption.flatten
   }
 

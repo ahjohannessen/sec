@@ -74,10 +74,10 @@ object StreamId {
     case sid                                 => normal(sid)
   }
 
-  private[sec] final val systemPrefix: String      = "$"
-  private[sec] final val systemPrefixLength: Int   = systemPrefix.length
-  private[sec] final val metadataPrefix: String    = "$$"
-  private[sec] final val metadataPrefixLength: Int = metadataPrefix.length
+  final private[sec] val systemPrefix: String      = "$"
+  final private[sec] val systemPrefixLength: Int   = systemPrefix.length
+  final private[sec] val metadataPrefix: String    = "$$"
+  final private[sec] val metadataPrefixLength: Int = metadataPrefix.length
 
   private[sec] object systemStreams {
     final val All: String       = "$all"
