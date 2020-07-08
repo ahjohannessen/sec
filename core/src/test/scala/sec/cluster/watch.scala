@@ -33,7 +33,6 @@ class ClusterWatchSpec extends Specification with CatsIO {
       val m2 = MemberInfo(instanceId, timestamp, VNodeState.Leader, isAlive = true, Endpoint("127.0.0.2", 2113))
       val m3 = MemberInfo(instanceId, timestamp, VNodeState.Leader, isAlive = true, Endpoint("127.0.0.3", 2113))
 
-      val ci0 = ClusterInfo(Set.empty)
       val ci1 = ClusterInfo(Set(m1))
       val ci2 = ClusterInfo(Set(m1, m2))
       val ci3 = ClusterInfo(Set(m2, m1))
@@ -42,25 +41,24 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
       def readFn(ref: Ref[IO, Int]): IO[ClusterInfo] =
         ref.get.flatMap {
-          case 0 => ref.update(_ + 1) *> ci0.pure[IO]
-          case 1 => ref.update(_ + 1) *> ci1.pure[IO]
-          case 2 => ref.update(_ + 1) *> ci2.pure[IO]
-          case 3 => ref.update(_ + 1) *> ci3.pure[IO]
-          case 4 => ref.update(_ + 1) *> ci4.pure[IO]
+          case 0 => ref.update(_ + 1) *> ci1.pure[IO]
+          case 1 => ref.update(_ + 1) *> ci2.pure[IO]
+          case 2 => ref.update(_ + 1) *> ci3.pure[IO]
+          case 3 => ref.update(_ + 1) *> ci4.pure[IO]
           case _ => ref.update(_ + 1) *> ci5.pure[IO]
         }
 
       val result = for {
         readCountRef <- Resource.liftF(Ref.of[IO, Int](0))
-        store        <- Resource.liftF(Ref.of[IO, List[ClusterInfo]](Nil))
+        store        <- Resource.liftF(Ref.of[IO, List[ClusterInfo]](ci1 :: Nil))
         watch        <- ClusterWatch.create[IO](readFn(readCountRef), settings, recordingCache(store))
         changes      <- Resource.liftF(watch.subscribe.pure[IO])
       } yield (changes, store)
 
       result.use {
         case (changes, store) =>
-          changes.take(5).compile.toList.map(_ shouldEqual List(ci0, ci1, ci2, ci4, ci5)) *> store.get.map(
-            _.size shouldEqual 5)
+          changes.take(4).compile.toList.map(_ shouldEqual List(ci1, ci2, ci4, ci5)) *>
+            store.get.map(_.lastOption shouldEqual ci5.some)
       }
 
     }
