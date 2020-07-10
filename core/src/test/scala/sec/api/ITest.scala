@@ -28,7 +28,8 @@ trait ITest extends Specification with CatsIO with AfterAll {
     val builder = IO.delay {
       NettyChannelBuilder
         .forAddress("localhost", 2113)
-        .sslContext(GrpcSslContexts.forClient().trustManager(getClass.getResourceAsStream("/dev-cert.pem")).build())
+        .usePlaintext()
+        //.sslContext(GrpcSslContexts.forClient().trustManager(getClass.getResourceAsStream("/dev-cert.pem")).build())
     }
 
     val result: Resource[IO, EsClient[IO]] = for {
