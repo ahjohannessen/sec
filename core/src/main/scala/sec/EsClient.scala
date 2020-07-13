@@ -3,6 +3,7 @@ package sec
 import cats.effect.{ConcurrentEffect, Resource, Timer}
 import org.lyranthe.fs2_grpc.java_runtime.implicits._
 import com.eventstore.client.streams.StreamsFs2Grpc
+import com.eventstore.client.gossip.GossipFs2Grpc
 import io.grpc.{ManagedChannel, ManagedChannelBuilder}
 import fs2.Stream
 import sec.api._
@@ -11,6 +12,7 @@ import sec.api.grpc.convert.convertToEs
 
 trait EsClient[F[_]] {
   def streams: Streams[F]
+  def gossip: Gossip[F]
 }
 
 object EsClient {
@@ -33,6 +35,8 @@ object EsClient {
   final private class Impl[F[_]: ConcurrentEffect: Timer](mc: ManagedChannel, options: Options) extends EsClient[F] {
     val streams: Streams[F] =
       Streams(StreamsFs2Grpc.client[F, Context](mc, _.toMetadata, identity, convertToEs), options)
+    val gossip: Gossip[F] =
+      Gossip(GossipFs2Grpc.client[F, Context](mc, _.toMetadata, identity, convertToEs), options)
   }
 
 }
