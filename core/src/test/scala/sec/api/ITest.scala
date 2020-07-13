@@ -25,12 +25,7 @@ trait ITest extends Specification with CatsIO with AfterAll {
 
   final private lazy val (client, shutdown): (EsClient[IO], IO[Unit]) = {
 
-    val builder = IO.delay {
-      NettyChannelBuilder
-        .forAddress("localhost", 2113)
-        .usePlaintext()
-        //.sslContext(GrpcSslContexts.forClient().trustManager(getClass.getResourceAsStream("/dev-cert.pem")).build())
-    }
+    val builder = IO.delay(NettyChannelBuilder.forAddress("127.0.0.1", 2113).usePlaintext())
 
     val result: Resource[IO, EsClient[IO]] = for {
       b <- Resource.liftF(builder)
@@ -42,6 +37,7 @@ trait ITest extends Specification with CatsIO with AfterAll {
 
   final lazy val esClient: EsClient[IO] = client
   final lazy val streams: Streams[IO]   = client.streams
+  final lazy val gossip: Gossip[IO]     = client.gossip
   final lazy val meta: MetaStreams[IO]  = client.streams.metadata
 
   //
