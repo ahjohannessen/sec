@@ -2,7 +2,7 @@ package sec
 package cluster
 package grpc
 
-import cats.data.NonEmptyList
+import cats.data.NonEmptySet
 import cats.implicits._
 import cats.effect._
 import cats.effect.implicits._
@@ -16,7 +16,7 @@ final private[sec] case class Resolver[F[_]: Effect](
   notifier: Notifier[F]
 ) extends NameResolver {
   override def start(l: Listener2): Unit   = notifier.start(Listener[F](l)).toIO.unsafeRunSync()
-  override val shutdown: Unit              = notifier.stop.toIO.unsafeRunSync()
+  override val shutdown: Unit              = ()
   override val getServiceAuthority: String = authority
   override val refresh: Unit               = ()
 }
@@ -25,11 +25,10 @@ private[sec] object Resolver {
 
   def gossip[F[_]: ConcurrentEffect](
     authority: String,
-    np: NodePreference,
-    seed: NonEmptyList[Endpoint],
+    seed: NonEmptySet[Endpoint],
     updates: Stream[F, ClusterInfo]
   ): F[Resolver[F]] =
-    Notifier.gossip[F](seed, np, updates).map(Resolver[F](authority, _))
+    Notifier.gossip[F](seed, updates).map(Resolver[F](authority, _))
 
   def bestNodes[F[_]: ConcurrentEffect](
     authority: String,

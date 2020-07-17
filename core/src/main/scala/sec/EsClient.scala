@@ -29,14 +29,20 @@ object EsClient {
   ): Resource[F, EsClient[F]] =
     builder.resource[F].map(apply[F](_, options))
 
-  private[sec] def apply[F[_]: ConcurrentEffect: Timer](mc: ManagedChannel, options: Options): EsClient[F] =
+  private[sec] def apply[F[_]: ConcurrentEffect: Timer](
+    mc: ManagedChannel,
+    options: Options
+  ): EsClient[F] =
     new Impl[F](mc, options)
 
-  final private class Impl[F[_]: ConcurrentEffect: Timer](mc: ManagedChannel, options: Options) extends EsClient[F] {
+  final private class Impl[F[_]: ConcurrentEffect: Timer](mc: ManagedChannel, o: Options) extends EsClient[F] {
+
     val streams: Streams[F] =
-      Streams(StreamsFs2Grpc.client[F, Context](mc, _.toMetadata, identity, convertToEs), options)
+      Streams(StreamsFs2Grpc.client(mc, _.toMetadata, identity, convertToEs), o)
+
     val gossip: Gossip[F] =
-      Gossip(GossipFs2Grpc.client[F, Context](mc, _.toMetadata, identity, convertToEs), options)
+      Gossip(GossipFs2Grpc.client(mc, _.toMetadata, identity, convertToEs), o.defaultCreds, o.connectionName)
+
   }
 
 }

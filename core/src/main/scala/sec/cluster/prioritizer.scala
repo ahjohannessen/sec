@@ -56,7 +56,6 @@ object NodePrioritizer {
       m => m.state === ReadOnlyLeaderless || m.state === ReadOnlyReplica
 
     preference match {
-      case NodePreference.Random          => arrange(_ => true)
       case NodePreference.Leader          => arrange(_.state === Leader)
       case NodePreference.Follower        => arrange(_.state === Follower)
       case NodePreference.ReadOnlyReplica => arrange(isReadOnlyReplicaState)

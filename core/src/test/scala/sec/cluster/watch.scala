@@ -65,7 +65,13 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
     "retry retriable errors until discovery attempts used" >> {
 
-      val settings = Settings.default.copy(maxDiscoverAttempts = 3, retryDelay = 15.millis)
+      val settings = Settings(
+        maxDiscoverAttempts  = 5,
+        retryDelay           = 50.millis,
+        readTimeout          = 50.millis,
+        notificationInterval = 50.millis,
+        NodePreference.Leader
+      )
 
       def test(err: Throwable, count: Int) = {
 
@@ -77,7 +83,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
                  .resource(ClusterWatch.create[IO](readFn, settings, recordingCache(store)))
                  .map(_ => -1)
                  .handleErrorWith(_ => Stream.eval(readCountRef.get))
-          _     <- Stream.sleep(200.millis)
+          _     <- Stream.sleep(500.millis)
           count <- Stream.eval(readCountRef.get)
         } yield count
 
@@ -96,8 +102,15 @@ class ClusterWatchSpec extends Specification with CatsIO {
       implicit val ec: TestContext      = TestContext()
       implicit val cs: ContextShift[IO] = IO.contextShift(ec)
 
-      val settings = Settings.default.copy(maxDiscoverAttempts = 3, retryDelay = 100.millis)
-      val error    = sampleOfGen(Gen.oneOf(ServerUnavailable("Oh Noes"), new TimeoutException("Oh Noes")))
+      val settings = Settings(
+        maxDiscoverAttempts  = 3,
+        retryDelay           = 50.millis,
+        readTimeout          = 50.millis,
+        notificationInterval = 50.millis,
+        NodePreference.Leader
+      )
+
+      val error = sampleOfGen(Gen.oneOf(ServerUnavailable("Oh Noes"), new TimeoutException("Oh Noes")))
 
       val countRef = Ref[IO].of(0).unsafeRunSync()
       val storeRef = Ref[IO].of(List.empty[ClusterInfo]).unsafeRunSync()
