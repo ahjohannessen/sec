@@ -13,7 +13,7 @@ object Dependencies {
     val grpc              = org.lyranthe.fs2_grpc.buildinfo.BuildInfo.grpcVersion
     val disciplineSpecs2  = "1.1.0"
     val specs2            = "4.10.0"
-    val catsEffectTesting = "0.4.0"
+    val catsEffectTesting = "0.4.1"
     val kindProjector     = "0.11.0"
 
   }
