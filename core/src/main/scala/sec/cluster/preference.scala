@@ -9,7 +9,6 @@ object NodePreference {
 
   case object Leader          extends NodePreference
   case object Follower        extends NodePreference
-  case object Random          extends NodePreference
   case object ReadOnlyReplica extends NodePreference
 
   implicit val eqForNodePreference: Eq[NodePreference] =

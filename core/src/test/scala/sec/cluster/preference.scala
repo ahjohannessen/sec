@@ -17,7 +17,7 @@ class NodePreferenceSpec extends Specification with Discipline {
   }
 
   "Eq" >> {
-    implicit val arb: Arbitrary[NodePreference] = Arbitrary(Gen.oneOf(Leader, Follower, Random, ReadOnlyReplica))
+    implicit val arb: Arbitrary[NodePreference] = Arbitrary(Gen.oneOf(Leader, Follower, ReadOnlyReplica))
     implicit val cogen: Cogen[NodePreference]   = Cogen[String].contramap[NodePreference](_.toString)
     checkAll("NodePreference", EqTests[NodePreference].eqv)
   }

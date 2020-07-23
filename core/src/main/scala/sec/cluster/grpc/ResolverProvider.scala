@@ -5,7 +5,7 @@ package grpc
 import java.net.URI
 import io.grpc._
 import io.grpc.NameResolver._
-import cats.data.NonEmptyList
+import cats.data.NonEmptySet
 import cats.effect._
 import cats.effect.implicits._
 import fs2.Stream
@@ -26,16 +26,15 @@ final private[sec] case class ResolverProvider[F[_]: Effect](
 
 object ResolverProvider {
 
-  final val gossipScheme: String  = "gossip"
-  final val clusterScheme: String = "cluster"
+  final val gossipScheme: String  = "eventstore-gossip"
+  final val clusterScheme: String = "eventstore-cluster"
 
   def gossip[F[_]: ConcurrentEffect](
     authority: String,
-    seed: NonEmptyList[Endpoint],
-    np: NodePreference,
+    seed: NonEmptySet[Endpoint],
     updates: Stream[F, ClusterInfo]
   ): ResolverProvider[F] =
-    ResolverProvider(authority, gossipScheme, Resolver.gossip(authority, np, seed, updates))
+    ResolverProvider(authority, gossipScheme, Resolver.gossip(authority, seed, updates))
 
   def bestNodes[F[_]: ConcurrentEffect](
     authority: String,

@@ -21,42 +21,20 @@ private[sec] trait ClusterWatch[F[_]] {
 
 private[sec] object ClusterWatch {
 
-  trait Cache[F[_]] {
-    def set(ci: ClusterInfo): F[Unit]
-    def get: F[ClusterInfo]
-  }
-
-  object Cache {
-
-    def apply[F[_]: Sync](
-      ci: ClusterInfo
-    ): F[Cache[F]] = Ref[F].of(ci).map(create)
-
-    def create[F[_]](ref: Ref[F, ClusterInfo]): Cache[F] =
-      new Cache[F] {
-        def set(ci: ClusterInfo): F[Unit] = ref.set(ci)
-        def get: F[ClusterInfo]           = ref.get
-      }
-  }
-
-  ///
-
   def apply[F[_]: ConcurrentEffect: Timer, MCB <: ManagedChannelBuilder[MCB]](
-    bulderFromTarget: String => MCB,
+    builderFromTarget: String => MCB,
     settings: Settings,
     gossipFn: ManagedChannel => Gossip[F],
-    seed: NonEmptyList[Endpoint],
+    seed: NonEmptySet[Endpoint],
     authority: String
   ): Resource[F, ClusterWatch[F]] = {
 
     val mkCache: Resource[F, Cache[F]] = Resource.liftF(Cache(ClusterInfo(Set.empty)))
 
     def mkChannel(updates: Stream[F, ClusterInfo]): Resource[F, ManagedChannel] =
-      bulderFromTarget(ResolverProvider.gossipScheme)
-        .nameResolverFactory(ResolverProvider.gossip(authority, seed, settings.preference, updates))
-        // TODO: Replace with Gossip Policy because pick_first and round_robin
-        // are not smart enough to optimize gossip source selection
-        .defaultLoadBalancingPolicy("pick_first")
+      builderFromTarget(ResolverProvider.gossipScheme)
+        .nameResolverFactory(ResolverProvider.gossip(authority, seed, updates))
+        .defaultLoadBalancingPolicy("round_robin")
         .resource[F]
 
     for {
@@ -84,8 +62,7 @@ private[sec] object ClusterWatch {
 
   def mkWatch[F[_]: Sync: Timer](get: F[ClusterInfo], interval: FiniteDuration): ClusterWatch[F] =
     new ClusterWatch[F] {
-      val subscribe: Stream[F, ClusterInfo] =
-        Stream.eval(get).metered(interval).repeat.changesBy(_.members)
+      val subscribe: Stream[F, ClusterInfo] = Stream.eval(get).metered(interval).repeat.changesBy(_.members)
     }
 
   def mkFetcher[F[_]: ConcurrentEffect: Timer](
@@ -108,18 +85,28 @@ private[sec] object ClusterWatch {
 
     val readWithRetry = Stream
       .retry(read, retryDelay min readTimeout, identity, maxDiscoverAttempts, retriable)
-      .onError {
-        case th if retriable.isDefinedAt(th) =>
-          Stream.raiseError[F](MaxDiscoveryAttemptsUsed(maxDiscoverAttempts))
-      }
 
-    readWithRetry
-      .metered(notificationInterval)
-      .repeat
-      .changesBy(_.members)
-      .evalMap(setInfo)
+    readWithRetry.metered(notificationInterval).repeat.changesBy(_.members).evalMap(setInfo)
   }
 
-  final case class MaxDiscoveryAttemptsUsed(attempts: Int) extends RuntimeException(s"Attempts used $attempts")
+  ///
+
+  trait Cache[F[_]] {
+    def set(ci: ClusterInfo): F[Unit]
+    def get: F[ClusterInfo]
+  }
+
+  object Cache {
+
+    def apply[F[_]: Sync](
+      ci: ClusterInfo
+    ): F[Cache[F]] = Ref[F].of(ci).map(create)
+
+    def create[F[_]](ref: Ref[F, ClusterInfo]): Cache[F] =
+      new Cache[F] {
+        def set(ci: ClusterInfo): F[Unit] = ref.set(ci)
+        def get: F[ClusterInfo]           = ref.get
+      }
+  }
 
 }

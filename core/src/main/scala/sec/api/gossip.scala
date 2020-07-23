@@ -2,7 +2,7 @@ package sec
 package api
 
 import java.net.InetSocketAddress
-import io.grpc.EquivalentAddressGroup
+import io.grpc.{Attributes, EquivalentAddressGroup}
 import java.{util => ju}
 import java.time.ZonedDateTime
 import cats._
@@ -10,7 +10,6 @@ import cats.implicits._
 import cats.effect.Sync
 import com.eventstore.client.gossip.GossipFs2Grpc
 import com.eventstore.client.Empty
-import sec.syntax.GossipSyntax
 import mapping.gossip.mkClusterInfo
 
 trait Gossip[F[_]] {
@@ -19,20 +18,20 @@ trait Gossip[F[_]] {
 
 object Gossip {
 
-  implicit def syntaxForGossip[F[_]](g: Gossip[F]): GossipSyntax[F] = new GossipSyntax[F](g)
-
   private[sec] def apply[F[_]: Sync](
     client: GossipFs2Grpc[F, Context],
-    options: Options
-  ): Gossip[F] = new Impl[F](client, options)
+    creds: Option[UserCredentials],
+    connectionName: String
+  ): Gossip[F] = new Impl[F](client, creds, connectionName)
 
   final private[sec] class Impl[F[_]: Sync](
     val client: GossipFs2Grpc[F, Context],
-    val options: Options
+    creds: Option[UserCredentials],
+    connectionName: String
   ) extends Gossip[F] {
 
     val ctx: Option[UserCredentials] => Context = uc =>
-      Context(options.connectionName, uc.orElse(options.defaultCreds), requiresLeader = false)
+      Context(s"$connectionName-gossip", uc.orElse(creds), requiresLeader = false)
 
     def read(creds: Option[UserCredentials]): F[ClusterInfo] =
       client.read(Empty(), ctx(creds)) >>= mkClusterInfo[F]
@@ -45,6 +44,10 @@ object Gossip {
     members: Set[MemberInfo]
   )
 
+  object ClusterInfo {
+    implicit val orderForClusterInfo: Order[ClusterInfo] = Order.by(_.members.toList.sorted)
+  }
+
   final case class MemberInfo(
     instanceId: ju.UUID,
     timestamp: ZonedDateTime,
@@ -54,7 +57,8 @@ object Gossip {
   )
 
   object MemberInfo {
-    implicit val eqForMemberInfo: Eq[MemberInfo] = Eq.fromUniversalEquals[MemberInfo]
+    implicit val orderForMemberInfo: Order[MemberInfo] =
+      Order.by(mi => (mi.httpEndpoint, mi.state, mi.isAlive, mi.instanceId))
   }
 
   final case class Endpoint(
@@ -64,11 +68,12 @@ object Gossip {
 
   object Endpoint {
 
-    implicit val eqForEndpoint: Eq[Endpoint] = Eq.fromUniversalEquals[Endpoint]
+    implicit val orderForEndpoint: Order[Endpoint] = Order.by(ep => (ep.address, ep.port))
 
     implicit final class EndpointOps(val ep: Endpoint) extends AnyVal {
-      def toInetSocketAddress: InetSocketAddress           = new InetSocketAddress(ep.address, ep.port)
-      def toEquivalentAddressGroup: EquivalentAddressGroup = new EquivalentAddressGroup(ep.toInetSocketAddress)
+      def toInetSocketAddress: InetSocketAddress = new InetSocketAddress(ep.address, ep.port)
+      def toEquivalentAddressGroup: EquivalentAddressGroup =
+        new EquivalentAddressGroup(ep.toInetSocketAddress, Attributes.EMPTY)
     }
   }
 
@@ -95,8 +100,26 @@ object Gossip {
     case object ReadOnlyReplica    extends VNodeState(14)
     case object ResigningLeader    extends VNodeState(15)
 
-    implicit val orderForNodeState: Order[VNodeState] = Order.by(_.id)
+    final private[sec] val values: List[VNodeState] = List(
+      Initializing,
+      DiscoverLeader,
+      Unknown,
+      PreReplica,
+      CatchingUp,
+      Clone,
+      Follower,
+      PreLeader,
+      Leader,
+      Manager,
+      ShuttingDown,
+      Shutdown,
+      ReadOnlyLeaderless,
+      PreReadOnlyReplica,
+      ReadOnlyReplica,
+      ResigningLeader
+    )
 
+    implicit val orderForVNodeState: Order[VNodeState] = Order.by(_.id)
   }
 
 }

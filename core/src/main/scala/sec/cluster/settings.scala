@@ -14,10 +14,10 @@ final case class Settings(
 object Settings {
 
   val default: Settings = Settings(
-    maxDiscoverAttempts  = 25,
-    retryDelay           = 100.millis,
-    readTimeout          = 5.seconds,
-    notificationInterval = 100.millis,
+    maxDiscoverAttempts  = Int.MaxValue,
+    retryDelay           = 250.millis,
+    readTimeout          = 2.seconds,
+    notificationInterval = 500.millis,
     preference           = NodePreference.Leader
   )
 

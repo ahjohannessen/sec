@@ -11,7 +11,9 @@ import cats.implicits._
 import scodec.bits.ByteVector
 import sec.core._
 import sec.core.StreamRevision.{Any, NoStream, StreamExists}
+import sec.api.Gossip._
 import org.scalacheck._
+import org.scalacheck.Arbitrary.arbitrary
 
 object Arbitraries {
 
@@ -256,5 +258,29 @@ object Arbitraries {
   def arbEventRecordNelOfN(n: Int): Arbitrary[NonEmptyList[EventRecord]] = Arbitrary(eventGen.eventRecordNelN(n))
   implicit val arbEventRecord: Arbitrary[EventRecord]                    = Arbitrary[EventRecord](eventGen.eventRecordOne)
   implicit val arbEventRecordN: Arbitrary[NonEmptyList[EventRecord]]     = arbEventRecordNelOfN(25)
+
+//======================================================================================================================
+// Gossip
+//======================================================================================================================
+
+  implicit val arbVNodeState: Arbitrary[VNodeState] =
+    Arbitrary(Gen.oneOf(VNodeState.values))
+
+  implicit val arbEndpoint: Arbitrary[Endpoint] =
+    Arbitrary(Gen.oneOf(Endpoint("127.0.0.1", 2113), Endpoint("127.0.0.2", 2113), Endpoint("127.0.0.3", 2113)))
+
+  implicit val arbMemberInfo: Arbitrary[MemberInfo] = Arbitrary[MemberInfo] {
+    for {
+      id  <- arbitrary[ju.UUID]
+      ts  <- arbitrary[ZonedDateTime]
+      vns <- arbitrary[VNodeState]
+      al  <- arbitrary[Boolean]
+      ep  <- arbitrary[Endpoint]
+    } yield MemberInfo(id, ts, vns, al, ep)
+  }
+
+  implicit val arbClusterInfo: Arbitrary[ClusterInfo] = Arbitrary[ClusterInfo] {
+    Gen.listOfN(5, arbMemberInfo.arbitrary).map(ms => ClusterInfo(ms.toSet))
+  }
 
 }
