@@ -1,4 +1,5 @@
 package sec
+package api
 package cluster
 
 import java.{util => ju}
@@ -15,9 +16,12 @@ import sec.core.ServerUnavailable
 import sec.api.Gossip._
 import Arbitraries._
 import cats.effect.laws.util.TestContext
+import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import org.scalacheck.Gen
 
 class ClusterWatchSpec extends Specification with CatsIO {
+
+  sequential
 
   import ClusterWatch.Cache
 
@@ -25,7 +29,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
     "only emit changes in cluster info" >> {
 
-      val settings   = Settings(1.some, 100.millis, 100.millis, 20.millis, NodePreference.Leader)
+      val settings   = Settings(1.some, 100.millis, RetryStrategy.Identity, 100.millis, 20.millis, NodePreference.Leader)
       def instanceId = sampleOf[ju.UUID]
       def timestamp  = sampleOf[ZonedDateTime]
 
@@ -51,7 +55,8 @@ class ClusterWatchSpec extends Specification with CatsIO {
       val result = for {
         readCountRef <- Resource.liftF(Ref.of[IO, Int](0))
         store        <- Resource.liftF(Ref.of[IO, List[ClusterInfo]](ci1 :: Nil))
-        watch        <- ClusterWatch.create[IO](readFn(readCountRef), settings, recordingCache(store))
+        log          <- Resource.liftF(Slf4jLogger.create[IO])
+        watch        <- ClusterWatch.create[IO](readFn(readCountRef), settings, recordingCache(store), log)
         changes      <- Resource.liftF(watch.subscribe.pure[IO])
       } yield (changes, store)
 
@@ -69,9 +74,10 @@ class ClusterWatchSpec extends Specification with CatsIO {
       val settings = Settings(
         maxDiscoverAttempts  = maxAttempts.some,
         retryDelay           = 50.millis,
+        retryStrategy        = RetryStrategy.Identity,
         readTimeout          = 50.millis,
         notificationInterval = 50.millis,
-        NodePreference.Leader
+        preference           = NodePreference.Leader
       )
 
       def test(err: Throwable, count: Int) = {
@@ -80,8 +86,9 @@ class ClusterWatchSpec extends Specification with CatsIO {
           readCountRef <- Stream.eval(Ref.of[IO, Int](0))
           store        <- Stream.eval(Ref.of[IO, List[ClusterInfo]](Nil))
           readFn        = readCountRef.update(_ + 1) *> IO.raiseError(err) *> IO(ClusterInfo(Set.empty))
+          log          <- Stream.eval(Slf4jLogger.create[IO])
           _ <- Stream
-                 .resource(ClusterWatch.create[IO](readFn, settings, recordingCache(store)))
+                 .resource(ClusterWatch.create[IO](readFn, settings, recordingCache(store), log))
                  .map(_ => -1)
                  .handleErrorWith(_ => Stream.eval(readCountRef.get))
           _     <- Stream.sleep(500.millis)
@@ -106,9 +113,10 @@ class ClusterWatchSpec extends Specification with CatsIO {
       val settings = Settings(
         maxDiscoverAttempts  = 3.some,
         retryDelay           = 50.millis,
+        retryStrategy        = RetryStrategy.Identity,
         readTimeout          = 50.millis,
         notificationInterval = 50.millis,
-        NodePreference.Leader
+        preference           = NodePreference.Leader
       )
 
       val error = sampleOfGen(Gen.oneOf(ServerUnavailable("Oh Noes"), new TimeoutException("Oh Noes")))
@@ -118,7 +126,8 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
       val cache  = recordingCache(storeRef)
       val readFn = countRef.update(_ + 1) *> IO.raiseError(error) *> IO(ClusterInfo(Set.empty))
-      val watch  = ClusterWatch.create[IO](readFn, settings, cache)(IO.ioConcurrentEffect(cs), ec.timer)
+      val log    = Slf4jLogger.create[IO].unsafeRunSync()
+      val watch  = ClusterWatch.create[IO](readFn, settings, cache, log)(IO.ioConcurrentEffect(cs), ec.timer)
 
       def test(expected: Int) = {
         ec.tick(settings.retryDelay)

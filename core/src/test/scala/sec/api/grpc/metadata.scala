@@ -5,11 +5,11 @@ package grpc
 import io.grpc.Metadata
 import org.specs2._
 import cats.implicits._
-import grpc.implicits._
-import grpc.implicits.keys._
+import grpc.metadata._
+import grpc.metadata.keys._
 import grpc.constants.Headers._
 
-class ImplicitsSpec extends mutable.Specification {
+class MetadataSpec extends mutable.Specification {
 
   "ContextOps.toMetadata" >> {
 

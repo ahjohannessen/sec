@@ -1,4 +1,5 @@
 package sec
+package api
 package cluster
 
 import cats.data.NonEmptyList
@@ -7,9 +8,9 @@ import cats.effect.Sync
 import sec.api.Gossip._
 import sec.api.Gossip.VNodeState._
 
-object NodePrioritizer {
+private[sec] object NodePrioritizer {
 
-  final private[sec] val notAllowedStates: Set[VNodeState] =
+  final val notAllowedStates: Set[VNodeState] =
     Set(
       Manager,
       ShuttingDown,
@@ -27,18 +28,18 @@ object NodePrioritizer {
       DiscoverLeader
     )
 
-  private[sec] def pickBestNode[F[_]: Sync](
+  def pickBestNode[F[_]: Sync](
     members: NonEmptyList[MemberInfo],
     preference: NodePreference
   ): F[Option[MemberInfo]] = prioritizeNodes[F](members, preference).map(_.headOption)
 
-  private[sec] def prioritizeNodes[F[_]: Sync](
+  def prioritizeNodes[F[_]: Sync](
     members: NonEmptyList[MemberInfo],
     preference: NodePreference
   ): F[List[MemberInfo]] =
     prioritizeNodes[F](members, preference, (m: MemberInfo) => !notAllowedStates.contains(m.state))
 
-  private[sec] def prioritizeNodes[F[_]: Sync](
+  def prioritizeNodes[F[_]: Sync](
     members: NonEmptyList[MemberInfo],
     preference: NodePreference,
     allowed: MemberInfo => Boolean

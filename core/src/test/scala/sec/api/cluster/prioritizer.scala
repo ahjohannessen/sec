@@ -1,4 +1,5 @@
 package sec
+package api
 package cluster
 
 import java.{util => ju}
@@ -9,8 +10,8 @@ import cats.data.{NonEmptyList => Nel}
 import cats.implicits._
 import cats.effect.testing.specs2.CatsIO
 import cats.effect._
-import sec.api.Gossip._
-import sec.api.Gossip.VNodeState._
+import Gossip._
+import Gossip.VNodeState._
 import Arbitraries._
 
 class NodePickerSpec extends Specification with CatsIO {

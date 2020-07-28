@@ -1,4 +1,5 @@
 package sec
+package api
 package cluster
 
 import scala.concurrent.duration._
@@ -8,12 +9,12 @@ import cats.implicits._
 import cats.effect._
 import cats.effect.concurrent.Ref
 import fs2.Stream
+import io.chrisdavenport.log4cats.Logger
 import org.lyranthe.fs2_grpc.java_runtime.implicits._
-import io.grpc.{ManagedChannel, ManagedChannelBuilder}
-import sec.core.ServerUnavailable
-import sec.api.Gossip
-import sec.api.Gossip.{ClusterInfo, Endpoint}
-import sec.cluster.grpc._
+import io.grpc._
+import core.{NotLeader, ServerUnavailable}
+import sec.api.Gossip.ClusterInfo
+import sec.api.cluster.grpc._
 
 private[sec] trait ClusterWatch[F[_]] {
   def subscribe: Stream[F, ClusterInfo]
@@ -22,26 +23,31 @@ private[sec] trait ClusterWatch[F[_]] {
 private[sec] object ClusterWatch {
 
   def apply[F[_]: ConcurrentEffect: Timer, MCB <: ManagedChannelBuilder[MCB]](
-    builderFromTarget: String => MCB,
+    builderFromTarget: String => F[MCB],
     settings: Settings,
     gossipFn: ManagedChannel => Gossip[F],
     seed: NonEmptySet[Endpoint],
-    authority: String
+    authority: String,
+    logger: Logger[F]
   ): Resource[F, ClusterWatch[F]] = {
 
     val mkCache: Resource[F, Cache[F]] = Resource.liftF(Cache(ClusterInfo(Set.empty)))
 
-    def mkChannel(updates: Stream[F, ClusterInfo]): Resource[F, ManagedChannel] =
-      builderFromTarget(ResolverProvider.gossipScheme)
-        .nameResolverFactory(ResolverProvider.gossip(authority, seed, updates))
-        .defaultLoadBalancingPolicy("round_robin")
-        .resource[F]
+    def mkProvider(updates: Stream[F, ClusterInfo]): Resource[F, ResolverProvider[F]] =
+      ResolverProvider
+        .gossip(authority, seed, updates, logger)
+        .evalTap(p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
+
+    def mkChannel(p: ResolverProvider[F]): Resource[F, ManagedChannel] = Resource
+      .liftF(builderFromTarget(s"${p.scheme}:///"))
+      .flatMap(_.defaultLoadBalancingPolicy("round_robin").resource[F])
 
     for {
-      store   <- mkCache
-      initial  = mkWatch(store.get, settings.notificationInterval).subscribe
-      channel <- mkChannel(initial)
-      watch   <- create[F](gossipFn(channel).read(None), settings, store)
+      store    <- mkCache
+      updates   = mkWatch(store.get, settings.notificationInterval).subscribe
+      provider <- mkProvider(updates)
+      channel  <- mkChannel(provider)
+      watch    <- create[F](gossipFn(channel).read(None), settings, store, logger)
     } yield watch
 
   }
@@ -49,11 +55,12 @@ private[sec] object ClusterWatch {
   def create[F[_]: ConcurrentEffect: Timer](
     readFn: F[ClusterInfo],
     settings: Settings,
-    store: Cache[F]
+    store: Cache[F],
+    log: Logger[F]
   ): Resource[F, ClusterWatch[F]] = {
 
     val watch   = mkWatch(store.get, settings.notificationInterval)
-    val fetcher = mkFetcher(readFn, settings, store.set)
+    val fetcher = mkFetcher(readFn, settings, store.set, log)
     val create  = Stream.emit(watch).concurrently(fetcher)
 
     create.compile.resource.lastOrError
@@ -68,21 +75,21 @@ private[sec] object ClusterWatch {
   def mkFetcher[F[_]: ConcurrentEffect: Timer](
     readFn: F[ClusterInfo],
     settings: Settings,
-    setInfo: ClusterInfo => F[Unit]
+    setInfo: ClusterInfo => F[Unit],
+    log: Logger[F]
   ): Stream[F, Unit] = {
-
     import settings._
 
-    val retriable: PartialFunction[Throwable, Boolean] = {
-      case _: TimeoutException | _: ServerUnavailable => true
-      case _                                          => false
+    val delay       = retryDelay min readTimeout
+    val nextDelay   = retryStrategy.nextDelay _
+    val maxAttempts = maxDiscoverAttempts.getOrElse(Int.MaxValue)
+
+    val action = retryF(readFn, "gossip", delay, nextDelay, maxAttempts, readTimeout.some, log) {
+      case _: TimeoutException | _: ServerUnavailable | _: NotLeader => true
+      case _                                                         => false
     }
 
-    val maxAttempts   = maxDiscoverAttempts.getOrElse(Int.MaxValue)
-    val read          = Stream.eval(readFn).timeout(readTimeout).compile.lastOrError
-    val readWithRetry = Stream.retry(read, retryDelay min readTimeout, identity, maxAttempts, retriable)
-
-    readWithRetry.metered(notificationInterval).repeat.changesBy(_.members).evalMap(setInfo)
+    Stream.eval(action).metered(notificationInterval).repeat.changesBy(_.members).evalMap(setInfo)
   }
 
   ///

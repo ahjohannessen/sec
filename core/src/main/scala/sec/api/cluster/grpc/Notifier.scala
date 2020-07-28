@@ -1,4 +1,5 @@
 package sec
+package api
 package cluster
 package grpc
 
@@ -24,13 +25,10 @@ object Notifier {
 
     def apply[F[_]: Concurrent](
       seed: Nes[Endpoint],
-      updates: Stream[F, ClusterInfo]
-    ): F[Notifier[F]] = {
-      for {
-        halt      <- SignallingRef[F, Boolean](false)
-        endpoints <- Ref[F].of(seed)
-      } yield create(seed, defaultSelector, updates, endpoints, halt)
-    }
+      updates: Stream[F, ClusterInfo],
+      halt: SignallingRef[F, Boolean]
+    ): F[Notifier[F]] =
+      Ref[F].of(seed).map(create(seed, defaultSelector, updates, _, halt))
 
     def create[F[_]](
       seed: Nes[Endpoint],
@@ -51,7 +49,6 @@ object Notifier {
       val run = updates.evalMap(update).interruptWhen(halt)
 
       bootstrap *> run.compile.drain.start.void
-
     }
 
     def defaultSelector(ci: ClusterInfo, seed: Nes[Endpoint]): Nes[Endpoint] =
@@ -69,8 +66,12 @@ object Notifier {
 
   object bestNodes {
 
-    def apply[F[_]: Concurrent](np: NodePreference, updates: Stream[F, ClusterInfo]): F[Notifier[F]] =
-      SignallingRef[F, Boolean](false).map(create(np, defaultSelector[F], updates, _))
+    def apply[F[_]](
+      np: NodePreference,
+      updates: Stream[F, ClusterInfo],
+      halt: SignallingRef[F, Boolean]
+    )(implicit F: Concurrent[F]): F[Notifier[F]] =
+      F.delay(create(np, defaultSelector[F], updates, halt))
 
     def create[F[_]](
       np: NodePreference,
@@ -85,9 +86,7 @@ object Notifier {
           case x :: xs => l.onResult(mkResult(x :: xs))
         }
 
-      val run = updates
-        .evalMap(update)
-        .interruptWhen(halt)
+      val run = updates.evalMap(update).interruptWhen(halt)
 
       run.compile.drain.start.void
     }
