@@ -33,7 +33,7 @@ private[sec] object convert {
 
     val unknown            = "<unknown>"
     val md                 = ex.getTrailers
-    val status             = ex.getStatus()
+    val status             = ex.getStatus
     val exception          = md.getOpt(keys.exception)
     def streamName         = md.getOpt(keys.streamName).getOrElse(unknown)
     def groupName          = md.getOpt(keys.groupName).getOrElse(unknown)
@@ -61,7 +61,7 @@ private[sec] object convert {
 
     def serverUnavailable: Option[EsException] =
       Option.when(status.getCode == Status.Code.UNAVAILABLE)(
-        ServerUnavailable(Option(ex.getMessage()).getOrElse("Server unavailable"))
+        ServerUnavailable(Option(ex.getMessage).getOrElse("Server unavailable"))
       )
 
     reified orElse serverUnavailable
