@@ -19,7 +19,7 @@ lazy val core = project
     IntegrationTest / parallelExecution := false,
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     libraryDependencies ++=
-      compileM(cats, catsEffect, fs2, scodecBits, circe, circeParser, scalaPb) ++
+      compileM(cats, catsEffect, fs2, scodecBits, circe, circeParser, scalaPb, grpcNetty) ++
         protobufM(scalaPb) ++
         testM(specs2Cats, catsEffectTesting, catsEffectLaws, specs2ScalaCheck, circeGeneric, grpcNetty, tcnative)
   )

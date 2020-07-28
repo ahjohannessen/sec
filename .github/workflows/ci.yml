@@ -15,40 +15,64 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      eventstore:
+      es1:
         image: quay.io/ahjohannessen/es-v6:latest
         env:
           EVENTSTORE_MEM_DB: True
-          EVENTSTORE_DEV: True
+          EVENTSTORE_INSECURE: True
           EVENTSTORE_DISCOVER_VIA_DNS: False
-          EVENTSTORE_GOSSIP_ON_SINGLE_NODE: True
-          EVENTSTORE_START_STANDARD_PROJECTIONS: True
+          EVENTSTORE_CLUSTER_SIZE: 3
+          EVENTSTORE_INT_TCP_PORT: 1112
+          EVENTSTORE_EXT_TCP_PORT: 1113
+          EVENTSTORE_HTTP_PORT: 2113
+          EVENTSTORE_GOSSIP_SEED: 172.18.0.3:2213,172.18.0.4:2313
+        options: >-
+          --health-cmd "exit 0"
         ports:
+          - 1112:1112
           - 1113:1113
           - 2113:2113
+      es2:
+        image: quay.io/ahjohannessen/es-v6:latest
+        env:
+          EVENTSTORE_MEM_DB: True
+          EVENTSTORE_INSECURE: True
+          EVENTSTORE_DISCOVER_VIA_DNS: False
+          EVENTSTORE_CLUSTER_SIZE: 3
+          EVENTSTORE_INT_TCP_PORT: 1212
+          EVENTSTORE_EXT_TCP_PORT: 1213
+          EVENTSTORE_HTTP_PORT: 2213
+          EVENTSTORE_GOSSIP_SEED: 172.18.0.2:2113,172.18.0.4:2313
+        options: >-
+          --health-cmd "exit 0"
+        ports:
+          - 1212:1212
+          - 1213:1213
+          - 2213:2213
+      es3:
+        image: quay.io/ahjohannessen/es-v6:latest
+        env:
+          EVENTSTORE_MEM_DB: True
+          EVENTSTORE_INSECURE: True
+          EVENTSTORE_DISCOVER_VIA_DNS: False
+          EVENTSTORE_CLUSTER_SIZE: 3
+          EVENTSTORE_INT_TCP_PORT: 1312
+          EVENTSTORE_EXT_TCP_PORT: 1313
+          EVENTSTORE_HTTP_PORT: 2313
+          EVENTSTORE_GOSSIP_SEED: 172.18.0.2:2113,172.18.0.3:2213
+        options: >-
+          --health-cmd "exit 0"
+        ports:
+          - 1312:1312
+          - 1313:1313
+          - 2313:2313
 
     steps:
-    - uses: actions/checkout@v1
-    - uses: olafurpg/setup-scala@v7
-    - name: run tests
-      run: sbt "core/test" "core/it:test"
-
-  publish:
-    needs: test
-    if: github.event_name == 'push'
-
-    runs-on: ubuntu-latest
-
-    steps:
-
       - uses: actions/checkout@v1
       - uses: olafurpg/setup-scala@v7
-      - uses: olafurpg/setup-gpg@v2
-
-      - name: publish
-        run: sbt ci-release
+      - name: run demo
+        run: sbt "core/run"
         env:
-          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
-          PGP_SECRET: ${{ secrets.PGP_SECRET }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          ES1: 172.18.0.2
+          ES2: 172.18.0.3
+          ES3: 172.18.0.4
