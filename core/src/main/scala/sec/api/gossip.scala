@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import io.grpc.{Attributes, EquivalentAddressGroup}
 import java.{util => ju}
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit.SECONDS
 import cats._
 import cats.implicits._
 import cats.effect.Sync
@@ -46,6 +47,11 @@ object Gossip {
 
   object ClusterInfo {
     implicit val orderForClusterInfo: Order[ClusterInfo] = Order.by(_.members.toList.sorted)
+    implicit val showForClusterInfo: Show[ClusterInfo] = Show.show { ci =>
+      val padTo   = ci.members.map(_.state.show).map(_.length).maxOption.getOrElse(0)
+      val members = ci.members.toList.sorted
+      s"ClusterInfo:\n${members.map(mi => s" ${MemberInfo.mkShow(padTo).show(mi)}").mkString("\n")}"
+    }
   }
 
   final case class MemberInfo(
@@ -57,8 +63,23 @@ object Gossip {
   )
 
   object MemberInfo {
+
     implicit val orderForMemberInfo: Order[MemberInfo] =
       Order.by(mi => (mi.httpEndpoint, mi.state, mi.isAlive, mi.instanceId))
+
+    implicit val showForMemberInfo: Show[MemberInfo] = mkShow(0)
+
+    private[sec] def mkShow(padTo: Int): Show[MemberInfo] = Show.show { mi =>
+
+      val alive    = s"${mi.isAlive.fold("✔", "✕")}"
+      val state    = s"${mi.state.show.padTo(padTo, ' ')}"
+      val endpoint = s"${mi.httpEndpoint.show}"
+      val ts       = s"${mi.timestamp.truncatedTo(SECONDS)}"
+      val id       = s"${mi.instanceId}"
+
+      s"$alive $state $endpoint $ts $id"
+    }
+
   }
 
   final case class Endpoint(
@@ -69,6 +90,7 @@ object Gossip {
   object Endpoint {
 
     implicit val orderForEndpoint: Order[Endpoint] = Order.by(ep => (ep.address, ep.port))
+    implicit val showForEndpoint: Show[Endpoint]   = Show.show(ep => s"${ep.address}:${ep.port}")
 
     implicit final class EndpointOps(val ep: Endpoint) extends AnyVal {
       def toInetSocketAddress: InetSocketAddress = new InetSocketAddress(ep.address, ep.port)
@@ -77,28 +99,25 @@ object Gossip {
     }
   }
 
-  sealed abstract class VNodeState(
-    val id: Int
-  )
-
+  sealed trait VNodeState
   object VNodeState {
 
-    case object Initializing       extends VNodeState(0)
-    case object DiscoverLeader     extends VNodeState(1)
-    case object Unknown            extends VNodeState(2)
-    case object PreReplica         extends VNodeState(3)
-    case object CatchingUp         extends VNodeState(4)
-    case object Clone              extends VNodeState(5)
-    case object Follower           extends VNodeState(6)
-    case object PreLeader          extends VNodeState(7)
-    case object Leader             extends VNodeState(8)
-    case object Manager            extends VNodeState(9)
-    case object ShuttingDown       extends VNodeState(10)
-    case object Shutdown           extends VNodeState(11)
-    case object ReadOnlyLeaderless extends VNodeState(12)
-    case object PreReadOnlyReplica extends VNodeState(13)
-    case object ReadOnlyReplica    extends VNodeState(14)
-    case object ResigningLeader    extends VNodeState(15)
+    case object Initializing       extends VNodeState
+    case object DiscoverLeader     extends VNodeState
+    case object Unknown            extends VNodeState
+    case object PreReplica         extends VNodeState
+    case object CatchingUp         extends VNodeState
+    case object Clone              extends VNodeState
+    case object Follower           extends VNodeState
+    case object PreLeader          extends VNodeState
+    case object Leader             extends VNodeState
+    case object Manager            extends VNodeState
+    case object ShuttingDown       extends VNodeState
+    case object Shutdown           extends VNodeState
+    case object ReadOnlyLeaderless extends VNodeState
+    case object PreReadOnlyReplica extends VNodeState
+    case object ReadOnlyReplica    extends VNodeState
+    case object ResigningLeader    extends VNodeState
 
     final private[sec] val values: List[VNodeState] = List(
       Initializing,
@@ -119,7 +138,28 @@ object Gossip {
       ResigningLeader
     )
 
-    implicit val orderForVNodeState: Order[VNodeState] = Order.by(_.id)
+    implicit val orderForVNodeState: Order[VNodeState] =
+      Order.by[VNodeState, Int] {
+        case Initializing       => 0
+        case DiscoverLeader     => 1
+        case Unknown            => 2
+        case PreReplica         => 3
+        case CatchingUp         => 4
+        case Clone              => 5
+        case Follower           => 6
+        case PreLeader          => 7
+        case Leader             => 8
+        case Manager            => 9
+        case ShuttingDown       => 10
+        case Shutdown           => 11
+        case ReadOnlyLeaderless => 12
+        case PreReadOnlyReplica => 13
+        case ReadOnlyReplica    => 14
+        case ResigningLeader    => 15
+      }
+
+    implicit val showForVNodeState: Show[VNodeState] = Show.fromToString[VNodeState]
+
   }
 
 }

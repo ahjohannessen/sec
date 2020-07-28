@@ -14,7 +14,10 @@ final case class UnknownError(msg: String)        extends EsException(msg)
 final case class ServerUnavailable(msg: String)   extends EsException(msg)
 final case class ValidationError(msg: String)     extends EsException(msg)
 
-final case class NotLeader(host: Option[String], port: Option[Int]) extends EsException(NotLeader.msg(host, port))
+final case class NotLeader(
+  host: Option[String],
+  port: Option[Int]
+) extends EsException(NotLeader.msg(host, port))
 
 object NotLeader {
   def msg(host: Option[String], port: Option[Int]): String =
@@ -28,10 +31,11 @@ object MaximumAppendSizeExceeded {
     s"Maximum append size ${maxSize.map(max => s"of $max bytes ").getOrElse("")}exceeded."
 }
 
-final case class WrongExpectedVersion(streamId: String,
-                                      expected: Option[Long],
-                                      actual: Option[Long]) // Streams.Delete + Streams.Append
-  extends EsException(WrongExpectedVersion.msg(streamId, expected, actual))
+final case class WrongExpectedVersion(
+  streamId: String,
+  expected: Option[Long],
+  actual: Option[Long]
+) extends EsException(WrongExpectedVersion.msg(streamId, expected, actual))
 
 object WrongExpectedVersion {
 

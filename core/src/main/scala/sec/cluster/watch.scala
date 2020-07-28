@@ -11,8 +11,8 @@ import fs2.Stream
 import org.lyranthe.fs2_grpc.java_runtime.implicits._
 import io.grpc.{ManagedChannel, ManagedChannelBuilder}
 import sec.core.ServerUnavailable
-import sec.api._
-import Gossip.{ClusterInfo, Endpoint}
+import sec.api.Gossip
+import sec.api.Gossip.{ClusterInfo, Endpoint}
 import sec.cluster.grpc._
 
 private[sec] trait ClusterWatch[F[_]] {
@@ -75,16 +75,12 @@ private[sec] object ClusterWatch {
 
     val retriable: PartialFunction[Throwable, Boolean] = {
       case _: TimeoutException | _: ServerUnavailable => true
+      case _                                          => false
     }
 
-    val read: F[ClusterInfo] = Stream
-      .eval(readFn)
-      .timeout(readTimeout)
-      .compile
-      .lastOrError
-
-    val readWithRetry = Stream
-      .retry(read, retryDelay min readTimeout, identity, maxDiscoverAttempts, retriable)
+    val maxAttempts   = maxDiscoverAttempts.getOrElse(Int.MaxValue)
+    val read          = Stream.eval(readFn).timeout(readTimeout).compile.lastOrError
+    val readWithRetry = Stream.retry(read, retryDelay min readTimeout, identity, maxAttempts, retriable)
 
     readWithRetry.metered(notificationInterval).repeat.changesBy(_.members).evalMap(setInfo)
   }

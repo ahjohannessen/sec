@@ -37,11 +37,16 @@ object EsClient {
 
   final private class Impl[F[_]: ConcurrentEffect: Timer](mc: ManagedChannel, o: Options) extends EsClient[F] {
 
-    val streams: Streams[F] =
-      Streams(StreamsFs2Grpc.client(mc, _.toMetadata, identity, convertToEs), o)
+    val streams: Streams[F] = Streams(
+      StreamsFs2Grpc.client[F, Context](mc, _.toMetadata, identity, convertToEs),
+      o
+    )
 
-    val gossip: Gossip[F] =
-      Gossip(GossipFs2Grpc.client(mc, _.toMetadata, identity, convertToEs), o.defaultCreds, o.connectionName)
+    val gossip: Gossip[F] = Gossip(
+      GossipFs2Grpc.client[F, Context](mc, _.toMetadata, identity, convertToEs),
+      o.defaultCreds,
+      o.connectionName
+    )
 
   }
 
