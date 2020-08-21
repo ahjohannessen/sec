@@ -17,10 +17,10 @@ jobs:
     services:
       certs:
         image: quay.io/ahjohannessen/es-gencert-cli:1.0.1
-        options: -v /workspace:/certs:rw --entrypoint /app/es-gencert-cli create-ca -out /certs
+        options: -v /workspace:/certs:rw --entrypoint '/app/es-gencert-cli create-ca -out /certs'
       echo:
         image: busybox
-        options: -v /workspace:/certs --entrypoint ls -lR /certs
+        options: -v /workspace:/certs --entrypoint 'ls -lR /certs'
       eventstore:
         image: quay.io/ahjohannessen/es-v6:latest
         env:
