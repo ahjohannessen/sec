@@ -13,23 +13,26 @@ jobs:
   test:
 
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./sec
 
     services:
       echo1:
         image: busybox
         options: --entrypoint "ls -lR /certs"
         volumes: 
-          - /:/certs
+          - ./sec:/certs
       certs:
         image: quay.io/ahjohannessen/es-gencert-cli:1.0.1
-        options: --entrypoint "es-gencert-cli create-ca -out /certs/"
+        options: --entrypoint "es-gencert-cli create-ca -out /certs"
         volumes: 
-          - /:/certs
+          - ./sec:/certs
       echo2:
         image: busybox
         options: --entrypoint "ls -lR /certs"
         volumes: 
-          - /:/certs
+          - ./sec:/certs
       eventstore:
         image: quay.io/ahjohannessen/es-v6:latest
         env:
