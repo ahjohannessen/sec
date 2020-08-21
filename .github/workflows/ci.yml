@@ -18,12 +18,12 @@ jobs:
       gen-cert:
         image: quay.io/ahjohannessen/es-gencert-cli:1.0.1
         volumes: 
-          - $GITHUB_WORKSPACE:/certs
+          - ./gen-cert:/certs
         options: --entrypoint "/app/es-gencert-cli create-ca -out /certs/ca"
       echo:
         image: busybox
         volumes: 
-          - $GITHUB_WORKSPACE:/certs
+          - ./gen-cert:/certs
         options: --entrypoint "ls -lR /certs"
       eventstore:
         image: quay.io/ahjohannessen/es-v6:latest
