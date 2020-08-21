@@ -15,12 +15,15 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
+      echo1:
+        image: busybox
+        options: -v /:/ --entrypoint "ls -lR /"
       certs:
         image: quay.io/ahjohannessen/es-gencert-cli:1.0.1
-        options: -v /:/certs:rw --entrypoint "es-gencert-cli create-ca -out /certs/ca"
-      echo:
+        options: -v /:/:rw --entrypoint "es-gencert-cli create-ca -out /"
+      echo2:
         image: busybox
-        options: -v /:/certs --entrypoint "ls -lR /certs"
+        options: -v /:/ --entrypoint "ls -lR /"
       eventstore:
         image: quay.io/ahjohannessen/es-v6:latest
         env:
