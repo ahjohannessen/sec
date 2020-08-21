@@ -17,13 +17,19 @@ jobs:
     services:
       echo1:
         image: busybox
-        options: -v /:/certs --entrypoint "ls -lR /certs"
+        options: --entrypoint "ls -lR /certs"
+        volumes: 
+          - /:/certs
       certs:
         image: quay.io/ahjohannessen/es-gencert-cli:1.0.1
-        options: -v /:/certs:rw --entrypoint "es-gencert-cli create-ca -out /certs/"
+        options: --entrypoint "es-gencert-cli create-ca -out /certs/"
+        volumes: 
+          - /:/certs
       echo2:
         image: busybox
-        options: -v /:/certs --entrypoint "ls -lR /certs"
+        options: --entrypoint "ls -lR /certs"
+        volumes: 
+          - /:/certs
       eventstore:
         image: quay.io/ahjohannessen/es-v6:latest
         env:
