@@ -14,22 +14,28 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    services:
-      eventstore:
-        image: quay.io/ahjohannessen/es-v6:latest
-        env:
-          EVENTSTORE_MEM_DB: True
-          EVENTSTORE_INSECURE: True
-          EVENTSTORE_DISCOVER_VIA_DNS: False
-          EVENTSTORE_GOSSIP_ON_SINGLE_NODE: True
-          EVENTSTORE_START_STANDARD_PROJECTIONS: True
-        ports:
-          - 1113:1113
-          - 2113:2113
+#    services:
+#      eventstore:
+#        image: quay.io/ahjohannessen/es-v6:latest
+#        env:
+#          EVENTSTORE_MEM_DB: True
+#          EVENTSTORE_INSECURE: True
+#          EVENTSTORE_DISCOVER_VIA_DNS: False
+#          EVENTSTORE_GOSSIP_ON_SINGLE_NODE: True
+#          EVENTSTORE_START_STANDARD_PROJECTIONS: True
+#        ports:
+#          - 1113:1113
+#          - 2113:2113
 
     steps:
     - uses: actions/checkout@v1
     - uses: olafurpg/setup-scala@v7
+    - name: start es
+      run: |
+        docker run -d --rm --name eventstore-node-20 -p 2113:2113 -p 1113:1113 \
+        -e EVENTSTORE_MEM_DB=True -e EVENTSTORE_INSECURE=True -e EVENTSTORE_DISCOVER_VIA_DNS=False \
+        -e EVENTSTORE_GOSSIP_ON_SINGLE_NODE=True -e EVENTSTORE_START_STANDARD_PROJECTIONS=True \
+        quay.io/ahjohannessen/eventstore-20.6.0-bionic
     - name: run tests
       run: sbt "core/test" "core/it:test"
 
