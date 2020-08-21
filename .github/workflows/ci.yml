@@ -10,13 +10,25 @@ on:
 
 jobs:
 
-  test:
+  docker-login:
 
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Login to GitHub Package Registry
+        uses: crazy-max/ghaction-docker-login@v1
+        with:
+          registry: docker.pkg.github.com
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+  test:
+    needs: docker-login
     runs-on: ubuntu-latest
 
     services:
       eventstore:
-        image: quay.io/ahjohannessen/es-v6:latest
+        image: docker.pkg.github.com/eventstore/eventstore/eventstore:ci
         env:
           EVENTSTORE_MEM_DB: True
           EVENTSTORE_INSECURE: True
