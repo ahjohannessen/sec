@@ -19,7 +19,7 @@ jobs:
         image: quay.io/ahjohannessen/es-v6:latest
         env:
           EVENTSTORE_MEM_DB: True
-          EVENTSTORE_DEV: True
+          EVENTSTORE_INSECURE: True
           EVENTSTORE_DISCOVER_VIA_DNS: False
           EVENTSTORE_GOSSIP_ON_SINGLE_NODE: True
           EVENTSTORE_START_STANDARD_PROJECTIONS: True
