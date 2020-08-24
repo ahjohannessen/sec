@@ -14,23 +14,23 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    services:
-      eventstore:
-        image: quay.io/ahjohannessen/es-v6:latest
-        env:
-          EVENTSTORE_MEM_DB: True
-          EVENTSTORE_INSECURE: True
-          EVENTSTORE_DISCOVER_VIA_DNS: False
-          EVENTSTORE_GOSSIP_ON_SINGLE_NODE: True
-          EVENTSTORE_START_STANDARD_PROJECTIONS: True
-        ports:
-          - 2113:2113
-
     steps:
     - uses: actions/checkout@v1
+
+    - name: Generate certificates
+      run: misc/gencert.sh
+
+    - name: Start Eventstore
+      run: docker-compose -f misc/single-node.ci.yml up -d
+
     - uses: olafurpg/setup-scala@v7
-    - name: run tests
+
+    - name: Run tests
       run: sbt "core/test" "core/it:test"
+
+    - name: Stop Eventstore
+      run: docker-compose -f misc/single-node.ci.yml down
+      if: always()
 
   publish:
     needs: test
