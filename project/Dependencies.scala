@@ -7,6 +7,8 @@ object Dependencies {
     val catsCore          = "2.1.1"
     val catsEffect        = "2.1.4"
     val fs2               = "2.4.4"
+    val log4cats          = "1.1.1"
+    val logback           = "1.2.3"
     val scodecBits        = "1.1.18"
     val circe             = "0.13.0"
     val scalaPb           = scalapb.compiler.Version.scalapbVersion
@@ -23,24 +25,26 @@ object Dependencies {
   val cats        = "org.typelevel"        %% "cats-core"       % versions.catsCore
   val catsEffect  = "org.typelevel"        %% "cats-effect"     % versions.catsEffect
   val fs2         = "co.fs2"               %% "fs2-core"        % versions.fs2
+  val log4cats    = "io.chrisdavenport"    %% "log4cats-core"   % versions.log4cats
   val scodecBits  = "org.scodec"           %% "scodec-bits"     % versions.scodecBits
   val circe       = "io.circe"             %% "circe-core"      % versions.circe
   val circeParser = "io.circe"             %% "circe-parser"    % versions.circe
   val scalaPb     = "com.thesamet.scalapb" %% "scalapb-runtime" % versions.scalaPb
 
-  // Testing
+  // Testing & Demo
 
-  val grpcNetty = "io.grpc"  % "grpc-netty"                      % versions.grpc
-  val tcnative  = "io.netty" % "netty-tcnative-boringssl-static" % "2.0.28.Final"
-
-  val specs2            = "org.specs2"     %% "specs2-core"                % versions.specs2
-  val specs2ScalaCheck  = "org.specs2"     %% "specs2-scalacheck"          % versions.specs2
-  val specs2Cats        = "org.specs2"     %% "specs2-cats"                % versions.specs2
-  val circeGeneric      = "io.circe"       %% "circe-generic"              % versions.circe
-  val disciplineSpecs2  = "org.typelevel"  %% "discipline-specs2"          % versions.disciplineSpecs2
-  val catsLaws          = "org.typelevel"  %% "cats-laws"                  % versions.catsCore
-  val catsEffectTesting = "com.codecommit" %% "cats-effect-testing-specs2" % versions.catsEffectTesting
-  val catsEffectLaws    = "org.typelevel"  %% "cats-effect-laws"           % versions.catsEffect
+  val specs2            = "org.specs2"        %% "specs2-core"                % versions.specs2
+  val specs2ScalaCheck  = "org.specs2"        %% "specs2-scalacheck"          % versions.specs2
+  val specs2Cats        = "org.specs2"        %% "specs2-cats"                % versions.specs2
+  val circeGeneric      = "io.circe"          %% "circe-generic"              % versions.circe
+  val disciplineSpecs2  = "org.typelevel"     %% "discipline-specs2"          % versions.disciplineSpecs2
+  val catsLaws          = "org.typelevel"     %% "cats-laws"                  % versions.catsCore
+  val catsEffectTesting = "com.codecommit"    %% "cats-effect-testing-specs2" % versions.catsEffectTesting
+  val catsEffectLaws    = "org.typelevel"     %% "cats-effect-laws"           % versions.catsEffect
+  val logback           = "ch.qos.logback"     % "logback-classic"            % versions.logback
+  val log4catsNoop      = "io.chrisdavenport" %% "log4cats-noop"              % versions.log4cats
+  val log4catsSlf4j     = "io.chrisdavenport" %% "log4cats-slf4j"             % versions.log4cats
+  val grpcNetty         = "io.grpc"            % "grpc-netty-shaded"          % versions.grpc
 
   // Compiler & SBT Plugins
 

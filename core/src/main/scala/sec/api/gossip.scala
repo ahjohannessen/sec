@@ -1,15 +1,13 @@
 package sec
 package api
 
-import java.net.InetSocketAddress
-import io.grpc.{Attributes, EquivalentAddressGroup}
 import java.{util => ju}
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit.SECONDS
 import cats._
 import cats.implicits._
 import cats.effect.Sync
-import com.eventstore.client.gossip.GossipFs2Grpc
+import com.eventstore.client.gossip.{GossipFs2Grpc, ClusterInfo => PClusterInfo}
 import com.eventstore.client.Empty
 import mapping.gossip.mkClusterInfo
 
@@ -21,23 +19,12 @@ object Gossip {
 
   private[sec] def apply[F[_]: Sync](
     client: GossipFs2Grpc[F, Context],
-    creds: Option[UserCredentials],
-    connectionName: String
-  ): Gossip[F] = new Impl[F](client, creds, connectionName)
-
-  final private[sec] class Impl[F[_]: Sync](
-    val client: GossipFs2Grpc[F, Context],
-    creds: Option[UserCredentials],
-    connectionName: String
-  ) extends Gossip[F] {
-
-    val ctx: Option[UserCredentials] => Context = uc =>
-      Context(s"$connectionName-gossip", uc.orElse(creds), requiresLeader = false)
-
-    def read(creds: Option[UserCredentials]): F[ClusterInfo] =
-      client.read(Empty(), ctx(creds)) >>= mkClusterInfo[F]
-
+    mkCtx: Option[UserCredentials] => Context
+  ): Gossip[F] = new Gossip[F] {
+    def read(creds: Option[UserCredentials]): F[ClusterInfo] = read0(client.read(Empty(), mkCtx(creds)))
   }
+
+  private[sec] def read0[F[_]: ErrorM](f: F[PClusterInfo]): F[ClusterInfo] = f >>= mkClusterInfo[F]
 
 //======================================================================================================================
 
@@ -80,23 +67,6 @@ object Gossip {
       s"$alive $state $endpoint $ts $id"
     }
 
-  }
-
-  final case class Endpoint(
-    address: String,
-    port: Int
-  )
-
-  object Endpoint {
-
-    implicit val orderForEndpoint: Order[Endpoint] = Order.by(ep => (ep.address, ep.port))
-    implicit val showForEndpoint: Show[Endpoint]   = Show.show(ep => s"${ep.address}:${ep.port}")
-
-    implicit final class EndpointOps(val ep: Endpoint) extends AnyVal {
-      def toInetSocketAddress: InetSocketAddress = new InetSocketAddress(ep.address, ep.port)
-      def toEquivalentAddressGroup: EquivalentAddressGroup =
-        new EquivalentAddressGroup(ep.toInetSocketAddress, Attributes.EMPTY)
-    }
   }
 
   sealed trait VNodeState

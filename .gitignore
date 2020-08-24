@@ -27,5 +27,9 @@ tmp
 # Metals
 .metals/*
 .bloop/*
+.vscode/*
 project/.bloop/*
 project/metals.sbt
+
+# Generated Certificates
+certs/

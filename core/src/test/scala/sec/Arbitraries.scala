@@ -12,6 +12,7 @@ import scodec.bits.ByteVector
 import sec.core._
 import sec.core.StreamRevision.{Any, NoStream, StreamExists}
 import sec.api.Gossip._
+import sec.api.Endpoint
 import org.scalacheck._
 import org.scalacheck.Arbitrary.arbitrary
 
@@ -64,7 +65,7 @@ object Arbitraries {
 
     def genStreamIdNormal(prefix: String): Gen[StreamId.Normal] =
       Gen.identifier
-        .suchThat(s => s.nonEmpty && s.size >= 3 && s.size <= 15 && !s.startsWith(StreamId.systemPrefix))
+        .suchThat(s => s.nonEmpty && s.length >= 3 && s.length <= 15 && !s.startsWith(StreamId.systemPrefix))
         .map(n => StreamId.normal(s"$prefix$n").unsafe)
 
   }
@@ -202,7 +203,7 @@ object Arbitraries {
       idAndType <- eventIdAndType(eventTypeGen.defaultPrefix)
       (id, et)   = idAndType
       data       = dataBV(id, ct)
-      meta       = metaBV(id, ct, false)
+      meta       = metaBV(id, ct, empty = false)
     } yield ct.fold(EventData.binary(et, id, data, meta), EventData.json(et, id, data, meta))
 
     @tailrec
@@ -260,14 +261,18 @@ object Arbitraries {
   implicit val arbEventRecordN: Arbitrary[NonEmptyList[EventRecord]]     = arbEventRecordNelOfN(25)
 
 //======================================================================================================================
+// Endpoint
+//======================================================================================================================
+
+  implicit val arbEndpoint: Arbitrary[Endpoint] =
+    Arbitrary(Gen.oneOf(Endpoint("127.0.0.1", 2113), Endpoint("127.0.0.2", 2113), Endpoint("127.0.0.3", 2113)))
+
+//======================================================================================================================
 // Gossip
 //======================================================================================================================
 
   implicit val arbVNodeState: Arbitrary[VNodeState] =
     Arbitrary(Gen.oneOf(VNodeState.values))
-
-  implicit val arbEndpoint: Arbitrary[Endpoint] =
-    Arbitrary(Gen.oneOf(Endpoint("127.0.0.1", 2113), Endpoint("127.0.0.2", 2113), Endpoint("127.0.0.3", 2113)))
 
   implicit val arbMemberInfo: Arbitrary[MemberInfo] = Arbitrary[MemberInfo] {
     for {

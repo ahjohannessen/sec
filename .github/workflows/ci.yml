@@ -24,7 +24,6 @@ jobs:
           EVENTSTORE_GOSSIP_ON_SINGLE_NODE: True
           EVENTSTORE_START_STANDARD_PROJECTIONS: True
         ports:
-          - 1113:1113
           - 2113:2113
 
     steps:

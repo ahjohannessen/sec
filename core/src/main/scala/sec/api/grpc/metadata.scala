@@ -5,7 +5,7 @@ package grpc
 import io.grpc.Metadata
 import grpc.constants.Headers.{Authorization, ConnectionName, RequiresLeader}
 
-object implicits {
+object metadata {
 
   private[grpc] object keys {
     val authorization: Metadata.Key[UserCredentials] = Metadata.Key.of(Authorization, UserCredentialsMarshaller)

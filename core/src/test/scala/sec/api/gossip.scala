@@ -107,18 +107,6 @@ class GossipSpec extends Specification with Discipline {
       }
     }
 
-    "Endpoint" >> {
-
-      "order" >> {
-        implicit val cogen: Cogen[Endpoint] = Cogen[String].contramap[Endpoint](_.toString)
-        checkAll("Endpoint", OrderTests[Endpoint].order)
-      }
-
-      "show" >> {
-        Endpoint("127.0.0.1", 2113).show shouldEqual "127.0.0.1:2113"
-      }
-    }
-
     "VNodeState" >> {
 
       "order" >> {
