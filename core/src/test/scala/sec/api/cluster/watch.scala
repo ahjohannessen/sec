@@ -29,7 +29,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
     "only emit changes in cluster info" >> {
 
-      val settings   = Settings(1.some, 100.millis, RetryStrategy.Identity, 100.millis, 20.millis, NodePreference.Leader)
+      val settings   = Settings(1.some, 100.millis, RetryStrategy.Identity, 100.millis, 100.millis, NodePreference.Leader)
       def instanceId = sampleOf[ju.UUID]
       def timestamp  = sampleOf[ZonedDateTime]
 

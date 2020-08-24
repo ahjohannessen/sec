@@ -7,15 +7,21 @@ lazy val root = project
 
 Global / onLoad ~= (_ andThen ("project core" :: _))
 
+lazy val basePath = file("").getAbsoluteFile.toPath
+
 lazy val IntegrationTest = config("it") extend Test
 
 lazy val core = project
   .enablePlugins(Fs2Grpc)
+  .enablePlugins(BuildInfoPlugin)
   .configs(IntegrationTest)
   .settings(inConfig(IntegrationTest)(Defaults.testTasks): _*)
   .settings(commonSettings)
   .settings(
     name := "sec-core",
+    // TODO: only produce certsPath in tests
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, "certsPath" -> basePath / "certs"),
+    buildInfoPackage := "sec",
     Test / testOptions := Seq(Tests.Filter(_ endsWith "Spec")),
     IntegrationTest / testOptions := Seq(Tests.Filter(_ endsWith "ITest")),
     IntegrationTest / parallelExecution := false,

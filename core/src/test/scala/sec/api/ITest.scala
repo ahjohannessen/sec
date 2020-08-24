@@ -1,17 +1,18 @@
 package sec
 package api
 
+import java.io.File
 import org.specs2.mutable.Specification
 import org.specs2.specification.AfterAll
 import org.scalacheck.Gen
 import cats.data.{NonEmptyList => Nel}
 import cats.effect.testing.specs2.CatsIO
 import cats.effect._
+import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import org.lyranthe.fs2_grpc.java_runtime.implicits._
-import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
+import io.grpc.netty.shaded.io.grpc.netty.{GrpcSslContexts, NettyChannelBuilder}
 import sec.core._
 import Arbitraries._
-import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 
 trait ITest extends Specification with CatsIO with AfterAll {
 
@@ -25,12 +26,27 @@ trait ITest extends Specification with CatsIO with AfterAll {
 
   final private lazy val (client, shutdown): (EsClient[IO], IO[Unit]) = {
 
-    val builder = IO.delay(NettyChannelBuilder.forAddress("127.0.0.1", 2113).usePlaintext())
+    val certsFolder = new File(sys.env.get("SEC_IT_TEST_CERTS_PATH").getOrElse(BuildInfo.certsPath))
+    val ca          = new File(certsFolder, "ca/ca.crt")
+
+    val address   = sys.env.get("SEC_IT_TEST_HOST_ADDRESS").getOrElse("127.0.0.1")
+    val port      = sys.env.get("SEC_IT_TEST_HOST_PORT").flatMap(_.toIntOption).getOrElse(2113)
+    val authority = sys.env.get("SEC_IT_TEST_AUTHORITY").getOrElse("es.sec.local")
+
+    val builder = IO.delay(
+      NettyChannelBuilder
+        .forAddress(address, port)
+        .useTransportSecurity()
+        .sslContext(GrpcSslContexts.forClient().trustManager(ca).build())
+        .overrideAuthority(authority)
+    )
+
+    val options = Options.default.copy(operationOptions = OperationOptions.default.copy(retryMaxAttempts = 3))
 
     val result: Resource[IO, EsClient[IO]] = for {
       b <- Resource.liftF(builder)
       l <- Resource.liftF(Slf4jLogger.fromName[IO]("integration-test"))
-      c <- b.resourceWithShutdown[IO](mc => IO.delay(mc.shutdownNow()).void).map(EsClient[IO](_, Options.default, l))
+      c <- b.resourceWithShutdown[IO](mc => IO.delay(mc.shutdownNow()).void).map(EsClient[IO](_, options, l))
     } yield c
 
     result.allocated.unsafeRunSync()

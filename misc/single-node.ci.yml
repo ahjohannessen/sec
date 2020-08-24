@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  es:
+    image: quay.io/ahjohannessen/es-v6:latest
+    environment:
+      EVENTSTORE_MEM_DB: 'True'
+      EVENTSTORE_CERTIFICATE_FILE: '/certs/node/node.crt'
+      EVENTSTORE_CERTIFICATE_PRIVATE_KEY_FILE: '/certs/node/node.key'
+      EVENTSTORE_TRUSTED_ROOT_CERTIFICATES_PATH: '/certs/ca'
+      EVENTSTORE_DISCOVER_VIA_DNS: 'False'
+      EVENTSTORE_GOSSIP_ON_SINGLE_NODE: 'True'
+      EVENTSTORE_START_STANDARD_PROJECTIONS: 'True'
+    volumes:
+      - $PWD/certs:/certs
+    ports:
+      - 2113:2113
