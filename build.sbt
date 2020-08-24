@@ -44,6 +44,7 @@ lazy val core = project
 lazy val netty = project
   .in(file("netty"))
   .dependsOn(core)
+  .settings(commonSettings)
   .settings(
     name := "sec",
     libraryDependencies ++= compileM(grpcNetty)
