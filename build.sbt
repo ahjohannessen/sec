@@ -5,8 +5,6 @@ lazy val root = project
   .settings(skip in publish := true)
   .aggregate(core, netty, demo)
 
-Global / onLoad ~= (_ andThen ("project core" :: _))
-
 lazy val basePath = file("").getAbsoluteFile.toPath
 
 lazy val IntegrationTest = config("it") extend Test
