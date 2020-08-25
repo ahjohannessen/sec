@@ -17,8 +17,6 @@ lazy val core = project
   .settings(commonSettings)
   .settings(
     name := "sec-core",
-    // TODO: only produce certsPath in tests
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, "certsPath" -> basePath / "certs"),
     buildInfoPackage := "sec",
     Test / testOptions := Seq(Tests.Filter(_ endsWith "Spec")),
     IntegrationTest / testOptions := Seq(Tests.Filter(_ endsWith "ITest")),
@@ -38,14 +36,23 @@ lazy val core = project
           logback
         )
   )
+  .settings(
+    inConfig(IntegrationTest)(
+      Seq(
+        Compile / buildInfoKeys := Seq[BuildInfoKey]("certsPath" -> basePath / "certs"),
+        Compile / buildInfoPackage := "sec.it"
+      )))
 
 lazy val netty = project
+  .enablePlugins(BuildInfoPlugin)
   .in(file("netty"))
   .dependsOn(core)
   .settings(commonSettings)
   .settings(
     name := "sec",
-    libraryDependencies ++= compileM(grpcNetty)
+    libraryDependencies ++= compileM(grpcNetty),
+    buildInfoKeys := Seq[BuildInfoKey]("certsPath" -> basePath / "certs"),
+    buildInfoPackage := "sec"
   )
 
 lazy val demo = project

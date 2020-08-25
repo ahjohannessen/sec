@@ -26,7 +26,7 @@ trait ITest extends Specification with CatsIO with AfterAll {
 
   final private lazy val (client, shutdown): (EsClient[IO], IO[Unit]) = {
 
-    val certsFolder = new File(sys.env.get("SEC_TEST_CERTS_PATH").getOrElse(BuildInfo.certsPath))
+    val certsFolder = new File(sys.env.get("SEC_TEST_CERTS_PATH").getOrElse(sec.it.BuildInfo.certsPath))
     val ca          = new File(certsFolder, "ca/ca.crt")
 
     val address   = sys.env.get("SEC_IT_TEST_HOST_ADDRESS").getOrElse("127.0.0.1")
