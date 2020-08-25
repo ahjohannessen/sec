@@ -5,7 +5,8 @@ lazy val root = project
   .settings(skip in publish := true)
   .aggregate(core, netty, demo)
 
-lazy val basePath = file("").getAbsoluteFile.toPath
+lazy val basePath  = file("").getAbsoluteFile.toPath
+lazy val certsPath = Seq[BuildInfoKey]("certsPath" -> basePath / "certs")
 
 lazy val IntegrationTest = config("it") extend Test
 
@@ -37,28 +38,27 @@ lazy val core = project
         )
   )
   .settings(
-    inConfig(IntegrationTest)(
-      Seq(
-        Compile / buildInfoKeys := Seq[BuildInfoKey]("certsPath" -> basePath / "certs"),
-        Compile / buildInfoPackage := "sec.it"
-      )))
+    addBuildInfoToConfig(Test),
+    Test / buildInfoKeys := certsPath,
+    Test / buildInfoObject := "TestBuildInfo"
+  )
 
 lazy val netty = project
-  .enablePlugins(BuildInfoPlugin)
   .in(file("netty"))
   .dependsOn(core)
   .settings(commonSettings)
   .settings(
     name := "sec",
-    libraryDependencies ++= compileM(grpcNetty),
-    buildInfoKeys := Seq[BuildInfoKey]("certsPath" -> basePath / "certs"),
-    buildInfoPackage := "sec"
+    libraryDependencies ++= compileM(grpcNetty)
   )
 
 lazy val demo = project
+  .enablePlugins(BuildInfoPlugin)
   .dependsOn(netty)
   .settings(
     name := "demo",
+    buildInfoKeys := certsPath,
+    buildInfoPackage := "sec.demo",
     libraryDependencies ++= compileM(log4catsSlf4j, logback),
     skip in publish := true
   )

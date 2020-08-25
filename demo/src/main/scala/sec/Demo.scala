@@ -1,5 +1,6 @@
 package sec
 
+import java.io.File
 import scala.concurrent.duration._
 import cats.data.NonEmptySet
 import cats.implicits._
@@ -16,7 +17,7 @@ import sec.api.cluster.{ClusterWatch, Settings}
 import sec.api.cluster.grpc.ResolverProvider
 import sec.core._
 import sec.client.Netty
-import java.io.File
+import sec.demo.BuildInfo.certsPath
 
 object Demo extends IOApp {
 
@@ -24,7 +25,7 @@ object Demo extends IOApp {
 
   ///
 
-  val certsFolder = new File(sys.env.get("SEC_DEMO_CERTS_PATH").getOrElse(BuildInfo.certsPath))
+  val certsFolder = new File(sys.env.get("SEC_DEMO_CERTS_PATH").getOrElse(certsPath))
   val ca          = new File(certsFolder, "ca/ca.crt")
 
   val log: Logger[IO]    = Slf4jLogger.fromName[IO]("Demo").unsafeRunSync()
