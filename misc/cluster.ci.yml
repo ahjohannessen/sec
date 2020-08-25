@@ -1,0 +1,69 @@
+version: '3.8'
+services:
+  es1:
+    image: quay.io/ahjohannessen/es-v6:latest
+    environment:
+      EVENTSTORE_MEM_DB: 'True'
+      EVENTSTORE_CLUSTER_SIZE: 3
+      EVENTSTORE_CERTIFICATE_FILE: '/certs/node/node.crt'
+      EVENTSTORE_CERTIFICATE_PRIVATE_KEY_FILE: '/certs/node/node.key'
+      EVENTSTORE_TRUSTED_ROOT_CERTIFICATES_PATH: '/certs/ca'
+      EVENTSTORE_DISCOVER_VIA_DNS: 'False'
+      EVENTSTORE_GOSSIP_SEED: 172.20.0.3:2113,172.20.0.4:2113
+      EVENTSTORE_ADVERTISE_HOST_TO_CLIENT_AS: '127.0.0.1'
+      EVENTSTORE_ADVERTISE_HTTP_PORT_TO_CLIENT_AS: '2114'
+    volumes:
+      - $PWD/certs:/certs
+    ports:
+      - 2114:2113
+    networks:
+      es:
+        ipv4_address: 172.20.0.2
+
+  es2:
+    image: quay.io/ahjohannessen/es-v6:latest
+    environment:
+      EVENTSTORE_MEM_DB: 'True'
+      EVENTSTORE_CLUSTER_SIZE: 3
+      EVENTSTORE_CERTIFICATE_FILE: '/certs/node/node.crt'
+      EVENTSTORE_CERTIFICATE_PRIVATE_KEY_FILE: '/certs/node/node.key'
+      EVENTSTORE_TRUSTED_ROOT_CERTIFICATES_PATH: '/certs/ca'
+      EVENTSTORE_DISCOVER_VIA_DNS: 'False'
+      EVENTSTORE_GOSSIP_SEED: 172.20.0.2:2113,172.20.0.4:2113
+      EVENTSTORE_ADVERTISE_HOST_TO_CLIENT_AS: '127.0.0.1'
+      EVENTSTORE_ADVERTISE_HTTP_PORT_TO_CLIENT_AS: '2115'
+    volumes:
+      - $PWD/certs:/certs
+    ports:
+      - 2115:2113
+    networks:
+      es:
+        ipv4_address: 172.20.0.3
+
+  es3:
+    image: quay.io/ahjohannessen/es-v6:latest
+    environment:
+      EVENTSTORE_MEM_DB: 'True'
+      EVENTSTORE_CLUSTER_SIZE: 3
+      EVENTSTORE_CERTIFICATE_FILE: '/certs/node/node.crt'
+      EVENTSTORE_CERTIFICATE_PRIVATE_KEY_FILE: '/certs/node/node.key'
+      EVENTSTORE_TRUSTED_ROOT_CERTIFICATES_PATH: '/certs/ca'
+      EVENTSTORE_DISCOVER_VIA_DNS: 'False'
+      EVENTSTORE_GOSSIP_SEED: 172.20.0.2:2113,172.20.0.3:2113
+      EVENTSTORE_ADVERTISE_HOST_TO_CLIENT_AS: '127.0.0.1'
+      EVENTSTORE_ADVERTISE_HTTP_PORT_TO_CLIENT_AS: '2116'
+    volumes:
+      - $PWD/certs:/certs
+    ports:
+      - 2116:2113
+    networks:
+      es:
+        ipv4_address: 172.20.0.4
+
+networks:
+  es:
+    name: es
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.20.0.0/16"
