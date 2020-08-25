@@ -22,4 +22,4 @@ docker run --rm --volume $SEC_GENCERT_CERTS_PATH:/tmp --user $(id -u):$(id -g) $
   -ip-addresses $SEC_GENCERT_IP_ADDRESSES \
   -dns-names $SEC_GENCERT_DNS_NAMES
 
-chmod -R 777 $SEC_GENCERT_CERTS_PATH
+chmod -R 755 $SEC_GENCERT_CERTS_PATH
