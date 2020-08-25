@@ -16,6 +16,7 @@ import sec.api.cluster.{ClusterWatch, Settings}
 import sec.api.cluster.grpc.ResolverProvider
 import sec.core._
 import sec.client.Netty
+import java.io.File
 
 object Demo extends IOApp {
 
@@ -23,15 +24,18 @@ object Demo extends IOApp {
 
   ///
 
+  val certsFolder = new File(sys.env.get("SEC_DEMO_CERTS_PATH").getOrElse(BuildInfo.certsPath))
+  val ca          = new File(certsFolder, "ca/ca.crt")
+
   val log: Logger[IO]    = Slf4jLogger.fromName[IO]("Demo").unsafeRunSync()
   val settings: Settings = Settings.default.copy(maxDiscoverAttempts = 25.some)
   val options: Options   = Options.default
-  val authority: String  = "es.demo.local"
+  val authority: String  = sys.env.get("SEC_DEMO_AUTHORITY").getOrElse("es.sec.local")
 
   val seed: NonEmptySet[Endpoint] = NonEmptySet.of(
-    getEndpoint("ES1_ADDRESS", "ES1_PORT", "192.168.104.101", 2113),
-    getEndpoint("ES2_ADDRESS", "ES2_PORT", "192.168.104.102", 2113),
-    getEndpoint("ES3_ADDRESS", "ES3_PORT", "192.168.104.103", 2113)
+    getEndpoint("SEC_DEMO_ES1_ADDRESS", "SEC_DEMO_ES1_PORT", "127.0.0.1", 2114),
+    getEndpoint("SEC_DEMO_ES2_ADDRESS", "SEC_DEMO_ES2_PORT", "127.0.0.1", 2115),
+    getEndpoint("SEC_DEMO_ES3_ADDRESS", "SEC_DEMO_ES3_PORT", "127.0.0.1", 2116)
   )
 
   ///
@@ -43,7 +47,7 @@ object Demo extends IOApp {
   }
 
   def builderForTarget(t: String): IO[NettyChannelBuilder] =
-    Netty.mkBuilder[IO](ChannelBuilderParams(t, getClass.getResourceAsStream("/certs/ca.crt")))
+    Netty.mkBuilder[IO](ChannelBuilderParams(t, ca.toPath)).map(_.overrideAuthority(authority))
 
   def gossipFn(mc: ManagedChannel, requiresLeader: Boolean): Gossip[IO] =
     Gossip(mkGossipClient[IO](mc), mkContext(options, requiresLeader))

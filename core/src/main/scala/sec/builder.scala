@@ -23,6 +23,9 @@ final private[sec] object ChannelBuilderParams {
   def apply(target: String, certChain: InputStream): ChannelBuilderParams =
     ChannelBuilderParams(target.asLeft, ConnectionMode.Secure(certChain.asLeft.some))
 
+  def apply(target: String, certChain: Path): ChannelBuilderParams =
+    ChannelBuilderParams(target.asLeft, ConnectionMode.Secure(certChain.asRight.some))
+
   def apply(endpoint: Endpoint, certChain: Path): ChannelBuilderParams =
     ChannelBuilderParams(endpoint.asRight, ConnectionMode.Secure(certChain.asRight.some))
 

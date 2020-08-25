@@ -32,6 +32,34 @@ jobs:
       run: docker-compose -f misc/single-node.ci.yml down
       if: always()
 
+
+  cluster:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Generate certificates
+      run: misc/gencert.sh
+      env:
+        SEC_GENCERT_IP_ADDRESSES: 127.0.0.1,172.20.0.2,172.20.0.3,172.20.0.4
+
+    - name: Start Eventstore cluster
+      run: docker-compose -f misc/cluster.ci.yml up -d
+
+    - uses: olafurpg/setup-scala@v7
+
+    - name: Run cluster tests
+      run: sbt "demo/run"
+      env:
+        SEC_DEMO_CERTS_PATH: ${{github.workspace}}/certs
+        SEC_DEMO_AUTHORITY: es.sec.local
+
+    - name: Stop Eventstore cluster
+      run: docker-compose -f misc/cluster.ci.yml down
+      if: always()
+
   publish:
     needs: test
     if: github.event_name == 'push'
