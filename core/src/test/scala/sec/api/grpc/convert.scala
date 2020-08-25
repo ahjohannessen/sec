@@ -2,11 +2,13 @@ package sec
 package api
 package grpc
 
+import java.nio.channels.ClosedChannelException
+
 import cats.implicits._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
 import org.specs2._
 import constants.{Exceptions => ce}
-import convert.{keys => k, convertToEs}
+import convert.{convertToEs, keys => k}
 import sec.core._
 
 class ConvertSpec extends mutable.Specification {
@@ -146,9 +148,13 @@ class ConvertSpec extends mutable.Specification {
       m.put(ek, "not-handled")
     } should beSome(UnknownError("Exception key: not-handled"))
 
-    /// From Status Codes
+    /// From Status Codes & Causes
 
-    convertToEs(Status.UNAVAILABLE.asRuntimeException()) should beSome(ServerUnavailable("UNAVAILABLE"))
+    convertToEs(Status.UNAVAILABLE.asRuntimeException()) should
+      beSome(ServerUnavailable("UNAVAILABLE"))
+
+    convertToEs(Status.UNKNOWN.withCause(new ClosedChannelException()).asRuntimeException()) should
+      beSome(ServerUnavailable("Channel closed."))
 
   }
 }

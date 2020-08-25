@@ -4,6 +4,7 @@ package grpc
 
 import cats.implicits._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
+import java.nio.channels.ClosedChannelException
 import grpc.constants.{Exceptions => ce}
 import sec.core._
 
@@ -33,7 +34,6 @@ private[sec] object convert {
 
     val unknown            = "<unknown>"
     val md                 = ex.getTrailers
-    val status             = ex.getStatus
     val exception          = md.getOpt(keys.exception)
     def streamName         = md.getOpt(keys.streamName).getOrElse(unknown)
     def groupName          = md.getOpt(keys.groupName).getOrElse(unknown)
@@ -59,12 +59,21 @@ private[sec] object convert {
       case unknown                               => UnknownError(s"Exception key: $unknown")
     }
 
-    def serverUnavailable: Option[EsException] =
-      Option.when(status.getCode == Status.Code.UNAVAILABLE)(
-        ServerUnavailable(Option(ex.getMessage).getOrElse("Server unavailable"))
-      )
+    reified orElse serverUnavailable(ex)
+  }
 
-    reified orElse serverUnavailable
+  private val serverUnavailable: StatusRuntimeException => Option[ServerUnavailable] = { ex =>
+
+    val status = ex.getStatus
+    val code   = status.getCode
+    val cause  = status.getCause
+
+    val unavailable   = code == Status.Code.UNAVAILABLE
+    def channelClosed = code == Status.Code.UNKNOWN && cause.isInstanceOf[ClosedChannelException]
+
+    val msg = if (unavailable) Option(ex.getMessage).getOrElse("Server unavailable") else "Channel closed."
+
+    Option.when(unavailable || channelClosed)(ServerUnavailable(msg))
   }
 
 //======================================================================================================================

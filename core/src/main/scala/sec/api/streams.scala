@@ -10,7 +10,6 @@ import cats.effect._
 import cats.effect.concurrent.Ref
 import fs2.{Pipe, Pull, Stream}
 import com.eventstore.client.streams._
-import io.chrisdavenport.log4cats.Logger
 import sec.core._
 import sec.syntax.StreamsSyntax
 import mapping.shared._
@@ -89,15 +88,9 @@ object Streams {
 
 //======================================================================================================================
 
-  final private[sec] case class Opts[F[_]](
-    oo: OperationOptions,
-    retryOn: Throwable => Boolean,
-    log: Logger[F]
-  )
-
-  private[sec] def apply[F[_]: Concurrent: Timer](
-    client: StreamsFs2Grpc[F, Context],
-    mkCtx: Option[UserCredentials] => Context,
+  private[sec] def apply[F[_]: Concurrent: Timer, C](
+    client: StreamsFs2Grpc[F, C],
+    mkCtx: Option[UserCredentials] => C,
     opts: Opts[F]
   ): Streams[F] = new Streams[F] {
 
@@ -257,7 +250,7 @@ object Streams {
     val events: List[AppendReq]  = mkAppendProposalsReq(eventsNel).toList
     val operation: F[AppendResp] = f(Stream.emit(header) ++ Stream.emits(events))
 
-    withRetryF(operation, opts, "appendToStream") >>= { ar => mkWriteResult[F](streamId, ar) }
+    opts.run(operation, "appendToStream") >>= { ar => mkWriteResult[F](streamId, ar) }
   }
 
   private[sec] def softDelete0[F[_]: Concurrent: Timer](
@@ -265,14 +258,14 @@ object Streams {
     expectedRevision: StreamRevision,
     opts: Opts[F]
   )(f: DeleteReq => F[DeleteResp]): F[DeleteResult] =
-    withRetryF(f(mkSoftDeleteReq(streamId, expectedRevision)), opts, "softDelete") >>= mkDeleteResult[F]
+    opts.run(f(mkSoftDeleteReq(streamId, expectedRevision)), "softDelete") >>= mkDeleteResult[F]
 
   private[sec] def hardDelete0[F[_]: Concurrent: Timer](
     streamId: StreamId,
     expectedRevision: StreamRevision,
     opts: Opts[F]
   )(f: TombstoneReq => F[TombstoneResp]): F[DeleteResult] =
-    withRetryF(f(mkHardDeleteReq(streamId, expectedRevision)), opts, "hardDelete") >>= mkDeleteResult[F]
+    opts.run(f(mkHardDeleteReq(streamId, expectedRevision)), "hardDelete") >>= mkDeleteResult[F]
 
 //======================================================================================================================
 
@@ -353,11 +346,6 @@ object Streams {
       }
 
     run(from, 0, oo.retryDelay)
-  }
-
-  private[sec] def withRetryF[F[_]: Concurrent: Timer, A](fa: F[A], opts: Opts[F], opName: String): F[A] = {
-    import opts._
-    retryF[F, A](fa, opName, oo.retryDelay, oo.retryStrategy.nextDelay, oo.retryMaxAttempts, None, log)(retryOn)
   }
 
 }

@@ -21,7 +21,7 @@ final case class NotLeader(
 
 object NotLeader {
   def msg(host: Option[String], port: Option[Int]): String =
-    s"Not leader. New leader at ${host.getOrElse("<unknown>")}:${port.getOrElse("<unknown>")}."
+    s"Not leader. Leader at ${host.getOrElse("<unknown>")}:${port.getOrElse("<unknown>")}."
 }
 
 final case class MaximumAppendSizeExceeded(size: Option[Int]) extends EsException(MaximumAppendSizeExceeded.msg(size))

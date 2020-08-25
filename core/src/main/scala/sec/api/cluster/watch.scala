@@ -24,7 +24,7 @@ private[sec] object ClusterWatch {
 
   def apply[F[_]: ConcurrentEffect: Timer, MCB <: ManagedChannelBuilder[MCB]](
     builderFromTarget: String => F[MCB],
-    settings: Settings,
+    settings: ClusterSettings,
     gossipFn: ManagedChannel => Gossip[F],
     seed: NonEmptySet[Endpoint],
     authority: String,
@@ -54,7 +54,7 @@ private[sec] object ClusterWatch {
 
   def create[F[_]: ConcurrentEffect: Timer](
     readFn: F[ClusterInfo],
-    settings: Settings,
+    settings: ClusterSettings,
     store: Cache[F],
     log: Logger[F]
   ): Resource[F, ClusterWatch[F]] = {
@@ -74,7 +74,7 @@ private[sec] object ClusterWatch {
 
   def mkFetcher[F[_]: ConcurrentEffect: Timer](
     readFn: F[ClusterInfo],
-    settings: Settings,
+    settings: ClusterSettings,
     setInfo: ClusterInfo => F[Unit],
     log: Logger[F]
   ): Stream[F, Unit] = {
@@ -84,7 +84,7 @@ private[sec] object ClusterWatch {
     val nextDelay   = retryStrategy.nextDelay _
     val maxAttempts = maxDiscoverAttempts.getOrElse(Int.MaxValue)
 
-    val action = retryF(readFn, "gossip", delay, nextDelay, maxAttempts, readTimeout.some, log) {
+    val action = retry(readFn, "gossip", delay, nextDelay, maxAttempts, readTimeout.some, log) {
       case _: TimeoutException | _: ServerUnavailable | _: NotLeader => true
       case _                                                         => false
     }

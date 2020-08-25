@@ -29,7 +29,8 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
     "only emit changes in cluster info" >> {
 
-      val settings   = Settings(1.some, 100.millis, RetryStrategy.Identity, 100.millis, 100.millis, NodePreference.Leader)
+      val settings =
+        ClusterSettings(1.some, 100.millis, RetryStrategy.Identity, 100.millis, 100.millis, NodePreference.Leader)
       def instanceId = sampleOf[ju.UUID]
       def timestamp  = sampleOf[ZonedDateTime]
 
@@ -71,7 +72,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
     "retry retriable errors until discovery attempts used" >> {
 
       val maxAttempts = 5
-      val settings = Settings(
+      val settings = ClusterSettings(
         maxDiscoverAttempts  = maxAttempts.some,
         retryDelay           = 50.millis,
         retryStrategy        = RetryStrategy.Identity,
@@ -110,7 +111,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
       implicit val ec: TestContext      = TestContext()
       implicit val cs: ContextShift[IO] = IO.contextShift(ec)
 
-      val settings = Settings(
+      val settings = ClusterSettings(
         maxDiscoverAttempts  = 3.some,
         retryDelay           = 50.millis,
         retryStrategy        = RetryStrategy.Identity,

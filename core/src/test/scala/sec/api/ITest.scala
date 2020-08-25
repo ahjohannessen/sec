@@ -12,6 +12,7 @@ import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import org.lyranthe.fs2_grpc.java_runtime.implicits._
 import io.grpc.netty.shaded.io.grpc.netty.{GrpcSslContexts, NettyChannelBuilder}
 import sec.core._
+import sec.client._
 import Arbitraries._
 
 trait ITest extends Specification with CatsIO with AfterAll {
@@ -26,12 +27,12 @@ trait ITest extends Specification with CatsIO with AfterAll {
 
   final private lazy val (client, shutdown): (EsClient[IO], IO[Unit]) = {
 
-    val certsFolder = new File(sys.env.get("SEC_TEST_CERTS_PATH").getOrElse(TestBuildInfo.certsPath))
+    val certsFolder = new File(sys.env.getOrElse("SEC_TEST_CERTS_PATH", TestBuildInfo.certsPath))
     val ca          = new File(certsFolder, "ca/ca.crt")
 
-    val address   = sys.env.get("SEC_IT_TEST_HOST_ADDRESS").getOrElse("127.0.0.1")
+    val address   = sys.env.getOrElse("SEC_IT_TEST_HOST_ADDRESS", "127.0.0.1")
     val port      = sys.env.get("SEC_IT_TEST_HOST_PORT").flatMap(_.toIntOption).getOrElse(2113)
-    val authority = sys.env.get("SEC_IT_TEST_AUTHORITY").getOrElse("es.sec.local")
+    val authority = sys.env.getOrElse("SEC_IT_TEST_AUTHORITY", "es.sec.local")
 
     val builder = IO.delay(
       NettyChannelBuilder
@@ -41,12 +42,12 @@ trait ITest extends Specification with CatsIO with AfterAll {
         .overrideAuthority(authority)
     )
 
-    val options = Options.default.copy(operationOptions = OperationOptions.default.copy(retryMaxAttempts = 3))
+    val options = Options.default.withOperationsMaxAttempts(3)
 
     val result: Resource[IO, EsClient[IO]] = for {
       b <- Resource.liftF(builder)
       l <- Resource.liftF(Slf4jLogger.fromName[IO]("integration-test"))
-      c <- b.resourceWithShutdown[IO](mc => IO.delay(mc.shutdownNow()).void).map(EsClient[IO](_, options, l))
+      c <- b.resourceWithShutdown[IO](mc => IO.delay(mc.shutdownNow()).void).map(EsClient[IO](_, options, true, l))
     } yield c
 
     result.allocated.unsafeRunSync()
