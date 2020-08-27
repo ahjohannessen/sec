@@ -68,7 +68,7 @@ sealed abstract class SingleNodeBuilder[F[_]](
 
   def withEndpoint(value: Endpoint): SingleNodeBuilder[F]        = copy(endpoint = value)
   def withAuthority(value: Option[String]): SingleNodeBuilder[F] = copy(authority = value)
-  def withLogger(logger: Logger[F]): SingleNodeBuilder[F]        = copy(logger = logger)
+  def withLogger(value: Logger[F]): SingleNodeBuilder[F]         = copy(logger = value)
 
   ///
 
@@ -125,7 +125,7 @@ class ClusterBuilder[F[_]](
   def withClusterNotificationInterval(value: FiniteDuration): ClusterBuilder[F] = mod(_.withNotificationInterval(value))
   def withClusterNodePreference(value: NodePreference): ClusterBuilder[F]       = mod(_.withNodePreference(value))
   def withAuthority(value: String): ClusterBuilder[F]                           = copy(authority = value)
-  def withLogger(logger: Logger[F]): ClusterBuilder[F]                          = copy(logger = logger)
+  def withLogger(value: Logger[F]): ClusterBuilder[F]                           = copy(logger = value)
 
   ///
 
