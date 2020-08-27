@@ -12,6 +12,9 @@ import sec.demo.BuildInfo.certsPath
 
 object Demo extends IOApp {
 
+//  java.util.logging.Logger.getLogger("").setLevel(java.util.logging.Level.FINE)
+//  java.util.logging.Logger.getLogger("").getHandlers.toList.foreach(_.setLevel(java.util.logging.Level.FINE))
+
   def run(args: List[String]): IO[ExitCode] = run
 
   val certsFolder       = new File(sys.env.getOrElse("SEC_DEMO_CERTS_PATH", certsPath))
@@ -38,7 +41,6 @@ object Demo extends IOApp {
       _ <- Resource.liftF(l.info("Starting up"))
       c <- sec.client.EsClient
              .cluster[IO](seed, authority)
-             .withClusterMaxDiscoveryAttempts(25)
              .withCertificate(ca.toPath)
              .withLogger(l)
              .resource
@@ -49,16 +51,16 @@ object Demo extends IOApp {
         val read = c.streams
           .readAllForwards(Position.Start, 30)
           .evalMap(x => l.info(s"streams.readAll: ${x.eventData.eventType.show}"))
-          .metered(100.millis)
+          .metered(500.millis)
           .repeat
           .take(25)
 
         val gossip = fs2.Stream
           .eval(c.gossip.read(None))
           .evalMap(x => l.info(s"gossip.read: ${x.show}"))
-          .metered(500.millis)
+          .metered(250.millis)
           .repeat
-          .take(5)
+          .take(50)
 
         read.concurrently(gossip).compile.drain.as(ExitCode.Success)
 

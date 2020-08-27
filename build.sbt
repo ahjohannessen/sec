@@ -5,8 +5,8 @@ lazy val root = project
   .settings(skip in publish := true)
   .aggregate(core, netty, demo)
 
-lazy val basePath  = file("").getAbsoluteFile.toPath
-lazy val certsPath = Seq[BuildInfoKey]("certsPath" -> basePath / "certs")
+lazy val basePath     = file("").getAbsoluteFile.toPath
+lazy val certsPathKey = "certsPath" -> basePath / "certs"
 
 lazy val IntegrationTest = config("it") extend Test
 
@@ -33,13 +33,14 @@ lazy val core = project
           specs2ScalaCheck,
           circeGeneric,
           grpcNetty,
+          tcnative,
           log4catsSlf4j,
           logback
         )
   )
   .settings(
     addBuildInfoToConfig(Test),
-    Test / buildInfoKeys := certsPath,
+    Test / buildInfoKeys := buildInfoKeys.value :+ BuildInfoKey(certsPathKey),
     Test / buildInfoObject := "TestBuildInfo"
   )
 
@@ -49,7 +50,7 @@ lazy val netty = project
   .settings(commonSettings)
   .settings(
     name := "sec",
-    libraryDependencies ++= compileM(grpcNetty)
+    libraryDependencies ++= compileM(grpcNetty, tcnative)
   )
 
 lazy val demo = project
@@ -57,7 +58,7 @@ lazy val demo = project
   .dependsOn(netty)
   .settings(
     name := "demo",
-    buildInfoKeys := certsPath,
+    buildInfoKeys := buildInfoKeys.value :+ BuildInfoKey(certsPathKey),
     buildInfoPackage := "sec.demo",
     libraryDependencies ++= compileM(log4catsSlf4j, logback),
     skip in publish := true
@@ -84,7 +85,7 @@ val devScalacOptions = { options: Seq[String] =>
 
 inThisBuild(
   List(
-    scalaVersion := "2.13.2",
+    scalaVersion := "2.13.3",
     organization := "io.github.ahjohannessen",
     developers := List(
       Developer(

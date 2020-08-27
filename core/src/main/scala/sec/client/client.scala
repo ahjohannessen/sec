@@ -11,6 +11,7 @@ import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.noop.NoOpLogger
 import sec.core._
 import sec.api._
+import sec.api.cluster.ClusterSettings
 import sec.api.grpc.metadata._
 import sec.api.grpc.convert.convertToEs
 
@@ -22,10 +23,10 @@ trait EsClient[F[_]] {
 object EsClient {
 
   def single[F[_]: ConcurrentEffect: Timer](endpoint: Endpoint): SingleNodeBuilder[F] =
-    SingleNodeBuilder[F](endpoint, NoOpLogger.impl[F])
+    SingleNodeBuilder[F](endpoint, None, Options.default, NoOpLogger.impl[F])
 
   def cluster[F[_]: ConcurrentEffect: Timer](seed: NonEmptySet[Endpoint], authority: String): ClusterBuilder[F] =
-    ClusterBuilder[F](seed, authority, NoOpLogger.impl[F])
+    ClusterBuilder[F](seed, authority, Options.default, ClusterSettings.default, NoOpLogger.impl[F])
 
 //======================================================================================================================
 
@@ -60,7 +61,7 @@ object EsClient {
   }
 
   private[sec] def mkOpts[F[_]](oo: OperationOptions, log: Logger[F], prefix: String): Opts[F] =
-    Opts[F](oo, defaultRetryOn, log.withModifiedString(s => s"$prefix: $s"))
+    Opts[F](oo.retryEnabled, oo.retryConfig, defaultRetryOn, log.withModifiedString(s => s"$prefix: $s"))
 
   /// Streams
 

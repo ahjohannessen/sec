@@ -1,11 +1,9 @@
-import scala.concurrent.duration.FiniteDuration
+import java.util.Locale
 import scala.util.Random
-import scala.util.control.NonFatal
+import scala.concurrent.duration._
 import cats.{ApplicativeError, MonadError}
 import cats.implicits._
-import cats.effect.{Concurrent, Sync, Timer}
-import cats.effect.implicits._
-import io.chrisdavenport.log4cats.Logger
+import cats.effect.Sync
 
 package object sec {
 
@@ -49,37 +47,43 @@ package object sec {
 
 //======================================================================================================================
 
-  private[sec] def retry[F[_]: Concurrent: Timer, A](
-    fa: F[A],
-    opName: String,
-    delay: FiniteDuration,
-    nextDelay: FiniteDuration => FiniteDuration,
-    maxAttempts: Int,
-    timeout: Option[FiniteDuration],
-    log: Logger[F]
-  )(retriable: Throwable => Boolean): F[A] = {
+  def format(duration: Duration): String = {
 
-    def logWarn(attempt: Int, delay: FiniteDuration, error: Throwable): F[Unit] = log.warn(
-      s"Failed $opName, attempt $attempt of $maxAttempts, retrying in $delay. Details: ${error.getMessage}"
-    )
-
-    def logError(error: Throwable): F[Unit] = log.error(
-      s"Failed $opName after $maxAttempts attempts. Details: ${error.getMessage}"
-    )
-
-    val max          = math.max(maxAttempts, 1)
-    val action: F[A] = timeout.fold(fa)(fa.timeout)
-
-    def run(attempts: Int, d: FiniteDuration): F[A] = action.recoverWith {
-      case NonFatal(t) if retriable(t) =>
-        val attempt = attempts + 1
-        if (attempt < max)
-          logWarn(attempt, d, t) *> Timer[F].sleep(d) *> run(attempt, nextDelay(d))
-        else
-          logError(t) *> t.raiseError[F, A]
+    def chooseUnit(fd: FiniteDuration): TimeUnit = {
+      if (fd.toDays > 0) DAYS
+      else if (fd.toHours > 0) HOURS
+      else if (fd.toMinutes > 0) MINUTES
+      else if (fd.toSeconds > 0) SECONDS
+      else if (fd.toMillis > 0) MILLISECONDS
+      else if (fd.toMicros > 0) MICROSECONDS
+      else NANOSECONDS
     }
 
-    run(0, delay)
+    def abbreviate(unit: TimeUnit): String = unit match {
+      case NANOSECONDS  => "ns"
+      case MICROSECONDS => "μs"
+      case MILLISECONDS => "ms"
+      case SECONDS      => "s"
+      case MINUTES      => "m"
+      case HOURS        => "h"
+      case DAYS         => "d"
+    }
+
+    def format(d: FiniteDuration): String = {
+
+      val precision: Int = 4
+      val nanos: Long    = d.toNanos
+      val unit: TimeUnit = chooseUnit(d)
+      val value: Double  = nanos.toDouble / NANOSECONDS.convert(1, unit)
+
+      s"%.${precision}g%s".formatLocal(Locale.ROOT, value, abbreviate(unit))
+    }
+
+    duration match {
+      case d: FiniteDuration => format(d)
+      case d: Duration       => d.toString
+    }
+
   }
 
 }

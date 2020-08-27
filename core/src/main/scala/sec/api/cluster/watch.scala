@@ -15,6 +15,7 @@ import io.grpc._
 import core.{NotLeader, ServerUnavailable}
 import sec.api.Gossip.ClusterInfo
 import sec.api.cluster.grpc._
+import sec.api.retries._
 
 private[sec] trait ClusterWatch[F[_]] {
   def subscribe: Stream[F, ClusterInfo]
@@ -31,11 +32,12 @@ private[sec] object ClusterWatch {
     logger: Logger[F]
   ): Resource[F, ClusterWatch[F]] = {
 
+    val log: Logger[F]                 = logger.withModifiedString(s => s"ClusterWatch: $s")
     val mkCache: Resource[F, Cache[F]] = Resource.liftF(Cache(ClusterInfo(Set.empty)))
 
     def mkProvider(updates: Stream[F, ClusterInfo]): Resource[F, ResolverProvider[F]] =
       ResolverProvider
-        .gossip(authority, seed, updates, logger)
+        .gossip(authority, seed, updates, log)
         .evalTap(p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
 
     def mkChannel(p: ResolverProvider[F]): Resource[F, ManagedChannel] = Resource
@@ -47,7 +49,7 @@ private[sec] object ClusterWatch {
       updates   = mkWatch(store.get, settings.notificationInterval).subscribe
       provider <- mkProvider(updates)
       channel  <- mkChannel(provider)
-      watch    <- create[F](gossipFn(channel).read(None), settings, store, logger)
+      watch    <- create[F](gossipFn(channel).read(None), settings, store, log)
     } yield watch
 
   }
@@ -74,17 +76,13 @@ private[sec] object ClusterWatch {
 
   def mkFetcher[F[_]: ConcurrentEffect: Timer](
     readFn: F[ClusterInfo],
-    settings: ClusterSettings,
+    cs: ClusterSettings,
     setInfo: ClusterInfo => F[Unit],
     log: Logger[F]
   ): Stream[F, Unit] = {
-    import settings._
+    import cs._
 
-    val delay       = retryDelay min readTimeout
-    val nextDelay   = retryStrategy.nextDelay _
-    val maxAttempts = maxDiscoverAttempts.getOrElse(Int.MaxValue)
-
-    val action = retry(readFn, "gossip", delay, nextDelay, maxAttempts, readTimeout.some, log) {
+    val action = retry(readFn, "gossip", cs.retryConfig, log) {
       case _: TimeoutException | _: ServerUnavailable | _: NotLeader => true
       case _                                                         => false
     }

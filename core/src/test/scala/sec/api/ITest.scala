@@ -10,7 +10,7 @@ import cats.effect.testing.specs2.CatsIO
 import cats.effect._
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import org.lyranthe.fs2_grpc.java_runtime.implicits._
-import io.grpc.netty.shaded.io.grpc.netty.{GrpcSslContexts, NettyChannelBuilder}
+import io.grpc.netty.{GrpcSslContexts, NettyChannelBuilder}
 import sec.core._
 import sec.client._
 import Arbitraries._
@@ -42,7 +42,7 @@ trait ITest extends Specification with CatsIO with AfterAll {
         .overrideAuthority(authority)
     )
 
-    val options = Options.default.withOperationsMaxAttempts(3)
+    val options = Options.default.withOperationsRetryMaxAttempts(3)
 
     val result: Resource[IO, EsClient[IO]] = for {
       b <- Resource.liftF(builder)
