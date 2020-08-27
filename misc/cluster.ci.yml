@@ -3,7 +3,7 @@ services:
   es1:
     image: quay.io/ahjohannessen/es-v6:latest
     environment:
-      EVENTSTORE_MEM_DB: 'True'
+      EVENTSTORE_MEM_DB: 'False'
       EVENTSTORE_CLUSTER_SIZE: 3
       EVENTSTORE_CERTIFICATE_FILE: '/certs/node/node.crt'
       EVENTSTORE_CERTIFICATE_PRIVATE_KEY_FILE: '/certs/node/node.key'
@@ -23,7 +23,7 @@ services:
   es2:
     image: quay.io/ahjohannessen/es-v6:latest
     environment:
-      EVENTSTORE_MEM_DB: 'True'
+      EVENTSTORE_MEM_DB: 'False'
       EVENTSTORE_CLUSTER_SIZE: 3
       EVENTSTORE_CERTIFICATE_FILE: '/certs/node/node.crt'
       EVENTSTORE_CERTIFICATE_PRIVATE_KEY_FILE: '/certs/node/node.key'
@@ -43,7 +43,7 @@ services:
   es3:
     image: quay.io/ahjohannessen/es-v6:latest
     environment:
-      EVENTSTORE_MEM_DB: 'True'
+      EVENTSTORE_MEM_DB: 'False'
       EVENTSTORE_CLUSTER_SIZE: 3
       EVENTSTORE_CERTIFICATE_FILE: '/certs/node/node.crt'
       EVENTSTORE_CERTIFICATE_PRIVATE_KEY_FILE: '/certs/node/node.key'

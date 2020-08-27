@@ -6,7 +6,7 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit.SECONDS
 import cats._
 import cats.implicits._
-import cats.effect.Sync
+import cats.effect.{Concurrent, Timer}
 import com.eventstore.client.gossip.{GossipFs2Grpc, ClusterInfo => PClusterInfo}
 import com.eventstore.client.Empty
 import mapping.gossip.mkClusterInfo
@@ -17,14 +17,16 @@ trait Gossip[F[_]] {
 
 object Gossip {
 
-  private[sec] def apply[F[_]: Sync](
-    client: GossipFs2Grpc[F, Context],
-    mkCtx: Option[UserCredentials] => Context
+  private[sec] def apply[F[_]: Concurrent: Timer, C](
+    client: GossipFs2Grpc[F, C],
+    mkCtx: Option[UserCredentials] => C,
+    opts: Opts[F]
   ): Gossip[F] = new Gossip[F] {
-    def read(creds: Option[UserCredentials]): F[ClusterInfo] = read0(client.read(Empty(), mkCtx(creds)))
+    def read(creds: Option[UserCredentials]): F[ClusterInfo] = read0(opts)(client.read(Empty(), mkCtx(creds)))
   }
 
-  private[sec] def read0[F[_]: ErrorM](f: F[PClusterInfo]): F[ClusterInfo] = f >>= mkClusterInfo[F]
+  private[sec] def read0[F[_]: Concurrent: Timer](o: Opts[F])(f: F[PClusterInfo]): F[ClusterInfo] =
+    o.run(f, "read") >>= mkClusterInfo[F]
 
 //======================================================================================================================
 

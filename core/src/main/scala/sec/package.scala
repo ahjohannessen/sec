@@ -11,6 +11,11 @@ package object sec {
 
 //======================================================================================================================
 
+  type EsClient[F[_]] = sec.client.EsClient[F]
+  val EsClient = sec.client.EsClient
+
+//======================================================================================================================
+
   private[sec] type ErrorM[F[_]] = MonadError[F, Throwable]
   private[sec] type ErrorA[F[_]] = ApplicativeError[F, Throwable]
   private[sec] type Attempt[T]   = Either[String, T]
@@ -44,7 +49,7 @@ package object sec {
 
 //======================================================================================================================
 
-  private[sec] def retryF[F[_]: Concurrent: Timer, A](
+  private[sec] def retry[F[_]: Concurrent: Timer, A](
     fa: F[A],
     opName: String,
     delay: FiniteDuration,
