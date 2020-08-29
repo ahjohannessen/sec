@@ -34,7 +34,7 @@ object ResolverProvider {
 
   private def mkHaltR[F[_]: Concurrent](log: Logger[F]): Resource[F, SignallingRef[F, Boolean]] =
     Resource.make(SignallingRef[F, Boolean](false)) { sr =>
-      sr.set(true) *> log.debug("signalled notifier to halt.")
+      sr.set(true) *> log.debug("Signalled Notifier to shutdown.")
     }
 
   def gossip[F[_]: ConcurrentEffect](
@@ -43,7 +43,7 @@ object ResolverProvider {
     updates: Stream[F, ClusterInfo],
     log: Logger[F]
   ): Resource[F, ResolverProvider[F]] =
-    mkHaltR[F](log.withModifiedString(s => s"Gossip resolver: $s")).map { halt =>
+    mkHaltR[F](log.withModifiedString(s => s"Gossip Resolver > $s")).map { halt =>
       ResolverProvider(gossipScheme, Resolver.gossip(authority, seed, updates, halt))
     }
 
@@ -53,7 +53,7 @@ object ResolverProvider {
     updates: Stream[F, ClusterInfo],
     log: Logger[F]
   ): Resource[F, ResolverProvider[F]] =
-    mkHaltR[F](log.withModifiedString(s => s"BestNodes resolver: $s")).map { halt =>
+    mkHaltR[F](log.withModifiedString(s => s"BestNodes Resolver > $s")).map { halt =>
       ResolverProvider(clusterScheme, Resolver.bestNodes(authority, np, updates, halt))
     }
 

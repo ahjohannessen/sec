@@ -61,7 +61,7 @@ object EsClient {
   }
 
   private[sec] def mkOpts[F[_]](oo: OperationOptions, log: Logger[F], prefix: String): Opts[F] =
-    Opts[F](oo.retryEnabled, oo.retryConfig, defaultRetryOn, log.withModifiedString(s => s"$prefix: $s"))
+    Opts[F](oo.retryEnabled, oo.retryConfig, defaultRetryOn, log.withModifiedString(s => s"$prefix > $s"))
 
   /// Streams
 

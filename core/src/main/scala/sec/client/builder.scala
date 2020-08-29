@@ -145,19 +145,21 @@ class ClusterBuilder[F[_]](
     T: Timer[F]
   ): Resource[F, EsClient[F]] = {
 
+    val log: Logger[F] = logger.withModifiedString(s => s"Cluster > $s")
+
     val builderForTarget: String => F[MCB] =
       t => mcb(ChannelBuilderParams(t, options.connectionMode))
 
     def gossipFn(mc: ManagedChannel): Gossip[F] = Gossip(
       EsClient.mkGossipFs2Grpc[F](mc),
       EsClient.mkContext(options, requiresLeader = false),
-      EsClient.mkOpts[F](options.operationOptions.copy(retryEnabled = false), logger, "Cluster.Gossip")
+      EsClient.mkOpts[F](options.operationOptions.copy(retryEnabled = false), log, "gossip")
     )
 
-    ClusterWatch(builderForTarget, settings, gossipFn, seed, authority, logger) >>= { cw =>
+    ClusterWatch(builderForTarget, settings, gossipFn, seed, authority, log) >>= { cw =>
 
       val mkProvider: Resource[F, ResolverProvider[F]] = ResolverProvider
-        .bestNodes[F](authority, settings.preference, cw.subscribe, logger)
+        .bestNodes[F](authority, settings.preference, cw.subscribe, log)
         .evalTap(p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
 
       def builder(p: ResolverProvider[F]): Resource[F, MCB] =

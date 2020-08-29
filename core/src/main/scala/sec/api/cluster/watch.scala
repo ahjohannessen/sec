@@ -32,12 +32,11 @@ private[sec] object ClusterWatch {
     logger: Logger[F]
   ): Resource[F, ClusterWatch[F]] = {
 
-    val log: Logger[F]                 = logger.withModifiedString(s => s"ClusterWatch: $s")
     val mkCache: Resource[F, Cache[F]] = Resource.liftF(Cache(ClusterInfo(Set.empty)))
 
     def mkProvider(updates: Stream[F, ClusterInfo]): Resource[F, ResolverProvider[F]] =
       ResolverProvider
-        .gossip(authority, seed, updates, log)
+        .gossip(authority, seed, updates, logger)
         .evalTap(p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
 
     def mkChannel(p: ResolverProvider[F]): Resource[F, ManagedChannel] = Resource
@@ -49,7 +48,7 @@ private[sec] object ClusterWatch {
       updates   = mkWatch(store.get, settings.notificationInterval).subscribe
       provider <- mkProvider(updates)
       channel  <- mkChannel(provider)
-      watch    <- create[F](gossipFn(channel).read(None), settings, store, log)
+      watch    <- create[F](gossipFn(channel).read(None), settings, store, logger)
     } yield watch
 
   }

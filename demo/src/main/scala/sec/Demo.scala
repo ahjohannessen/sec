@@ -48,22 +48,15 @@ object Demo extends IOApp {
 
     resources.use {
       case (l, c) =>
-        val read = c.streams
+        c.streams
           .readAllForwards(Position.Start, 30)
-          .evalMap(x => l.info(s"streams.readAll: ${x.eventData.eventType.show}"))
+          .evalMap(x => l.info(s"Streams.readAll ${x.eventData.eventType.show}"))
           .metered(500.millis)
           .repeat
           .take(25)
-
-        val gossip = fs2.Stream
-          .eval(c.gossip.read(None))
-          .evalMap(x => l.info(s"gossip.read: ${x.show}"))
-          .metered(250.millis)
-          .repeat
-          .take(50)
-
-        read.concurrently(gossip).compile.drain.as(ExitCode.Success)
-
+          .compile
+          .drain
+          .as(ExitCode.Success)
     }
 
   }
