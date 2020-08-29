@@ -29,8 +29,11 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
     "only emit changes in cluster info" >> {
 
-      val settings =
-        ClusterSettings(1.some, 100.millis, RetryStrategy.Identity, 100.millis, 100.millis, NodePreference.Leader)
+      val settings = ClusterSettings.default
+        .withMaxDiscoverAttempts(1.some)
+        .withRetryMaxDelay(100.millis)
+        .withReadTimeout(100.millis)
+
       def instanceId = sampleOf[ju.UUID]
       def timestamp  = sampleOf[ZonedDateTime]
 
@@ -72,14 +75,13 @@ class ClusterWatchSpec extends Specification with CatsIO {
     "retry retriable errors until discovery attempts used" >> {
 
       val maxAttempts = 5
-      val settings = ClusterSettings(
-        maxDiscoverAttempts  = maxAttempts.some,
-        retryDelay           = 50.millis,
-        retryStrategy        = RetryStrategy.Identity,
-        readTimeout          = 50.millis,
-        notificationInterval = 50.millis,
-        preference           = NodePreference.Leader
-      )
+
+      val settings = ClusterSettings.default
+        .withMaxDiscoverAttempts(maxAttempts.some)
+        .withRetryDelay(50.millis)
+        .withRetryBackoffFactor(1)
+        .withReadTimeout(50.millis)
+        .withNotificationInterval(50.millis)
 
       def test(err: Throwable, count: Int) = {
 
@@ -111,14 +113,12 @@ class ClusterWatchSpec extends Specification with CatsIO {
       implicit val ec: TestContext      = TestContext()
       implicit val cs: ContextShift[IO] = IO.contextShift(ec)
 
-      val settings = ClusterSettings(
-        maxDiscoverAttempts  = 3.some,
-        retryDelay           = 50.millis,
-        retryStrategy        = RetryStrategy.Identity,
-        readTimeout          = 50.millis,
-        notificationInterval = 50.millis,
-        preference           = NodePreference.Leader
-      )
+      val settings = ClusterSettings.default
+        .withMaxDiscoverAttempts(3.some)
+        .withRetryDelay(50.millis)
+        .withRetryBackoffFactor(1)
+        .withReadTimeout(50.millis)
+        .withNotificationInterval(50.millis)
 
       val error = sampleOfGen(Gen.oneOf(ServerUnavailable("Oh Noes"), new TimeoutException("Oh Noes")))
 

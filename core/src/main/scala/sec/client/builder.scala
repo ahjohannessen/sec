@@ -37,13 +37,15 @@ private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]] {
 
   private[sec] def modOptions(fn: Options => Options): B
 
-  def withCertificate(value: Path): B                    = modOptions(_.withSecureMode(value))
-  def withConnectionName(value: String): B               = modOptions(_.withConnectionName(value))
-  def withCredentials(value: Option[UserCredentials]): B = modOptions(_.withCredentials(value))
-  def withOperationsRetryDelay(value: FiniteDuration): B = modOptions(_.withOperationsRetryDelay(value))
-  def withOperationsMaxAttempts(value: Int): B           = modOptions(_.withOperationsMaxAttempts(value))
-  def withOperationsRetryEnabled: B                      = modOptions(_.withOperationsRetryEnabled)
-  def withOperationsRetryDisabled: B                     = modOptions(_.withOperationsRetryDisabled)
+  def withCertificate(value: Path): B                       = modOptions(_.withSecureMode(value))
+  def withConnectionName(value: String): B                  = modOptions(_.withConnectionName(value))
+  def withCredentials(value: Option[UserCredentials]): B    = modOptions(_.withCredentials(value))
+  def withOperationsRetryDelay(value: FiniteDuration): B    = modOptions(_.withOperationsRetryDelay(value))
+  def withOperationsRetryMaxDelay(value: FiniteDuration): B = modOptions(_.withOperationsRetryMaxDelay(value))
+  def withOperationsRetryMaxAttempts(value: Int): B         = modOptions(_.withOperationsRetryMaxAttempts(value))
+  def withOperationsRetryBackoffFactor(value: Double): B    = modOptions(_.withOperationsRetryBackoffFactor(value))
+  def withOperationsRetryEnabled: B                         = modOptions(_.withOperationsRetryEnabled)
+  def withOperationsRetryDisabled: B                        = modOptions(_.withOperationsRetryDisabled)
 }
 
 //======================================================================================================================
@@ -92,9 +94,11 @@ object SingleNodeBuilder {
 
   private[sec] def apply[F[_]](
     endpoint: Endpoint,
+    authority: Option[String],
+    options: Options,
     logger: Logger[F]
   ): SingleNodeBuilder[F] =
-    new SingleNodeBuilder[F](endpoint, None, Options.default, logger) {}
+    new SingleNodeBuilder[F](endpoint, authority, options, logger) {}
 }
 
 //======================================================================================================================
@@ -121,6 +125,8 @@ class ClusterBuilder[F[_]](
 
   def withClusterMaxDiscoveryAttempts(value: Int): ClusterBuilder[F]            = mod(_.withMaxDiscoverAttempts(value.some))
   def withClusterRetryDelay(value: FiniteDuration): ClusterBuilder[F]           = mod(_.withRetryDelay(value))
+  def withClusterRetryMaxDelay(value: FiniteDuration): ClusterBuilder[F]        = mod(_.withRetryMaxDelay(value))
+  def withClusterRetryBackoffFactor(value: Double): ClusterBuilder[F]           = mod(_.withRetryBackoffFactor(value))
   def withClusterReadTimeout(value: FiniteDuration): ClusterBuilder[F]          = mod(_.withReadTimeout(value))
   def withClusterNotificationInterval(value: FiniteDuration): ClusterBuilder[F] = mod(_.withNotificationInterval(value))
   def withClusterNodePreference(value: NodePreference): ClusterBuilder[F]       = mod(_.withNodePreference(value))
@@ -171,12 +177,15 @@ class ClusterBuilder[F[_]](
 }
 
 object ClusterBuilder {
+
   private[sec] def apply[F[_]: ConcurrentEffect: Timer](
     seed: NonEmptySet[Endpoint],
     authority: String,
+    options: Options,
+    settings: ClusterSettings,
     logger: Logger[F]
   ): ClusterBuilder[F] =
-    new ClusterBuilder[F](seed, authority, Options.default, ClusterSettings.default, logger)
+    new ClusterBuilder[F](seed, authority, options, settings, logger)
 }
 
 //======================================================================================================================

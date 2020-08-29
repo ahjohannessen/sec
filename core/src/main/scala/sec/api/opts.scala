@@ -4,11 +4,13 @@ package api
 import scala.concurrent.duration._
 import cats.effect.{Concurrent, Timer}
 import io.chrisdavenport.log4cats.Logger
+import sec.api.retries._
 
 //======================================================================================================================
 
 final private[sec] case class Opts[F[_]](
-  oo: OperationOptions,
+  retryEnabled: Boolean,
+  retryConfig: RetryConfig,
   retryOn: Throwable => Boolean,
   log: Logger[F]
 )
@@ -16,13 +18,19 @@ final private[sec] case class Opts[F[_]](
 private[sec] object Opts {
 
   implicit final class OptsOps[F[_]](val opts: Opts[F]) extends AnyVal {
-    import opts._
-    import opts.oo._
 
-    def run[A](fa: F[A], opName: String)(implicit F: Concurrent[F], T: Timer[F]): F[A] = retryEnabled.fold(
-      retry[F, A](fa, opName, retryDelay, retryStrategy.nextDelay, retryMaxAttempts, None, log)(retryOn),
-      fa
-    )
+    def run[A](fa: F[A], opName: String)(implicit F: Concurrent[F], T: Timer[F]): F[A] =
+      opts.retryEnabled.fold(
+        retry[F, A](fa, opName, opts.retryConfig, opts.log)(opts.retryOn),
+        fa
+      )
+
+    def logWarn(opName: String)(attempt: Int, delay: FiniteDuration, error: Throwable): F[Unit] =
+      opts.retryConfig.logWarn[F](opName, opts.log)(attempt, delay, error)
+
+    def logError(opName: String)(error: Throwable): F[Unit] =
+      opts.retryConfig.logError[F](opName, opts.log)(error)
+
   }
 }
 
@@ -31,33 +39,31 @@ private[sec] object Opts {
 final private[sec] case class OperationOptions(
   retryEnabled: Boolean,
   retryDelay: FiniteDuration,
-  retryStrategy: RetryStrategy,
+  retryMaxDelay: FiniteDuration,
+  retryBackoffFactor: Double,
   retryMaxAttempts: Int
 )
 
 private[sec] object OperationOptions {
+
   val default: OperationOptions = OperationOptions(
-    retryEnabled     = true,
-    retryDelay       = 200.millis,
-    retryStrategy    = RetryStrategy.Identity,
-    retryMaxAttempts = 100
+    retryEnabled       = true,
+    retryDelay         = 250.millis,
+    retryMaxDelay      = 5.seconds,
+    retryBackoffFactor = 1.5,
+    retryMaxAttempts   = 100
   )
-}
 
-//======================================================================================================================
+  implicit final class OperationOptionsOps(val oo: OperationOptions) extends AnyVal {
 
-sealed private[sec] trait RetryStrategy
-private[sec] object RetryStrategy {
+    def retryConfig: RetryConfig = RetryConfig(
+      delay         = oo.retryDelay,
+      maxDelay      = oo.retryMaxDelay,
+      backoffFactor = oo.retryBackoffFactor,
+      maxAttempts   = oo.retryMaxAttempts,
+      timeout       = None
+    )
 
-  case object Identity    extends RetryStrategy
-  case object Exponential extends RetryStrategy
-
-  implicit final class RetryStrategyOps(val s: RetryStrategy) extends AnyVal {
-    def nextDelay(d: FiniteDuration): FiniteDuration = s match {
-      case Identity    => d
-      case Exponential => d * 2
-    }
   }
-}
 
-//======================================================================================================================
+}

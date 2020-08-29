@@ -313,39 +313,32 @@ object Streams {
     _.through(subConfirmationPipe).through(checkpointOrEvent)
   }
 
+  // TODO: Tests
   private[sec] def withRetryS[F[_]: Sync: Timer, T: Eq, O](
     from: T,
     streamFn: T => Stream[F, O],
     extractFn: O => T,
-    opts: Opts[F],
+    o: Opts[F],
     opName: String
   ): Stream[F, O] = {
 
-    import opts._
-
-    val nextDelay   = oo.retryStrategy.nextDelay _
-    val maxAttempts = math.max(oo.retryMaxAttempts, 1)
-
-    def logWarn(attempt: Int, delay: FiniteDuration, error: Throwable): F[Unit] = log.warn(
-      s"Failed $opName, attempt $attempt of $maxAttempts, retrying in $delay. Details: ${error.getMessage}"
-    )
-
-    def logError(error: Throwable): F[Unit] =
-      log.error(s"Failed $opName after $maxAttempts attempts. Details: ${error.getMessage}")
+    val logWarn   = o.logWarn(opName) _
+    val logError  = o.logError(opName) _
+    val nextDelay = o.retryConfig.nextDelay _
 
     def run(f: T, attempts: Int, d: FiniteDuration): Stream[F, O] =
       Stream.eval(Ref.of[F, T](f)).flatMap { r =>
         streamFn(f).changesBy(extractFn).evalTap(o => r.set(extractFn(o))).recoverWith {
-          case NonFatal(t) if retryOn(t) =>
+          case NonFatal(t) if o.retryOn(t) =>
             val attempt = attempts + 1
-            if (attempt < maxAttempts)
+            if (attempt < o.retryConfig.maxAttempts)
               Stream.eval(logWarn(attempt, d, t) *> r.get).flatMap(run(_, attempt, nextDelay(d)).delayBy(d))
             else
               Stream.eval(logError(t)) *> Stream.raiseError[F](t)
         }
       }
 
-    run(from, 0, oo.retryDelay)
+    run(from, 0, o.retryConfig.delay)
   }
 
 }
