@@ -1,40 +1,18 @@
 version: '3.8'
+
+x-common-variables: &common-variables
+  EVENTSTORE_CLUSTER_SIZE: "3"
+
 services:
-
-  volumes-provisioner:
-     image: hasnat/volumes-provisioner
-     env_file:
-       - shared.env
-     environment:
-       PROVISION_DIRECTORIES: "1000:1000:0755:/tmp/certs"
-     volumes:
-       - "$SEC_GENCERT_CERTS_PATH:/tmp/certs"
-     network_mode: none
-
-  cert-gen:
-     image: quay.io/ahjohannessen/es-gencert-cli:1.0.2
-     env_file:
-       - shared.env
-     entrypoint: bash
-     command: >
-       -c "es-gencert-cli create-ca -out /tmp/certs/ca &&
-           es-gencert-cli create-node -ca-certificate /tmp/certs/ca/ca.crt -ca-key /tmp/certs/ca/ca.key -out \
-           /tmp/certs/node -ip-addresses $SEC_GENCERT_IP_ADDRESSES -dns-names $SEC_GENCERT_DNS_NAMES"
-     user: "1000:1000"
-     volumes:
-       - "$SEC_GENCERT_CERTS_PATH:/tmp/certs"
-     network_mode: none
-     depends_on:
-       - volumes-provisioner
 
   es1:
     image: quay.io/ahjohannessen/es-v6:latest
     env_file:
       - shared.env
     environment:
-      EVENTSTORE_CLUSTER_SIZE: 3
+      <<: *common-variables
       EVENTSTORE_GOSSIP_SEED: "${SEC_ESC_2_IP}:2113,${SEC_ESC_3_IP}:2113"
-      EVENTSTORE_ADVERTISE_HTTP_PORT_TO_CLIENT_AS: '2114'
+      EVENTSTORE_ADVERTISE_HTTP_PORT_TO_CLIENT_AS: "2114"
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
     ports:
@@ -50,9 +28,9 @@ services:
     env_file:
       - shared.env
     environment:
-      EVENTSTORE_CLUSTER_SIZE: 3
+      <<: *common-variables
       EVENTSTORE_GOSSIP_SEED: "${SEC_ESC_1_IP}:2113,${SEC_ESC_3_IP}:2113"
-      EVENTSTORE_ADVERTISE_HTTP_PORT_TO_CLIENT_AS: '2115'
+      EVENTSTORE_ADVERTISE_HTTP_PORT_TO_CLIENT_AS: "2115"
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
     ports:
@@ -68,9 +46,9 @@ services:
     env_file:
       - shared.env
     environment:
-      EVENTSTORE_CLUSTER_SIZE: 3
+      <<: *common-variables
       EVENTSTORE_GOSSIP_SEED: "${SEC_ESC_1_IP}:2113,${SEC_ESC_2_IP}:2113"
-      EVENTSTORE_ADVERTISE_HTTP_PORT_TO_CLIENT_AS: '2116'
+      EVENTSTORE_ADVERTISE_HTTP_PORT_TO_CLIENT_AS: "2116"
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
     ports:

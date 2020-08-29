@@ -1,0 +1,26 @@
+version: '3.8'
+services:
+  volumes-provisioner:
+     image: hasnat/volumes-provisioner
+     env_file:
+       - shared.env
+     environment:
+       PROVISION_DIRECTORIES: "1000:1000:0755:/tmp/certs"
+     volumes:
+       - "$SEC_GENCERT_CERTS_PATH:/tmp/certs"
+     network_mode: none
+  cert-gen:
+     image: quay.io/ahjohannessen/es-gencert-cli:1.0.2
+     env_file:
+       - shared.env
+     entrypoint: bash
+     command: >
+       -c "[ -d /tmp/certs/ca ] || es-gencert-cli create-ca -out /tmp/certs/ca &&
+           es-gencert-cli create-node -ca-certificate /tmp/certs/ca/ca.crt -ca-key /tmp/certs/ca/ca.key -out \
+           /tmp/certs/node -ip-addresses $SEC_GENCERT_IP_ADDRESSES -dns-names $SEC_GENCERT_DNS_NAMES"
+     user: "1000:1000"
+     volumes:
+       - "$SEC_GENCERT_CERTS_PATH:/tmp/certs"
+     network_mode: none
+     depends_on:
+       - volumes-provisioner
