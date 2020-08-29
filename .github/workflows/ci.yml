@@ -18,7 +18,7 @@ jobs:
     - uses: actions/checkout@v1
 
     - name: Start Eventstore
-      run: docker-compose --env-file misc/shared.env -f misc/single-node.ci.yml up -d
+      run: misc/single-node.sh up -d
 
     - uses: olafurpg/setup-scala@v7
 
@@ -26,19 +26,19 @@ jobs:
       run: sbt "core/test" "core/it:test"
 
     - name: Stop Eventstore
-      run: docker-compose --env-file misc/shared.env -f misc/single-node.ci.yml down
+      run: misc/single-node.sh down
       if: always()
 
 
   cluster:
-
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v1
 
     - name: Start Eventstore cluster
-      run: docker-compose --env-file misc/shared.env -f misc/cluster.ci.yml up -d
+      run: misc/cluster.sh up -d
 
     - uses: olafurpg/setup-scala@v7
 
@@ -49,11 +49,11 @@ jobs:
         SEC_DEMO_AUTHORITY: es.sec.local
 
     - name: Stop Eventstore cluster
-      run: docker-compose --env-file misc/shared.env -f misc/cluster.ci.yml down
+      run: misc/cluster.sh down
       if: always()
 
   publish:
-    needs: test
+    needs: [test, cluster]
     if: github.event_name == 'push'
 
     runs-on: ubuntu-latest
