@@ -17,11 +17,8 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - name: Generate certificates
-      run: misc/gencert.sh
-
     - name: Start Eventstore
-      run: docker-compose -f misc/single-node.ci.yml up -d
+      run: docker-compose --env-file misc/shared.env -f misc/single-node.ci.yml up -d
 
     - uses: olafurpg/setup-scala@v7
 
@@ -29,7 +26,7 @@ jobs:
       run: sbt "core/test" "core/it:test"
 
     - name: Stop Eventstore
-      run: docker-compose -f misc/single-node.ci.yml down
+      run: docker-compose --env-file misc/shared.env -f misc/single-node.ci.yml down
       if: always()
 
 
@@ -40,13 +37,8 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - name: Generate certificates
-      run: misc/gencert.sh
-      env:
-        SEC_GENCERT_IP_ADDRESSES: 127.0.0.1,172.20.0.2,172.20.0.3,172.20.0.4
-
     - name: Start Eventstore cluster
-      run: docker-compose -f misc/cluster.ci.yml up -d
+      run: docker-compose --env-file misc/shared.env -f misc/cluster.ci.yml up -d
 
     - uses: olafurpg/setup-scala@v7
 
@@ -57,7 +49,7 @@ jobs:
         SEC_DEMO_AUTHORITY: es.sec.local
 
     - name: Stop Eventstore cluster
-      run: docker-compose -f misc/cluster.ci.yml down
+      run: docker-compose --env-file misc/shared.env -f misc/cluster.ci.yml down
       if: always()
 
   publish:
