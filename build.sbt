@@ -86,6 +86,8 @@ val devScalacOptions = { options: Seq[String] =>
 inThisBuild(
   List(
     scalaVersion := "2.13.3",
+    scalacOptions ++= Seq("-target:jvm-1.8"),
+    javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
     organizationName := "Scala EventStoreDB Client",
     developers := List(
