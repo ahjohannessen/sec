@@ -64,7 +64,11 @@ lazy val commonSettings = Seq(
   Test / scalacOptions ~= devScalacOptions,
   IntegrationTest / scalacOptions ~= devScalacOptions,
   libraryDependencies ++=
-    testM(catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck).map(_.withDottyCompat(scalaVersion.value))
+    testM(catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck).map(_.withDottyCompat(scalaVersion.value)),
+  Compile / doc / sources := {
+    val old = (Compile / doc / sources).value
+    if (isDotty.value) Seq() else old
+  }
 )
 
 lazy val metalsEnabled =
