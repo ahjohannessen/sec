@@ -87,6 +87,7 @@ inThisBuild(
   List(
     scalaVersion := "2.13.3",
     organization := "io.github.ahjohannessen",
+    organizationName := "Scala EventStoreDB Client",
     developers := List(
       Developer(
         "ahjohannessen",
@@ -107,6 +108,17 @@ inThisBuild(
       "-doc-source-url",
       "https://github.com/ahjohannessen/sec/blob/v" + version.value + "€{FILE_PATH}.scala"
     ),
-    shellPrompt := Prompt.enrichedShellPrompt
+    shellPrompt := Prompt.enrichedShellPrompt,
+    // Github Actions
+    githubWorkflowJavaVersions := Seq("adopt@1.11"),
+    githubWorkflowTargetTags += "v*",
+    githubWorkflowPublish := Seq(WorkflowStep.Sbt(List("ci-release"))),
+    githubWorkflowPublishTargetBranches += RefPredicate.StartsWith(Ref.Tag("v")),
+    githubWorkflowEnv ++= Map(
+      "SONATYPE_USERNAME" -> s"$${{ secrets.SONATYPE_USERNAME }}",
+      "SONATYPE_PASSWORD" -> s"$${{ secrets.SONATYPE_PASSWORD }}",
+      "PGP_SECRET"        -> s"$${{ secrets.PGP_SECRET }}",
+      "PGP_PASSPHRASE"    -> s"$${{ secrets.PGP_PASSPHRASE }}"
+    )
   )
 )
