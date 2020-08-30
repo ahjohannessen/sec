@@ -16,7 +16,7 @@ object NodePreference {
     Eq.fromUniversalEquals[NodePreference]
 
   implicit final class NodePreferenceOps(val np: NodePreference) extends AnyVal {
-    def isLeader: Boolean = np === Leader
+    def isLeader: Boolean = np.eqv(Leader)
   }
 
 }

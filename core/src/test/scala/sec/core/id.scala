@@ -12,8 +12,6 @@ class StreamIdSpec extends Specification with Discipline {
 
   import StreamId.{systemStreams => ss}
 
-  type ErrorOr[A] = Either[Throwable, A]
-
   val normalId = StreamId.normal("normal").unsafe
   val systemId = StreamId.system("system").unsafe
 
@@ -30,8 +28,15 @@ class StreamIdSpec extends Specification with Discipline {
   }
 
   "apply" >> {
-    StreamId[ErrorOr]("") should beLeft(StreamId.StreamIdError("name cannot be empty"))
-    StreamId[ErrorOr]("$$m") should beLeft(StreamId.StreamIdError("value must not start with $$, but is $$m"))
+
+    StreamId[ErrorOr]("") should beLike {
+      case Left(StreamId.StreamIdError("name cannot be empty")) => ok
+    }
+
+    StreamId[ErrorOr]("$$m") should beLike {
+      case Left(StreamId.StreamIdError("value must not start with $$, but is $$m")) => ok
+    }
+
     StreamId[ErrorOr]("$users") shouldEqual StreamId.system("users")
     StreamId[ErrorOr]("users") shouldEqual StreamId.normal("users")
     StreamId[ErrorOr](ss.All) shouldEqual StreamId.All.asRight

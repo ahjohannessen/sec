@@ -99,9 +99,9 @@ object Notifier {
      * */
     def defaultSelector[F[_]: Sync](ci: ClusterInfo, np: NodePreference): F[List[MemberInfo]] =
       prioritizeNodes[F](ci, np).map {
-        case x :: _ if x.state === VNodeState.Leader => x :: Nil
-        case x :: xs                                 => x :: xs.filter(_.state === x.state)
-        case Nil                                     => Nil
+        case x :: _ if x.state.eqv(VNodeState.Leader) => x :: Nil
+        case x :: xs                                  => x :: xs.filter(_.state.eqv(x.state))
+        case Nil                                      => Nil
       }
 
     ///

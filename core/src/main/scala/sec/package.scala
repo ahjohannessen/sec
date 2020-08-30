@@ -17,6 +17,7 @@ package object sec {
   private[sec] type ErrorM[F[_]] = MonadError[F, Throwable]
   private[sec] type ErrorA[F[_]] = ApplicativeError[F, Throwable]
   private[sec] type Attempt[T]   = Either[String, T]
+  private[sec] type ErrorOr[T]   = Either[Throwable, T]
 
 //======================================================================================================================
 

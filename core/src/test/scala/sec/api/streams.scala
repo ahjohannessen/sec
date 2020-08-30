@@ -91,13 +91,13 @@ class StreamsITest extends ITest {
 
           val verifyDeleted =
             streams.readStreamForwards(id, EventNumber.Start, 1).compile.drain.recoverWith {
-              case e: StreamNotFound if soft && e.streamId === id.stringValue => IO.unit
-              case e: StreamDeleted if !soft && e.streamId === id.stringValue => IO.unit
+              case e: StreamNotFound if soft && e.streamId.eqv(id.stringValue) => IO.unit
+              case e: StreamDeleted if !soft && e.streamId.eqv(id.stringValue) => IO.unit
             }
 
           val read = streams
             .readAllForwards(Start, Int.MaxValue - 1)
-            .filter(e => e.streamId === id || e.streamId === id.metaId)
+            .filter(e => e.streamId.eqv(id) || e.streamId.eqv(id.metaId))
             .compile
             .toList
 

@@ -33,3 +33,6 @@ project/metals.sbt
 
 # Generated Certificates
 certs/
+
+# dotenv
+.env

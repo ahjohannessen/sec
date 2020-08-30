@@ -1,3 +1,4 @@
+addSbtPlugin("ch.epfl.lamp"              % "sbt-dotty"          % "0.4.2")
 addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat"       % "0.1.13")
 addSbtPlugin("com.codecommit"            % "sbt-github-actions" % "0.9.2")
 addSbtPlugin("com.geirsson"              % "sbt-ci-release"     % "1.5.3")

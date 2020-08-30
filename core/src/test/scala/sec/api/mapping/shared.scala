@@ -11,8 +11,6 @@ import sec.core.StreamId
 
 class SharedMappingSpec extends mutable.Specification {
 
-  type ErrorOr[A] = Either[Throwable, A]
-
   "shared" >> {
 
     val uuidString     = "e5390fcb-48bd-4895-bcc3-01629cca2af6"

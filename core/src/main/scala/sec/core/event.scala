@@ -232,7 +232,7 @@ object Content {
   val JsonEmpty: Content      = empty(Type.Json)
 
   def apply(data: String, ct: Type): Attempt[Content] =
-    encode[Either[Throwable, *]](data, ct).leftMap(_.getMessage)
+    encode[ErrorOr](data, ct).leftMap(_.getMessage)
 
   def encode[F[_]: ErrorA](data: String, ct: Type): F[Content] =
     ByteVector.encodeUtf8(data).map(Content(_, ct)).liftTo[F]

@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [2.13.3]
+        scala: [2.13.3, 0.27.0-RC1]
         java: [adopt@1.11]
     runs-on: ${{ matrix.os }}
     steps:
@@ -78,8 +78,8 @@ jobs:
 
       - name: Start EventStore Nodes
         run: |
-          misc/single-node.sh up -d
-          misc/cluster.sh up -d
+          .docker/single-node.sh up -d
+          .docker/cluster.sh up -d
 
       - name: Check that workflows are up to date
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
@@ -99,8 +99,8 @@ jobs:
       - name: Stop EventStore Nodes
         if: always()
         run: |
-          misc/single-node.sh down
-          misc/cluster.sh down
+          .docker/single-node.sh down
+          .docker/cluster.sh down
 
       - name: Compress target directories
         run: tar cf targets.tar target demo/target netty/target core/target project/target
@@ -177,6 +177,16 @@ jobs:
           name: target-${{ matrix.os }}-2.13.3-${{ matrix.java }}
 
       - name: Inflate target directories (2.13.3)
+        run: |
+          tar xf targets.tar
+          rm targets.tar
+
+      - name: Download target directories (0.27.0-RC1)
+        uses: actions/download-artifact@v2
+        with:
+          name: target-${{ matrix.os }}-0.27.0-RC1-${{ matrix.java }}
+
+      - name: Inflate target directories (0.27.0-RC1)
         run: |
           tar xf targets.tar
           rm targets.tar

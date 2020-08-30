@@ -3,7 +3,6 @@ package api
 package cluster
 
 import scala.concurrent.duration._
-import scala.concurrent.TimeoutException
 import cats.data._
 import cats.implicits._
 import cats.effect._
@@ -82,8 +81,8 @@ private[sec] object ClusterWatch {
     import cs._
 
     val action = retry(readFn, "gossip", cs.retryConfig, log) {
-      case _: TimeoutException | _: ServerUnavailable | _: NotLeader => true
-      case _                                                         => false
+      case _: Timeout | _: ServerUnavailable | _: NotLeader => true
+      case _                                                => false
     }
 
     Stream.eval(action).metered(notificationInterval).repeat.changesBy(_.members).evalMap(setInfo)

@@ -13,7 +13,7 @@ class SecPackageSpec extends Specification {
     }
 
     "orFail" >> {
-      "oops".asLeft[Int].orFail[Either[Throwable, *]](ValidationError(_)) shouldEqual ValidationError("oops").asLeft
+      "oops".asLeft[Int].orFail[ErrorOr](ValidationError(_)) shouldEqual ValidationError("oops").asLeft
     }
   }
 

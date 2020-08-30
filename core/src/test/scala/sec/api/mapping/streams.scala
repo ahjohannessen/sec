@@ -277,8 +277,6 @@ class StreamsMappingSpec extends mutable.Specification {
 
     val empty = com.eventstore.client.Empty()
 
-    type ErrorOr[A] = Either[Throwable, A]
-
     "mkEvent" >> {
 
       val streamId   = "abc-3"

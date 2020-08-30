@@ -1,6 +1,7 @@
 package sec
 package api
 
+import java.util.concurrent.TimeoutException
 import scala.util.control.NonFatal
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import cats.implicits._
@@ -9,6 +10,8 @@ import cats.effect.implicits._
 import io.chrisdavenport.log4cats.Logger
 
 private[sec] object retries {
+
+//======================================================================================================================
 
   sealed abstract case class RetryConfig(
     delay: FiniteDuration,
@@ -39,16 +42,23 @@ private[sec] object retries {
 
       def logWarn[F[_]](action: String, log: Logger[F])(attempt: Int, delay: FiniteDuration, th: Throwable): F[Unit] =
         log.warn(
-          s"$action failed, attempt $attempt of ${c.maxAttempts}, retrying in ${format(delay)}. Details: ${th.getMessage}"
+          s"$action failed, attempt $attempt of ${c.maxAttempts}, retrying in ${format(delay)} - ${th.getMessage}"
         )
 
       def logError[F[_]](action: String, log: Logger[F])(th: Throwable): F[Unit] =
-        log.error(s"$action failed after ${c.maxAttempts} attempts. Details: ${th.getMessage}")
+        log.error(s"$action failed after ${c.maxAttempts} attempts - ${th.getMessage}")
 
     }
   }
 
+//======================================================================================================================
+
+  final case class Timeout(after: FiniteDuration) extends RuntimeException(s"Timed out after ${format(after)}.")
+
+//======================================================================================================================
+
   // TODO: Tests
+
   def retry[F[_]: Concurrent: Timer, A](
     action: F[A],
     actionName: String,
@@ -57,7 +67,10 @@ private[sec] object retries {
   )(retryOn: Throwable => Boolean): F[A] = {
     import retryConfig._
 
-    val fa       = timeout.fold(action)(action.timeout)
+    def withTimeout(to: FiniteDuration): F[A] =
+      action.timeout(to).adaptError { case _: TimeoutException => Timeout(to) }
+
+    val fa       = timeout.fold(action)(withTimeout)
     val logWarn  = retryConfig.logWarn[F](actionName, log) _
     val logError = retryConfig.logError[F](actionName, log) _
 
@@ -72,5 +85,7 @@ private[sec] object retries {
 
     run(0, retryConfig.delay)
   }
+
+//======================================================================================================================
 
 }
