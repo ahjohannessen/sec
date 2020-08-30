@@ -112,13 +112,17 @@ inThisBuild(
     // Github Actions
     githubWorkflowJavaVersions := Seq("adopt@1.11"),
     githubWorkflowTargetTags += "v*",
-    githubWorkflowPublish := Seq(WorkflowStep.Sbt(List("ci-release"))),
     githubWorkflowPublishTargetBranches += RefPredicate.StartsWith(Ref.Tag("v")),
-    githubWorkflowEnv ++= Map(
-      "SONATYPE_USERNAME" -> s"$${{ secrets.SONATYPE_USERNAME }}",
-      "SONATYPE_PASSWORD" -> s"$${{ secrets.SONATYPE_PASSWORD }}",
-      "PGP_SECRET"        -> s"$${{ secrets.PGP_SECRET }}",
-      "PGP_PASSPHRASE"    -> s"$${{ secrets.PGP_PASSPHRASE }}"
-    )
+    githubWorkflowPublishPreamble += WorkflowStep.Use("olafurpg", "setup-gpg", "v2"),
+    githubWorkflowPublish := Seq(
+      WorkflowStep.Sbt(
+        List("ci-release"),
+        env = Map(
+          "PGP_PASSPHRASE"    -> "${{ secrets.PGP_PASSPHRASE }}",
+          "PGP_SECRET"        -> "${{ secrets.PGP_SECRET }}",
+          "SONATYPE_PASSWORD" -> "${{ secrets.SONATYPE_PASSWORD }}",
+          "SONATYPE_USERNAME" -> "${{ secrets.SONATYPE_USERNAME }}"
+        )
+      ))
   )
 )
