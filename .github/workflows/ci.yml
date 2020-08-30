@@ -74,11 +74,31 @@ jobs:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
+      - name: Start EventStore Nodes
+        run: |
+          misc/single-node.sh up -d
+          misc/cluster.sh up -d
+
       - name: Check that workflows are up to date
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
-      - name: Build project
-        run: sbt ++${{ matrix.scala }} test
+      - name: Run tests
+        run: sbt ++${{ matrix.scala }} core/test
+
+      - name: Run single node integration tests
+        run: 'sbt ++${{ matrix.scala }} core/it:test'
+
+      - name: Run cluster integration tests
+        env:
+          SEC_DEMO_CERTS_PATH: ${{ github.workspace }}/certs
+          SEC_DEMO_AUTHORITY: es.sec.local
+        run: sbt ++${{ matrix.scala }} demo/run
+
+      - name: Stop EventStore Nodes
+        if: always()
+        run: |
+          misc/single-node.sh down
+          misc/cluster.sh down
 
       - name: Compress target directories
         run: tar cf targets.tar target demo/target netty/target core/target project/target

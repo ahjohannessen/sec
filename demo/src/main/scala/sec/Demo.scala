@@ -12,9 +12,6 @@ import sec.demo.BuildInfo.certsPath
 
 object Demo extends IOApp {
 
-//  java.util.logging.Logger.getLogger("").setLevel(java.util.logging.Level.FINE)
-//  java.util.logging.Logger.getLogger("").getHandlers.toList.foreach(_.setLevel(java.util.logging.Level.FINE))
-
   def run(args: List[String]): IO[ExitCode] = run
 
   val certsFolder       = new File(sys.env.getOrElse("SEC_DEMO_CERTS_PATH", certsPath))
@@ -48,15 +45,21 @@ object Demo extends IOApp {
 
     resources.use {
       case (l, c) =>
-        c.streams
+        val read = c.streams
           .readAllForwards(Position.Start, 30)
           .evalMap(x => l.info(s"Streams.readAll ${x.eventData.eventType.show}"))
-          .metered(500.millis)
+          .metered(300.millis)
           .repeat
-          .take(25)
-          .compile
-          .drain
-          .as(ExitCode.Success)
+          .take(5)
+
+        val gossip = fs2.Stream
+          .eval(c.gossip.read(None))
+          .evalMap(x => l.info(s"Gossip.read: ${x.show}"))
+          .metered(150.millis)
+          .repeat
+          .take(10)
+
+        read.concurrently(gossip).compile.drain.as(ExitCode.Success)
     }
 
   }

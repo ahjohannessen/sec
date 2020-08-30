@@ -109,9 +109,38 @@ inThisBuild(
       "https://github.com/ahjohannessen/sec/blob/v" + version.value + "€{FILE_PATH}.scala"
     ),
     shellPrompt := Prompt.enrichedShellPrompt,
+    //
     // Github Actions
+    //
     githubWorkflowJavaVersions := Seq("adopt@1.11"),
     githubWorkflowTargetTags += "v*",
+    githubWorkflowBuildPreamble += WorkflowStep.Run(
+      name     = Some("Start EventStore Nodes"),
+      commands = List("misc/single-node.sh up -d", "misc/cluster.sh up -d")
+    ),
+    githubWorkflowBuild := Seq(
+      WorkflowStep.Sbt(
+        name     = Some("Run tests"),
+        commands = List("core/test")
+      ),
+      WorkflowStep.Sbt(
+        name     = Some("Run single node integration tests"),
+        commands = List("core/it:test")
+      ),
+      WorkflowStep.Sbt(
+        name     = Some("Run cluster integration tests"),
+        commands = List("demo/run"),
+        env = Map(
+          "SEC_DEMO_CERTS_PATH" -> "${{ github.workspace }}/certs",
+          "SEC_DEMO_AUTHORITY"  -> "es.sec.local"
+        )
+      )
+    ),
+    githubWorkflowBuildPostamble += WorkflowStep.Run(
+      name     = Some("Stop EventStore Nodes"),
+      commands = List("misc/single-node.sh down", "misc/cluster.sh down"),
+      cond     = Some("always()")
+    ),
     githubWorkflowPublishTargetBranches += RefPredicate.StartsWith(Ref.Tag("v")),
     githubWorkflowPublishPreamble += WorkflowStep.Use("olafurpg", "setup-gpg", "v2"),
     githubWorkflowPublish := Seq(
