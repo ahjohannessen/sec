@@ -6,7 +6,6 @@ import cats.implicits._
 import org.specs2.mutable.Specification
 import io.circe._
 import io.circe.syntax._
-import io.circe.generic.semiauto._
 import Arbitraries._
 
 //======================================================================================================================
@@ -70,12 +69,22 @@ class StreamMetadataSpec extends Specification {
 object StreamMetadataSpec {
 
   final case class Custom(name: String, numbers: List[Int])
-  final case class Member(name: String)
-  final case class Members(members: List[Member])
+  object Custom {
+    implicit val codecForCustom: Codec.AsObject[Custom] =
+      Codec.forProduct2("name", "numbers")(Custom.apply)(c => (c.name, c.numbers))
+  }
 
-  implicit val c1: Codec.AsObject[Custom]  = deriveCodec[Custom]
-  implicit val c2: Codec.AsObject[Member]  = deriveCodec[Member]
-  implicit val c3: Codec.AsObject[Members] = deriveCodec[Members]
+  final case class Member(name: String)
+  object Member {
+    implicit val codecForMember: Codec.AsObject[Member] =
+      Codec.forProduct1("name")(Member.apply)(_.name)
+  }
+
+  final case class Members(members: List[Member])
+  object Members {
+    implicit val codecForMembers: Codec.AsObject[Members] =
+      Codec.forProduct1("members")(Members.apply)(_.members)
+  }
 
 }
 

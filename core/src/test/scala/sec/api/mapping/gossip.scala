@@ -14,8 +14,6 @@ import sec.api.mapping.gossip._
 
 class GossipMappingSpec extends mutable.Specification {
 
-  type ErrorOr[A] = Either[Throwable, A]
-
   "mkVNodeState" >> {
 
     val expectations = Map[g.MemberInfo.VNodeState, VNodeState](

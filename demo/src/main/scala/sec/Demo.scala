@@ -9,6 +9,7 @@ import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import sec.core.Position
 import sec.api._
 import sec.demo.BuildInfo.certsPath
+import sec.client._
 
 object Demo extends IOApp {
 
@@ -36,11 +37,7 @@ object Demo extends IOApp {
     val resources = for {
       l <- Resource.liftF(Slf4jLogger.fromName[IO]("Demo"))
       _ <- Resource.liftF(l.info("Starting up"))
-      c <- sec.client.EsClient
-             .cluster[IO](seed, authority)
-             .withCertificate(ca.toPath)
-             .withLogger(l)
-             .resource
+      c <- EsClient.cluster[IO](seed, authority).withCertificate(ca.toPath).withLogger(l).resource
     } yield (l, c)
 
     resources.use {

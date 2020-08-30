@@ -14,7 +14,7 @@ import Gossip._
 import Gossip.VNodeState._
 import Arbitraries._
 
-class NodePickerSpec extends Specification with CatsIO {
+class NodePrioritizerSpec extends Specification with CatsIO {
 
   "NodePrioritizer" should {
 
@@ -67,7 +67,7 @@ class NodePickerSpec extends Specification with CatsIO {
           MemberInfo(
             id,
             ts,
-            if (expected === ReadOnlyReplica) ReadOnlyReplica else ReadOnlyLeaderless,
+            if (expected.eqv(ReadOnlyReplica)) ReadOnlyReplica else ReadOnlyLeaderless,
             isAlive = true,
             Endpoint(address, 3333)
           ),
@@ -78,7 +78,7 @@ class NodePickerSpec extends Specification with CatsIO {
         NodePrioritizer
           .pickBestNode[IO](members(expected), pref)
           .map(_.map(_.httpEndpoint.port))
-          .map(_ shouldEqual members(expected).filter(_.state === expected).lastOption.map(_.httpEndpoint.port))
+          .map(_ shouldEqual members(expected).filter(_.state.eqv(expected)).lastOption.map(_.httpEndpoint.port))
 
       expectations.toList.traverse {
         case (p, e) => test(p, e)
@@ -98,7 +98,7 @@ class NodePickerSpec extends Specification with CatsIO {
       NodePrioritizer
         .pickBestNode[IO](members, NodePreference.Leader)
         .map(_.map(_.httpEndpoint.port))
-        .map(_ shouldEqual members.filter(_.state === Follower).lastOption.map(_.httpEndpoint.port))
+        .map(_ shouldEqual members.filter(_.state.eqv(Follower)).lastOption.map(_.httpEndpoint.port))
     }
 
   }

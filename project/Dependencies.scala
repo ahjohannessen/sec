@@ -17,7 +17,6 @@ object Dependencies {
     val disciplineSpecs2  = "1.1.0"
     val specs2            = "4.10.3"
     val catsEffectTesting = "0.4.1"
-    val kindProjector     = "0.11.0"
 
   }
 
@@ -37,7 +36,6 @@ object Dependencies {
   val specs2            = "org.specs2"        %% "specs2-core"                     % versions.specs2
   val specs2ScalaCheck  = "org.specs2"        %% "specs2-scalacheck"               % versions.specs2
   val specs2Cats        = "org.specs2"        %% "specs2-cats"                     % versions.specs2
-  val circeGeneric      = "io.circe"          %% "circe-generic"                   % versions.circe
   val disciplineSpecs2  = "org.typelevel"     %% "discipline-specs2"               % versions.disciplineSpecs2
   val catsLaws          = "org.typelevel"     %% "cats-laws"                       % versions.catsCore
   val catsEffectTesting = "com.codecommit"    %% "cats-effect-testing-specs2"      % versions.catsEffectTesting
@@ -48,9 +46,7 @@ object Dependencies {
   val grpcNetty         = "io.grpc"            % "grpc-netty"                      % versions.grpc
   val tcnative          = "io.netty"           % "netty-tcnative-boringssl-static" % versions.tcnative
 
-  // Compiler & SBT Plugins
-
-  val kindProjector = "org.typelevel" %% "kind-projector" % versions.kindProjector cross CrossVersion.full
+  // Misc
 
   def protobufM(mids: ModuleID*): Seq[ModuleID] = mids.map(_ % "protobuf")
   def compileM(mids: ModuleID*): Seq[ModuleID]  = mids.map(_ % Compile)

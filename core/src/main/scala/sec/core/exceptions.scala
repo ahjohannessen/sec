@@ -1,9 +1,14 @@
 package sec
 package core
 
+import scala.util.control.NoStackTrace
 import EventNumber.Exact
 
-sealed abstract class EsException(msg: String) extends RuntimeException(msg)
+sealed abstract class EsException private[sec] (
+  msg: String,
+  cause: Option[Throwable] = None
+) extends RuntimeException(msg, cause.orNull)
+  with NoStackTrace
 
 case object AccessDenied                          extends EsException("Access Denied.")
 case object InvalidTransaction                    extends EsException("Invalid Transaction.")

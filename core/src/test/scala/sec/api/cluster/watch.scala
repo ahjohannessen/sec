@@ -17,6 +17,7 @@ import sec.api.Gossip._
 import Arbitraries._
 import cats.effect.laws.util.TestContext
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import io.chrisdavenport.log4cats.Logger
 import org.scalacheck.Gen
 
 class ClusterWatchSpec extends Specification with CatsIO {
@@ -59,7 +60,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
       val result = for {
         readCountRef <- Resource.liftF(Ref.of[IO, Int](0))
         store        <- Resource.liftF(Ref.of[IO, List[ClusterInfo]](ci1 :: Nil))
-        log          <- Resource.liftF(Slf4jLogger.create[IO])
+        log          <- Resource.liftF(mkLog)
         watch        <- ClusterWatch.create[IO](readFn(readCountRef), settings, recordingCache(store), log)
         changes      <- Resource.liftF(watch.subscribe.pure[IO])
       } yield (changes, store)
@@ -89,7 +90,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
           readCountRef <- Stream.eval(Ref.of[IO, Int](0))
           store        <- Stream.eval(Ref.of[IO, List[ClusterInfo]](Nil))
           readFn        = readCountRef.update(_ + 1) *> IO.raiseError(err) *> IO(ClusterInfo(Set.empty))
-          log          <- Stream.eval(Slf4jLogger.create[IO])
+          log          <- Stream.eval(mkLog)
           _ <- Stream
                  .resource(ClusterWatch.create[IO](readFn, settings, recordingCache(store), log))
                  .map(_ => -1)
@@ -110,8 +111,8 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
     "retry retriable error using retry delay for backoff" >> {
 
-      implicit val ec: TestContext      = TestContext()
-      implicit val cs: ContextShift[IO] = IO.contextShift(ec)
+      val ec: TestContext          = TestContext()
+      val ce: ConcurrentEffect[IO] = IO.ioConcurrentEffect(IO.contextShift(ec))
 
       val settings = ClusterSettings.default
         .withMaxDiscoverAttempts(3.some)
@@ -124,18 +125,17 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
       val countRef = Ref[IO].of(0).unsafeRunSync()
       val storeRef = Ref[IO].of(List.empty[ClusterInfo]).unsafeRunSync()
-
-      val cache  = recordingCache(storeRef)
-      val readFn = countRef.update(_ + 1) *> IO.raiseError(error) *> IO(ClusterInfo(Set.empty))
-      val log    = Slf4jLogger.create[IO].unsafeRunSync()
-      val watch  = ClusterWatch.create[IO](readFn, settings, cache, log)(IO.ioConcurrentEffect(cs), ec.timer)
+      val cache    = recordingCache(storeRef)
+      val readFn   = countRef.update(_ + 1) *> IO.raiseError(error) *> IO(ClusterInfo(Set.empty))
+      val log      = mkLog.unsafeRunSync()
+      val watch    = ClusterWatch.create[IO](readFn, settings, cache, log)(ce, ec.timer)
 
       def test(expected: Int) = {
         ec.tick(settings.retryDelay)
         countRef.get.unsafeRunSync() shouldEqual expected
       }
 
-      val _ = watch.allocated.unsafeRunAsyncAndForget()
+      val _ = watch.allocated[IO, ClusterWatch[IO]].unsafeRunAsyncAndForget()
 
       test(1)
       test(2)
@@ -150,5 +150,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
       def set(ci: ClusterInfo): IO[Unit] = ref.update(_ :+ ci)
       def get: IO[ClusterInfo]           = ref.get.map(_.lastOption.getOrElse(ClusterInfo(Set.empty)))
     }
+
+  val mkLog: IO[Logger[IO]] = Slf4jLogger.fromName[IO]("ClusterWatchSpec")
 
 }

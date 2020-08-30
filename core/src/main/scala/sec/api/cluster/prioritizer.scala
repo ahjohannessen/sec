@@ -54,11 +54,11 @@ private[sec] object NodePrioritizer {
     }
 
     val isReadOnlyReplicaState: MemberInfo => Boolean =
-      m => m.state === ReadOnlyLeaderless || m.state === ReadOnlyReplica
+      m => m.state.eqv(ReadOnlyLeaderless) || m.state.eqv(ReadOnlyReplica)
 
     preference match {
-      case NodePreference.Leader          => arrange(_.state === Leader)
-      case NodePreference.Follower        => arrange(_.state === Follower)
+      case NodePreference.Leader          => arrange(_.state.eqv(Leader))
+      case NodePreference.Follower        => arrange(_.state.eqv(Follower))
       case NodePreference.ReadOnlyReplica => arrange(isReadOnlyReplicaState)
     }
   }

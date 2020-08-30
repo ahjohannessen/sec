@@ -150,11 +150,13 @@ class ConvertSpec extends mutable.Specification {
 
     /// From Status Codes & Causes
 
-    convertToEs(Status.UNAVAILABLE.asRuntimeException()) should
-      beSome(ServerUnavailable("UNAVAILABLE"))
+    convertToEs(Status.UNAVAILABLE.asRuntimeException()) should beSome(
+      ServerUnavailable("Server Unavailable: No description specified.")
+    )
 
-    convertToEs(Status.UNKNOWN.withCause(new ClosedChannelException()).asRuntimeException()) should
-      beSome(ServerUnavailable("Channel closed."))
+    convertToEs(Status.UNKNOWN.withCause(new ClosedChannelException()).asRuntimeException()) should beSome(
+      ServerUnavailable("Server Unavailable: Channel closed.")
+    )
 
   }
 }

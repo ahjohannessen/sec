@@ -26,22 +26,15 @@ lazy val core = project
     libraryDependencies ++=
       compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser, scalaPb) ++
         protobufM(scalaPb) ++
-        testM(
-          specs2Cats,
-          catsEffectTesting,
-          catsEffectLaws,
-          specs2ScalaCheck,
-          circeGeneric,
-          grpcNetty,
-          tcnative,
-          log4catsSlf4j,
-          logback
-        )
+        testM(specs2Cats, catsEffectTesting, catsEffectLaws, grpcNetty, tcnative, log4catsSlf4j, logback)
   )
   .settings(
     addBuildInfoToConfig(Test),
     Test / buildInfoKeys := buildInfoKeys.value :+ BuildInfoKey(certsPathKey),
     Test / buildInfoObject := "TestBuildInfo"
+  )
+  .settings(
+    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value))
   )
 
 lazy val netty = project
@@ -60,18 +53,18 @@ lazy val demo = project
     name := "demo",
     buildInfoKeys := buildInfoKeys.value :+ BuildInfoKey(certsPathKey),
     buildInfoPackage := "sec.demo",
-    libraryDependencies ++= compileM(log4catsSlf4j, logback),
+    libraryDependencies ++= compileM(log4catsSlf4j, logback).map(_.withDottyCompat(scalaVersion.value)),
     skip in publish := true
   )
 
 // General Settings
 
 lazy val commonSettings = Seq(
-  addCompilerPlugin(kindProjector),
   Compile / scalacOptions ~= devScalacOptions,
   Test / scalacOptions ~= devScalacOptions,
   IntegrationTest / scalacOptions ~= devScalacOptions,
-  libraryDependencies ++= testM(catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck)
+  libraryDependencies ++=
+    testM(catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck).map(_.withDottyCompat(scalaVersion.value))
 )
 
 lazy val metalsEnabled =
@@ -86,6 +79,7 @@ val devScalacOptions = { options: Seq[String] =>
 inThisBuild(
   List(
     scalaVersion := "2.13.3",
+    crossScalaVersions := Seq("2.13.3", "0.27.0-RC1"),
     scalacOptions ++= Seq("-target:jvm-1.8"),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
@@ -118,7 +112,7 @@ inThisBuild(
     githubWorkflowTargetTags += "v*",
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start EventStore Nodes"),
-      commands = List("misc/single-node.sh up -d", "misc/cluster.sh up -d")
+      commands = List(".docker/single-node.sh up -d", ".docker/cluster.sh up -d")
     ),
     githubWorkflowBuild := Seq(
       WorkflowStep.Sbt(
@@ -140,7 +134,7 @@ inThisBuild(
     ),
     githubWorkflowBuildPostamble += WorkflowStep.Run(
       name     = Some("Stop EventStore Nodes"),
-      commands = List("misc/single-node.sh down", "misc/cluster.sh down"),
+      commands = List(".docker/single-node.sh down", ".docker/cluster.sh down"),
       cond     = Some("always()")
     ),
     githubWorkflowPublishTargetBranches += RefPredicate.StartsWith(Ref.Tag("v")),

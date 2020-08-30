@@ -68,12 +68,29 @@ private[sec] object convert {
     val code   = status.getCode
     val cause  = status.getCause
 
-    val unavailable   = code == Status.Code.UNAVAILABLE
-    def channelClosed = code == Status.Code.UNKNOWN && cause.isInstanceOf[ClosedChannelException]
+    val unavailable = code == Status.Code.UNAVAILABLE
+    def chClosed    = code == Status.Code.UNKNOWN && cause.isInstanceOf[ClosedChannelException]
 
-    val msg = if (unavailable) Option(ex.getMessage).getOrElse("Server unavailable") else "Channel closed."
+    def prefix: String =
+      "Server Unavailable: "
 
-    Option.when(unavailable || channelClosed)(ServerUnavailable(msg))
+    def noDescription: String =
+      s"${prefix}No description specified."
+
+    def channelClosed: String =
+      s"${prefix}Channel closed."
+
+    def normalizedMsg(msg: String): String =
+      s"${prefix}${msg.replace("UNAVAILABLE:", "").replace("UNAVAILABLE", "").trim}"
+
+    def exMsg: Option[String] =
+      Option(ex.getMessage).map(normalizedMsg).filter(_.isEmpty)
+
+    val msg = Option
+      .when(unavailable)(exMsg.getOrElse(noDescription))
+      .getOrElse(channelClosed)
+
+    Option.when(unavailable || chClosed)(ServerUnavailable(msg))
   }
 
 //======================================================================================================================

@@ -50,7 +50,7 @@ trait ITest extends Specification with CatsIO with AfterAll {
       c <- b.resourceWithShutdown[IO](mc => IO.delay(mc.shutdownNow()).void).map(EsClient[IO](_, options, true, l))
     } yield c
 
-    result.allocated.unsafeRunSync()
+    result.allocated[IO, EsClient[IO]].unsafeRunSync()
   }
 
   final lazy val esClient: EsClient[IO] = client

@@ -11,11 +11,11 @@ import sec.api.mapping.implicits._
 class ImplicitsSpec extends mutable.Specification {
 
   "OptionOps.require" >> {
-    Option.empty[Int].require[Either[Throwable, *]]("test") should beLeft(
-      ProtoResultError("Required value test missing or invalid.")
-    )
+    Option.empty[Int].require[ErrorOr]("test") should beLike {
+      case Left(ProtoResultError("Required value test missing or invalid.")) => ok
+    }
 
-    Option(1).require[Either[Throwable, *]]("test") should beRight(1)
+    Option(1).require[ErrorOr]("test") should beRight(1)
   }
 
   "ByteVectorOps.toByteString" >> {
