@@ -64,11 +64,7 @@ lazy val commonSettings = Seq(
   Test / scalacOptions ~= devScalacOptions,
   IntegrationTest / scalacOptions ~= devScalacOptions,
   libraryDependencies ++=
-    testM(catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck).map(_.withDottyCompat(scalaVersion.value)),
-  Compile / doc / sources := {
-    val old = (Compile / doc / sources).value
-    if (isDotty.value) Seq() else old
-  }
+    testM(catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck).map(_.withDottyCompat(scalaVersion.value))
 )
 
 lazy val metalsEnabled =
@@ -82,36 +78,23 @@ val devScalacOptions = { options: Seq[String] =>
 
 inThisBuild(
   List(
-    scalaVersion := "2.13.3",
-    crossScalaVersions := Seq("2.13.3", "0.27.0-RC1"),
+    baseVersion := "0.0.1",
+    crossScalaVersions := Seq("0.27.0-RC1", "2.13.3"),
     scalacOptions ++= Seq("-target:jvm-1.8"),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
-    organizationName := "Scala EventStoreDB Client",
-    developers := List(
-      Developer(
-        "ahjohannessen",
-        "Alex Henning Johannessen",
-        "ahjohannessen@gmail.com",
-        url("https://github.com/ahjohannessen")
-      )
-    ),
+    publishGithubUser := "ahjohannessen",
+    publishFullName := "Alex Henning Johannessen",
     homepage := Some(url("https://github.com/ahjohannessen/sec")),
-    licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
-    pomIncludeRepository := { _ =>
-      false
-    },
-    scalacOptions in (Compile, doc) ++= Seq(
-      "-groups",
-      "-sourcepath",
-      (baseDirectory in LocalRootProject).value.getAbsolutePath,
-      "-doc-source-url",
-      "https://github.com/ahjohannessen/sec/blob/v" + version.value + "€{FILE_PATH}.scala"
-    ),
-    shellPrompt := Prompt.enrichedShellPrompt,
-    //
-    // Github Actions
-    //
+    scmInfo := Some(ScmInfo(url("https://github.com/ahjohannessen/sec"), "git@github.com:ahjohannessen/sec.git")),
+    shellPrompt := Prompt.enrichedShellPrompt
+  )
+)
+
+// Github Actions
+
+inThisBuild(
+  List(
     githubWorkflowJavaVersions := Seq("adopt@1.11"),
     githubWorkflowTargetTags += "v*",
     githubWorkflowBuildPreamble += WorkflowStep.Run(
