@@ -124,8 +124,12 @@ inThisBuild(
       commands = List(".docker/single-node.sh down", ".docker/cluster.sh down"),
       cond     = Some("always()")
     ),
-    githubWorkflowPublishTargetBranches += RefPredicate.StartsWith(Ref.Tag("v")),
-    githubWorkflowPublishPreamble += WorkflowStep.Use("olafurpg", "setup-gpg", "v2"),
+    githubWorkflowPublishTargetBranches := Seq(
+      RefPredicate.Equals(Ref.Branch("master")),
+      RefPredicate.StartsWith(Ref.Tag("v"))
+    ),
+    githubWorkflowPublishPreamble +=
+      WorkflowStep.Use("olafurpg", "setup-gpg", "v2"),
     githubWorkflowPublish := Seq(
       WorkflowStep.Sbt(
         List("ci-release"),
