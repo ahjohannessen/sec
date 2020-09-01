@@ -59,35 +59,57 @@ lazy val demo = project
 
 // General Settings
 
-lazy val commonSettings = Seq(
-  Compile / scalacOptions ~= devScalacOptions,
-  Test / scalacOptions ~= devScalacOptions,
-  IntegrationTest / scalacOptions ~= devScalacOptions,
-  libraryDependencies ++=
-    testM(catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck).map(_.withDottyCompat(scalaVersion.value))
-)
-
-lazy val metalsEnabled =
-  scala.util.Properties.envOrElse("METALS_ENABLED", "false").toBoolean
-
-val devScalacOptions = { options: Seq[String] =>
-  if (metalsEnabled)
-    options.filterNot(Set("-Wunused:locals", "-Wunused:params", "-Wunused:imports", "-Wunused:privates"))
-  else options
-}
+lazy val commonSettings =
+  AutomateHeaderPlugin.projectSettings ++
+    Seq(
+      scalacOptions ++= {
+        if (isDotty.value) Seq("-source:3.0-migration") else Nil
+      },
+      libraryDependencies ++=
+        testM(catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck).map(_.withDottyCompat(scalaVersion.value)),
+      pomPostProcess := { node =>
+        import scala.xml._
+        import scala.xml.transform._
+        def stripIf(f: Node => Boolean) = new RewriteRule {
+          override def transform(n: Node) = if (f(n)) NodeSeq.Empty else n
+        }
+        val stripTestScope = stripIf(n => n.label == "dependency" && (n \ "scope").text == "test")
+        new RuleTransformer(stripTestScope).transform(node)(0)
+      },
+      Compile / doc / sources := {
+        val old = (Compile / doc / sources).value
+        if (isDotty.value) Nil else old
+      }
+    )
 
 inThisBuild(
   List(
-    baseVersion := "0.0.1",
+    scalaVersion := crossScalaVersions.value.last,
     crossScalaVersions := Seq("0.27.0-RC1", "2.13.3"),
     scalacOptions ++= Seq("-target:jvm-1.8"),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
-    publishGithubUser := "ahjohannessen",
-    publishFullName := "Alex Henning Johannessen",
+    organizationName := "Alex Henning Johannessen",
     homepage := Some(url("https://github.com/ahjohannessen/sec")),
     scmInfo := Some(ScmInfo(url("https://github.com/ahjohannessen/sec"), "git@github.com:ahjohannessen/sec.git")),
-    shellPrompt := Prompt.enrichedShellPrompt
+    startYear := Some(2020),
+    licenses += (("Apache-2.0", url("http://www.apache.org/licenses/"))),
+    developers := List(
+      Developer(
+        "ahjohannessen",
+        "Alex Henning Johannessen",
+        "ahjohannessen@gmail.com",
+        url("https://github.com/ahjohannessen")
+      )),
+    shellPrompt := Prompt.enrichedShellPrompt,
+    pomIncludeRepository := { _ => false },
+    scalacOptions in (Compile, doc) ++= Seq(
+      "-groups",
+      "-sourcepath",
+      (baseDirectory in LocalRootProject).value.getAbsolutePath,
+      "-doc-source-url",
+      "https://github.com/ahjohannessen/sec/blob/v" + version.value + "€{FILE_PATH}.scala"
+    )
   )
 )
 
@@ -124,10 +146,7 @@ inThisBuild(
       commands = List(".docker/single-node.sh down", ".docker/cluster.sh down"),
       cond     = Some("always()")
     ),
-    githubWorkflowPublishTargetBranches := Seq(
-      RefPredicate.Equals(Ref.Branch("master")),
-      RefPredicate.StartsWith(Ref.Tag("v"))
-    ),
+    githubWorkflowPublishTargetBranches += RefPredicate.StartsWith(Ref.Tag("v")),
     githubWorkflowPublishPreamble +=
       WorkflowStep.Use("olafurpg", "setup-gpg", "v2"),
     githubWorkflowPublish := Seq(
