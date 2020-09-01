@@ -47,9 +47,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
     // TODO: this test is flaky and takes way too long time, investigate and redo.
     "only emit changes in cluster info" >> {
 
-      val settings = ClusterSettings.default
-        .withMaxDiscoverAttempts(1.some)
-
+      val settings   = ClusterSettings.default.withMaxDiscoverAttempts(1.some)
       def instanceId = sampleOf[ju.UUID]
       def timestamp  = sampleOf[ZonedDateTime]
 
@@ -80,7 +78,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
         changes      <- Resource.liftF(watch.subscribe.pure[IO])
       } yield (changes, store)
 
-      result.use {
+      result.map {
         case (changes, store) =>
           changes.take(4).compile.toList.map(_ shouldEqual List(ci1, ci2, ci4, ci5)) *>
             store.get.map(_.lastOption shouldEqual ci5.some)
