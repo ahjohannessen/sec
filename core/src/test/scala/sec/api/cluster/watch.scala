@@ -44,12 +44,11 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
   "ClusterWatch" should {
 
+    // TODO: this test is flaky and takes way too long time, investigate and redo.
     "only emit changes in cluster info" >> {
 
       val settings = ClusterSettings.default
         .withMaxDiscoverAttempts(1.some)
-        .withRetryMaxDelay(100.millis)
-        .withReadTimeout(100.millis)
 
       def instanceId = sampleOf[ju.UUID]
       def timestamp  = sampleOf[ZonedDateTime]
