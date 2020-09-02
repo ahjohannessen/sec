@@ -9,7 +9,7 @@ object Dependencies {
     val fs2               = "2.4.4"
     val log4cats          = "1.1.1"
     val logback           = "1.2.3"
-    val scodecBits        = "1.1.19"
+    val scodecBits        = "1.1.20"
     val circe             = "0.13.0"
     val scalaPb           = scalapb.compiler.Version.scalapbVersion
     val grpc              = org.lyranthe.fs2_grpc.buildinfo.BuildInfo.grpcVersion
