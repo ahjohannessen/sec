@@ -7,8 +7,6 @@
         </encoder>
     </appender>
 
-    <logger name="integration-test" level="INFO"/>
-
     <root level="OFF">
         <appender-ref ref="STDOUT" />
     </root>

@@ -38,16 +38,16 @@ import org.scalacheck.Gen
 
 class ClusterWatchSpec extends Specification with CatsIO {
 
-  sequential
-
   import ClusterWatch.Cache
 
   "ClusterWatch" should {
 
-    // TODO: this test is flaky and takes way too long time, investigate and redo.
     "only emit changes in cluster info" >> {
 
-      val settings   = ClusterSettings.default.withMaxDiscoverAttempts(1.some)
+      val settings = ClusterSettings.default
+        .withMaxDiscoverAttempts(1.some)
+        .withNotificationInterval(20.millis)
+
       def instanceId = sampleOf[ju.UUID]
       def timestamp  = sampleOf[ZonedDateTime]
 
@@ -164,6 +164,6 @@ class ClusterWatchSpec extends Specification with CatsIO {
       def get: IO[ClusterInfo]           = ref.get.map(_.lastOption.getOrElse(ClusterInfo(Set.empty)))
     }
 
-  val mkLog: IO[Logger[IO]] = Slf4jLogger.fromName[IO]("ClusterWatchSpec")
+  val mkLog: IO[Logger[IO]] = Slf4jLogger.fromName[IO]("cluster-watch-spec")
 
 }
