@@ -2,8 +2,8 @@ pull_request_rules:
 
   - name: Automatically merge pull requests
     conditions:
-      - status-success=Build and Test (ubuntu-latest, 2.13.3, adopt@1.11)    
-      - status-success=Build and Test (ubuntu-latest, 0.27.0-RC1, adopt@1.11)
+      - status-success~=Build and Test \(ubuntu-latest, 2\.13\.\d{1}.+\)
+      - status-success~=Build and Test \(ubuntu-latest, 0\..+\)
       - label=merge
     actions:
       merge:
@@ -13,8 +13,8 @@ pull_request_rules:
   - name: Automatically merge scala-steward's PRs
     conditions:
       - author=scala-steward
-      - status-success=Build and Test (ubuntu-latest, 2.13.3, adopt@1.11)    
-      - status-success=Build and Test (ubuntu-latest, 0.27.0-RC1, adopt@1.11)
+      - status-success~=Build and Test \(ubuntu-latest, 2\.13\.\d{1}.+\)
+      - status-success~=Build and Test \(ubuntu-latest, 0\..+\)
       - body~=labels:.*semver-patch.*
     actions:
       merge:
