@@ -22,19 +22,19 @@ import org.specs2.mutable.Specification
 import org.specs2.specification.AfterAll
 import org.scalacheck.Gen
 import cats.data.{NonEmptyList => Nel}
-import cats.effect.testing.specs2.CatsIO
+import cats.effect.testing.specs2._
 import cats.effect._
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import org.lyranthe.fs2_grpc.java_runtime.implicits._
 import io.grpc.netty.{GrpcSslContexts, NettyChannelBuilder}
+import helpers.text.snakeCaseTransformation
 import sec.core._
 import sec.client._
 import Arbitraries._
 
 trait ITest extends Specification with CatsIO with AfterAll {
 
-  final private val testName = ITest.snakeCaseTransformation(getClass.getSimpleName)
-
+  final private val testName                              = snakeCaseTransformation(getClass.getSimpleName)
   def genIdentifier: String                               = sampleOfGen(Gen.identifier.suchThat(id => id.length >= 5 && id.length <= 20))
   def genStreamId: StreamId.Id                            = genStreamId(s"${testName}_")
   def genStreamId(streamPrefix: String): StreamId.Id      = sampleOfGen(idGen.genStreamIdNormal(s"$streamPrefix"))
@@ -77,18 +77,5 @@ trait ITest extends Specification with CatsIO with AfterAll {
   //
 
   final def afterAll(): Unit = shutdown.unsafeRunSync()
-
-}
-
-object ITest {
-  import java.util.regex.Pattern
-
-  final private val basePattern: Pattern = Pattern.compile("([A-Z]+)([A-Z][a-z])")
-  final private val swapPattern: Pattern = Pattern.compile("([a-z\\d])([A-Z])")
-
-  final private val snakeCaseTransformation: String => String = s => {
-    val partial = basePattern.matcher(s).replaceAll("$1_$2")
-    swapPattern.matcher(partial).replaceAll("$1_$2").toLowerCase
-  }
 
 }

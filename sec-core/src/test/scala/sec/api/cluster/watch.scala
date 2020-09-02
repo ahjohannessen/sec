@@ -46,7 +46,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
       val settings = ClusterSettings.default
         .withMaxDiscoverAttempts(1.some)
-        .withNotificationInterval(50.millis)
+        .withNotificationInterval(150.millis)
 
       def instanceId = sampleOf[ju.UUID]
       def timestamp  = sampleOf[ZonedDateTime]

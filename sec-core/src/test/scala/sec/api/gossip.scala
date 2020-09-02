@@ -27,23 +27,6 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 import sec.api.Gossip._
 import Arbitraries._
 
-class GossipITest extends ITest with Discipline {
-
-  sequential
-
-  "Gossip" >> {
-
-    "read" >> {
-      gossip
-        .read(None)
-        .map(_.members.headOption should beLike {
-          case Some(MemberInfo(_, _, VNodeState.Leader, true, Endpoint("127.0.0.1", 2113))) => ok
-        })
-    }
-
-  }
-}
-
 class GossipSpec extends Specification with Discipline {
 
   "Gossip" >> {
