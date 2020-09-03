@@ -23,7 +23,7 @@ import java.time.ZonedDateTime
 import org.specs2.mutable.Specification
 import org.scalacheck.Gen
 import cats.data.{NonEmptyList => Nel}
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.testing.specs2.CatsIO
 import cats.effect._
 import Gossip._

@@ -19,7 +19,7 @@ package client
 
 import java.nio.file.Path
 import scala.concurrent.duration._
-import cats.implicits._
+import cats.syntax.all._
 import api.UserCredentials
 import api.OperationOptions
 

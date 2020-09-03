@@ -18,7 +18,7 @@ package sec
 package api
 package mapping
 
-import cats.implicits._
+import cats.syntax.all._
 import com.eventstore.client.{gossip => p}
 import sec.api.mapping.shared._
 import sec.api.mapping.time._

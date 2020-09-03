@@ -20,7 +20,7 @@ package mapping
 
 import java.time.{Instant, ZoneOffset}
 import java.util.{UUID => JUUID}
-import cats.implicits._
+import cats.syntax.all._
 import org.specs2._
 import com.eventstore.client.UUID
 import com.eventstore.client.{gossip => g}

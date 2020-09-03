@@ -18,7 +18,7 @@ package sec
 package api
 package mapping
 
-import cats.implicits._
+import cats.syntax.all._
 import scodec.bits.ByteVector
 import com.google.protobuf.ByteString
 

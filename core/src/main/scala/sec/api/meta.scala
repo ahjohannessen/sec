@@ -20,7 +20,7 @@ package api
 import java.{util => ju}
 import cats.data.NonEmptyList
 import cats.effect.Sync
-import cats.implicits._
+import cats.syntax.all._
 import io.circe._
 import io.circe.parser.decode
 import sec.core._

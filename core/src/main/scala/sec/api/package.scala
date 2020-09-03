@@ -17,7 +17,7 @@
 package sec
 
 import java.util.UUID
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.Sync
 import io.circe.Printer
 

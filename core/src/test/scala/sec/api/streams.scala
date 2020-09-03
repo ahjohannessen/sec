@@ -21,7 +21,7 @@ import java.{util => ju}
 import scala.concurrent.duration._
 import scodec.bits.ByteVector
 import cats.data.NonEmptyList
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.IO
 import fs2.Stream
 import sec.core._

@@ -19,7 +19,7 @@ package api
 package mapping
 
 import cats.data.NonEmptyList
-import cats.implicits._
+import cats.syntax.all._
 import com.eventstore.client._
 import com.eventstore.client.streams._
 import sec.core._

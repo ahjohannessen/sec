@@ -19,7 +19,7 @@ package api
 
 import java.time.ZonedDateTime
 import java.util.UUID
-import cats.implicits._
+import cats.syntax.all._
 import cats.kernel.laws.discipline._
 import org.specs2.mutable.Specification
 import org.scalacheck._

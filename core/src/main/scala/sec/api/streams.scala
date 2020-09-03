@@ -21,7 +21,7 @@ import scala.concurrent.duration._
 import scala.util.control.NonFatal
 import cats.Eq
 import cats.data._
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect._
 import cats.effect.concurrent.Ref
 import fs2.{Pipe, Pull, Stream}

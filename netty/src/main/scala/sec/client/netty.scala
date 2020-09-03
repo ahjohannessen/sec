@@ -19,7 +19,7 @@ package client
 
 import java.nio.file.Path
 import cats.effect._
-import cats.implicits._
+import cats.syntax.all._
 import io.grpc.netty.NettyChannelBuilder
 import io.grpc.netty.NettyChannelBuilder.{forAddress, forTarget}
 import io.grpc.netty.GrpcSslContexts.forClient
