@@ -19,7 +19,7 @@ package api
 package mapping
 
 import java.util.{UUID => JUUID}
-import cats.implicits._
+import cats.syntax.all._
 import org.specs2._
 import com.eventstore.client._
 import sec.api.mapping.shared._

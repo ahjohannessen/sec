@@ -23,7 +23,7 @@ import java.net.URI
 import io.grpc._
 import io.grpc.NameResolver._
 import cats.data.NonEmptySet
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect._
 import cats.effect.implicits._
 import fs2.Stream

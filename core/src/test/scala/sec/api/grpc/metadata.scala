@@ -20,7 +20,7 @@ package grpc
 
 import io.grpc.Metadata
 import org.specs2._
-import cats.implicits._
+import cats.syntax.all._
 import grpc.metadata._
 import grpc.metadata.keys._
 import grpc.constants.Headers._

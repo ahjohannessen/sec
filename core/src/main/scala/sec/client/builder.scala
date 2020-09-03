@@ -21,7 +21,7 @@ import java.nio.file.Path
 import scala.concurrent.duration.FiniteDuration
 import cats.Endo
 import cats.data._
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect._
 import io.grpc.{ManagedChannel, ManagedChannelBuilder, NameResolverRegistry}
 import org.lyranthe.fs2_grpc.java_runtime.implicits._

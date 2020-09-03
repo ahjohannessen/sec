@@ -21,7 +21,7 @@ package mapping
 import com.google.protobuf.ByteString
 import scodec.bits.ByteVector
 import org.specs2._
-import cats.implicits._
+import cats.syntax.all._
 import sec.api.mapping.implicits._
 
 class ImplicitsSpec extends mutable.Specification {

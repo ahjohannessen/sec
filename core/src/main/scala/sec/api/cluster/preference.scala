@@ -19,7 +19,7 @@ package api
 package cluster
 
 import cats.Eq
-import cats.implicits._
+import cats.syntax.all._
 
 sealed trait NodePreference
 object NodePreference {

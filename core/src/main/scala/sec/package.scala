@@ -18,7 +18,7 @@ import java.util.Locale
 import scala.util.Random
 import scala.concurrent.duration._
 import cats.{ApplicativeError, MonadError}
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.Sync
 
 package object sec {

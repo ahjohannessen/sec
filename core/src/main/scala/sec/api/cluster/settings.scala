@@ -19,7 +19,7 @@ package api
 package cluster
 
 import scala.concurrent.duration._
-import cats.implicits._
+import cats.syntax.all._
 import retries._
 
 final private[sec] case class ClusterSettings(

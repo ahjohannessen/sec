@@ -19,7 +19,7 @@ package sec
 import java.io.File
 import scala.concurrent.duration._
 import cats.data.NonEmptySet
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect._
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import sec.core.Position

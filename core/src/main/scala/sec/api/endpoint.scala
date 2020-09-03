@@ -20,7 +20,6 @@ package api
 import java.net.InetSocketAddress
 import io.grpc.{Attributes, EquivalentAddressGroup}
 import cats.{Order, Show}
-import cats.implicits._
 
 final case class Endpoint(
   address: String,

@@ -20,7 +20,7 @@ package api
 import java.util.concurrent.TimeoutException
 import scala.util.control.NonFatal
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.{Concurrent, Timer}
 import cats.effect.implicits._
 import io.chrisdavenport.log4cats.Logger

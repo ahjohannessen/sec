@@ -20,7 +20,7 @@ package core
 import scala.concurrent.duration._
 import cats.Show
 import cats.Endo
-import cats.implicits._
+import cats.syntax.all._
 import io.circe._
 import io.circe.syntax._
 import io.circe.Decoder.Result
