@@ -85,16 +85,16 @@ jobs:
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
       - name: Run tests
-        run: sbt ++${{ matrix.scala }} core/test
+        run: sbt ++${{ matrix.scala }} compile sec-core/test
 
       - name: Run single node integration tests
-        run: 'sbt ++${{ matrix.scala }} core/it:test'
+        run: 'sbt ++${{ matrix.scala }} sec-core/it-node:test'
 
       - name: Run cluster integration tests
         env:
           SEC_DEMO_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_DEMO_AUTHORITY: es.sec.local
-        run: sbt ++${{ matrix.scala }} demo/run
+        run: 'sbt ++${{ matrix.scala }} sec-core/it-cluster:test'
 
       - name: Stop EventStore Nodes
         if: always()
@@ -103,7 +103,7 @@ jobs:
           .docker/cluster.sh down
 
       - name: Compress target directories
-        run: tar cf targets.tar target demo/target netty/target core/target project/target
+        run: tar cf targets.tar target sec-netty/target sec-core/target project/target
 
       - name: Upload target directories
         uses: actions/upload-artifact@v2

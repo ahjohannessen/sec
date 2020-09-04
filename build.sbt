@@ -3,58 +3,48 @@ import Dependencies._
 lazy val root = project
   .in(file("."))
   .settings(skip in publish := true)
-  .aggregate(core, netty, demo)
+  .aggregate(`sec-core`, `sec-netty`)
 
 lazy val basePath     = file("").getAbsoluteFile.toPath
 lazy val certsPathKey = "certsPath" -> basePath / "certs"
 
-lazy val IntegrationTest = config("it") extend Test
+lazy val IntegrationNodeTest    = config("it-node") extend Test
+lazy val IntegrationClusterTest = config("it-cluster") extend Test
 
-lazy val core = project
+lazy val `sec-core` = project
+  .in(file("sec-core"))
   .enablePlugins(Fs2Grpc)
   .enablePlugins(BuildInfoPlugin)
-  .configs(IntegrationTest)
-  .settings(inConfig(IntegrationTest)(Defaults.testTasks): _*)
+  .configs(IntegrationNodeTest, IntegrationClusterTest)
   .settings(commonSettings)
   .settings(
     name := "sec-core",
     buildInfoPackage := "sec",
-    Test / testOptions := Seq(Tests.Filter(_ endsWith "Spec")),
-    IntegrationTest / testOptions := Seq(Tests.Filter(_ endsWith "ITest")),
-    IntegrationTest / parallelExecution := false,
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     libraryDependencies ++=
-      compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser, scalaPb) ++
-        protobufM(scalaPb) ++
-        testM(specs2Cats, catsEffectTesting, catsEffectLaws, grpcNetty, tcnative, log4catsSlf4j, logback)
+      compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser, scalaPb)
+        ++ protobufM(scalaPb)
+        ++ testM(specs2Cats, catsEffectTesting, catsEffectLaws, grpcNetty, tcnative, log4catsSlf4j, logback)
   )
   .settings(
     addBuildInfoToConfig(Test),
     Test / buildInfoKeys := buildInfoKeys.value :+ BuildInfoKey(certsPathKey),
-    Test / buildInfoObject := "TestBuildInfo"
+    Test / buildInfoObject := "TestBuildInfo",
+    Test / parallelExecution := true,
+    inConfig(IntegrationNodeTest)(Defaults.testSettings ++ Seq(parallelExecution := false)),
+    inConfig(IntegrationClusterTest)(Defaults.testSettings ++ Seq(parallelExecution := false))
   )
   .settings(
     libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value))
   )
 
-lazy val netty = project
-  .in(file("netty"))
-  .dependsOn(core)
+lazy val `sec-netty` = project
+  .in(file("sec-netty"))
+  .dependsOn(`sec-core`)
   .settings(commonSettings)
   .settings(
     name := "sec",
     libraryDependencies ++= compileM(grpcNetty, tcnative)
-  )
-
-lazy val demo = project
-  .enablePlugins(BuildInfoPlugin)
-  .dependsOn(netty)
-  .settings(
-    name := "demo",
-    buildInfoKeys := buildInfoKeys.value :+ BuildInfoKey(certsPathKey),
-    buildInfoPackage := "sec.demo",
-    libraryDependencies ++= compileM(log4catsSlf4j, logback).map(_.withDottyCompat(scalaVersion.value)),
-    skip in publish := true
   )
 
 // General Settings
@@ -126,15 +116,15 @@ inThisBuild(
     githubWorkflowBuild := Seq(
       WorkflowStep.Sbt(
         name     = Some("Run tests"),
-        commands = List("core/test")
+        commands = List("compile", "sec-core/test")
       ),
       WorkflowStep.Sbt(
         name     = Some("Run single node integration tests"),
-        commands = List("core/it:test")
+        commands = List("sec-core/it-node:test")
       ),
       WorkflowStep.Sbt(
         name     = Some("Run cluster integration tests"),
-        commands = List("demo/run"),
+        commands = List("sec-core/it-cluster:test"),
         env = Map(
           "SEC_DEMO_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_DEMO_AUTHORITY"  -> "es.sec.local"
