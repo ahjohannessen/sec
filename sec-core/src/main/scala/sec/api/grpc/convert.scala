@@ -18,7 +18,7 @@ package sec
 package api
 package grpc
 
-import cats.implicits._
+import cats.syntax.all._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
 import java.nio.channels.ClosedChannelException
 import grpc.constants.{Exceptions => ce}

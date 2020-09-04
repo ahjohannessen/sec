@@ -18,7 +18,7 @@ package sec
 package core
 
 import cats.{ApplicativeError, Eq, Show}
-import cats.implicits._
+import cats.syntax.all._
 
 //======================================================================================================================
 

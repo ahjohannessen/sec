@@ -18,7 +18,7 @@ package sec
 package core
 
 import scala.concurrent.duration._
-import cats.implicits._
+import cats.syntax.all._
 import org.specs2.mutable.Specification
 import io.circe._
 import io.circe.syntax._

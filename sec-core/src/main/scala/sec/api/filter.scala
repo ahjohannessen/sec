@@ -18,7 +18,7 @@ package sec
 package api
 
 import scala.util.matching.Regex
-import cats.implicits._
+import cats.syntax.all._
 import cats.data.NonEmptyList
 import EventFilter._
 

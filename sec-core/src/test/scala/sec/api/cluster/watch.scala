@@ -23,7 +23,7 @@ import java.time.ZonedDateTime
 import scala.concurrent.duration._
 import scala.concurrent.TimeoutException
 import org.specs2.mutable.Specification
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect._
 import cats.effect.concurrent.Ref
 import cats.effect.testing.specs2.CatsIO

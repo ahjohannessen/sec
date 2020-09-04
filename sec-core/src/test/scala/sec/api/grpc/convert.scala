@@ -20,7 +20,7 @@ package grpc
 
 import java.nio.channels.ClosedChannelException
 
-import cats.implicits._
+import cats.syntax.all._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
 import org.specs2._
 import constants.{Exceptions => ce}

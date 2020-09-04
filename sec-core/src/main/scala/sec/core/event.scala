@@ -20,7 +20,7 @@ package core
 import java.util.UUID
 import java.time.ZonedDateTime
 import cats.Show
-import cats.implicits._
+import cats.syntax.all._
 import scodec.bits.ByteVector
 
 //======================================================================================================================

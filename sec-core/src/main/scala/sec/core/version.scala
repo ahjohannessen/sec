@@ -18,7 +18,7 @@ package sec
 package core
 
 import cats.{Eq, Order, Show}
-import cats.implicits._
+import cats.syntax.all._
 
 //======================================================================================================================
 

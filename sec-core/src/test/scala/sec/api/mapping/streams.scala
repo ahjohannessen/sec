@@ -20,7 +20,7 @@ package mapping
 
 import java.time.{Instant, ZoneOffset}
 import java.util.{UUID => JUUID}
-import cats.implicits._
+import cats.syntax.all._
 import cats.data.NonEmptyList
 import scodec.bits.ByteVector
 import org.specs2._

@@ -22,7 +22,7 @@ package grpc
 import scala.jdk.CollectionConverters._
 import io.grpc.NameResolver.ResolutionResult
 import cats.data.{NonEmptyList => Nel, NonEmptySet => Nes}
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect._
 import cats.effect.concurrent._
 import cats.effect.implicits._

@@ -19,7 +19,7 @@ package core
 
 import java.{util => ju}
 import java.time.ZonedDateTime
-import cats.implicits._
+import cats.syntax.all._
 import scodec.bits.ByteVector
 import org.specs2.mutable.Specification
 import Arbitraries._

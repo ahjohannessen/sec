@@ -19,7 +19,7 @@ package api
 package mapping
 
 import java.util.{UUID => JUUID}
-import cats.implicits._
+import cats.syntax.all._
 import com.google.protobuf.ByteString
 import com.eventstore.client.{StreamIdentifier, UUID}
 import sec.core.StreamId

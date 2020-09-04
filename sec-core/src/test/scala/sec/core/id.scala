@@ -17,7 +17,7 @@
 package sec
 package core
 
-import cats.implicits._
+import cats.syntax.all._
 import org.scalacheck._
 import cats.kernel.laws.discipline._
 import org.specs2.mutable.Specification
