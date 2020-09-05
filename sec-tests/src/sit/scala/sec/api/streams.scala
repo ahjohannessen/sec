@@ -27,20 +27,25 @@ import fs2.Stream
 import sec.core._
 import sec.api.Direction._
 
+/* TODO:
+  When using builder / resource the test takes 30 seconds longer to complete.
+  Tests themselves run as fast, but the shutdown is hanging in subscribeToStream.
+  Needs to be investigated further and consider replacing specs with munit for these
+  types of tests.
+ */
+
 class StreamsITest extends ITest {
 
   sequential
 
-  "Streams" >> {
-
-    //======================================================================================================================
+  "Streams" should {
 
     "readAll" >> {
 
       import Position._
 
       val streamPrefix    = s"streams_read_all_${genIdentifier}_"
-      val eventTypePrefix = s"sec.${genIdentifier}.Event"
+      val eventTypePrefix = s"sec.$genIdentifier.Event"
 
       val id1     = genStreamId(streamPrefix)
       val id2     = genStreamId(streamPrefix)
@@ -53,7 +58,7 @@ class StreamsITest extends ITest {
           streams.appendToStream(id2, StreamRevision.NoStream, events2, None)
 
       def read(position: Position, direction: Direction, maxCount: Long = 1) =
-        streams.readAll(position, direction, maxCount, false, None).compile.toList
+        streams.readAll(position, direction, maxCount, resolveLinkTos = false, None).compile.toList
 
       //
 
@@ -83,7 +88,7 @@ class StreamsITest extends ITest {
 
         "max count is respected" >> {
           streams
-            .readAll(Start, Forwards, events1.length / 2L, false, None)
+            .readAll(Start, Forwards, events1.length / 2L, resolveLinkTos = false, None)
             .take(events1.length.toLong)
             .compile
             .toList
@@ -171,7 +176,7 @@ class StreamsITest extends ITest {
           val l3 = linkData(2)
 
           append(deletedId, e1) >>
-            meta.setMaxCount(deletedId, maxCount, None, None) >>
+            streams.metadata.setMaxCount(deletedId, maxCount, None, None) >>
             append(deletedId, e2) >>
             append(deletedId, e3) >>
             append(linkId, l1) >>
@@ -205,7 +210,7 @@ class StreamsITest extends ITest {
 
         "max count is respected" >> {
           streams
-            .readAll(End, Backwards, events1.length / 2L, false, None)
+            .readAll(End, Backwards, events1.length / 2L, resolveLinkTos = false, None)
             .take(events1.length.toLong)
             .compile
             .toList
@@ -216,7 +221,7 @@ class StreamsITest extends ITest {
 
     }
 
-    //======================================================================================================================
+    //==================================================================================================================
 
     "readStream" >> {
 
@@ -228,7 +233,7 @@ class StreamsITest extends ITest {
       val writeEvents  = streams.appendToStream(id, StreamRevision.NoStream, events, None)
 
       def read(id: StreamId, from: EventNumber, direction: Direction, count: Long = 50) =
-        streams.readStream(id, from, direction, count, false, None).compile.toList
+        streams.readStream(id, from, direction, count, resolveLinkTos = false, None).compile.toList
 
       def readData(id: StreamId, from: EventNumber, direction: Direction, count: Long = 50) =
         read(id, from, direction, count).map(_.map(_.eventData))
@@ -291,12 +296,12 @@ class StreamsITest extends ITest {
         }
 
         "reading from arbitrary position" >> {
-          readData(id, exact(3L), Forwards, 2).map(_ shouldEqual events.toList.drop(3).take(2))
+          readData(id, exact(3L), Forwards, 2).map(_ shouldEqual events.toList.slice(3, 5))
         }
 
         "max count is respected" >> {
           streams
-            .readStream(id, Start, Forwards, events.length / 2L, false, None)
+            .readStream(id, Start, Forwards, events.length / 2L, resolveLinkTos = false, None)
             .take(events.length.toLong)
             .compile
             .toList
@@ -361,12 +366,12 @@ class StreamsITest extends ITest {
         }
 
         "reading from arbitrary position" >> {
-          readData(id, EventNumber.exact(3L), Backwards, 2).map(_ shouldEqual events.toList.drop(2).take(2).reverse)
+          readData(id, EventNumber.exact(3L), Backwards, 2).map(_ shouldEqual events.toList.slice(2, 4).reverse)
         }
 
         "max count is respected" >> {
           streams
-            .readStream(id, End, Backwards, events.length / 2L, false, None)
+            .readStream(id, End, Backwards, events.length / 2L, resolveLinkTos = false, None)
             .take(events.length.toLong)
             .compile
             .toList
@@ -377,7 +382,7 @@ class StreamsITest extends ITest {
 
     }
 
-    //======================================================================================================================
+    //==================================================================================================================
 
     "subscribeToStream" >> {
 
@@ -396,5 +401,6 @@ class StreamsITest extends ITest {
 
     }
 
+    //==================================================================================================================
   }
 }

@@ -84,9 +84,10 @@ sealed abstract class SingleNodeBuilder[F[_]](
   private[sec] def modOptions(fn: Options => Options): SingleNodeBuilder[F] =
     copy(options = fn(options))
 
-  def withEndpoint(value: Endpoint): SingleNodeBuilder[F]        = copy(endpoint = value)
-  def withAuthority(value: Option[String]): SingleNodeBuilder[F] = copy(authority = value)
-  def withLogger(value: Logger[F]): SingleNodeBuilder[F]         = copy(logger = value)
+  def withEndpoint(value: Endpoint): SingleNodeBuilder[F] = copy(endpoint = value)
+  def withAuthority(value: String): SingleNodeBuilder[F]  = copy(authority = value.some)
+  def withNoAuthority: SingleNodeBuilder[F]               = copy(authority = None)
+  def withLogger(value: Logger[F]): SingleNodeBuilder[F]  = copy(logger = value)
 
   ///
 
