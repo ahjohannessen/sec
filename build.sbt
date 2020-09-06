@@ -3,21 +3,30 @@ import Dependencies._
 lazy val root = project
   .in(file("."))
   .settings(skip in publish := true)
-  .dependsOn(`sec-core`, `sec-netty`, `sec-tests`)
-  .aggregate(`sec-core`, `sec-netty`, `sec-tests`)
+  .dependsOn(`sec-protos`, `sec-core`, `sec-netty`, `sec-tests`)
+  .aggregate(`sec-protos`, `sec-core`, `sec-netty`, `sec-tests`)
+
+lazy val `sec-protos` = project
+  .in(file("sec-protos"))
+  .enablePlugins(Fs2Grpc)
+  .settings(commonSettings)
+  .settings(
+    name := "sec-protos",
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
+    libraryDependencies ++= compileM(scalaPb)
+  )
+  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
 
 lazy val `sec-core` = project
   .in(file("sec-core"))
-  .enablePlugins(Fs2Grpc, AutomateHeaderPlugin)
+  .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
   .settings(
     name := "sec-core",
-    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    libraryDependencies ++=
-      compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser, scalaPb) ++
-        protobufM(scalaPb)
+    libraryDependencies ++= compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser)
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
+  .dependsOn(`sec-protos`)
 
 lazy val `sec-netty` = project
   .in(file("sec-netty"))
@@ -42,8 +51,15 @@ lazy val `sec-tests` = project
     buildInfoKeys := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
     Test / headerSources ++= sources.in(SingleNodeITest).value ++ sources.in(ClusterITest).value,
     libraryDependencies ++= testM(
-      catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck, specs2Cats, catsEffectTesting,
-      catsEffectLaws, log4catsSlf4j, logback
+      catsLaws,
+      disciplineSpecs2,
+      specs2,
+      specs2ScalaCheck,
+      specs2Cats,
+      catsEffectTesting,
+      catsEffectLaws,
+      log4catsSlf4j,
+      logback
     )
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
