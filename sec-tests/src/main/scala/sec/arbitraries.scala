@@ -32,7 +32,7 @@ import sec.api.Endpoint
 import org.scalacheck._
 import org.scalacheck.Arbitrary.arbitrary
 
-object Arbitraries {
+object arbitraries {
 
   final def sampleOf[T](implicit ev: Arbitrary[T]): T =
     sampleOfGen(ev.arbitrary)

@@ -20,21 +20,23 @@ package api
 import java.{util => ju}
 import scala.concurrent.duration._
 import scodec.bits.ByteVector
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList => Nel}
 import cats.syntax.all._
 import cats.effect.IO
 import fs2.Stream
 import sec.core._
 import sec.api.Direction._
+import org.scalacheck.Gen
+import sec.arbitraries._
 
-/* TODO:
-  When using builder / resource the test takes 30 seconds longer to complete.
-  Tests themselves run as fast, but the shutdown is hanging in subscribeToStream.
-  Needs to be investigated further and consider replacing specs with munit for these
-  types of tests.
- */
+class StreamsSpec extends SnSpec {
 
-class StreamsITest extends ITest {
+  def genIdentifier: String                               = sampleOfGen(Gen.identifier.suchThat(id => id.length >= 5 && id.length <= 20))
+  def genStreamId(streamPrefix: String): StreamId.Id      = sampleOfGen(idGen.genStreamIdNormal(s"$streamPrefix"))
+  def genEvents(n: Int): Nel[EventData]                   = genEvents(n, eventTypeGen.defaultPrefix)
+  def genEvents(n: Int, etPrefix: String): Nel[EventData] = sampleOfGen(eventdataGen.eventDataNelN(n, etPrefix))
+
+  ///
 
   sequential
 
@@ -153,7 +155,7 @@ class StreamsITest extends ITest {
           val maxCount  = MaxCount.from(2).unsafe
 
           def linkData(number: Long) =
-            NonEmptyList.one(
+            Nel.one(
               EventData.binary(
                 EventType.LinkTo,
                 ju.UUID.randomUUID(),
@@ -161,7 +163,7 @@ class StreamsITest extends ITest {
                 ByteVector.empty
               ))
 
-          def append(id: StreamId, data: NonEmptyList[EventData]) =
+          def append(id: StreamId, data: Nel[EventData]) =
             streams.appendToStream(id, StreamRevision.Any, data, None)
 
           def readLink(resolve: Boolean) =

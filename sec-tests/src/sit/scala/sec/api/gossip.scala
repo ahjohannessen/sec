@@ -19,11 +19,11 @@ package api
 
 import sec.api.Gossip._
 
-class GossipITest extends ITest {
+class GossipITest extends SnSpec {
 
   sequential
 
-  "Gossip" >> {
+  "Gossip" should {
 
     "read" >> {
 
@@ -33,6 +33,6 @@ class GossipITest extends ITest {
           case Some(MemberInfo(_, _, VNodeState.Leader, true, Endpoint("127.0.0.1", 2113))) => ok
         })
     }
-
   }
+
 }

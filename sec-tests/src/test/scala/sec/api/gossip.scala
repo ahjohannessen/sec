@@ -25,7 +25,7 @@ import org.specs2.mutable.Specification
 import org.scalacheck._
 import org.typelevel.discipline.specs2.mutable.Discipline
 import sec.api.Gossip._
-import Arbitraries._
+import sec.arbitraries._
 
 class GossipSpec extends Specification with Discipline {
 

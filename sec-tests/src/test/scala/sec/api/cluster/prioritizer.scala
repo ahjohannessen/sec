@@ -28,7 +28,7 @@ import cats.effect.testing.specs2.CatsIO
 import cats.effect._
 import Gossip._
 import Gossip.VNodeState._
-import Arbitraries._
+import sec.arbitraries._
 
 class NodePrioritizerSpec extends Specification with CatsIO {
 

@@ -23,7 +23,8 @@ lazy val `sec-core` = project
   .settings(commonSettings)
   .settings(
     name := "sec-core",
-    libraryDependencies ++= compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser)
+    libraryDependencies ++=
+      compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser)
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
   .dependsOn(`sec-protos`)
@@ -50,17 +51,9 @@ lazy val `sec-tests` = project
     buildInfoPackage := "sec",
     buildInfoKeys := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
     Test / headerSources ++= sources.in(SingleNodeITest).value ++ sources.in(ClusterITest).value,
-    libraryDependencies ++= testM(
-      catsLaws,
-      disciplineSpecs2,
-      specs2,
-      specs2ScalaCheck,
-      specs2Cats,
-      catsEffectTesting,
-      catsEffectLaws,
-      log4catsSlf4j,
-      logback
-    )
+    libraryDependencies ++=
+      compileM(catsLaws, catsEffectLaws, disciplineSpecs2, specs2ScalaCheck, specs2Cats) ++
+        compileM(specs2, catsEffectSpecs2, log4catsSlf4j, logback)
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
   .dependsOn(`sec-core`, `sec-netty`)

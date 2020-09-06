@@ -22,7 +22,7 @@ import java.time.ZonedDateTime
 import cats.syntax.all._
 import scodec.bits.ByteVector
 import org.specs2.mutable.Specification
-import Arbitraries._
+import sec.arbitraries._
 
 //======================================================================================================================
 

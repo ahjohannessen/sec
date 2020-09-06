@@ -22,7 +22,7 @@ import cats.kernel.laws.discipline._
 import org.scalacheck._
 import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
-import sec.Arbitraries._
+import sec.arbitraries._
 
 class VersionSpec extends Specification with Discipline {
 
