@@ -25,9 +25,9 @@ import cats.effect._
 import cats.effect.concurrent.Ref
 import fs2.Stream
 import io.chrisdavenport.log4cats.Logger
-import org.lyranthe.fs2_grpc.java_runtime.implicits._
 import io.grpc._
 import core.{NotLeader, ServerUnavailable}
+import sec.syntax.channel._
 import sec.api.Gossip.ClusterInfo
 import sec.api.cluster.grpc._
 import sec.api.retries._
@@ -56,7 +56,7 @@ private[sec] object ClusterWatch {
 
     def mkChannel(p: ResolverProvider[F]): Resource[F, ManagedChannel] = Resource
       .liftF(builderFromTarget(s"${p.scheme}:///"))
-      .flatMap(_.defaultLoadBalancingPolicy("round_robin").resource[F])
+      .flatMap(_.defaultLoadBalancingPolicy("round_robin").resource[F](settings.channelShutdownAwait))
 
     for {
       store    <- mkCache

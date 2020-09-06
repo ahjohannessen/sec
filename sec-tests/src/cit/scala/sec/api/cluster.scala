@@ -20,25 +20,19 @@ package api
 import scala.concurrent.duration._
 import cats.implicits._
 
-class ClusterTest extends CTest {
+object ClusterSuite extends CIOSuite {
 
-  sequential
-
-  "Cluster" should {
-
-    "be reachable" >> withGossipL { (gossip, log) =>
-      fs2.Stream
-        .eval(gossip.read(None))
-        .evalTap(x => log.info(s"Gossip.read: ${x.show}"))
-        .metered(150.millis)
-        .repeat
-        .take(5)
-        .compile
-        .lastOrError
-        .map(_.members)
-        .map(m => (m.size shouldEqual 3) and (m.forall(_.isAlive) should beTrue))
-    }
-
+  test("cluster should be reachable") { (cl, log) =>
+    fs2.Stream
+      .eval(cl.gossip.read(None))
+      .evalTap(x => log.info(s"Gossip.read: ${x.show}"))
+      .metered(150.millis)
+      .repeat
+      .take(5)
+      .compile
+      .lastOrError
+      .map(_.members)
+      .map(m => (m.size mustEqual 3) and (m.forall(_.isAlive) must beTrue))
   }
 
 }

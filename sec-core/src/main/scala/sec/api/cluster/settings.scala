@@ -29,7 +29,8 @@ final private[sec] case class ClusterSettings(
   retryBackoffFactor: Double,
   readTimeout: FiniteDuration,
   notificationInterval: FiniteDuration,
-  preference: NodePreference
+  preference: NodePreference,
+  channelShutdownAwait: FiniteDuration
 )
 
 private[sec] object ClusterSettings {
@@ -41,7 +42,8 @@ private[sec] object ClusterSettings {
     retryBackoffFactor   = 1.25,
     readTimeout          = 5.seconds,
     notificationInterval = 100.millis,
-    preference           = NodePreference.Leader
+    preference           = NodePreference.Leader,
+    channelShutdownAwait = 10.seconds
   )
 
   implicit final class ClusterSettingsOps(val cs: ClusterSettings) extends AnyVal {
@@ -53,6 +55,7 @@ private[sec] object ClusterSettings {
     def withReadTimeout(timeout: FiniteDuration): ClusterSettings           = cs.copy(readTimeout = timeout)
     def withNotificationInterval(interval: FiniteDuration): ClusterSettings = cs.copy(notificationInterval = interval)
     def withNodePreference(np: NodePreference): ClusterSettings             = cs.copy(preference = np)
+    def withChannelShutdownAwait(await: FiniteDuration): ClusterSettings    = cs.copy(channelShutdownAwait = await)
 
     def retryConfig: RetryConfig = RetryConfig(
       cs.retryDelay,

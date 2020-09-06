@@ -17,6 +17,7 @@
 package sec
 package client
 
+import scala.concurrent.duration._
 import cats.Endo
 import cats.data.NonEmptySet
 import cats.effect.{ConcurrentEffect, Timer}
@@ -39,7 +40,7 @@ trait EsClient[F[_]] {
 object EsClient {
 
   def single[F[_]: ConcurrentEffect: Timer](endpoint: Endpoint): SingleNodeBuilder[F] =
-    SingleNodeBuilder[F](endpoint, None, Options.default, NoOpLogger.impl[F])
+    SingleNodeBuilder[F](endpoint, None, Options.default, 10.seconds, logger = NoOpLogger.impl[F])
 
   def cluster[F[_]: ConcurrentEffect: Timer](seed: NonEmptySet[Endpoint], authority: String): ClusterBuilder[F] =
     ClusterBuilder[F](seed, authority, Options.default, ClusterSettings.default, NoOpLogger.impl[F])

@@ -27,13 +27,6 @@ import fs2.Stream
 import sec.core._
 import sec.api.Direction._
 
-/* TODO:
-  When using builder / resource the test takes 30 seconds longer to complete.
-  Tests themselves run as fast, but the shutdown is hanging in subscribeToStream.
-  Needs to be investigated further and consider replacing specs with munit for these
-  types of tests.
- */
-
 class StreamsITest extends ITest {
 
   sequential

@@ -49,6 +49,7 @@ lazy val `sec-tests` = project
     skip in publish := true,
     buildInfoPackage := "sec",
     buildInfoKeys := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
+    testFrameworks += new TestFramework("weaver.framework.TestFramework"),
     Test / headerSources ++= sources.in(SingleNodeITest).value ++ sources.in(ClusterITest).value,
     libraryDependencies ++= testM(
       catsLaws,
@@ -58,6 +59,8 @@ lazy val `sec-tests` = project
       specs2Cats,
       catsEffectTesting,
       catsEffectLaws,
+      weawer,
+      weawerSpecs,
       log4catsSlf4j,
       logback
     )

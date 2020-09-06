@@ -18,17 +18,17 @@ package sec
 package client
 
 import java.nio.file.Path
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import cats.Endo
 import cats.data._
 import cats.syntax.all._
 import cats.effect._
 import io.grpc.{ManagedChannel, ManagedChannelBuilder, NameResolverRegistry}
-import org.lyranthe.fs2_grpc.java_runtime.implicits._
 import io.chrisdavenport.log4cats.Logger
 import sec.api._
 import sec.api.cluster._
 import sec.api.cluster.grpc.ResolverProvider
+import sec.syntax.channel._
 
 //======================================================================================================================
 
@@ -70,6 +70,7 @@ sealed abstract class SingleNodeBuilder[F[_]](
   endpoint: Endpoint,
   authority: Option[String],
   options: Options,
+  shutdownAwait: FiniteDuration,
   logger: Logger[F]
 ) extends OptionsBuilder[SingleNodeBuilder[F]] {
 
@@ -77,17 +78,19 @@ sealed abstract class SingleNodeBuilder[F[_]](
     endpoint: Endpoint = endpoint,
     authority: Option[String] = authority,
     options: Options = options,
+    shutdownAwait: FiniteDuration = shutdownAwait,
     logger: Logger[F] = logger
   ): SingleNodeBuilder[F] =
-    new SingleNodeBuilder[F](endpoint, authority, options, logger) {}
+    new SingleNodeBuilder[F](endpoint, authority, options, shutdownAwait, logger) {}
 
   private[sec] def modOptions(fn: Options => Options): SingleNodeBuilder[F] =
     copy(options = fn(options))
 
-  def withEndpoint(value: Endpoint): SingleNodeBuilder[F] = copy(endpoint = value)
-  def withAuthority(value: String): SingleNodeBuilder[F]  = copy(authority = value.some)
-  def withNoAuthority: SingleNodeBuilder[F]               = copy(authority = None)
-  def withLogger(value: Logger[F]): SingleNodeBuilder[F]  = copy(logger = value)
+  def withEndpoint(value: Endpoint): SingleNodeBuilder[F]                   = copy(endpoint = value)
+  def withAuthority(value: String): SingleNodeBuilder[F]                    = copy(authority = value.some)
+  def withNoAuthority: SingleNodeBuilder[F]                                 = copy(authority = None)
+  def withLogger(value: Logger[F]): SingleNodeBuilder[F]                    = copy(logger = value)
+  def withChannelShutdownAwait(await: FiniteDuration): SingleNodeBuilder[F] = copy(shutdownAwait = await)
 
   ///
 
@@ -101,7 +104,7 @@ sealed abstract class SingleNodeBuilder[F[_]](
     val modifications: Endo[MCB]         = b => authority.fold(b)(a => b.overrideAuthority(a))
 
     channelBuilder >>= { builder =>
-      modifications(builder).resource[F].map(EsClient[F](_, options, requiresLeader = false, logger))
+      modifications(builder).resource[F](shutdownAwait).map(EsClient[F](_, options, requiresLeader = false, logger))
     }
   }
 
@@ -113,9 +116,10 @@ object SingleNodeBuilder {
     endpoint: Endpoint,
     authority: Option[String],
     options: Options,
+    shutdownAwait: FiniteDuration,
     logger: Logger[F]
   ): SingleNodeBuilder[F] =
-    new SingleNodeBuilder[F](endpoint, authority, options, logger) {}
+    new SingleNodeBuilder[F](endpoint, authority, options, shutdownAwait, logger) {}
 }
 
 //======================================================================================================================
@@ -147,6 +151,7 @@ class ClusterBuilder[F[_]](
   def withClusterReadTimeout(value: FiniteDuration): ClusterBuilder[F]          = mod(_.withReadTimeout(value))
   def withClusterNotificationInterval(value: FiniteDuration): ClusterBuilder[F] = mod(_.withNotificationInterval(value))
   def withClusterNodePreference(value: NodePreference): ClusterBuilder[F]       = mod(_.withNodePreference(value))
+  def withChannelShutdownAwait(value: FiniteDuration): ClusterBuilder[F]        = mod(_.withChannelShutdownAwait(value))
   def withAuthority(value: String): ClusterBuilder[F]                           = copy(authority = value)
   def withLogger(value: Logger[F]): ClusterBuilder[F]                           = copy(logger = value)
 
@@ -185,7 +190,7 @@ class ClusterBuilder[F[_]](
       mkProvider >>= builder >>= {
         _.defaultLoadBalancingPolicy("round_robin")
           .overrideAuthority(authority)
-          .resource[F]
+          .resource[F](settings.channelShutdownAwait)
           .map(EsClient[F](_, options, settings.preference.isLeader, logger))
       }
 

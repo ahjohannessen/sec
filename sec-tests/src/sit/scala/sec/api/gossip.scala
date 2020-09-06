@@ -33,6 +33,6 @@ class GossipITest extends ITest {
           case Some(MemberInfo(_, _, VNodeState.Leader, true, Endpoint("127.0.0.1", 2113))) => ok
         })
     }
-
   }
+
 }
