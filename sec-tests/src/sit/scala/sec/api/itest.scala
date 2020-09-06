@@ -34,6 +34,8 @@ import Arbitraries._
 
 trait ITest extends Specification with CatsIO with AfterAll {
 
+  import ITest._
+
   final private val testName                              = snakeCaseTransformation(getClass.getSimpleName)
   def genIdentifier: String                               = sampleOfGen(Gen.identifier.suchThat(id => id.length >= 5 && id.length <= 20))
   def genStreamId: StreamId.Id                            = genStreamId(s"${testName}_")
@@ -42,13 +44,6 @@ trait ITest extends Specification with CatsIO with AfterAll {
   def genEvents(n: Int, etPrefix: String): Nel[EventData] = sampleOfGen(eventdataGen.eventDataNelN(n, etPrefix))
 
   final private lazy val (client, shutdown): (EsClient[IO], IO[Unit]) = {
-
-    val certsFolder = new File(sys.env.getOrElse("SEC_TEST_CERTS_PATH", TestBuildInfo.certsPath))
-    val ca          = new File(certsFolder, "ca/ca.crt")
-
-    val address   = sys.env.getOrElse("SEC_IT_TEST_HOST_ADDRESS", "127.0.0.1")
-    val port      = sys.env.get("SEC_IT_TEST_HOST_PORT").flatMap(_.toIntOption).getOrElse(2113)
-    val authority = sys.env.getOrElse("SEC_IT_TEST_AUTHORITY", "es.sec.local")
 
     val builder = IO.delay(
       NettyChannelBuilder
@@ -63,19 +58,29 @@ trait ITest extends Specification with CatsIO with AfterAll {
     val result: Resource[IO, EsClient[IO]] = for {
       b <- Resource.liftF(builder)
       l <- Resource.liftF(Slf4jLogger.fromName[IO]("integration-test"))
-      c <- b.resourceWithShutdown[IO](mc => IO.delay(mc.shutdownNow()).void).map(EsClient[IO](_, options, true, l))
+      c <- b.resourceWithShutdown[IO](mc => IO.delay(mc.shutdownNow()).void)
+             .map(EsClient[IO](_, options, requiresLeader = true, l))
     } yield c
 
     result.allocated[IO, EsClient[IO]].unsafeRunSync()
   }
 
-  final lazy val esClient: EsClient[IO] = client
-  final lazy val streams: Streams[IO]   = client.streams
-  final lazy val gossip: Gossip[IO]     = client.gossip
-  final lazy val meta: MetaStreams[IO]  = client.streams.metadata
+  final def esClient: EsClient[IO] = client
+  final def streams: Streams[IO]   = client.streams
+  final def gossip: Gossip[IO]     = client.gossip
 
   //
 
   final def afterAll(): Unit = shutdown.unsafeRunSync()
+
+}
+
+object ITest {
+
+  final private val certsFolder = new File(sys.env.getOrElse("SEC_TEST_CERTS_PATH", BuildInfo.certsPath))
+  final private val address     = sys.env.getOrElse("SEC_IT_TEST_HOST_ADDRESS", "127.0.0.1")
+  final private val port        = sys.env.get("SEC_IT_TEST_HOST_PORT").flatMap(_.toIntOption).getOrElse(2113)
+  final private val ca          = new File(certsFolder, "ca/ca.crt")
+  final private val authority   = sys.env.getOrElse("SEC_IT_TEST_AUTHORITY", "es.sec.local")
 
 }

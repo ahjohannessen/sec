@@ -3,74 +3,63 @@ import Dependencies._
 lazy val root = project
   .in(file("."))
   .settings(skip in publish := true)
-  .aggregate(`sec-core`, `sec-netty`)
-
-lazy val basePath     = file("").getAbsoluteFile.toPath
-lazy val certsPathKey = "certsPath" -> basePath / "certs"
-
-lazy val IntegrationNodeTest    = config("it-node") extend Test
-lazy val IntegrationClusterTest = config("it-cluster") extend Test
+  .dependsOn(`sec-core`, `sec-netty`, `sec-tests`)
+  .aggregate(`sec-core`, `sec-netty`, `sec-tests`)
 
 lazy val `sec-core` = project
   .in(file("sec-core"))
-  .enablePlugins(Fs2Grpc)
-  .enablePlugins(BuildInfoPlugin)
-  .configs(IntegrationNodeTest, IntegrationClusterTest)
+  .enablePlugins(Fs2Grpc, AutomateHeaderPlugin)
   .settings(commonSettings)
   .settings(
     name := "sec-core",
-    buildInfoPackage := "sec",
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     libraryDependencies ++=
-      compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser, scalaPb)
-        ++ protobufM(scalaPb)
-        ++ testM(specs2Cats, catsEffectTesting, catsEffectLaws, grpcNetty, tcnative, log4catsSlf4j, logback)
+      compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser, scalaPb) ++
+        protobufM(scalaPb)
   )
-  .settings(
-    addBuildInfoToConfig(Test),
-    Test / buildInfoKeys := buildInfoKeys.value :+ BuildInfoKey(certsPathKey),
-    Test / buildInfoObject := "TestBuildInfo",
-    Test / parallelExecution := true,
-    inConfig(IntegrationNodeTest)(Defaults.testSettings ++ Seq(parallelExecution := false)),
-    inConfig(IntegrationClusterTest)(Defaults.testSettings ++ Seq(parallelExecution := false))
-  )
-  .settings(
-    libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value))
-  )
+  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
 
 lazy val `sec-netty` = project
   .in(file("sec-netty"))
-  .dependsOn(`sec-core`)
+  .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
+  .settings(name := "sec", libraryDependencies ++= compileM(grpcNetty, tcnative))
+  .dependsOn(`sec-core`)
+
+lazy val SingleNodeITest = config("sit") extend Test
+lazy val ClusterITest    = config("cit") extend Test
+
+lazy val `sec-tests` = project
+  .in(file("sec-tests"))
+  .enablePlugins(BuildInfoPlugin, AutomateHeaderPlugin)
+  .configs(SingleNodeITest, ClusterITest)
+  .settings(commonSettings)
+  .settings(inConfig(SingleNodeITest)(Defaults.testSettings ++ Seq(parallelExecution := false)))
+  .settings(inConfig(ClusterITest)(Defaults.testSettings ++ Seq(parallelExecution := false)))
   .settings(
-    name := "sec",
-    libraryDependencies ++= compileM(grpcNetty, tcnative)
+    skip in publish := true,
+    buildInfoPackage := "sec",
+    buildInfoKeys := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
+    Test / headerSources ++= sources.in(SingleNodeITest).value ++ sources.in(ClusterITest).value,
+    libraryDependencies ++= testM(
+      catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck, specs2Cats, catsEffectTesting,
+      catsEffectLaws, log4catsSlf4j, logback
+    )
   )
+  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
+  .dependsOn(`sec-core`, `sec-netty`)
 
 // General Settings
 
-lazy val commonSettings =
-  AutomateHeaderPlugin.projectSettings ++
-    Seq(
-      scalacOptions ++= {
-        if (isDotty.value) Seq("-source:3.0-migration") else Nil
-      },
-      libraryDependencies ++=
-        testM(catsLaws, disciplineSpecs2, specs2, specs2ScalaCheck).map(_.withDottyCompat(scalaVersion.value)),
-      pomPostProcess := { node =>
-        import scala.xml._
-        import scala.xml.transform._
-        def stripIf(f: Node => Boolean) = new RewriteRule {
-          override def transform(n: Node) = if (f(n)) NodeSeq.Empty else n
-        }
-        val stripTestScope = stripIf(n => n.label == "dependency" && (n \ "scope").text == "test")
-        new RuleTransformer(stripTestScope).transform(node)(0)
-      },
-      Compile / doc / sources := {
-        val old = (Compile / doc / sources).value
-        if (isDotty.value) Nil else old
-      }
-    )
+lazy val commonSettings = Seq(
+  scalacOptions ++= {
+    if (isDotty.value) Seq("-source:3.0-migration") else Nil
+  },
+  Compile / doc / sources := {
+    val old = (Compile / doc / sources).value
+    if (isDotty.value) Nil else old
+  }
+)
 
 inThisBuild(
   List(
@@ -109,6 +98,7 @@ inThisBuild(
   List(
     githubWorkflowJavaVersions := Seq("adopt@1.11"),
     githubWorkflowTargetTags += "v*",
+    githubWorkflowTargetBranches := Seq("master"),
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start EventStore Nodes"),
       commands = List(".docker/single-node.sh up -d", ".docker/cluster.sh up -d")
@@ -116,15 +106,15 @@ inThisBuild(
     githubWorkflowBuild := Seq(
       WorkflowStep.Sbt(
         name     = Some("Run tests"),
-        commands = List("compile", "sec-core/test")
+        commands = List("compile", "sec-tests/test")
       ),
       WorkflowStep.Sbt(
         name     = Some("Run single node integration tests"),
-        commands = List("sec-core/it-node:test")
+        commands = List("sec-tests/sit:test")
       ),
       WorkflowStep.Sbt(
         name     = Some("Run cluster integration tests"),
-        commands = List("sec-core/it-cluster:test"),
+        commands = List("sec-tests/cit:test"),
         env = Map(
           "SEC_DEMO_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_DEMO_AUTHORITY"  -> "es.sec.local"
@@ -136,8 +126,10 @@ inThisBuild(
       commands = List(".docker/single-node.sh down", ".docker/cluster.sh down"),
       cond     = Some("always()")
     ),
-    githubWorkflowPublishTargetBranches +=
-      RefPredicate.StartsWith(Ref.Tag("v")),
+    githubWorkflowPublishTargetBranches := Seq(
+      RefPredicate.Equals(Ref.Branch("master")),
+      RefPredicate.StartsWith(Ref.Tag("v"))
+    ),
     githubWorkflowPublishPreamble +=
       WorkflowStep.Use("olafurpg", "setup-gpg", "v2"),
     githubWorkflowPublish := Seq(

@@ -26,6 +26,7 @@ class GossipITest extends ITest {
   "Gossip" >> {
 
     "read" >> {
+
       gossip
         .read(None)
         .map(_.members.headOption should beLike {

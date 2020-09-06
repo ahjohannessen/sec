@@ -26,18 +26,19 @@ class ClusterTest extends CTest {
 
   "Cluster" should {
 
-    "be reachable" in withResource {
-      case (c, l) =>
-        fs2.Stream
-          .eval(c.gossip.read(None))
-          .evalTap(x => l.info(s"Gossip.read: ${x.show}"))
-          .metered(150.millis)
-          .repeat
-          .take(5)
-          .compile
-          .lastOrError
-          .map(_.members)
-          .map(m => (m.size shouldEqual 3) and (m.forall(_.isAlive) should beTrue))
+    "be reachable" >> withGossipL { (gossip, log) =>
+      fs2.Stream
+        .eval(gossip.read(None))
+        .evalTap(x => log.info(s"Gossip.read: ${x.show}"))
+        .metered(150.millis)
+        .repeat
+        .take(5)
+        .compile
+        .lastOrError
+        .map(_.members)
+        .map(m => (m.size shouldEqual 3) and (m.forall(_.isAlive) should beTrue))
     }
+
   }
+
 }
