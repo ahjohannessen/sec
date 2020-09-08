@@ -34,6 +34,8 @@ import Arbitraries._
 
 trait ITest extends Specification with CatsIO with AfterAll {
 
+  import cats.effect.IO.ioEffect // Dotty
+
   import ITest._
 
   final private val testName                              = snakeCaseTransformation(getClass.getSimpleName)
