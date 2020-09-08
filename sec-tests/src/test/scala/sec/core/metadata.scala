@@ -22,7 +22,7 @@ import cats.syntax.all._
 import org.specs2.mutable.Specification
 import io.circe._
 import io.circe.syntax._
-import Arbitraries._
+import sec.arbitraries._
 
 //======================================================================================================================
 

@@ -22,7 +22,7 @@ import cats.kernel.laws.discipline._
 import org.specs2.mutable.Specification
 import org.scalacheck._
 import org.typelevel.discipline.specs2.mutable.Discipline
-import Arbitraries._
+import sec.arbitraries._
 
 class EndpointSpec extends Specification with Discipline {
 
