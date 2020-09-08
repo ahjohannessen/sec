@@ -36,9 +36,11 @@ import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import io.chrisdavenport.log4cats.Logger
 import org.scalacheck.Gen
 
+// TODO: Redo this entire spec
 class ClusterWatchSpec extends Specification with CatsIO {
 
   import ClusterWatch.Cache
+  import cats.effect.IO.ioEffect // Dotty
 
   "ClusterWatch" should {
 
@@ -70,7 +72,9 @@ class ClusterWatchSpec extends Specification with CatsIO {
           case _ => ref.update(_ + 1) *> ci5.pure[IO]
         }
 
-      val result = for {
+      type Res = (Stream[IO, ClusterInfo], Ref[IO, List[ClusterInfo]])
+
+      val result: Resource[IO, Res] = for {
         readCountRef <- Resource.liftF(Ref.of[IO, Int](0))
         store        <- Resource.liftF(Ref.of[IO, List[ClusterInfo]](ci1 :: Nil))
         log          <- Resource.liftF(mkLog)
@@ -80,7 +84,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
       result.map {
         case (changes, store) =>
-          changes.take(4).compile.toList.map(_ shouldEqual List(ci1, ci2, ci4, ci5)) *>
+          changes.take(4).compile.toList.map(_ shouldEqual List(ci1, ci2, ci4, ci5)) >>
             store.get.map(_.lastOption shouldEqual ci5.some)
       }
 
