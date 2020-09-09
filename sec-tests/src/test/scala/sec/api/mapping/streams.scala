@@ -263,16 +263,15 @@ class StreamsMappingSpec extends mutable.Specification {
       }
 
       def test(nel: NonEmptyList[c.EventData]) = {
-        mkAppendProposalsReq(nel) shouldEqual nel.zipWithIndex.map {
-          case (e, i) =>
-            AppendReq().withProposedMessage(
-              AppendReq
-                .ProposedMessage()
-                .withId(mkUuid(e.eventId))
-                .withMetadata(Map(Type -> s"et-$i", ContentType -> e.contentType.fold(Binary, Json)))
-                .withData(e.data.bytes.toByteString)
-                .withCustomMetadata(e.metadata.bytes.toByteString)
-            )
+        mkAppendProposalsReq(nel) shouldEqual nel.zipWithIndex.map { case (e, i) =>
+          AppendReq().withProposedMessage(
+            AppendReq
+              .ProposedMessage()
+              .withId(mkUuid(e.eventId))
+              .withMetadata(Map(Type -> s"et-$i", ContentType -> e.contentType.fold(Binary, Json)))
+              .withData(e.data.bytes.toByteString)
+              .withCustomMetadata(e.metadata.bytes.toByteString)
+          )
         }
       }
 

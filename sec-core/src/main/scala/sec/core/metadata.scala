@@ -93,8 +93,8 @@ private[sec] object StreamMetadata {
       Decoder.decodeJsonObject(c).map { both =>
         val (ours, theirs) = both.toList.partition(kv => reservedKeys.contains(kv._1))
         (JsonObject.fromIterable(ours), JsonObject.fromIterable(theirs))
-      } >>= {
-        case (s, c) => decodeSS(s).map(StreamMetadata(_, Option.when(c.nonEmpty)(c)))
+      } >>= { case (s, c) =>
+        decodeSS(s).map(StreamMetadata(_, Option.when(c.nonEmpty)(c)))
       }
   }
 

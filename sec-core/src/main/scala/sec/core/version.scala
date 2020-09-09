@@ -70,8 +70,8 @@ object EventNumber {
 
   implicit val orderForExact: Order[Exact] = Order.by(_.value)
 
-  implicit val showForExact: Show[Exact] = Show.show[Exact] {
-    case Exact(v) => s"EventNumber($v)"
+  implicit val showForExact: Show[Exact] = Show.show[Exact] { case Exact(v) =>
+    s"EventNumber($v)"
   }
 
   implicit val showForEventNumber: Show[EventNumber] = Show.show[EventNumber] {
@@ -126,8 +126,8 @@ object Position {
     }
   }
 
-  implicit val showForExact: Show[Exact] = Show.show[Exact] {
-    case Exact(c, p) => s"Position(c = $c, p = $p)"
+  implicit val showForExact: Show[Exact] = Show.show[Exact] { case Exact(c, p) =>
+    s"Position(c = $c, p = $p)"
   }
 
   implicit val showForEventNumber: Show[Position] = Show.show[Position] {

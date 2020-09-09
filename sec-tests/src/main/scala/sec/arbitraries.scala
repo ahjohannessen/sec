@@ -260,13 +260,12 @@ object arbitraries {
       val data = sampleOfGen(eventdataGen.eventDataNelN(n, etPrefix.getOrElse("")))
       val zdt  = sampleOf[ZonedDateTime]
 
-      data.zipWithIndex.map {
-        case (ed, i) =>
-          val commit   = i + 1000L
-          val position = Position.exact(commit, commit)
-          val number   = EventNumber.exact(i.toLong)
-          val created  = zdt.plusSeconds(i.toLong)
-          EventRecord(sid, number, position, ed, created)
+      data.zipWithIndex.map { case (ed, i) =>
+        val commit   = i + 1000L
+        val position = Position.exact(commit, commit)
+        val number   = EventNumber.exact(i.toLong)
+        val created  = zdt.plusSeconds(i.toLong)
+        EventRecord(sid, number, position, ed, created)
       }
     }
 

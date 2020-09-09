@@ -96,8 +96,8 @@ class NodePrioritizerSpec extends Specification with CatsIO {
           .map(_.map(_.httpEndpoint.port))
           .map(_ shouldEqual members(expected).filter(_.state.eqv(expected)).lastOption.map(_.httpEndpoint.port))
 
-      expectations.toList.traverse {
-        case (p, e) => test(p, e)
+      expectations.toList.traverse { case (p, e) =>
+        test(p, e)
       }
 
     }

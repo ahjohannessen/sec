@@ -257,8 +257,8 @@ object MetaStreams {
           decode[StreamMetadata](utf8).leftMap(DecodingError(_)).liftTo[F]
         }
 
-      val recoverRead: PartialFunction[Throwable, Option[EventRecord]] = {
-        case _: StreamNotFound => none[EventRecord]
+      val recoverRead: PartialFunction[Throwable, Option[EventRecord]] = { case _: StreamNotFound =>
+        none[EventRecord]
       }
 
       meta.read(id.metaId, creds).recover(recoverRead) >>= {

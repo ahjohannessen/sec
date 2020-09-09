@@ -82,10 +82,9 @@ class ClusterWatchSpec extends Specification with CatsIO {
         changes      <- Resource.liftF(watch.subscribe.pure[IO])
       } yield (changes, store)
 
-      result.map {
-        case (changes, store) =>
-          changes.take(4).compile.toList.map(_ shouldEqual List(ci1, ci2, ci4, ci5)) >>
-            store.get.map(_.lastOption shouldEqual ci5.some)
+      result.map { case (changes, store) =>
+        changes.take(4).compile.toList.map(_ shouldEqual List(ci1, ci2, ci4, ci5)) >>
+          store.get.map(_.lastOption shouldEqual ci5.some)
       }
 
     }

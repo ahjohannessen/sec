@@ -45,8 +45,8 @@ class StreamIdSpec extends Specification with Discipline {
 
   "apply" >> {
 
-    StreamId[ErrorOr]("") should beLike {
-      case Left(StreamId.StreamIdError("name cannot be empty")) => ok
+    StreamId[ErrorOr]("") should beLike { case Left(StreamId.StreamIdError("name cannot be empty")) =>
+      ok
     }
 
     StreamId[ErrorOr]("$$m") should beLike {
