@@ -27,11 +27,11 @@ import cats.effect.concurrent.Ref
 import fs2.{Pipe, Pull, Stream}
 import com.eventstore.client.streams._
 import sec.core._
-import sec.syntax.StreamsSyntax
-import mapping.shared._
-import mapping.streams.outgoing._
-import mapping.streams.incoming._
-import mapping.implicits._
+import sec.api.exceptions.StreamNotFound
+import sec.api.mapping.shared._
+import sec.api.mapping.streams.outgoing._
+import sec.api.mapping.streams.incoming._
+import sec.api.mapping.implicits._
 
 trait Streams[F[_]] {
 
@@ -77,27 +77,25 @@ trait Streams[F[_]] {
     expectedRevision: StreamRevision,
     events: NonEmptyList[EventData],
     creds: Option[UserCredentials]
-  ): F[WriteResult]
+  ): F[Streams.WriteResult]
 
   def softDelete(
     streamId: StreamId,
     expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
-  ): F[DeleteResult]
+  ): F[Streams.DeleteResult]
 
   def hardDelete(
     streamId: StreamId,
     expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
-  ): F[DeleteResult]
+  ): F[Streams.DeleteResult]
 
   private[sec] def metadata: MetaStreams[F]
 
 }
 
 object Streams {
-
-  implicit def syntaxForStreams[F[_]](s: Streams[F]): StreamsSyntax[F] = new StreamsSyntax[F](s)
 
   final case class WriteResult(currentRevision: EventNumber.Exact)
   final case class DeleteResult(position: Position.Exact)
@@ -355,6 +353,102 @@ object Streams {
       }
 
     run(from, 0, o.retryConfig.delay)
+  }
+
+//======================================================================================================================
+
+  /**
+   * Convenience methods for [[sec.api.Streams]].
+   */
+  implicit final class StreamsSyntax[F[_]](s: Streams[F]) {
+
+    /// Subscription
+
+    def subscribeToAll(
+      exclusiveFrom: Option[Position],
+      resolveLinkTos: Boolean = false,
+      credentials: Option[UserCredentials] = None
+    ): Stream[F, Event] =
+      s.subscribeToAll(exclusiveFrom, resolveLinkTos, credentials)
+
+    def subscribeToAllFiltered(
+      exclusiveFrom: Option[Position],
+      filter: EventFilter,
+      resolveLinkTos: Boolean = false,
+      credentials: Option[UserCredentials] = None
+    ): Stream[F, Either[Position, Event]] =
+      s.subscribeToAll(exclusiveFrom, filter, resolveLinkTos, credentials)
+
+    def subscribeToStream(
+      streamId: StreamId,
+      exclusiveFrom: Option[EventNumber],
+      resolveLinkTos: Boolean = false,
+      credentials: Option[UserCredentials] = None
+    ): Stream[F, Event] =
+      s.subscribeToStream(streamId, exclusiveFrom, resolveLinkTos, credentials)
+
+    /// Read
+
+    def readStreamForwards(
+      streamId: StreamId,
+      from: EventNumber,
+      maxCount: Long,
+      resolveLinkTos: Boolean = false,
+      credentials: Option[UserCredentials] = None
+    ): Stream[F, Event] =
+      s.readStream(streamId, from, Direction.Forwards, maxCount, resolveLinkTos, credentials)
+
+    def readStreamBackwards(
+      streamId: StreamId,
+      from: EventNumber,
+      maxCount: Long,
+      resolveLinkTos: Boolean = false,
+      credentials: Option[UserCredentials] = None
+    ): Stream[F, Event] =
+      s.readStream(streamId, from, Direction.Backwards, maxCount, resolveLinkTos, credentials)
+
+    def readAllForwards(
+      position: Position,
+      maxCount: Long,
+      resolveLinkTos: Boolean = false,
+      credentials: Option[UserCredentials] = None
+    ): Stream[F, Event] =
+      s.readAll(position, Direction.Forwards, maxCount, resolveLinkTos, credentials)
+
+    def readAllBackwards(
+      position: Position,
+      maxCount: Long,
+      resolveLinkTos: Boolean = false,
+      credentials: Option[UserCredentials] = None
+    ): Stream[F, Event] =
+      s.readAll(position, Direction.Backwards, maxCount, resolveLinkTos, credentials)
+
+    /// Append
+
+    def appendToStream(
+      streamId: StreamId,
+      expectedRevision: StreamRevision,
+      events: NonEmptyList[EventData],
+      credentials: Option[UserCredentials] = None
+    ): F[WriteResult] =
+      s.appendToStream(streamId, expectedRevision, events, credentials)
+
+    /// Delete
+
+    def softDelete(
+      streamId: StreamId,
+      expectedRevision: StreamRevision,
+      credentials: Option[UserCredentials] = None
+    ): F[DeleteResult] =
+      s.softDelete(streamId, expectedRevision, credentials)
+
+    def hardDelete(
+      streamId: StreamId,
+      expectedRevision: StreamRevision,
+      credentials: Option[UserCredentials] = None
+    ): F[DeleteResult] =
+      s.hardDelete(streamId, expectedRevision, credentials)
+
   }
 
 }

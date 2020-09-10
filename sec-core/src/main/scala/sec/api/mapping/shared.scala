@@ -24,7 +24,7 @@ import com.google.protobuf.ByteString
 import com.eventstore.client.{StreamIdentifier, UUID}
 import sec.core.StreamId
 
-object shared {
+private[sec] object shared {
 
   val mkUuid: JUUID => UUID = j =>
     UUID().withStructured(UUID.Structured(j.getMostSignificantBits(), j.getLeastSignificantBits()))

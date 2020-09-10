@@ -26,8 +26,8 @@ import com.eventstore.client.gossip.GossipFs2Grpc
 import io.grpc.{CallOptions, ManagedChannel}
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.noop.NoOpLogger
-import sec.core._
 import sec.api._
+import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.cluster.ClusterSettings
 import sec.api.grpc.metadata._
 import sec.api.grpc.convert.convertToEs

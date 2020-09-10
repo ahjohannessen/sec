@@ -24,10 +24,11 @@ import cats.data.{NonEmptyList => Nel}
 import cats.syntax.all._
 import cats.effect.IO
 import fs2.Stream
-import sec.core._
-import sec.api.Direction._
 import org.scalacheck.Gen
 import sec.arbitraries._
+import sec.core._
+import sec.api.Direction._
+import sec.api.exceptions.{StreamDeleted, StreamNotFound}
 
 class StreamsSpec extends SnSpec {
 
@@ -127,7 +128,7 @@ class StreamsSpec extends SnSpec {
           val setup = write >>= { wr => delete(wr.currentRevision).void >> verifyDeleted >> read }
 
           def verify(es: List[Event]) =
-            es.lastOption.toRight(ValidationError("expected metadata")).liftTo[IO] >>= { ts =>
+            es.lastOption.toRight(new RuntimeException("expected metadata")).liftTo[IO] >>= { ts =>
               if (soft) {
                 es.dropRight(1).map(_.eventData) shouldEqual events.toList
                 ts.streamId shouldEqual id.metaId

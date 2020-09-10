@@ -113,9 +113,11 @@ object MaxAge {
     else new MaxAge(maxAge) {}.asRight
 
   def apply[F[_]: ErrorA](maxAge: FiniteDuration): F[MaxAge] =
-    from(maxAge).orFail[F](ValidationError)
+    from(maxAge).orFail[F](InvalidMaxAge)
 
   implicit val showForMaxAge: Show[MaxAge] = Show.show(_.value.toString())
+
+  final case class InvalidMaxAge(msg: String) extends RuntimeException(msg)
 }
 
 sealed abstract case class MaxCount(value: Int)
@@ -129,11 +131,14 @@ object MaxCount {
     else new MaxCount(maxCount) {}.asRight
 
   def apply[F[_]: ErrorA](maxCount: Int): F[MaxCount] =
-    from(maxCount).orFail[F](ValidationError)
+    from(maxCount).orFail[F](InvalidMaxCount)
 
   implicit val showForMaxCount: Show[MaxCount] = Show.show { mc =>
     s"${mc.value} event${if (mc.value == 1) "" else "s"}"
   }
+
+  final case class InvalidMaxCount(msg: String) extends RuntimeException(msg)
+
 }
 
 sealed abstract case class CacheControl(value: FiniteDuration)
@@ -147,9 +152,11 @@ object CacheControl {
     else new CacheControl(cacheControl) {}.asRight
 
   def apply[F[_]: ErrorA](maxAge: FiniteDuration): F[CacheControl] =
-    from(maxAge).orFail[F](ValidationError)
+    from(maxAge).orFail[F](InvalidCacheControl)
 
   implicit val showForCacheControl: Show[CacheControl] = Show.show(_.value.toString())
+
+  final case class InvalidCacheControl(msg: String) extends RuntimeException(msg)
 }
 
 //======================================================================================================================

@@ -23,6 +23,7 @@ import cats.syntax.all._
 import com.eventstore.client._
 import com.eventstore.client.streams._
 import sec.core._
+import sec.api.exceptions.WrongExpectedVersion
 import sec.api.Streams._
 import sec.api.mapping.implicits._
 import sec.api.mapping.time._

@@ -26,9 +26,9 @@ import cats.effect._
 import io.grpc.{ManagedChannel, ManagedChannelBuilder, NameResolverRegistry}
 import io.chrisdavenport.log4cats.Logger
 import sec.api._
+import sec.api.grpc.channel._
 import sec.api.cluster._
 import sec.api.cluster.grpc.ResolverProvider
-import sec.syntax.channel._
 
 //======================================================================================================================
 
@@ -66,7 +66,7 @@ private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]] {
 
 //======================================================================================================================
 
-sealed abstract class SingleNodeBuilder[F[_]](
+sealed abstract class SingleNodeBuilder[F[_]] private (
   endpoint: Endpoint,
   authority: Option[String],
   options: Options,
@@ -124,7 +124,7 @@ object SingleNodeBuilder {
 
 //======================================================================================================================
 
-class ClusterBuilder[F[_]](
+class ClusterBuilder[F[_]] private (
   seed: NonEmptySet[Endpoint],
   authority: String,
   options: Options,

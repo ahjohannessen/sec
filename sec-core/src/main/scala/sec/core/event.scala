@@ -225,7 +225,7 @@ object Content {
 
     implicit final class TypeOps(val tpe: Type) extends AnyVal {
 
-      def fold[A](binary: => A, json: => A): A = tpe match {
+      private[sec] def fold[A](binary: => A, json: => A): A = tpe match {
         case Binary => binary
         case Json   => json
       }

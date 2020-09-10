@@ -26,9 +26,9 @@ import cats.effect.concurrent.Ref
 import fs2.Stream
 import io.chrisdavenport.log4cats.Logger
 import io.grpc._
-import core.{NotLeader, ServerUnavailable}
-import sec.syntax.channel._
+import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.Gossip.ClusterInfo
+import sec.api.grpc.channel._
 import sec.api.cluster.grpc._
 import sec.api.retries._
 

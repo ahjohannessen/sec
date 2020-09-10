@@ -16,7 +16,6 @@
 
 package sec
 package api
-package cluster
 
 import cats.kernel.laws.discipline._
 import org.scalacheck._
