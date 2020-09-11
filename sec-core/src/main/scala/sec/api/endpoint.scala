@@ -26,7 +26,7 @@ final case class Endpoint(
   port: Int
 )
 
-object Endpoint {
+private[sec] object Endpoint {
 
   implicit val orderForEndpoint: Order[Endpoint] = Order.by(ep => (ep.address, ep.port))
   implicit val showForEndpoint: Show[Endpoint]   = Show.show(ep => s"${ep.address}:${ep.port}")

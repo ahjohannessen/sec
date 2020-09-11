@@ -25,7 +25,7 @@ import cats.implicits._
 import cats.effect.{Concurrent, Timer}
 import com.eventstore.client.gossip.{GossipFs2Grpc, ClusterInfo => PClusterInfo}
 import com.eventstore.client.Empty
-import mapping.gossip.mkClusterInfo
+import sec.api.mapping.gossip.mkClusterInfo
 
 trait Gossip[F[_]] {
   def read(creds: Option[UserCredentials]): F[Gossip.ClusterInfo]

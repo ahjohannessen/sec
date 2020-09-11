@@ -25,11 +25,6 @@ package object sec {
 
 //======================================================================================================================
 
-  type EsClient[F[_]] = sec.client.EsClient[F]
-  val EsClient = sec.client.EsClient
-
-//======================================================================================================================
-
   private[sec] type ErrorM[F[_]] = MonadError[F, Throwable]
   private[sec] type ErrorA[F[_]] = ApplicativeError[F, Throwable]
   private[sec] type Attempt[T]   = Either[String, T]
@@ -64,7 +59,7 @@ package object sec {
 
 //======================================================================================================================
 
-  def format(duration: Duration): String = {
+  private[sec] def format(duration: Duration): String = {
 
     def chooseUnit(fd: FiniteDuration): TimeUnit = {
       if (fd.toDays > 0) DAYS

@@ -16,7 +16,6 @@
 
 package sec
 package api
-package cluster
 
 import cats.Eq
 import cats.syntax.all._
@@ -31,7 +30,7 @@ object NodePreference {
   implicit val eqForNodePreference: Eq[NodePreference] =
     Eq.fromUniversalEquals[NodePreference]
 
-  implicit final class NodePreferenceOps(val np: NodePreference) extends AnyVal {
+  implicit final private[sec] class NodePreferenceOps(val np: NodePreference) extends AnyVal {
     def isLeader: Boolean = np.eqv(Leader)
   }
 

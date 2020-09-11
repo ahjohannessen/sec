@@ -21,8 +21,8 @@ package grpc
 import cats.syntax.all._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
 import java.nio.channels.ClosedChannelException
-import grpc.constants.{Exceptions => ce}
-import sec.core._
+import sec.api.grpc.constants.{Exceptions => ce}
+import sec.api.exceptions._
 
 private[sec] object convert {
 
@@ -32,6 +32,7 @@ private[sec] object convert {
     val exception: Metadata.Key[String]          = Metadata.Key.of(ce.ExceptionKey, StringMarshaller)
     val streamName: Metadata.Key[String]         = Metadata.Key.of(ce.StreamName, StringMarshaller)
     val groupName: Metadata.Key[String]          = Metadata.Key.of(ce.GroupName, StringMarshaller)
+    val reason: Metadata.Key[String]             = Metadata.Key.of(ce.Reason, StringMarshaller)
     val loginName: Metadata.Key[String]          = Metadata.Key.of(ce.LoginName, StringMarshaller)
     val expectedVersion: Metadata.Key[Long]      = Metadata.Key.of(ce.ExpectedVersion, LongMarshaller)
     val actualVersion: Metadata.Key[Long]        = Metadata.Key.of(ce.ActualVersion, LongMarshaller)
@@ -53,6 +54,7 @@ private[sec] object convert {
     val exception          = md.getOpt(keys.exception)
     def streamName         = md.getOpt(keys.streamName).getOrElse(unknown)
     def groupName          = md.getOpt(keys.groupName).getOrElse(unknown)
+    def reason             = md.getOpt(keys.reason).getOrElse(unknown)
     def expected           = md.getOpt(keys.expectedVersion)
     def actual             = md.getOpt(keys.actualVersion)
     def loginName          = md.getOpt(keys.loginName).getOrElse(unknown)
@@ -68,9 +70,11 @@ private[sec] object convert {
       case ce.StreamNotFound                     => StreamNotFound(streamName)
       case ce.MaximumAppendSizeExceeded          => MaximumAppendSizeExceeded(maximumAppendSize)
       case ce.NotLeader                          => NotLeader(leaderEndpointHost, leaderEndpointPort)
-      case ce.PersistentSubscriptionDoesNotExist => PersistentSubscriptionNotFound(streamName, groupName)
-      case ce.MaximumSubscribersReached          => PersistentSubscriptionMaximumSubscribersReached(streamName, groupName)
-      case ce.PersistentSubscriptionDropped      => PersistentSubscriptionDroppedByServer(streamName, groupName)
+      case ce.PersistentSubscriptionFailed       => PersistentSubscription.Failed(streamName, groupName, reason)
+      case ce.PersistentSubscriptionDoesNotExist => PersistentSubscription.NotFound(streamName, groupName)
+      case ce.PersistentSubscriptionExists       => PersistentSubscription.Exists(streamName, groupName)
+      case ce.MaximumSubscribersReached          => PersistentSubscription.MaximumSubscribersReached(streamName, groupName)
+      case ce.PersistentSubscriptionDropped      => PersistentSubscription.Dropped(streamName, groupName)
       case ce.UserNotFound                       => UserNotFound(loginName)
       case unknown                               => UnknownError(s"Exception key: $unknown")
     }

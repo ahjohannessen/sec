@@ -23,6 +23,7 @@ import org.specs2.specification.AfterAll
 import helpers.text.snakeCaseTransformation
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import sec.client.EsClient
 import sec.api.{Gossip, Streams}
 
 trait ResourceSpec[A] extends Specification with AfterAll with CatsIO {

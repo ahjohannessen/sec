@@ -16,11 +16,13 @@
 
 package sec
 
+import scala.util.control.NoStackTrace
 import cats.syntax.all._
 import org.specs2.mutable.Specification
-import core.ValidationError
 
 class SecPackageSpec extends Specification {
+
+  import SecPackageSpec._
 
   "AttemptOps" >> {
     "unsafe" >> {
@@ -29,7 +31,7 @@ class SecPackageSpec extends Specification {
     }
 
     "orFail" >> {
-      "oops".asLeft[Int].orFail[ErrorOr](ValidationError(_)) shouldEqual ValidationError("oops").asLeft
+      "oops".asLeft[Int].orFail[ErrorOr](Oops(_)) shouldEqual Oops("oops").asLeft
     }
   }
 
@@ -51,4 +53,8 @@ class SecPackageSpec extends Specification {
     guardNotStartsWith("$")("a$") should beRight("a$")
   }
 
+}
+
+object SecPackageSpec {
+  final case class Oops(msg: String) extends RuntimeException(msg) with NoStackTrace
 }

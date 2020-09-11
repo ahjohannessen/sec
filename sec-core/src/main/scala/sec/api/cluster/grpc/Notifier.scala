@@ -31,11 +31,11 @@ import fs2.concurrent.SignallingRef
 import sec.api.Gossip._
 import sec.api.Gossip.VNodeState._
 
-trait Notifier[F[_]] {
+private[sec] trait Notifier[F[_]] {
   def start(l: Listener[F]): F[Unit]
 }
 
-object Notifier {
+private[sec] object Notifier {
 
   object gossip {
 

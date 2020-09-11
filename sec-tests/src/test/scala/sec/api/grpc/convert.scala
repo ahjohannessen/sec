@@ -19,13 +19,12 @@ package api
 package grpc
 
 import java.nio.channels.ClosedChannelException
-
 import cats.syntax.all._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
 import org.specs2._
-import constants.{Exceptions => ce}
-import convert.{convertToEs, keys => k}
-import sec.core._
+import sec.api.exceptions._
+import sec.api.grpc.constants.{Exceptions => ce}
+import sec.api.grpc.convert.{convertToEs, keys => k}
 
 class ConvertSpec extends mutable.Specification {
 
@@ -34,6 +33,7 @@ class ConvertSpec extends mutable.Specification {
     val ek       = k.exception
     val streamId = "streamId"
     val groupId  = "groupId"
+    val reason   = "reason"
     val user     = "chuck norris"
     val unknown  = "<unknown>"
 
@@ -120,34 +120,55 @@ class ConvertSpec extends mutable.Specification {
     } should beSome(StreamNotFound(unknown))
 
     convert { m =>
-      m.put(ek, ce.PersistentSubscriptionDoesNotExist)
+      m.put(ek, ce.PersistentSubscriptionFailed)
       m.put(k.streamName, streamId)
       m.put(k.groupName, groupId)
-    } should beSome(PersistentSubscriptionNotFound(streamId, groupId))
+      m.put(k.reason, reason)
+    } should beSome(PersistentSubscription.Failed(streamId, groupId, reason))
+
+    convert { m =>
+      m.put(ek, ce.PersistentSubscriptionFailed)
+    } should beSome(PersistentSubscription.Failed(unknown, unknown, unknown))
 
     convert { m =>
       m.put(ek, ce.PersistentSubscriptionDoesNotExist)
-    } should beSome(PersistentSubscriptionNotFound(unknown, unknown))
+      m.put(k.streamName, streamId)
+      m.put(k.groupName, groupId)
+    } should beSome(PersistentSubscription.NotFound(streamId, groupId))
+
+    convert { m =>
+      m.put(ek, ce.PersistentSubscriptionDoesNotExist)
+    } should beSome(PersistentSubscription.NotFound(unknown, unknown))
+
+    convert { m =>
+      m.put(ek, ce.PersistentSubscriptionExists)
+      m.put(k.streamName, streamId)
+      m.put(k.groupName, groupId)
+    } should beSome(PersistentSubscription.Exists(streamId, groupId))
+
+    convert { m =>
+      m.put(ek, ce.PersistentSubscriptionExists)
+    } should beSome(PersistentSubscription.Exists(unknown, unknown))
 
     convert { m =>
       m.put(ek, ce.MaximumSubscribersReached)
       m.put(k.streamName, streamId)
       m.put(k.groupName, groupId)
-    } should beSome(PersistentSubscriptionMaximumSubscribersReached(streamId, groupId))
+    } should beSome(PersistentSubscription.MaximumSubscribersReached(streamId, groupId))
 
     convert { m =>
       m.put(ek, ce.MaximumSubscribersReached)
-    } should beSome(PersistentSubscriptionMaximumSubscribersReached(unknown, unknown))
+    } should beSome(PersistentSubscription.MaximumSubscribersReached(unknown, unknown))
 
     convert { m =>
       m.put(ek, ce.PersistentSubscriptionDropped)
       m.put(k.streamName, streamId)
       m.put(k.groupName, groupId)
-    } should beSome(PersistentSubscriptionDroppedByServer(streamId, groupId))
+    } should beSome(PersistentSubscription.Dropped(streamId, groupId))
 
     convert { m =>
       m.put(ek, ce.PersistentSubscriptionDropped)
-    } should beSome(PersistentSubscriptionDroppedByServer(unknown, unknown))
+    } should beSome(PersistentSubscription.Dropped(unknown, unknown))
 
     convert { m =>
       m.put(ek, ce.UserNotFound)

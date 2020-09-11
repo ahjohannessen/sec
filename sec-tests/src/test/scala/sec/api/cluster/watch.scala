@@ -27,13 +27,13 @@ import cats.syntax.all._
 import cats.effect._
 import cats.effect.concurrent.Ref
 import cats.effect.testing.specs2.CatsIO
-import fs2.Stream
-import sec.core.ServerUnavailable
-import sec.api.Gossip._
-import sec.arbitraries._
 import cats.effect.laws.util.TestContext
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import io.chrisdavenport.log4cats.Logger
+import fs2.Stream
+import sec.api.exceptions.ServerUnavailable
+import sec.api.Gossip._
+import sec.arbitraries._
 import org.scalacheck.Gen
 
 // TODO: Redo this entire spec

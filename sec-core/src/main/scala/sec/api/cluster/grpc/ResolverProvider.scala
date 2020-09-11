@@ -43,7 +43,7 @@ final private[sec] case class ResolverProvider[F[_]: Effect](
     if (scheme == uri.getScheme) resolver.toIO.unsafeRunSync() else null
 }
 
-object ResolverProvider {
+private[sec] object ResolverProvider {
 
   final val gossipScheme: String  = "eventstore-gossip"
   final val clusterScheme: String = "eventstore-cluster"

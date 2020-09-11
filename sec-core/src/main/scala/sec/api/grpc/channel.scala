@@ -15,7 +15,8 @@
  */
 
 package sec
-package syntax
+package api
+package grpc
 
 import scala.concurrent.blocking
 import scala.concurrent.duration._

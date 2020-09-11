@@ -26,16 +26,17 @@ import io.circe.parser.decode
 import sec.core._
 import sec.core.StreamId.Id
 import sec.core.EventNumber.Exact
+import sec.core.StreamId.MetaId
+import sec.api.exceptions.StreamNotFound
 import sec.api.mapping._
 import sec.api.Streams._
-import sec.core.StreamId.MetaId
 
 trait MetaStreams[F[_]] {
 
   def getMaxAge(
     streamId: Id,
     creds: Option[UserCredentials]
-  ): F[Result[MaxAge]]
+  ): F[MetaStreams.Result[MaxAge]]
 
   def setMaxAge(
     streamId: Id,
@@ -53,7 +54,7 @@ trait MetaStreams[F[_]] {
   def getMaxCount(
     streamId: Id,
     creds: Option[UserCredentials]
-  ): F[Result[MaxCount]]
+  ): F[MetaStreams.Result[MaxCount]]
 
   def setMaxCount(
     streamId: Id,
@@ -71,7 +72,7 @@ trait MetaStreams[F[_]] {
   def getCacheControl(
     streamId: Id,
     creds: Option[UserCredentials]
-  ): F[Result[CacheControl]]
+  ): F[MetaStreams.Result[CacheControl]]
 
   def setCacheControl(
     streamId: Id,
@@ -89,7 +90,7 @@ trait MetaStreams[F[_]] {
   def getAcl(
     streamId: Id,
     creds: Option[UserCredentials]
-  ): F[Result[StreamAcl]]
+  ): F[MetaStreams.Result[StreamAcl]]
 
   def setAcl(
     streamId: Id,
@@ -107,7 +108,7 @@ trait MetaStreams[F[_]] {
   def getTruncateBefore(
     streamId: Id,
     creds: Option[UserCredentials]
-  ): F[Result[Exact]]
+  ): F[MetaStreams.Result[Exact]]
 
   def setTruncateBefore(
     streamId: Id,
@@ -125,7 +126,7 @@ trait MetaStreams[F[_]] {
   def getCustom[T: Decoder](
     streamId: Id,
     creds: Option[UserCredentials]
-  ): F[Result[T]]
+  ): F[MetaStreams.Result[T]]
 
   def setCustom[T: Codec.AsObject](
     streamId: Id,
@@ -149,12 +150,21 @@ trait MetaStreams[F[_]] {
 
 }
 
+// TODO: Deal with soft deleted streams
+
 object MetaStreams {
 
-  // TODO: Deal with soft deleted streams
+  //======================================================================================================================
 
-  type Creds               = Option[UserCredentials]
-  type ExpectedMetaVersion = Option[Exact]
+  final case class Result[T](
+    version: Option[EventNumber.Exact],
+    data: Option[T]
+  )
+
+  //======================================================================================================================
+
+  private[sec] type Creds               = Option[UserCredentials]
+  private[sec] type ExpectedMetaVersion = Option[Exact]
 
   //======================================================================================================================
 
@@ -323,13 +333,6 @@ object MetaStreams {
   }
 
 }
-
-//======================================================================================================================
-
-final case class Result[T](
-  version: Option[EventNumber.Exact],
-  data: Option[T]
-)
 
 //======================================================================================================================
 
