@@ -23,21 +23,13 @@ import scodec.bits.ByteVector
 import cats.data.{NonEmptyList => Nel}
 import cats.syntax.all._
 import cats.effect.IO
+import cats.effect.concurrent.Ref
 import fs2.Stream
-import org.scalacheck.Gen
-import sec.arbitraries._
 import sec.core._
 import sec.api.Direction._
 import sec.api.exceptions.{StreamDeleted, StreamNotFound}
 
 class StreamsSpec extends SnSpec {
-
-  def genIdentifier: String                               = sampleOfGen(Gen.identifier.suchThat(id => id.length >= 5 && id.length <= 20))
-  def genStreamId(streamPrefix: String): StreamId.Id      = sampleOfGen(idGen.genStreamIdNormal(s"$streamPrefix"))
-  def genEvents(n: Int): Nel[EventData]                   = genEvents(n, eventTypeGen.defaultPrefix)
-  def genEvents(n: Int, etPrefix: String): Nel[EventData] = sampleOfGen(eventdataGen.eventDataNelN(n, etPrefix))
-
-  ///
 
   sequential
 
@@ -389,21 +381,150 @@ class StreamsSpec extends SnSpec {
 
     "subscribeToStream" >> {
 
+      val streamPrefix                              = s"streams_subscribe_to_stream_${genIdentifier}_"
+      val fromBeginning: Option[EventNumber]        = Option.empty
+      val fromRevision: Long => Option[EventNumber] = r => EventNumber.exact(r).some
+      val fromEnd: Option[EventNumber]              = EventNumber.End.some
+
       "works when stream does not exist prior to subscribing" >> {
 
-        val streamPrefix = s"streams_subscribe_to_stream_${genIdentifier}_"
-        val events       = genEvents(50)
-        val id           = genStreamId(s"${streamPrefix}non_existing_stream_")
-        val subscribe    = streams.subscribeToStream(id, None).take(50).map(_.eventData)
-        val write        = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events, None)).delayBy(300.millis)
-        val result       = subscribe.concurrently(write)
+        val events = genEvents(50)
 
-        result.compile.toList.map(_ shouldEqual events.toList)
+        def test(exclusivefrom: Option[EventNumber], takeCount: Int) = {
+
+          val id        = genStreamId(s"${streamPrefix}non_existing_stream")
+          val subscribe = streams.subscribeToStream(id, exclusivefrom).take(takeCount.toLong).map(_.eventData)
+          val write     = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events, None)).delayBy(300.millis)
+          val result    = subscribe.concurrently(write)
+
+          result.compile.toList
+        }
+
+        "from beginning" >> {
+          test(fromBeginning, events.size).map(_ shouldEqual events.toList)
+        }
+
+        "from revision" >> {
+          test(fromRevision(4), events.size - 5).map(_ shouldEqual events.toList.drop(5))
+        }
+
+        "from end" >> {
+          test(fromEnd, events.size).map(_ shouldEqual events.toList)
+        }
+
+      }
+
+      "works with multiple subscriptions to same stream" >> {
+
+        val eventCount      = 10
+        val subscriberCount = 4
+        val events          = genEvents(eventCount)
+
+        def test(exclusivFrom: Option[EventNumber], takeCount: Int) = {
+
+          val id    = genStreamId(s"${streamPrefix}multiple_subscriptions_to_same_stream")
+          val write = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events, None)).delayBy(300.millis)
+
+          def mkSubscribers(onEvent: IO[Unit]): Stream[IO, Event] = Stream
+            .emit(streams.subscribeToStream(id, exclusivFrom).evalTap(_ => onEvent).take(takeCount.toLong))
+            .repeat
+            .take(subscriberCount.toLong)
+            .parJoin(subscriberCount)
+
+          val result: Stream[IO, Int] = Stream.eval(Ref.of[IO, Int](0)) >>= { ref =>
+            Stream(mkSubscribers(ref.update(_ + 1)), write).parJoinUnbounded >> Stream.eval(ref.get)
+          }
+
+          result.compile.lastOrError.map(_.shouldEqual(takeCount * subscriberCount))
+        }
+
+        "from beginning" >> {
+          test(fromBeginning, eventCount)
+        }
+
+        "from revision" >> {
+          test(fromRevision(0), eventCount - 1)
+        }
+
+        "from end" >> {
+          test(fromEnd, eventCount)
+        }
+
+      }
+
+      "works with existing stream" >> {
+
+        val beforeEvents = genEvents(40)
+        val afterEvents  = genEvents(10)
+        val totalEvents  = beforeEvents.concatNel(afterEvents)
+
+        def test(exclusiveFrom: Option[EventNumber], takeCount: Int) = {
+
+          val id = genStreamId(s"${streamPrefix}existing_and_new")
+
+          val beforeWrite =
+            Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, beforeEvents, None))
+
+          def afterWrite(rev: StreamRevision): Stream[IO, Streams.WriteResult] =
+            Stream.eval(streams.appendToStream(id, rev, afterEvents, None)).delayBy(300.millis)
+
+          def subscribe(onEvent: Event => IO[Unit]): Stream[IO, Event] =
+            streams.subscribeToStream(id, exclusiveFrom).evalTap(onEvent).take(takeCount.toLong)
+
+          val result: Stream[IO, List[EventData]] = for {
+            ref        <- Stream.eval(Ref.of[IO, List[EventData]](Nil))
+            rev        <- beforeWrite.map(_.currentRevision)
+            _          <- subscribe(e => ref.update(_ :+ e.eventData)).concurrently(afterWrite(rev))
+            readEvents <- Stream.eval(ref.get)
+          } yield readEvents
+
+          result.compile.lastOrError
+
+        }
+
+        "from beginning - reads all events and listens for new ones" >> {
+          test(fromBeginning, totalEvents.size).map(_.toNel shouldEqual totalEvents.some)
+        }
+
+        "from revision - reads events after revision and listens for new ones" >> {
+          test(fromRevision(29), 20).map(_ shouldEqual totalEvents.toList.drop(30))
+        }
+
+        "from end - listens for new events at given end of stream" >> {
+          test(fromEnd, afterEvents.size).map(_.toNel shouldEqual afterEvents.some)
+        }
+
+      }
+
+      "raises when stream is hard deleted (tombstoned)" >> {
+
+        def test(exclusiveFrom: Option[EventNumber]) = {
+
+          val id        = genStreamId(s"${streamPrefix}stream_gets_hard_deleted")
+          val subscribe = streams.subscribeToStream(id, exclusiveFrom)
+          val delete    = Stream.eval(streams.hardDelete(id, StreamRevision.Any)).delayBy(300.millis)
+          val expected  = StreamDeleted(id.stringValue).asLeft
+
+          subscribe.concurrently(delete).compile.last.attempt.map(_.shouldEqual(expected))
+        }
+
+        "from beginning" >> {
+          test(fromBeginning)
+        }
+
+        "from revision" >> {
+          test(fromRevision(5))
+        }
+
+        "from end" >> {
+          test(fromEnd)
+        }
 
       }
 
     }
 
     //==================================================================================================================
+
   }
 }

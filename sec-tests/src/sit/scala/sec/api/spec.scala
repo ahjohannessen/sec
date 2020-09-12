@@ -19,12 +19,23 @@ package api
 
 import java.io.File
 import scala.concurrent.duration._
+import cats.data.{NonEmptyList => Nel}
 import cats.effect._
 import io.chrisdavenport.log4cats.Logger
+import org.scalacheck.Gen
+import sec.arbitraries._
+import sec.core._
 import sec.client._
 
 trait SnSpec extends ClientSpec {
+
+  def genIdentifier: String                               = sampleOfGen(Gen.identifier.suchThat(id => id.length >= 5 && id.length <= 20))
+  def genStreamId(streamPrefix: String): StreamId.Id      = sampleOfGen(idGen.genStreamIdNormal(s"$streamPrefix"))
+  def genEvents(n: Int): Nel[EventData]                   = genEvents(n, eventTypeGen.defaultPrefix)
+  def genEvents(n: Int, etPrefix: String): Nel[EventData] = sampleOfGen(eventdataGen.eventDataNelN(n, etPrefix))
+
   final val makeResource: Resource[IO, EsClient[IO]] = SnSpec.mkClient[IO](log)
+
 }
 
 object SnSpec {

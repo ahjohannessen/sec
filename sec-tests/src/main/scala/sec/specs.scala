@@ -16,6 +16,7 @@
 
 package sec
 
+import scala.concurrent.duration._
 import cats.effect._
 import cats.effect.testing.specs2._
 import org.specs2.mutable.Specification
@@ -38,6 +39,9 @@ trait ResourceSpec[A] extends Specification with AfterAll with CatsIO {
 }
 
 trait ClientSpec extends ResourceSpec[EsClient[IO]] {
+
+  override val Timeout: Duration = 1.minute
+
   final def client: EsClient[IO] = resource
   final def streams: Streams[IO] = client.streams
   final def gossip: Gossip[IO]   = client.gossip
