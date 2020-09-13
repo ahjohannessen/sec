@@ -17,7 +17,9 @@
 package sec
 package api
 
+import java.util.UUID
 import java.{util => ju}
+
 import scala.concurrent.duration._
 import scodec.bits.ByteVector
 import cats.data.{NonEmptyList => Nel}
@@ -27,13 +29,15 @@ import cats.effect.concurrent.Ref
 import fs2.Stream
 import sec.core._
 import sec.api.Direction._
-import sec.api.exceptions.{StreamDeleted, StreamNotFound}
+import sec.api.exceptions._
 
 class StreamsSpec extends SnSpec {
 
   sequential
 
   "Streams" should {
+
+    //==================================================================================================================
 
     "readAll" >> {
 
@@ -378,6 +382,270 @@ class StreamsSpec extends SnSpec {
     }
 
     //==================================================================================================================
+
+    "appendToStream" >> {
+
+      import helpers.text.{snakeCaseTransformation => sct}
+
+      val streamPrefix = s"streams_append_to_stream_${genIdentifier}_"
+
+      "create stream on first write if does not exist" >> {
+
+        val events = genEvents(1)
+
+        def test(expectedRevision: StreamRevision) = {
+
+          val id = genStreamId(s"${streamPrefix}non_present_${sct(expectedRevision.show)}")
+
+          streams.appendToStream(id, expectedRevision, events) >>= { wr =>
+            streams.readStreamForwards(id, EventNumber.Start, 2).compile.toList.map { el =>
+              el.map(_.eventData).toNel shouldEqual events.some
+              wr.currentRevision shouldEqual EventNumber.Start
+            }
+          }
+        }
+
+        "works with any expected stream revision" >> {
+          test(StreamRevision.Any)
+        }
+
+        "works with no stream expected stream revision" >> {
+          test(StreamRevision.NoStream)
+        }
+
+        "raises with exact expected stream revision" >> {
+          test(EventNumber.Start).attempt.map {
+            _ should beLike { case Left(WrongExpectedVersion(_, Some(0L), None)) => ok }
+          }
+        }
+
+        "raises with stream exists expected stream revision" >> {
+          test(StreamRevision.StreamExists).attempt.map {
+            _ should beLike { case Left(WrongExpectedVersion(_, None, None)) => ok }
+          }
+        }
+
+      }
+
+      "multiple idempotent writes" >> {
+
+        "with unique uuids" >> {
+
+          val id     = genStreamId(s"${streamPrefix}multiple_idempotent_writes")
+          val events = genEvents(4)
+          val write  = streams.appendToStream(id, StreamRevision.Any, events)
+
+          write >>= { first =>
+            write.map { second =>
+              first.currentRevision shouldEqual second.currentRevision
+              first.currentRevision shouldEqual EventNumber.exact(3L)
+            }
+          }
+
+        }
+
+        "with same uuids (bug in ESDB)" >> {
+
+          val id     = genStreamId(s"${streamPrefix}multiple_idempotent_writes_same_uuid")
+          val event  = genEvents(1).head
+          val events = Nel.of(event, List.fill(5)(event): _*)
+          val write  = streams.appendToStream(id, StreamRevision.Any, events)
+
+          write.map(_.currentRevision shouldEqual EventNumber.exact(5))
+        }
+
+      }
+
+      "multiple writes of multiple events with same uuids using expected stream revision" >> {
+
+        def test(expectedRevision: StreamRevision, expectedSecondRevision: StreamRevision) = {
+
+          val revision = sct(expectedRevision.show)
+          val id       = genStreamId(s"${streamPrefix}multiple_writes_multiple_events_same_uuid_$revision")
+          val event    = genEvents(1).head
+          val events   = Nel.of(event, List.fill(5)(event): _*)
+          val write    = streams.appendToStream(id, expectedRevision, events)
+
+          write >>= { first =>
+            write.map { second =>
+              first.currentRevision shouldEqual EventNumber.exact(5)
+              second.currentRevision shouldEqual expectedSecondRevision
+            }
+          }
+
+        }
+
+        "any then next expected revision is unreliable" >> {
+          test(StreamRevision.Any, EventNumber.Start)
+        }
+
+        "no stream then next expected revision is correct" >> {
+          test(StreamRevision.NoStream, EventNumber.exact(5))
+        }
+
+      }
+
+      "append to hard deleted stream raises" >> {
+
+        def test(expectedRevision: StreamRevision) = {
+          val revStr = sct(expectedRevision.show)
+          val id     = genStreamId(s"${streamPrefix}hard_deleted_stream_$revStr")
+          val events = genEvents(1)
+          val delete = streams.hardDelete(id, StreamRevision.NoStream)
+          val write  = streams.appendToStream(id, expectedRevision, events)
+
+          delete >> write.attempt.map(_ shouldEqual StreamDeleted(id.stringValue).asLeft)
+        }
+
+        "with correct expected revision" >> {
+          test(StreamRevision.NoStream)
+        }
+
+        "with any expected revision" >> {
+          test(StreamRevision.Any)
+        }
+
+        "with stream exists expected revision" >> {
+          test(StreamRevision.StreamExists)
+        }
+
+        "with incorrect expected revision" >> {
+          test(EventNumber.exact(5))
+        }
+
+      }
+
+      "append to existing stream" >> {
+
+        def test(sndExpectedRevision: StreamRevision) = {
+
+          val revStr                     = sct(sndExpectedRevision.show)
+          val id                         = genStreamId(s"${streamPrefix}existing_stream_with_$revStr")
+          def write(esr: StreamRevision) = streams.appendToStream(id, esr, genEvents(1))
+
+          write(StreamRevision.NoStream) >>= { first =>
+            write(sndExpectedRevision).map { second =>
+              first.currentRevision shouldEqual EventNumber.Start
+              second.currentRevision
+            }
+          }
+        }
+
+        "works with correct expected revision" >> {
+          test(EventNumber.Start).map(_ shouldEqual EventNumber.exact(1))
+        }
+
+        "works with any expected revision" >> {
+          test(StreamRevision.Any).map(_ shouldEqual EventNumber.exact(1))
+        }
+
+        "works with stream exists expected revision" >> {
+          test(StreamRevision.StreamExists).map(_ shouldEqual EventNumber.exact(1))
+        }
+
+        "raises with incorrect expected revision" >> {
+          test(EventNumber.exact(1)).attempt.map {
+            _ should beLike { case Left(WrongExpectedVersion(_, Some(1L), Some(0L))) => ok }
+          }
+        }
+
+      }
+
+      "append to stream with multiple events and stream exists expected revision " >> {
+
+        val id      = genStreamId(s"${streamPrefix}multiple_events_and_stream_exists")
+        val events  = genEvents(5)
+        val writes  = events.toList.map(e => streams.appendToStream(id, StreamRevision.Any, Nel.one(e)))
+        val prepare = Stream.eval(writes.sequence).compile.drain
+
+        prepare >> streams
+          .appendToStream(id, StreamRevision.StreamExists, genEvents(1))
+          .map(_.currentRevision shouldEqual EventNumber.exact(5))
+
+      }
+
+      "append to stream with stream exists expected version works if metadata stream exists" >> {
+
+        val id    = genStreamId(s"${streamPrefix}stream_exists_and_metadata_stream_exists")
+        val meta  = MaxAge[IO](10.seconds) >>= { ma => streams.metadata.setMaxAge(id, ma, None, None) }
+        val write = streams.appendToStream(id, StreamRevision.StreamExists, genEvents(1))
+
+        meta >> write.map(_.currentRevision shouldEqual EventNumber.Start)
+
+      }
+
+      "append to soft deleted stream" >> {
+
+        def test(expectedRevision: StreamRevision) = {
+
+          val revStr = sct(expectedRevision.show)
+          val id     = genStreamId(s"${streamPrefix}stream_exists_and_soft_deleted${revStr}")
+
+          streams.softDelete(id, StreamRevision.NoStream) >>
+            streams.appendToStream(id, expectedRevision, genEvents(1))
+        }
+
+        "with stream exists expected version raises" >> {
+          test(StreamRevision.StreamExists).attempt.map {
+            _ should beLike { case Left(StreamDeleted(_)) => ok }
+          }
+        }
+
+      }
+
+      "can append multiple events at once" >> {
+
+        val id       = genStreamId(s"${streamPrefix}multiple_events_at_once")
+        val events   = genEvents(100)
+        val expected = EventNumber.exact(99)
+
+        streams.appendToStream(id, StreamRevision.NoStream, events).map(_.currentRevision shouldEqual expected)
+
+      }
+
+      "append events with size" >> {
+
+        val max = 1024 * 1024 // Default ESDB setting
+
+        def mkEvent(sizeBytes: Int): IO[EventData] = IO(UUID.randomUUID()).map { uuid =>
+          EventData.binary(EventType("et").unsafe, uuid, ByteVector.fill(sizeBytes.toLong)(0), ByteVector.empty)
+        }
+
+        "less than or equal max append size works" >> {
+
+          val id       = genStreamId(s"${streamPrefix}append_size_less_or_equal_bytes")
+          val equal    = List(mkEvent(max / 2), mkEvent(max / 2)).sequence.map(Nel.fromListUnsafe)
+          val lessThan = List(mkEvent(max / 4), mkEvent(max / 2)).sequence.map(Nel.fromListUnsafe)
+
+          def run(rev: StreamRevision)(data: Nel[EventData]) =
+            streams.appendToStream(id, rev, data).as(ok)
+
+          (equal >>= run(StreamRevision.NoStream)) >> (lessThan >>= run(EventNumber.exact(1)))
+
+        }
+
+        "greater than max append size raises" >> {
+
+          val id          = genStreamId(s"${streamPrefix}append_size_exceeds_bytes")
+          val greaterThan = List(mkEvent(max / 2), mkEvent(max / 2), mkEvent(max + 1)).sequence.map(Nel.fromListUnsafe)
+
+          greaterThan >>= { events =>
+            streams.appendToStream(id, StreamRevision.NoStream, events).attempt.map {
+              _ shouldEqual MaximumAppendSizeExceeded(max.some).asLeft
+            }
+          }
+
+        }
+
+      }
+
+    }
+
+    //==================================================================================================================
+
+    "subscribeToAll" >> {
+      ok
+    }
 
     "subscribeToStream" >> {
 
