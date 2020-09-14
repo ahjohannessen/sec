@@ -196,13 +196,13 @@ class StreamsMappingSpec extends mutable.Specification {
       } yield test(fr, rd, mc, rt)
     }
 
-    "mkSoftDeleteReq" >> {
+    "mkDeleteReq" >> {
 
       import DeleteReq.Options.ExpectedStreamRevision
       val sid = c.StreamId.from("abc").unsafe
 
       def test(sr: c.StreamRevision, esr: ExpectedStreamRevision) =
-        mkSoftDeleteReq(sid, sr) shouldEqual
+        mkDeleteReq(sid, sr) shouldEqual
           DeleteReq().withOptions(DeleteReq.Options(sid.esSid.some, esr))
 
       test(c.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
@@ -211,13 +211,13 @@ class StreamsMappingSpec extends mutable.Specification {
       test(c.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
     }
 
-    "mkHardDeleteReq" >> {
+    "mkTombstoneReq" >> {
 
       import TombstoneReq.Options.ExpectedStreamRevision
       val sid = c.StreamId.from("abc").unsafe
 
       def test(sr: c.StreamRevision, esr: ExpectedStreamRevision) =
-        mkHardDeleteReq(sid, sr) shouldEqual
+        mkTombstoneReq(sid, sr) shouldEqual
           TombstoneReq().withOptions(TombstoneReq.Options(sid.esSid.some, esr))
 
       test(c.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
@@ -432,7 +432,7 @@ class StreamsMappingSpec extends mutable.Specification {
         ProtoResultError(s"Required value $ContentType missing or invalid.").asLeft
 
       // Bad ContentType
-      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.updated(ContentType, "no").toMap)) shouldEqual
+      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.updated(ContentType, "no"))) shouldEqual
         ProtoResultError(s"Required value $ContentType missing or invalid: no").asLeft
 
       // Missing Created
@@ -440,7 +440,7 @@ class StreamsMappingSpec extends mutable.Specification {
         ProtoResultError(s"Required value $Created missing or invalid.").asLeft
 
       // Bad Created
-      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.updated(Created, "chuck norris").toMap)) shouldEqual
+      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.updated(Created, "chuck norris"))) shouldEqual
         ProtoResultError(s"Required value $Created missing or invalid.").asLeft
     }
 

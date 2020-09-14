@@ -79,13 +79,13 @@ trait Streams[F[_]] {
     creds: Option[UserCredentials]
   ): F[Streams.WriteResult]
 
-  def softDelete(
+  def delete(
     streamId: StreamId,
     expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
   ): F[Streams.DeleteResult]
 
-  def hardDelete(
+  def tombstone(
     streamId: StreamId,
     expectedRevision: StreamRevision,
     creds: Option[UserCredentials]
@@ -158,19 +158,19 @@ object Streams {
     ): F[WriteResult] =
       appendToStream0[F](streamId, expectedRevision, events, opts)(client.append(_, mkCtx(creds)))
 
-    def softDelete(
+    def delete(
       streamId: StreamId,
       expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
     ): F[DeleteResult] =
-      softDelete0[F](streamId, expectedRevision, opts)(client.delete(_, mkCtx(creds)))
+      delete0[F](streamId, expectedRevision, opts)(client.delete(_, mkCtx(creds)))
 
-    def hardDelete(
+    def tombstone(
       streamId: StreamId,
       expectedRevision: StreamRevision,
       creds: Option[UserCredentials]
     ): F[DeleteResult] =
-      hardDelete0[F](streamId, expectedRevision, opts)(client.tombstone(_, mkCtx(creds)))
+      tombstone0[F](streamId, expectedRevision, opts)(client.tombstone(_, mkCtx(creds)))
 
     private[sec] val metadata: MetaStreams[F] = MetaStreams[F](this)
   }
@@ -267,19 +267,19 @@ object Streams {
     opts.run(operation, "appendToStream") >>= { ar => mkWriteResult[F](streamId, ar) }
   }
 
-  private[sec] def softDelete0[F[_]: Concurrent: Timer](
+  private[sec] def delete0[F[_]: Concurrent: Timer](
     streamId: StreamId,
     expectedRevision: StreamRevision,
     opts: Opts[F]
   )(f: DeleteReq => F[DeleteResp]): F[DeleteResult] =
-    opts.run(f(mkSoftDeleteReq(streamId, expectedRevision)), "softDelete") >>= mkDeleteResult[F]
+    opts.run(f(mkDeleteReq(streamId, expectedRevision)), "delete") >>= mkDeleteResult[F]
 
-  private[sec] def hardDelete0[F[_]: Concurrent: Timer](
+  private[sec] def tombstone0[F[_]: Concurrent: Timer](
     streamId: StreamId,
     expectedRevision: StreamRevision,
     opts: Opts[F]
   )(f: TombstoneReq => F[TombstoneResp]): F[DeleteResult] =
-    opts.run(f(mkHardDeleteReq(streamId, expectedRevision)), "hardDelete") >>= mkDeleteResult[F]
+    opts.run(f(mkTombstoneReq(streamId, expectedRevision)), "tombstone") >>= mkDeleteResult[F]
 
 //======================================================================================================================
 
@@ -435,19 +435,19 @@ object Streams {
 
     /// Delete
 
-    def softDelete(
+    def delete(
       streamId: StreamId,
       expectedRevision: StreamRevision,
       credentials: Option[UserCredentials] = None
     ): F[DeleteResult] =
-      s.softDelete(streamId, expectedRevision, credentials)
+      s.delete(streamId, expectedRevision, credentials)
 
-    def hardDelete(
+    def tombstone(
       streamId: StreamId,
       expectedRevision: StreamRevision,
       credentials: Option[UserCredentials] = None
     ): F[DeleteResult] =
-      s.hardDelete(streamId, expectedRevision, credentials)
+      s.tombstone(streamId, expectedRevision, credentials)
 
   }
 

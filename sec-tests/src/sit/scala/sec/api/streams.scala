@@ -159,13 +159,13 @@ class StreamsSpec extends SnSpec {
 
       }
 
-      "raises when stream is hard deleted (tombstoned)" >> {
+      "raises when stream is tombstoned" >> {
 
         def test(exclusiveFrom: Option[EventNumber]) = {
 
-          val id        = genStreamId(s"${streamPrefix}stream_gets_hard_deleted")
+          val id        = genStreamId(s"${streamPrefix}stream_is_tombstoned")
           val subscribe = streams.subscribeToStream(id, exclusiveFrom)
-          val delete    = Stream.eval(streams.hardDelete(id, StreamRevision.Any)).delayBy(300.millis)
+          val delete    = Stream.eval(streams.tombstone(id, StreamRevision.Any)).delayBy(300.millis)
           val expected  = StreamDeleted(id.stringValue).asLeft
 
           subscribe.concurrently(delete).compile.last.attempt.map(_.shouldEqual(expected))
@@ -244,15 +244,15 @@ class StreamsSpec extends SnSpec {
             .map(_.size shouldEqual events1.length / 2)
         }
 
-        def deleted(soft: Boolean) = {
+        def deleted(normalDelete: Boolean) = {
 
-          val suffix = if (soft) "soft" else "hard"
-          val id     = genStreamId(s"streams_read_all_deleted_$suffix")
+          val suffix = if (normalDelete) "" else "_tombstoned"
+          val id     = genStreamId(s"streams_read_all_deleted$suffix")
           val events = genEvents(10)
           val write  = streams.appendToStream(id, StreamRevision.NoStream, events, None)
 
           def delete(er: EventNumber.Exact) =
-            if (soft) streams.softDelete(id, er, None) else streams.hardDelete(id, er, None)
+            if (normalDelete) streams.delete(id, er, None) else streams.tombstone(id, er, None)
 
           val decodeJson: EventRecord => IO[StreamMetadata] =
             _.eventData.data.bytes.decodeUtf8.liftTo[IO] >>= {
@@ -261,8 +261,8 @@ class StreamsSpec extends SnSpec {
 
           val verifyDeleted =
             streams.readStreamForwards(id, EventNumber.Start, 1).compile.drain.recoverWith {
-              case e: StreamNotFound if soft && e.streamId.eqv(id.stringValue) => IO.unit
-              case e: StreamDeleted if !soft && e.streamId.eqv(id.stringValue) => IO.unit
+              case e: StreamNotFound if normalDelete && e.streamId.eqv(id.stringValue) => IO.unit
+              case e: StreamDeleted if !normalDelete && e.streamId.eqv(id.stringValue) => IO.unit
             }
 
           val read = streams
@@ -275,7 +275,7 @@ class StreamsSpec extends SnSpec {
 
           def verify(es: List[Event]) =
             es.lastOption.toRight(new RuntimeException("expected metadata")).liftTo[IO] >>= { ts =>
-              if (soft) {
+              if (normalDelete) {
                 es.dropRight(1).map(_.eventData) shouldEqual events.toList
                 ts.streamId shouldEqual id.metaId
                 ts.eventData.eventType shouldEqual EventType.StreamMetadata
@@ -292,8 +292,8 @@ class StreamsSpec extends SnSpec {
 
         }
 
-        "soft deleted stream" >> deleted(soft = true)
-        "hard deleted stream" >> deleted(soft = false)
+        "deleted stream" >> deleted(normalDelete = true)
+        "tombstoned stream" >> deleted(normalDelete = false)
 
         "max count deleted events are not resolved" >> {
 
@@ -420,23 +420,23 @@ class StreamsSpec extends SnSpec {
           read(id, Start, Forwards, 1).attempt.map(_ should beLeft(ex))
         }
 
-        "reading soft deleted stream raises stream not found" >> {
+        "reading deleted stream raises stream not found" >> {
 
-          val id = genStreamId(s"${streamPrefix}stream_soft_deleted_forwards_")
+          val id = genStreamId(s"${streamPrefix}stream_deleted_forwards_")
           val ex = StreamNotFound(id.stringValue)
 
           streams.appendToStream(id, StreamRevision.NoStream, genEvents(5), None) *>
-            streams.softDelete(id, StreamRevision.Any, None) *>
+            streams.delete(id, StreamRevision.Any, None) *>
             read(id, Start, Forwards, 5).attempt.map(_ should beLeft(ex))
         }
 
-        "reading hard deleted stream raises stream deleted" >> {
+        "reading tombstoned stream raises stream deleted" >> {
 
-          val id = genStreamId(s"${streamPrefix}stream_hard_deleted_forwards_")
+          val id = genStreamId(s"${streamPrefix}stream_tombstoned_forwards_")
           val ex = StreamDeleted(id.stringValue)
 
           streams.appendToStream(id, StreamRevision.NoStream, genEvents(5), None) *>
-            streams.hardDelete(id, StreamRevision.Any, None) *>
+            streams.tombstone(id, StreamRevision.Any, None) *>
             read(id, Start, Forwards, 5).attempt.map(_ should beLeft(ex))
         }
 
@@ -490,23 +490,23 @@ class StreamsSpec extends SnSpec {
           read(id, End, Backwards, 1).attempt.map(_ should beLeft(ex))
         }
 
-        "reading soft deleted stream raises stream not found" >> {
+        "reading deleted stream raises stream not found" >> {
 
-          val id = genStreamId(s"${streamPrefix}stream_soft_deleted_backwards_")
+          val id = genStreamId(s"${streamPrefix}stream_deleted_backwards_")
           val ex = StreamNotFound(id.stringValue)
 
           streams.appendToStream(id, StreamRevision.NoStream, genEvents(5), None) *>
-            streams.softDelete(id, StreamRevision.Any, None) *>
+            streams.delete(id, StreamRevision.Any, None) *>
             read(id, End, Backwards, 5).attempt.map(_ should beLeft(ex))
         }
 
-        "reading hard deleted stream raises stream deleted" >> {
+        "reading tombstoned stream raises stream deleted" >> {
 
-          val id = genStreamId(s"${streamPrefix}stream_hard_deleted_backwards_")
+          val id = genStreamId(s"${streamPrefix}stream_tombstoned_backwards_")
           val ex = StreamDeleted(id.stringValue)
 
           streams.appendToStream(id, StreamRevision.NoStream, genEvents(5), None) *>
-            streams.hardDelete(id, StreamRevision.Any, None) *>
+            streams.tombstone(id, StreamRevision.Any, None) *>
             read(id, End, Backwards, 5).attempt.map(_ should beLeft(ex))
         }
 
@@ -635,13 +635,13 @@ class StreamsSpec extends SnSpec {
 
       }
 
-      "append to hard deleted stream raises" >> {
+      "append to tombstoned stream raises" >> {
 
         def test(expectedRevision: StreamRevision) = {
           val rev    = sct(expectedRevision.show)
-          val id     = genStreamId(s"${streamPrefix}hard_deleted_stream_$rev")
+          val id     = genStreamId(s"${streamPrefix}tombstoned_stream_$rev")
           val events = genEvents(1)
-          val delete = streams.hardDelete(id, StreamRevision.NoStream)
+          val delete = streams.tombstone(id, StreamRevision.NoStream)
           val write  = streams.appendToStream(id, expectedRevision, events)
 
           delete >> write.attempt.map(_ shouldEqual StreamDeleted(id.stringValue).asLeft)
@@ -724,14 +724,14 @@ class StreamsSpec extends SnSpec {
 
       }
 
-      "append to soft deleted stream" >> {
+      "append to deleted stream" >> {
 
         def test(expectedRevision: StreamRevision) = {
 
           val rev = sct(expectedRevision.show)
-          val id  = genStreamId(s"${streamPrefix}stream_exists_and_soft_deleted$rev")
+          val id  = genStreamId(s"${streamPrefix}stream_exists_and_deleted$rev")
 
-          streams.softDelete(id, StreamRevision.NoStream) >>
+          streams.delete(id, StreamRevision.NoStream) >>
             streams.appendToStream(id, expectedRevision, genEvents(1))
         }
 
