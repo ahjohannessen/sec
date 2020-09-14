@@ -29,6 +29,7 @@ import fs2.Stream
 import sec.core._
 import sec.api.Direction._
 import sec.api.exceptions._
+import helpers.text.{snakeCaseTransformation => sct}
 
 class StreamsSpec extends SnSpec {
 
@@ -535,8 +536,6 @@ class StreamsSpec extends SnSpec {
 
     "appendToStream" >> {
 
-      import helpers.text.{snakeCaseTransformation => sct}
-
       val streamPrefix = s"streams_append_to_stream_${genIdentifier}_"
 
       "create stream on first write if does not exist" >> {
@@ -957,7 +956,7 @@ class StreamsSpec extends SnSpec {
           }
         }
 
-        "sequence S 0em1 1em1 E S 0em1 1em1 2em1 E idempotancy raises" >> {
+        "sequence S 0em1 1em1 E S 0em1 1em1 2em1 E raises" >> {
 
           val id     = mkId
           val e1     = genEvent
@@ -973,6 +972,69 @@ class StreamsSpec extends SnSpec {
           }
         }
 
+      }
+
+    }
+
+    //==================================================================================================================
+
+    "delete" >> {
+      ok
+    }
+
+    //==================================================================================================================
+
+    "tombstone" >> {
+
+      val streamPrefix = s"streams_tombstone_${genIdentifier}_"
+
+      "a stream that does not exist" >> {
+
+        def run(expectedRevision: StreamRevision) = {
+
+          val rev = sct(expectedRevision.show)
+          val id  = genStreamId(s"${streamPrefix}_non-present_$rev")
+
+          streams.tombstone(id, expectedRevision).void
+        }
+
+        "works with no stream expected revision" >> {
+          run(StreamRevision.NoStream).as(ok)
+        }
+
+        "works with any expected revision" >> {
+          run(StreamRevision.Any).as(ok)
+        }
+
+        "raises with wrong expected revision" >> {
+          run(EventNumber.Start).attempt.map {
+            _ should beLike { case Left(WrongExpectedVersion(_, Some(0), None)) => ok }
+          }
+        }
+
+      }
+
+      "a stream should return log position" >> {
+
+        val id     = genStreamId(s"${streamPrefix}_return_log_position")
+        val events = genEvents(1)
+
+        for {
+          wr  <- streams.appendToStream(id, StreamRevision.NoStream, events)
+          pos <- streams.readStreamForwards(id, EventNumber.Start, 1).compile.lastOrError.map(_.position)
+          dr  <- streams.tombstone(id, wr.currentRevision)
+
+        } yield dr.position > pos
+
+      }
+
+      "a tombstoned stream should raise" >> {
+        val id = genStreamId(s"${streamPrefix}_tombstoned_stream")
+        streams.tombstone(id, StreamRevision.NoStream) >> {
+          streams.tombstone(id, StreamRevision.NoStream).attempt.map {
+            _ should beLike { case Left(StreamDeleted(_)) => ok }
+          }
+        }
       }
 
     }
