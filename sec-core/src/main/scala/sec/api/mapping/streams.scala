@@ -170,7 +170,7 @@ private[sec] object streams {
       ReadReq().withOptions(options)
     }
 
-    def mkSoftDeleteReq(streamId: StreamId, expectedRevision: StreamRevision): DeleteReq = {
+    def mkDeleteReq(streamId: StreamId, expectedRevision: StreamRevision): DeleteReq = {
 
       val mapDeleteRevision: StreamRevision => DeleteReq.Options.ExpectedStreamRevision = {
         case EventNumber.Exact(v)        => DeleteReq.Options.ExpectedStreamRevision.Revision(v)
@@ -181,7 +181,7 @@ private[sec] object streams {
       DeleteReq().withOptions(DeleteReq.Options(streamId.esSid.some, mapDeleteRevision(expectedRevision)))
     }
 
-    def mkHardDeleteReq(streamId: StreamId, expectedRevision: StreamRevision): TombstoneReq = {
+    def mkTombstoneReq(streamId: StreamId, expectedRevision: StreamRevision): TombstoneReq = {
 
       val mapTombstoneRevision: StreamRevision => TombstoneReq.Options.ExpectedStreamRevision = {
         case EventNumber.Exact(v)        => TombstoneReq.Options.ExpectedStreamRevision.Revision(v)
