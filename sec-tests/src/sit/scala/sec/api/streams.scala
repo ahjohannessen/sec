@@ -610,11 +610,11 @@ class StreamsSpec extends SnSpec {
 
         def test(expectedRevision: StreamRevision, expectedSecondRevision: StreamRevision) = {
 
-          val revision = sct(expectedRevision.show)
-          val id       = genStreamId(s"${streamPrefix}multiple_writes_multiple_events_same_uuid_$revision")
-          val event    = genEvents(1).head
-          val events   = Nel.of(event, List.fill(5)(event): _*)
-          val write    = streams.appendToStream(id, expectedRevision, events)
+          val rev    = sct(expectedRevision.show)
+          val id     = genStreamId(s"${streamPrefix}multiple_writes_multiple_events_same_uuid_$rev")
+          val event  = genEvents(1).head
+          val events = Nel.of(event, List.fill(5)(event): _*)
+          val write  = streams.appendToStream(id, expectedRevision, events)
 
           write >>= { first =>
             write.map { second =>
@@ -638,8 +638,8 @@ class StreamsSpec extends SnSpec {
       "append to hard deleted stream raises" >> {
 
         def test(expectedRevision: StreamRevision) = {
-          val revStr = sct(expectedRevision.show)
-          val id     = genStreamId(s"${streamPrefix}hard_deleted_stream_$revStr")
+          val rev    = sct(expectedRevision.show)
+          val id     = genStreamId(s"${streamPrefix}hard_deleted_stream_$rev")
           val events = genEvents(1)
           val delete = streams.hardDelete(id, StreamRevision.NoStream)
           val write  = streams.appendToStream(id, expectedRevision, events)
@@ -669,8 +669,8 @@ class StreamsSpec extends SnSpec {
 
         def test(sndExpectedRevision: StreamRevision) = {
 
-          val revStr                     = sct(sndExpectedRevision.show)
-          val id                         = genStreamId(s"${streamPrefix}existing_stream_with_$revStr")
+          val rev                        = sct(sndExpectedRevision.show)
+          val id                         = genStreamId(s"${streamPrefix}existing_stream_with_$rev")
           def write(esr: StreamRevision) = streams.appendToStream(id, esr, genEvents(1))
 
           write(StreamRevision.NoStream) >>= { first =>
@@ -728,8 +728,8 @@ class StreamsSpec extends SnSpec {
 
         def test(expectedRevision: StreamRevision) = {
 
-          val revStr = sct(expectedRevision.show)
-          val id     = genStreamId(s"${streamPrefix}stream_exists_and_soft_deleted${revStr}")
+          val rev = sct(expectedRevision.show)
+          val id  = genStreamId(s"${streamPrefix}stream_exists_and_soft_deleted$rev")
 
           streams.softDelete(id, StreamRevision.NoStream) >>
             streams.appendToStream(id, expectedRevision, genEvents(1))
@@ -785,6 +785,192 @@ class StreamsSpec extends SnSpec {
             }
           }
 
+        }
+
+      }
+
+      "append to implicitly created streams" >> {
+
+        /*
+         * sequence - events written to stream
+         * 0em1 - event number 0 written with expected revision -1 (minus 1)
+         * 1any - event number 1 written with expected revision any
+         * S_0em1_1em1_E - START bucket, two events in bucket, END bucket
+         *
+         *   See: https://github.com/EventStore/EventStore/blob/master/src/EventStore.Core.Tests/ClientAPI/appending_to_implicitly_created_stream.cs
+         */
+
+        def mkId = genStreamId(s"${streamPrefix}implicitly_created_stream")
+
+        "sequence 0em1 1e0 2e1 3e2 4e3 5e4" >> {
+
+          def run(nextExpected: StreamRevision) = {
+
+            val id     = mkId
+            val events = genEvents(6)
+
+            for {
+              _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
+              _ <- streams.appendToStream(id, nextExpected, Nel.one(events.head))
+              e <- streams.readStreamForwards(id, EventNumber.Start, events.size + 1L).compile.toList
+
+            } yield e.size shouldEqual events.size
+          }
+
+          "0em1 is idempotent" >> {
+            run(StreamRevision.NoStream)
+          }
+
+          "0any is idempotent" >> {
+            run(StreamRevision.Any)
+          }
+        }
+
+        "sequence 0em1 1e0 2e1 3e2 4e3 5e4 0e5 is non idempotent" >> {
+
+          val id     = mkId
+          val events = genEvents(6)
+
+          for {
+            _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
+            _ <- streams.appendToStream(id, EventNumber.exact(5), Nel.one(events.head))
+            e <- streams.readStreamForwards(id, EventNumber.Start, events.size + 2L).compile.toList
+
+          } yield e.size shouldEqual events.size + 1
+
+        }
+
+        "sequence 0em1 1e0 2e1 3e2 4e3 5e4 0e6 raises" >> {
+
+          val id     = mkId
+          val events = genEvents(6)
+          val result = for {
+            _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
+            _ <- streams.appendToStream(id, EventNumber.exact(6), Nel.one(events.head))
+          } yield ()
+
+          result.attempt.map {
+            _ should beLike { case Left(WrongExpectedVersion(_, Some(6), Some(5))) => ok }
+          }
+        }
+
+        "sequence 0em1 1e0 2e1 3e2 4e3 5e4 0e4 raises" >> {
+
+          val id     = mkId
+          val events = genEvents(6)
+
+          val result = for {
+            _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
+            _ <- streams.appendToStream(id, EventNumber.exact(4), Nel.one(events.head))
+          } yield ()
+
+          result.attempt.map {
+            _ should beLike { case Left(WrongExpectedVersion(_, Some(4), Some(5))) => ok }
+          }
+        }
+
+        "sequence 0em1 0e0 is non idempotent" >> {
+
+          val id     = mkId
+          val events = genEvents(1)
+
+          for {
+            _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
+            _ <- streams.appendToStream(id, EventNumber.Start, Nel.one(events.head))
+            e <- streams.readStreamForwards(id, EventNumber.Start, events.size + 2L).compile.toList
+
+          } yield e.size shouldEqual events.size + 1
+        }
+
+        "sequence 0em1" >> {
+
+          def run(nextExpected: StreamRevision) = {
+
+            val id     = mkId
+            val events = genEvents(1)
+
+            for {
+              _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
+              _ <- streams.appendToStream(id, nextExpected, Nel.one(events.head))
+              e <- streams.readStreamForwards(id, EventNumber.Start, events.size + 1L).compile.toList
+
+            } yield e.size shouldEqual events.size
+          }
+
+          "0em1 is idempotent" >> {
+            run(StreamRevision.NoStream)
+          }
+
+          "0any is idempotent" >> {
+            run(StreamRevision.Any)
+          }
+        }
+
+        "sequence 0em1 1e0 2e1 1any 1any is idempotent" >> {
+
+          val id = mkId
+          val e1 = genEvent
+          val e2 = genEvent
+          val e3 = genEvent
+
+          for {
+            _ <- streams.appendToStream(id, StreamRevision.NoStream, Nel.of(e1, e2, e3))
+            _ <- streams.appendToStream(id, StreamRevision.Any, Nel.of(e2))
+            _ <- streams.appendToStream(id, StreamRevision.Any, Nel.of(e2))
+            e <- streams.readStreamForwards(id, EventNumber.Start, 4).compile.toList
+
+          } yield e.size shouldEqual 3
+        }
+
+        "sequence S 0em1 1em1 E" >> {
+
+          def run(nextRevision: StreamRevision, onlyLast: Boolean) = {
+
+            val id         = mkId
+            val e1         = genEvent
+            val e2         = genEvent
+            val events     = Nel.of(e1, e2)
+            val nextEvents = if (onlyLast) Nel.one(e2) else events
+
+            for {
+              _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
+              _ <- streams.appendToStream(id, nextRevision, nextEvents)
+              e <- streams.readStreamForwards(id, EventNumber.Start, events.size + 1L).compile.toList
+
+            } yield e.size shouldEqual events.size
+          }
+
+          "S 0em1 E is idempotent" >> {
+            run(StreamRevision.NoStream, onlyLast = false)
+          }
+
+          "S 0any E is idempotent" >> {
+            run(StreamRevision.Any, onlyLast = false)
+          }
+
+          "S 1e0  E is idempotent" >> {
+            run(EventNumber.Start, onlyLast = true)
+          }
+
+          "S 1any E is idempotent" >> {
+            run(StreamRevision.Any, onlyLast = true)
+          }
+        }
+
+        "sequence S 0em1 1em1 E S 0em1 1em1 2em1 E idempotancy raises" >> {
+
+          val id     = mkId
+          val e1     = genEvent
+          val e2     = genEvent
+          val e3     = genEvent
+          val first  = Nel.of(e1, e2)
+          val second = Nel.of(e1, e2, e3)
+
+          streams.appendToStream(id, StreamRevision.NoStream, first) >> {
+            streams.appendToStream(id, StreamRevision.NoStream, second).attempt.map {
+              _ should beLike { case Left(WrongExpectedVersion(_, _, Some(1L))) => ok }
+            }
+          }
         }
 
       }
