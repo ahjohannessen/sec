@@ -84,17 +84,11 @@ jobs:
       - name: Check that workflows are up to date
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
-      - name: Run tests
-        run: sbt ++${{ matrix.scala }} compile sec-tests/test
-
-      - name: Run single node integration tests
-        run: 'sbt ++${{ matrix.scala }} sec-tests/sit:test'
-
-      - name: Run cluster integration tests
+      - name: Run all tests
         env:
           SEC_DEMO_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_DEMO_AUTHORITY: es.sec.local
-        run: 'sbt ++${{ matrix.scala }} sec-tests/cit:test'
+        run: sbt ++${{ matrix.scala }} compileTests runTests
 
       - name: Stop EventStore Nodes
         if: always()
