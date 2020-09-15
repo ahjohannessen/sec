@@ -43,6 +43,8 @@ class StreamsSpec extends SnSpec {
       ok
     }
 
+    //==================================================================================================================
+
     "subscribeToStream" >> {
 
       val streamPrefix                              = s"streams_subscribe_to_stream_${genIdentifier}_"
@@ -979,7 +981,133 @@ class StreamsSpec extends SnSpec {
     //==================================================================================================================
 
     "delete" >> {
-      ok
+
+      val streamPrefix = s"streams_delete_${genIdentifier}_"
+
+      "a stream that does not exist" >> {
+
+        def run(expectedRevision: StreamRevision) = {
+
+          val rev = sct(expectedRevision.show)
+          val id  = genStreamId(s"${streamPrefix}non-present_$rev")
+
+          streams.delete(id, expectedRevision).void
+        }
+
+        "works with no stream expected revision" >> {
+          run(StreamRevision.NoStream).as(ok)
+        }
+
+        "works with any expected revision" >> {
+          run(StreamRevision.Any).as(ok)
+        }
+
+        "raises with wrong expected revision" >> {
+          run(EventNumber.Start).attempt.map {
+            _ should beLike { case Left(WrongExpectedVersion(_, Some(0), None)) => ok }
+          }
+        }
+
+      }
+
+      "a stream should return log position" >> {
+
+        val id     = genStreamId(s"${streamPrefix}return_log_position")
+        val events = genEvents(1)
+
+        for {
+          wr  <- streams.appendToStream(id, StreamRevision.NoStream, events)
+          pos <- streams.readStreamForwards(id, EventNumber.Start, 1).compile.lastOrError.map(_.position)
+          dr  <- streams.delete(id, wr.currentRevision)
+
+        } yield dr.position > pos
+
+      }
+
+      "a stream and reading raises" >> {
+
+        val id     = genStreamId(s"${streamPrefix}reading_raises")
+        val events = genEvents(1)
+
+        for {
+          wr <- streams.appendToStream(id, StreamRevision.NoStream, events)
+          _  <- streams.delete(id, wr.currentRevision)
+          at <- streams.readStreamForwards(id, EventNumber.Start, 1).compile.drain.attempt
+
+        } yield at should beLike { case Left(StreamNotFound(_)) => ok }
+
+      }
+
+      "a stream and then tombstone it works as expected" >> {
+
+        val id     = genStreamId(s"${streamPrefix}and_tombstone_it")
+        val events = genEvents(2)
+
+        for {
+          wr  <- streams.appendToStream(id, StreamRevision.NoStream, events)
+          _   <- streams.delete(id, wr.currentRevision)
+          _   <- streams.tombstone(id, StreamRevision.Any)
+          rat <- streams.readStreamForwards(id, EventNumber.Start, 2).compile.drain.attempt
+          mat <- streams.metadata.getMeta(id, None).attempt
+          aat <- streams.appendToStream(id, StreamRevision.Any, genEvents(1)).attempt
+
+        } yield {
+          rat should beLike { case Left(e: StreamDeleted) => e.streamId shouldEqual id.stringValue }
+          mat should beLike { case Left(e: StreamDeleted) => e.streamId shouldEqual id.metaId.stringValue }
+          aat should beLike { case Left(e: StreamDeleted) => e.streamId shouldEqual id.stringValue }
+        }
+
+      }
+
+      "a stream and recreate it with" >> {
+
+        def run(expectedRevision: StreamRevision) = {
+
+          import EventNumber.exact
+
+          val rev          = sct(expectedRevision.show)
+          val id           = genStreamId(s"${streamPrefix}and_recreate_$rev")
+          val beforeEvents = genEvents(1)
+          val afterEvents  = genEvents(3)
+
+          for {
+            wr1 <- streams.appendToStream(id, StreamRevision.NoStream, beforeEvents)
+            _   <- streams.delete(id, wr1.currentRevision)
+            wr2 <- streams.appendToStream(id, expectedRevision, afterEvents)
+            _   <- IO.sleep(50.millis) // Workaround for ES github issue #1744
+            evt <- streams.readStreamForwards(id, EventNumber.Start, 3).compile.toList
+            tbm <- streams.metadata.getTruncateBefore(id, None)
+
+          } yield {
+
+            wr1.currentRevision shouldEqual EventNumber.Start
+            wr2.currentRevision shouldEqual exact(3)
+
+            evt.size shouldEqual 3
+            evt.map(_.eventData).toNel shouldEqual afterEvents.some
+            evt.map(_.number) shouldEqual List(exact(1), exact(2), exact(3))
+
+            tbm.data should beSome(exact(1))
+            tbm.version should beSome(exact(1))
+
+          }
+
+        }
+
+        "no stream expected revision" >> {
+          run(StreamRevision.NoStream)
+        }
+
+        "any expected revision" >> {
+          run(StreamRevision.Any)
+        }
+
+        "exact expected revision" >> {
+          run(EventNumber.Start)
+        }
+
+      }
+
     }
 
     //==================================================================================================================
