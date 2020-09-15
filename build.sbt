@@ -101,6 +101,9 @@ inThisBuild(
   )
 )
 
+addCommandAlias("compileTests", "sec-tests/test:compile; sec-tests/sit:compile; sec-tests/cit:compile;")
+addCommandAlias("runTests", "sec-tests/test; sec-tests/sit:test; sec-tests/cit:test;")
+
 // Github Actions
 
 inThisBuild(
@@ -114,16 +117,8 @@ inThisBuild(
     ),
     githubWorkflowBuild := Seq(
       WorkflowStep.Sbt(
-        name     = Some("Run tests"),
-        commands = List("compile", "sec-tests/test")
-      ),
-      WorkflowStep.Sbt(
-        name     = Some("Run single node integration tests"),
-        commands = List("sec-tests/sit:test")
-      ),
-      WorkflowStep.Sbt(
-        name     = Some("Run cluster integration tests"),
-        commands = List("sec-tests/cit:test"),
+        name     = Some("Run all tests"),
+        commands = List("compileTests", "runTests"),
         env = Map(
           "SEC_DEMO_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_DEMO_AUTHORITY"  -> "es.sec.local"
