@@ -170,10 +170,10 @@ object arbitraries {
     val seconds = Gen.chooseNum(1L, oneYear).map(FiniteDuration(_, SECONDS))
 
     for {
-      maxAge         <- Gen.option(seconds.map(MaxAge.from(_).unsafe))
-      maxCount       <- Gen.option(Gen.chooseNum(1, Int.MaxValue).map(MaxCount.from(_).unsafe))
+      maxAge         <- Gen.option(seconds.map(MaxAge(_)))
+      maxCount       <- Gen.option(Gen.chooseNum(1, Int.MaxValue).map(MaxCount(_)))
       truncateBefore <- Gen.option(arbEventNumberExact.arbitrary.suchThat(_ > EventNumber.Start))
-      cacheControl   <- Gen.option(seconds.map(CacheControl.from(_).unsafe))
+      cacheControl   <- Gen.option(seconds.map(CacheControl(_)))
       acl            <- Gen.option(arbStreamAcl.arbitrary)
     } yield StreamState(maxAge, maxCount, truncateBefore, cacheControl, acl)
 

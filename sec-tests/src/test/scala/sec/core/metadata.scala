@@ -50,9 +50,9 @@ class StreamMetadataSpec extends Specification {
     val reserved = StreamMetadata.reservedKeys
 
     val system = StreamState(
-      maxAge         = MaxAge.from(1000.seconds).unsafe.some,
+      maxAge         = MaxAge(1000.seconds).some,
       maxCount       = None,
-      cacheControl   = CacheControl.from(12.hours).unsafe.some,
+      cacheControl   = CacheControl(12.hours).some,
       truncateBefore = EventNumber.exact(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
     )
@@ -130,7 +130,7 @@ class StreamStateSpec extends Specification {
   "show" >> {
 
     StreamState.empty
-      .copy(maxAge = MaxAge.from(10.days).unsafe.some, maxCount = MaxCount.from(1).unsafe.some)
+      .copy(maxAge = MaxAge(10.days).some, maxCount = MaxCount(1).some)
       .show shouldEqual (
       s"""
        |StreamState:
@@ -144,8 +144,8 @@ class StreamStateSpec extends Specification {
 
     StreamState(
       maxAge         = None,
-      maxCount       = MaxCount.from(50).unsafe.some,
-      cacheControl   = CacheControl.from(12.hours).unsafe.some,
+      maxCount       = MaxCount(50).some,
+      cacheControl   = CacheControl(12.hours).some,
       truncateBefore = EventNumber.exact(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
     ).show shouldEqual (
