@@ -25,7 +25,7 @@ import helpers.text.snakeCaseTransformation
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import sec.client.EsClient
-import sec.api.{Gossip, Streams}
+import sec.api.{Gossip, MetaStreams, Streams}
 
 trait ResourceSpec[A] extends Specification with AfterAll with CatsIO {
   final val testName                        = snakeCaseTransformation(getClass.getSimpleName)
@@ -42,7 +42,8 @@ trait ClientSpec extends ResourceSpec[EsClient[IO]] {
 
   override val Timeout: Duration = 1.minute
 
-  final def client: EsClient[IO] = resource
-  final def streams: Streams[IO] = client.streams
-  final def gossip: Gossip[IO]   = client.gossip
+  final def client: EsClient[IO]      = resource
+  final def streams: Streams[IO]      = client.streams
+  final def metadata: MetaStreams[IO] = client.streams.metadata
+  final def gossip: Gossip[IO]        = client.gossip
 }

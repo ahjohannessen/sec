@@ -302,7 +302,7 @@ class StreamsSpec extends SnSpec {
 
           val deletedId = genStreamId("streams_read_all_linkto_deleted_")
           val linkId    = genStreamId("streams_read_all_linkto_link_")
-          val maxCount  = MaxCount.from(2).unsafe
+          val maxCount  = MaxCount.strict(2).unsafe
 
           def linkData(number: Long) =
             Nel.one(
@@ -328,7 +328,7 @@ class StreamsSpec extends SnSpec {
           val l3 = linkData(2)
 
           append(deletedId, e1) >>
-            streams.metadata.setMaxCount(deletedId, maxCount, None, None) >>
+            metadata.setMaxCount(deletedId, maxCount, StreamRevision.NoStream, None) >>
             append(deletedId, e2) >>
             append(deletedId, e3) >>
             append(linkId, l1) >>
@@ -718,7 +718,7 @@ class StreamsSpec extends SnSpec {
       "append to stream with stream exists expected version works if metadata stream exists" >> {
 
         val id    = genStreamId(s"${streamPrefix}stream_exists_and_metadata_stream_exists")
-        val meta  = MaxAge[IO](10.seconds) >>= { ma => streams.metadata.setMaxAge(id, ma, None, None) }
+        val meta  = metadata.setMaxAge(id, MaxAge(10.seconds), StreamRevision.NoStream, None)
         val write = streams.appendToStream(id, StreamRevision.StreamExists, genEvents(1))
 
         meta >> write.map(_.currentRevision shouldEqual EventNumber.Start)
@@ -1048,7 +1048,7 @@ class StreamsSpec extends SnSpec {
           _   <- streams.delete(id, wr.currentRevision)
           _   <- streams.tombstone(id, StreamRevision.Any)
           rat <- streams.readStreamForwards(id, EventNumber.Start, 2).compile.drain.attempt
-          mat <- streams.metadata.getMeta(id, None).attempt
+          mat <- metadata.getMeta(id, None).attempt
           aat <- streams.appendToStream(id, StreamRevision.Any, genEvents(1)).attempt
 
         } yield {
@@ -1076,7 +1076,7 @@ class StreamsSpec extends SnSpec {
             wr2 <- streams.appendToStream(id, expectedRevision, afterEvents)
             _   <- IO.sleep(50.millis) // Workaround for ES github issue #1744
             evt <- streams.readStreamForwards(id, EventNumber.Start, 3).compile.toList
-            tbm <- streams.metadata.getTruncateBefore(id, None)
+            tbm <- metadata.getTruncateBefore(id, None)
 
           } yield {
 
@@ -1087,8 +1087,7 @@ class StreamsSpec extends SnSpec {
             evt.map(_.eventData).toNel shouldEqual afterEvents.some
             evt.map(_.number) shouldEqual List(exact(1), exact(2), exact(3))
 
-            tbm.data should beSome(exact(1))
-            tbm.version should beSome(exact(1))
+            tbm should beSome(MetaStreams.Result(exact(1), exact(1).some))
 
           }
 
