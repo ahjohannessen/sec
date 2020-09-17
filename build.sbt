@@ -112,23 +112,46 @@ inThisBuild(
     githubWorkflowTargetTags += "v*",
     githubWorkflowTargetBranches := Seq("master"),
     githubWorkflowBuildPreamble += WorkflowStep.Run(
-      name     = Some("Start EventStore Nodes"),
-      commands = List(".docker/single-node.sh up -d", ".docker/cluster.sh up -d")
+      name     = Some("Start Single Node"),
+      commands = List(".docker/single-node.sh up -d")
     ),
     githubWorkflowBuild := Seq(
       WorkflowStep.Sbt(
-        name     = Some("Run all tests"),
-        commands = List("compileTests", "runTests"),
+        name     = Some("Regular tests"),
+        commands = List("compileTests", "sec-tests/test")
+      ),
+      WorkflowStep.Sbt(
+        name     = Some("Single node integration tests"),
+        commands = List("sec-tests/sit:test"),
         env = Map(
-          "SEC_DEMO_CERTS_PATH" -> "${{ github.workspace }}/certs",
-          "SEC_DEMO_AUTHORITY"  -> "es.sec.local"
+          "SEC_SIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
+          "SEC_SIT_AUTHORITY"  -> "es.sec.local"
         )
       )
     ),
     githubWorkflowBuildPostamble += WorkflowStep.Run(
-      name     = Some("Stop EventStore Nodes"),
-      commands = List(".docker/single-node.sh down", ".docker/cluster.sh down"),
+      name     = Some("Stop Single Node"),
+      commands = List(".docker/single-node.sh down"),
       cond     = Some("always()")
+    ),
+    githubWorkflowBuildPostamble ++= Seq(
+      WorkflowStep.Run(
+        name     = Some("Start Cluster Nodes"),
+        commands = List(".docker/cluster.sh up -d")
+      ),
+      WorkflowStep.Sbt(
+        name     = Some("Cluster integration tests"),
+        commands = List("sec-tests/cit:test"),
+        env = Map(
+          "SEC_CIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
+          "SEC_CIT_AUTHORITY"  -> "es.sec.local"
+        )
+      ),
+      WorkflowStep.Run(
+        name     = Some("Stop Cluster Nodes"),
+        commands = List(".docker/cluster.sh down"),
+        cond     = Some("always()")
+      )
     ),
     githubWorkflowPublishTargetBranches := Seq(
       RefPredicate.Equals(Ref.Branch("master")),
