@@ -6,6 +6,7 @@ services:
     env_file:
       - shared.env
     environment:
+      - EVENTSTORE_MEM_DB=True
       - EVENTSTORE_GOSSIP_ON_SINGLE_NODE=True
       - EVENTSTORE_START_STANDARD_PROJECTIONS=True
     volumes:

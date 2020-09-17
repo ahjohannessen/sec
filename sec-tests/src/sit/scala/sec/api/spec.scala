@@ -41,11 +41,11 @@ trait SnSpec extends ClientSpec {
 
 object SnSpec {
 
-  final private val certsFolder = new File(sys.env.getOrElse("SEC_TEST_CERTS_PATH", BuildInfo.certsPath))
-  final private val address     = sys.env.getOrElse("SEC_IT_TEST_HOST_ADDRESS", "127.0.0.1")
-  final private val port        = sys.env.get("SEC_IT_TEST_HOST_PORT").flatMap(_.toIntOption).getOrElse(2113)
+  final private val certsFolder = new File(sys.env.getOrElse("SEC_SIT_CERTS_PATH", BuildInfo.certsPath))
   final private val certPath    = new File(certsFolder, "ca/ca.crt").toPath
-  final private val authority   = sys.env.getOrElse("SEC_IT_TEST_AUTHORITY", "es.sec.local")
+  final private val authority   = sys.env.getOrElse("SEC_SIT_AUTHORITY", "es.sec.local")
+  final private val address     = sys.env.getOrElse("SEC_SIT_HOST_ADDRESS", "127.0.0.1")
+  final private val port        = sys.env.get("SEC_SIT_HOST_PORT").flatMap(_.toIntOption).getOrElse(2113)
 
   ///
 

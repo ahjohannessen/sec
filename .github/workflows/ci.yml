@@ -76,25 +76,37 @@ jobs:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
-      - name: Start EventStore Nodes
-        run: |
-          .docker/single-node.sh up -d
-          .docker/cluster.sh up -d
+      - name: Start Single Node
+        run: .docker/single-node.sh up -d
 
       - name: Check that workflows are up to date
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
-      - name: Run all tests
-        env:
-          SEC_DEMO_CERTS_PATH: ${{ github.workspace }}/certs
-          SEC_DEMO_AUTHORITY: es.sec.local
-        run: sbt ++${{ matrix.scala }} compileTests runTests
+      - name: Regular tests
+        run: sbt ++${{ matrix.scala }} compileTests sec-tests/test
 
-      - name: Stop EventStore Nodes
+      - name: Single node integration tests
+        env:
+          SEC_SIT_CERTS_PATH: ${{ github.workspace }}/certs
+          SEC_SIT_AUTHORITY: es.sec.local
+        run: 'sbt ++${{ matrix.scala }} sec-tests/sit:test'
+
+      - name: Stop Single Node
         if: always()
-        run: |
-          .docker/single-node.sh down
-          .docker/cluster.sh down
+        run: .docker/single-node.sh down
+
+      - name: Start Cluster Nodes
+        run: .docker/cluster.sh up -d
+
+      - name: Cluster integration tests
+        env:
+          SEC_CIT_CERTS_PATH: ${{ github.workspace }}/certs
+          SEC_CIT_AUTHORITY: es.sec.local
+        run: 'sbt ++${{ matrix.scala }} sec-tests/cit:test'
+
+      - name: Stop Cluster Nodes
+        if: always()
+        run: .docker/cluster.sh down
 
       - name: Compress target directories
         run: tar cf targets.tar target sec-core/target sec-tests/target sec-netty/target sec-protos/target project/target
