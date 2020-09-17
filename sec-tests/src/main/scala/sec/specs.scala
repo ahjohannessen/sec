@@ -42,8 +42,8 @@ trait ClientSpec extends ResourceSpec[EsClient[IO]] {
 
   override val Timeout: Duration = 1.minute
 
-  final def client: EsClient[IO]      = resource
-  final def streams: Streams[IO]      = client.streams
-  final def metadata: MetaStreams[IO] = client.streams.metadata
-  final def gossip: Gossip[IO]        = client.gossip
+  final def client: EsClient[IO]         = resource
+  final def streams: Streams[IO]         = client.streams
+  final def metaStreams: MetaStreams[IO] = client.streams.metadata
+  final def gossip: Gossip[IO]           = client.gossip
 }

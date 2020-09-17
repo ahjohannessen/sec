@@ -21,6 +21,7 @@ import java.util.UUID
 import java.{util => ju}
 import scala.concurrent.duration._
 import scodec.bits.ByteVector
+import io.circe.Json
 import cats.data.{NonEmptyList => Nel}
 import cats.syntax.all._
 import cats.effect.IO
@@ -58,7 +59,7 @@ class StreamsSpec extends SnSpec {
 
         def test(exclusivefrom: Option[EventNumber], takeCount: Int) = {
 
-          val id        = genStreamId(s"${streamPrefix}non_existing_stream")
+          val id        = genStreamId(s"${streamPrefix}non_existing_stream_")
           val subscribe = streams.subscribeToStream(id, exclusivefrom).take(takeCount.toLong).map(_.eventData)
           val write     = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events, None)).delayBy(300.millis)
           val result    = subscribe.concurrently(write)
@@ -88,7 +89,7 @@ class StreamsSpec extends SnSpec {
 
         def test(exclusivFrom: Option[EventNumber], takeCount: Int) = {
 
-          val id    = genStreamId(s"${streamPrefix}multiple_subscriptions_to_same_stream")
+          val id    = genStreamId(s"${streamPrefix}multiple_subscriptions_to_same_stream_")
           val write = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events, None)).delayBy(300.millis)
 
           def mkSubscribers(onEvent: IO[Unit]): Stream[IO, Event] = Stream
@@ -126,7 +127,7 @@ class StreamsSpec extends SnSpec {
 
         def test(exclusiveFrom: Option[EventNumber], takeCount: Int) = {
 
-          val id = genStreamId(s"${streamPrefix}existing_and_new")
+          val id = genStreamId(s"${streamPrefix}existing_and_new_")
 
           val beforeWrite =
             Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, beforeEvents, None))
@@ -166,7 +167,7 @@ class StreamsSpec extends SnSpec {
 
         def test(exclusiveFrom: Option[EventNumber]) = {
 
-          val id        = genStreamId(s"${streamPrefix}stream_is_tombstoned")
+          val id        = genStreamId(s"${streamPrefix}stream_is_tombstoned_")
           val subscribe = streams.subscribeToStream(id, exclusiveFrom)
           val delete    = Stream.eval(streams.tombstone(id, StreamRevision.Any)).delayBy(300.millis)
           val expected  = StreamDeleted(id.stringValue).asLeft
@@ -249,8 +250,8 @@ class StreamsSpec extends SnSpec {
 
         def deleted(normalDelete: Boolean) = {
 
-          val suffix = if (normalDelete) "" else "_tombstoned"
-          val id     = genStreamId(s"streams_read_all_deleted$suffix")
+          val suffix = if (normalDelete) "" else "tombstoned"
+          val id     = genStreamId(s"streams_read_all_deleted_${suffix}_")
           val events = genEvents(10)
           val write  = streams.appendToStream(id, StreamRevision.NoStream, events, None)
 
@@ -302,7 +303,7 @@ class StreamsSpec extends SnSpec {
 
           val deletedId = genStreamId("streams_read_all_linkto_deleted_")
           val linkId    = genStreamId("streams_read_all_linkto_link_")
-          val maxCount  = MaxCount.strict(2).unsafe
+          val maxCount  = MaxCount(2)
 
           def linkData(number: Long) =
             Nel.one(
@@ -328,7 +329,7 @@ class StreamsSpec extends SnSpec {
           val l3 = linkData(2)
 
           append(deletedId, e1) >>
-            metadata.setMaxCount(deletedId, maxCount, StreamRevision.NoStream, None) >>
+            metaStreams.setMaxCount(deletedId, StreamRevision.NoStream, maxCount, None) >>
             append(deletedId, e2) >>
             append(deletedId, e3) >>
             append(linkId, l1) >>
@@ -546,7 +547,7 @@ class StreamsSpec extends SnSpec {
 
         def test(expectedRevision: StreamRevision) = {
 
-          val id = genStreamId(s"${streamPrefix}non_present_${sct(expectedRevision.show)}")
+          val id = genStreamId(s"${streamPrefix}non_existing_${sct(expectedRevision.show)}_")
 
           streams.appendToStream(id, expectedRevision, events) >>= { wr =>
             streams.readStreamForwards(id, EventNumber.Start, 2).compile.toList.map { el =>
@@ -582,7 +583,7 @@ class StreamsSpec extends SnSpec {
 
         "with unique uuids" >> {
 
-          val id     = genStreamId(s"${streamPrefix}multiple_idempotent_writes")
+          val id     = genStreamId(s"${streamPrefix}multiple_idempotent_writes_")
           val events = genEvents(4)
           val write  = streams.appendToStream(id, StreamRevision.Any, events)
 
@@ -597,7 +598,7 @@ class StreamsSpec extends SnSpec {
 
         "with same uuids (bug in ESDB)" >> {
 
-          val id     = genStreamId(s"${streamPrefix}multiple_idempotent_writes_same_uuid")
+          val id     = genStreamId(s"${streamPrefix}multiple_idempotent_writes_same_uuid_")
           val event  = genEvents(1).head
           val events = Nel.of(event, List.fill(5)(event): _*)
           val write  = streams.appendToStream(id, StreamRevision.Any, events)
@@ -612,7 +613,7 @@ class StreamsSpec extends SnSpec {
         def test(expectedRevision: StreamRevision, expectedSecondRevision: StreamRevision) = {
 
           val rev    = sct(expectedRevision.show)
-          val id     = genStreamId(s"${streamPrefix}multiple_writes_multiple_events_same_uuid_$rev")
+          val id     = genStreamId(s"${streamPrefix}multiple_writes_multiple_events_same_uuid_${rev}_")
           val event  = genEvents(1).head
           val events = Nel.of(event, List.fill(5)(event): _*)
           val write  = streams.appendToStream(id, expectedRevision, events)
@@ -640,7 +641,7 @@ class StreamsSpec extends SnSpec {
 
         def test(expectedRevision: StreamRevision) = {
           val rev    = sct(expectedRevision.show)
-          val id     = genStreamId(s"${streamPrefix}tombstoned_stream_$rev")
+          val id     = genStreamId(s"${streamPrefix}tombstoned_stream_${rev}_")
           val events = genEvents(1)
           val delete = streams.tombstone(id, StreamRevision.NoStream)
           val write  = streams.appendToStream(id, expectedRevision, events)
@@ -671,7 +672,7 @@ class StreamsSpec extends SnSpec {
         def test(sndExpectedRevision: StreamRevision) = {
 
           val rev                        = sct(sndExpectedRevision.show)
-          val id                         = genStreamId(s"${streamPrefix}existing_stream_with_$rev")
+          val id                         = genStreamId(s"${streamPrefix}existing_stream_with_${rev}_")
           def write(esr: StreamRevision) = streams.appendToStream(id, esr, genEvents(1))
 
           write(StreamRevision.NoStream) >>= { first =>
@@ -704,7 +705,7 @@ class StreamsSpec extends SnSpec {
 
       "append to stream with multiple events and stream exists expected revision " >> {
 
-        val id      = genStreamId(s"${streamPrefix}multiple_events_and_stream_exists")
+        val id      = genStreamId(s"${streamPrefix}multiple_events_and_stream_exists_")
         val events  = genEvents(5)
         val writes  = events.toList.map(e => streams.appendToStream(id, StreamRevision.Any, Nel.one(e)))
         val prepare = Stream.eval(writes.sequence).compile.drain
@@ -717,8 +718,8 @@ class StreamsSpec extends SnSpec {
 
       "append to stream with stream exists expected version works if metadata stream exists" >> {
 
-        val id    = genStreamId(s"${streamPrefix}stream_exists_and_metadata_stream_exists")
-        val meta  = metadata.setMaxAge(id, MaxAge(10.seconds), StreamRevision.NoStream, None)
+        val id    = genStreamId(s"${streamPrefix}stream_exists_and_metadata_stream_exists_")
+        val meta  = metaStreams.setMaxAge(id, StreamRevision.NoStream, MaxAge(10.seconds), None)
         val write = streams.appendToStream(id, StreamRevision.StreamExists, genEvents(1))
 
         meta >> write.map(_.currentRevision shouldEqual EventNumber.Start)
@@ -730,7 +731,7 @@ class StreamsSpec extends SnSpec {
         def test(expectedRevision: StreamRevision) = {
 
           val rev = sct(expectedRevision.show)
-          val id  = genStreamId(s"${streamPrefix}stream_exists_and_deleted$rev")
+          val id  = genStreamId(s"${streamPrefix}stream_exists_and_deleted_${rev}_")
 
           streams.delete(id, StreamRevision.NoStream) >>
             streams.appendToStream(id, expectedRevision, genEvents(1))
@@ -746,7 +747,7 @@ class StreamsSpec extends SnSpec {
 
       "can append multiple events at once" >> {
 
-        val id       = genStreamId(s"${streamPrefix}multiple_events_at_once")
+        val id       = genStreamId(s"${streamPrefix}multiple_events_at_once_")
         val events   = genEvents(100)
         val expected = EventNumber.exact(99)
 
@@ -764,7 +765,7 @@ class StreamsSpec extends SnSpec {
 
         "less than or equal max append size works" >> {
 
-          val id       = genStreamId(s"${streamPrefix}append_size_less_or_equal_bytes")
+          val id       = genStreamId(s"${streamPrefix}append_size_less_or_equal_bytes_")
           val equal    = List(mkEvent(max / 2), mkEvent(max / 2)).sequence.map(Nel.fromListUnsafe)
           val lessThan = List(mkEvent(max / 4), mkEvent(max / 2)).sequence.map(Nel.fromListUnsafe)
 
@@ -777,7 +778,7 @@ class StreamsSpec extends SnSpec {
 
         "greater than max append size raises" >> {
 
-          val id          = genStreamId(s"${streamPrefix}append_size_exceeds_bytes")
+          val id          = genStreamId(s"${streamPrefix}append_size_exceeds_bytes_")
           val greaterThan = List(mkEvent(max / 2), mkEvent(max / 2), mkEvent(max + 1)).sequence.map(Nel.fromListUnsafe)
 
           greaterThan >>= { events =>
@@ -801,7 +802,7 @@ class StreamsSpec extends SnSpec {
          *   See: https://github.com/EventStore/EventStore/blob/master/src/EventStore.Core.Tests/ClientAPI/appending_to_implicitly_created_stream.cs
          */
 
-        def mkId = genStreamId(s"${streamPrefix}implicitly_created_stream")
+        def mkId = genStreamId(s"${streamPrefix}implicitly_created_stream_")
 
         "sequence 0em1 1e0 2e1 3e2 4e3 5e4" >> {
 
@@ -989,7 +990,7 @@ class StreamsSpec extends SnSpec {
         def run(expectedRevision: StreamRevision) = {
 
           val rev = sct(expectedRevision.show)
-          val id  = genStreamId(s"${streamPrefix}non-present_$rev")
+          val id  = genStreamId(s"${streamPrefix}non_existing_stream_with_expected_revision_${rev}_")
 
           streams.delete(id, expectedRevision).void
         }
@@ -1012,7 +1013,7 @@ class StreamsSpec extends SnSpec {
 
       "a stream should return log position" >> {
 
-        val id     = genStreamId(s"${streamPrefix}return_log_position")
+        val id     = genStreamId(s"${streamPrefix}return_log_position_")
         val events = genEvents(1)
 
         for {
@@ -1026,7 +1027,7 @@ class StreamsSpec extends SnSpec {
 
       "a stream and reading raises" >> {
 
-        val id     = genStreamId(s"${streamPrefix}reading_raises")
+        val id     = genStreamId(s"${streamPrefix}reading_raises_")
         val events = genEvents(1)
 
         for {
@@ -1038,9 +1039,9 @@ class StreamsSpec extends SnSpec {
 
       }
 
-      "a stream and then tombstone it works as expected" >> {
+      "a stream and tombstone works as expected" >> {
 
-        val id     = genStreamId(s"${streamPrefix}and_tombstone_it")
+        val id     = genStreamId(s"${streamPrefix}and_tombstone_it_")
         val events = genEvents(2)
 
         for {
@@ -1048,7 +1049,7 @@ class StreamsSpec extends SnSpec {
           _   <- streams.delete(id, wr.currentRevision)
           _   <- streams.tombstone(id, StreamRevision.Any)
           rat <- streams.readStreamForwards(id, EventNumber.Start, 2).compile.drain.attempt
-          mat <- metadata.getMeta(id, None).attempt
+          mat <- metaStreams.getMetadata(id, None).attempt
           aat <- streams.appendToStream(id, StreamRevision.Any, genEvents(1)).attempt
 
         } yield {
@@ -1059,14 +1060,12 @@ class StreamsSpec extends SnSpec {
 
       }
 
-      "a stream and recreate it with" >> {
+      "a stream and recreate with" >> {
 
         def run(expectedRevision: StreamRevision) = {
 
-          import EventNumber.exact
-
           val rev          = sct(expectedRevision.show)
-          val id           = genStreamId(s"${streamPrefix}and_recreate_$rev")
+          val id           = genStreamId(s"${streamPrefix}and_recreate_with_expected_revision_${rev}_")
           val beforeEvents = genEvents(1)
           val afterEvents  = genEvents(3)
 
@@ -1074,20 +1073,20 @@ class StreamsSpec extends SnSpec {
             wr1 <- streams.appendToStream(id, StreamRevision.NoStream, beforeEvents)
             _   <- streams.delete(id, wr1.currentRevision)
             wr2 <- streams.appendToStream(id, expectedRevision, afterEvents)
-            _   <- IO.sleep(50.millis) // Workaround for ES github issue #1744
+            _   <- IO.sleep(100.millis) // Workaround for ES github issue #1744
             evt <- streams.readStreamForwards(id, EventNumber.Start, 3).compile.toList
-            tbm <- metadata.getTruncateBefore(id, None)
+            tbm <- metaStreams.getTruncateBefore(id, None)
 
           } yield {
 
             wr1.currentRevision shouldEqual EventNumber.Start
-            wr2.currentRevision shouldEqual exact(3)
+            wr2.currentRevision shouldEqual EventNumber.exact(3)
 
             evt.size shouldEqual 3
             evt.map(_.eventData).toNel shouldEqual afterEvents.some
-            evt.map(_.number) shouldEqual List(exact(1), exact(2), exact(3))
+            evt.map(_.number) shouldEqual List(EventNumber.exact(1), EventNumber.exact(2), EventNumber.exact(3))
 
-            tbm should beSome(MetaStreams.Result(exact(1), exact(1).some))
+            tbm should beSome(MetaStreams.Result(EventNumber.exact(1), EventNumber.exact(1).some))
 
           }
 
@@ -1107,6 +1106,157 @@ class StreamsSpec extends SnSpec {
 
       }
 
+      "a stream and recreate preserves metadata except truncate before" >> {
+
+        val id           = genStreamId(s"${streamPrefix}and_recreate_preserves_metadata_")
+        val beforeEvents = genEvents(2)
+        val afterEvents  = genEvents(3)
+
+        val metadata = StreamMetadata.empty
+          .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
+          .withMaxCount(MaxCount(100))
+          .withTruncateBefore(EventNumber.exact(Long.MaxValue))
+          .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
+
+        for {
+          swr    <- streams.appendToStream(id, StreamRevision.NoStream, beforeEvents)
+          mwr    <- metaStreams.setMetadata(id, StreamRevision.NoStream, metadata, None)
+          _      <- streams.appendToStream(id, EventNumber.exact(1), afterEvents)
+          _      <- IO.sleep(500.millis) // Workaround for ES github issue #1744
+          events <- streams.readStreamForwards(id, EventNumber.Start, 3).compile.toList
+          meta   <- metaStreams.getMetadata(id, None)
+
+        } yield {
+
+          swr.currentRevision shouldEqual EventNumber.exact(1)
+          mwr.currentMetaRevision shouldEqual EventNumber.Start
+
+          events.size shouldEqual afterEvents.size
+          events.map(_.number) shouldEqual List(EventNumber.exact(2), EventNumber.exact(3), EventNumber.exact(4))
+
+          meta.fold(ko) { m =>
+            m.metaRevision shouldEqual EventNumber.exact(1)
+            m.data shouldEqual metadata.withTruncateBefore(EventNumber.exact(2))
+          }
+        }
+
+      }
+
+      "a stream and recreate raises if not first write" >> {
+
+        val id = genStreamId(s"${streamPrefix}and_recreate_only_first_write_")
+
+        for {
+          wr1 <- streams.appendToStream(id, StreamRevision.NoStream, genEvents(2))
+          _   <- streams.delete(id, wr1.currentRevision, None)
+          wr2 <- streams.appendToStream(id, StreamRevision.NoStream, genEvents(3))
+          wr3 <- streams.appendToStream(id, StreamRevision.NoStream, genEvents(1)).attempt
+        } yield {
+
+          wr1.currentRevision shouldEqual EventNumber.exact(1)
+          wr2.currentRevision shouldEqual EventNumber.exact(4)
+          wr3 should beLike { case Left(e: WrongExpectedVersion) =>
+            e.expected should beSome(-1) // NoStream
+            e.actual should beSome(4)
+            e.streamId shouldEqual id.stringValue
+          }
+        }
+
+      }
+
+      "a stream and recreate with multiple appends and expected revision any" >> {
+
+        val id      = genStreamId(s"${streamPrefix}and_recreate_multiple_writes_with_any_expected_revision_")
+        val events0 = genEvents(2)
+        val events1 = genEvents(3)
+        val events2 = genEvents(2)
+
+        for {
+          wr0    <- streams.appendToStream(id, StreamRevision.NoStream, events0)
+          _      <- streams.delete(id, wr0.currentRevision)
+          wr1    <- streams.appendToStream(id, StreamRevision.Any, events1)
+          wr2    <- streams.appendToStream(id, StreamRevision.Any, events2)
+          events <- streams.readStreamForwards(id, EventNumber.Start, 5).compile.toList
+          tbr    <- metaStreams.getTruncateBefore(id, None)
+        } yield {
+
+          wr0.currentRevision shouldEqual EventNumber.exact(1)
+          wr1.currentRevision shouldEqual EventNumber.exact(4)
+          wr2.currentRevision shouldEqual EventNumber.exact(6)
+
+          events.size shouldEqual 5
+          events.map(_.eventData) shouldEqual events1.concatNel(events2).toList
+          events.map(_.number) shouldEqual (2L to 6L).map(EventNumber.exact).toList
+
+          tbr.fold(ko) { result =>
+            result.data should beSome(EventNumber.exact(2))
+            result.metaRevision shouldEqual EventNumber.exact(1)
+
+          }
+        }
+
+      }
+
+      "a stream and recreate on empty when metadata set" >> {
+
+        val id = genStreamId(s"${streamPrefix}and_recreate_on_empty_when_metadata_set_")
+
+        val metadata = StreamMetadata.empty
+          .withMaxCount(MaxCount(100))
+          .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
+          .withTruncateBefore(EventNumber.exact(Long.MaxValue))
+          .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
+
+        for {
+          _    <- streams.delete(id, StreamRevision.NoStream)
+          mw   <- metaStreams.setMetadata(id, EventNumber.Start, metadata, None)
+          read <- streams.readStreamForwards(id, EventNumber.Start, 1).compile.toList.attempt
+          meta <- metaStreams.getMetadata(id, None)
+        } yield {
+
+          mw.currentMetaRevision shouldEqual EventNumber.exact(1)
+
+          read should beLike { case Left(e: StreamNotFound) =>
+            e.streamId shouldEqual id.stringValue
+          }
+
+          meta.fold(ko) { m =>
+            m.metaRevision shouldEqual EventNumber.exact(2)
+            m.data shouldEqual metadata.withTruncateBefore(EventNumber.Start)
+          }
+        }
+
+      }
+
+      "a stream and recreate on non-empty when metadata set" >> {
+
+        val id     = genStreamId(s"${streamPrefix}and_recreate_on_non_empty_when_metadata_set_")
+        val events = genEvents(2)
+
+        val metadata = StreamMetadata.empty
+          .withMaxCount(MaxCount(100))
+          .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
+          .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
+
+        for {
+          sw1  <- streams.appendToStream(id, StreamRevision.NoStream, events)
+          _    <- streams.delete(id, sw1.currentRevision)
+          mw1  <- metaStreams.setMetadata(id, EventNumber.Start, metadata, None)
+          read <- streams.readStreamForwards(id, EventNumber.Start, 2).compile.toList
+          meta <- metaStreams.getMetadata(id, None)
+        } yield {
+
+          sw1.currentRevision shouldEqual EventNumber.exact(1)
+          mw1.currentMetaRevision shouldEqual EventNumber.exact(1)
+          read.size shouldEqual 0
+
+          meta.fold(ko) { m =>
+            m.data shouldEqual metadata.withTruncateBefore(EventNumber.exact(events.size.toLong))
+          }
+        }
+
+      }
+
     }
 
     //==================================================================================================================
@@ -1120,7 +1270,7 @@ class StreamsSpec extends SnSpec {
         def run(expectedRevision: StreamRevision) = {
 
           val rev = sct(expectedRevision.show)
-          val id  = genStreamId(s"${streamPrefix}_non-present_$rev")
+          val id  = genStreamId(s"${streamPrefix}non_existing_stream_with_expected_revision_${rev}_")
 
           streams.tombstone(id, expectedRevision).void
         }
@@ -1143,7 +1293,7 @@ class StreamsSpec extends SnSpec {
 
       "a stream should return log position" >> {
 
-        val id     = genStreamId(s"${streamPrefix}_return_log_position")
+        val id     = genStreamId(s"${streamPrefix}return_log_position_")
         val events = genEvents(1)
 
         for {
@@ -1156,7 +1306,7 @@ class StreamsSpec extends SnSpec {
       }
 
       "a tombstoned stream should raise" >> {
-        val id = genStreamId(s"${streamPrefix}_tombstoned_stream")
+        val id = genStreamId(s"${streamPrefix}tombstoned_stream_")
         streams.tombstone(id, StreamRevision.NoStream) >> {
           streams.tombstone(id, StreamRevision.NoStream).attempt.map {
             _ should beLike { case Left(StreamDeleted(_)) => ok }
