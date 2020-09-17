@@ -47,12 +47,22 @@ private[sec] object StreamMetadata {
 
     ///
 
-    def modifyState(fn: StreamState => StreamState): StreamMetadata       = sm.copy(state = fn(sm.state))
-    def withTruncateBefore(tb: Option[EventNumber.Exact]): StreamMetadata = sm.modifyState(_.copy(truncateBefore = tb))
-    def withMaxAge(ma: Option[MaxAge]): StreamMetadata                    = sm.modifyState(_.copy(maxAge = ma))
-    def withMaxCount(mc: Option[MaxCount]): StreamMetadata                = sm.modifyState(_.copy(maxCount = mc))
-    def withCacheControl(cc: Option[CacheControl]): StreamMetadata        = sm.modifyState(_.copy(cacheControl = cc))
-    def withAcl(sa: Option[StreamAcl]): StreamMetadata                    = sm.modifyState(_.copy(acl = sa))
+    private def modS(fn: StreamState => StreamState): StreamMetadata = sm.copy(state = fn(sm.state))
+
+    def setTruncateBefore(value: Option[EventNumber.Exact]): StreamMetadata = modS(_.copy(truncateBefore = value))
+    def setMaxAge(value: Option[MaxAge]): StreamMetadata                    = modS(_.copy(maxAge = value))
+    def setMaxCount(value: Option[MaxCount]): StreamMetadata                = modS(_.copy(maxCount = value))
+    def setCacheControl(value: Option[CacheControl]): StreamMetadata        = modS(_.copy(cacheControl = value))
+    def setAcl(value: Option[StreamAcl]): StreamMetadata                    = modS(_.copy(acl = value))
+    def setCustom(value: Option[JsonObject]): StreamMetadata                = sm.copy(custom = value)
+
+    def withTruncateBefore(tb: EventNumber.Exact): StreamMetadata = sm.setTruncateBefore(tb.some)
+    def withMaxAge(value: MaxAge): StreamMetadata                 = sm.setMaxAge(value.some)
+    def withMaxCount(value: MaxCount): StreamMetadata             = sm.setMaxCount(value.some)
+    def withCacheControl(value: CacheControl): StreamMetadata     = sm.setCacheControl(value.some)
+    def withAcl(value: StreamAcl): StreamMetadata                 = sm.setAcl(value.some)
+    def withCustom(value: JsonObject): StreamMetadata             = sm.setCustom(value.some)
+    def withCustom(value: (String, Json)*): StreamMetadata        = sm.withCustom(JsonObject.fromMap(Map.from(value)))
 
     ///
 
@@ -292,6 +302,16 @@ final case class StreamAcl(
 object StreamAcl {
 
   final val empty: StreamAcl = StreamAcl(Set.empty, Set.empty, Set.empty, Set.empty, Set.empty)
+
+  implicit final class StreamAclOps(val sa: StreamAcl) extends AnyVal {
+
+    def withReadRoles(value: Set[String]): StreamAcl      = sa.copy(readRoles = value)
+    def withWriteRoles(value: Set[String]): StreamAcl     = sa.copy(writeRoles = value)
+    def withMetaReadRoles(value: Set[String]): StreamAcl  = sa.copy(metaReadRoles = value)
+    def withMetaWriteRoles(value: Set[String]): StreamAcl = sa.copy(metaWriteRoles = value)
+    def withDeleteRoles(value: Set[String]): StreamAcl    = sa.copy(deleteRoles = value)
+
+  }
 
   ///
 
