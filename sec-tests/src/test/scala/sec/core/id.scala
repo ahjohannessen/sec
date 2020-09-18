@@ -92,10 +92,30 @@ class StreamIdSpec extends Specification with Discipline {
   }
 
   "StreamIdOps" >> {
+
+    "fold" >> {
+      normalId.fold(_ => true, _ => false, _ => false) should beTrue
+      systemId.fold(_ => false, _ => true, _ => false) should beTrue
+      List(normalId, systemId).map(_.metaId.fold(_ => false, _ => false, _ => true)).forall(identity) should beTrue
+    }
+
     "stringValue" >> {
       val sid = sampleOf[StreamId]
       sid.stringValue shouldEqual StreamId.streamIdToString(sid)
     }
+
+    "isNormalStream" >> {
+      normalId.isNormal should beTrue
+      systemId.isNormal should beFalse
+      List(normalId, systemId).map(_.metaId.isNormal).forall(identity) should beFalse
+    }
+
+    "isSystemOrMeta" >> {
+      normalId.isSystemOrMeta should beFalse
+      systemId.isSystemOrMeta should beTrue
+      List(normalId, systemId).map(_.metaId.isSystemOrMeta).forall(identity) should beTrue
+    }
+
   }
 
   "IdOps" >> {

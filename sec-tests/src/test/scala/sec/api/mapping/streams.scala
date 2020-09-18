@@ -458,15 +458,24 @@ class StreamsMappingSpec extends mutable.Specification {
 
       val test: AppendResp => ErrorOr[WriteResult] = mkWriteResult[ErrorOr](c.StreamId.from("abc").unsafe, _)
 
-      test(AppendResp().withSuccess(Success().withCurrentRevision(1L))) shouldEqual
-        WriteResult(c.EventNumber.exact(1L)).asRight
+      val successRevOne   = Success().withCurrentRevision(1L).withPosition(AppendResp.Position(1L, 1L))
+      val successRevEmpty = Success().withCurrentRevisionOption(Success.CurrentRevisionOption.Empty)
+      val successNoStream = Success().withNoStream(empty)
 
-      test(AppendResp().withSuccess(Success().withNoStream(empty))) shouldEqual
+      test(AppendResp().withSuccess(successRevOne)) shouldEqual
+        WriteResult(c.EventNumber.exact(1L), c.Position.exact(1L, 1L)).asRight
+
+      test(AppendResp().withSuccess(successNoStream)) shouldEqual
         ProtoResultError("Did not expect NoStream when using NonEmptyList").asLeft
 
-      test(
-        AppendResp().withSuccess(Success().withCurrentRevisionOption(Success.CurrentRevisionOption.Empty))) shouldEqual
+      test(AppendResp().withSuccess(successRevEmpty)) shouldEqual
         ProtoResultError("CurrentRevisionOptions is missing").asLeft
+
+      test(AppendResp().withSuccess(successRevOne.withNoPosition(empty))) shouldEqual
+        ProtoResultError("Did not expect NoPosition when using NonEmptyList").asLeft
+
+      test(AppendResp().withSuccess(successRevOne.withPositionOption(Success.PositionOption.Empty))) shouldEqual
+        ProtoResultError("PositionOption is missing").asLeft
 
       // TODO: WrongExpectedVersion
 

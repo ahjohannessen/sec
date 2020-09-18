@@ -261,15 +261,26 @@ private[sec] object streams {
 
       import com.eventstore.client.streams.AppendResp.{Result, Success}
 
-      def error(msg: String): Either[Throwable, WriteResult] =
-        ProtoResultError(msg).asLeft
+      def error[T](msg: String): Either[Throwable, T] =
+        ProtoResultError(msg).asLeft[T]
 
-      def success(s: Result.Success) =
-        s.value.currentRevisionOption match {
-          case Success.CurrentRevisionOption.CurrentRevision(v) => WriteResult(EventNumber.exact(v)).asRight
+      def success(s: Result.Success) = {
+
+        val position: Either[Throwable, Position.Exact] = s.value.positionOption match {
+          case Success.PositionOption.Position(p)   => Position.exact(p.commitPosition, p.preparePosition).asRight
+          case Success.PositionOption.NoPosition(_) => error("Did not expect NoPosition when using NonEmptyList")
+          case Success.PositionOption.Empty         => error("PositionOption is missing")
+        }
+
+        val revision: Either[Throwable, EventNumber.Exact] = s.value.currentRevisionOption match {
+          case Success.CurrentRevisionOption.CurrentRevision(v) => EventNumber.exact(v).asRight
           case Success.CurrentRevisionOption.NoStream(_)        => error("Did not expect NoStream when using NonEmptyList")
           case Success.CurrentRevisionOption.Empty              => error("CurrentRevisionOptions is missing")
         }
+
+        (revision, position).mapN((r, p) => WriteResult(r, p))
+
+      }
 
       def wrongExpectedVersion(w: Result.WrongExpectedVersion) = {
         // TODO: Decide what to do with other cases
