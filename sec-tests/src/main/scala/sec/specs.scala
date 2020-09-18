@@ -40,7 +40,7 @@ trait ResourceSpec[A] extends Specification with AfterAll with CatsIO {
 
 trait ClientSpec extends ResourceSpec[EsClient[IO]] {
 
-  override val Timeout: Duration = 1.minute
+  override val Timeout: Duration = 120.seconds
 
   final def client: EsClient[IO]         = resource
   final def streams: Streams[IO]         = client.streams
