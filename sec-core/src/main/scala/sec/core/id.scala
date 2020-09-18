@@ -106,7 +106,18 @@ object StreamId {
   ///
 
   implicit final class StreamIdOps(val sid: StreamId) extends AnyVal {
-    def stringValue: String = streamIdToString(sid)
+
+    private[sec] def fold[A](nfn: NormalId => A, sfn: SystemId => A, mfn: MetaId => A): A =
+      sid match {
+        case n: NormalId => nfn(n)
+        case s: SystemId => sfn(s)
+        case m: MetaId   => mfn(m)
+      }
+
+    def stringValue: String     = streamIdToString(sid)
+    def isNormal: Boolean       = fold(_ => true, _ => false, _ => false)
+    def isSystemOrMeta: Boolean = fold(_ => false, _ => true, _ => true)
+
   }
 
   implicit final class IdOps(val id: Id) extends AnyVal {

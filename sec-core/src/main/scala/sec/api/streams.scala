@@ -97,7 +97,7 @@ trait Streams[F[_]] {
 
 object Streams {
 
-  final case class WriteResult(currentRevision: EventNumber.Exact)
+  final case class WriteResult(currentRevision: EventNumber.Exact, position: Position.Exact)
   final case class DeleteResult(position: Position.Exact)
 
 //======================================================================================================================
