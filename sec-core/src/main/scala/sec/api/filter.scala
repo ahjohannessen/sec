@@ -26,7 +26,6 @@ import EventFilter._
 
 final case class EventFilter(
   kind: Kind,
-  maxSearchWindow: Option[Int],
   option: Either[NonEmptyList[PrefixFilter], RegexFilter]
 )
 
@@ -36,11 +35,16 @@ object EventFilter {
   case object ByStreamId  extends Kind
   case object ByEventType extends Kind
 
-  def prefix(kind: Kind, maxSearchWindow: Option[Int], fst: String, rest: String*): EventFilter =
-    EventFilter(kind, maxSearchWindow, NonEmptyList(PrefixFilter(fst), rest.toList.map(PrefixFilter)).asLeft)
+  def prefixByStreamId(fst: String, rest: String*): EventFilter  = prefix(ByStreamId, fst, rest: _*)
+  def prefixByEventType(fst: String, rest: String*): EventFilter = prefix(ByEventType, fst, rest: _*)
+  def regexByStreamId(filter: String): EventFilter               = regex(ByStreamId, filter)
+  def regexByEventType(filter: String): EventFilter              = regex(ByEventType, filter)
 
-  def regex(kind: Kind, maxSearchWindow: Option[Int], filter: String): EventFilter =
-    EventFilter(kind, maxSearchWindow, RegexFilter(filter).asRight)
+  def prefix(kind: Kind, fst: String, rest: String*): EventFilter =
+    EventFilter(kind, NonEmptyList(PrefixFilter(fst), rest.toList.map(PrefixFilter)).asLeft)
+
+  def regex(kind: Kind, filter: String): EventFilter =
+    EventFilter(kind, RegexFilter(filter).asRight)
 
   ///
 
@@ -49,9 +53,36 @@ object EventFilter {
   final case class RegexFilter(value: String)  extends Expression
 
   object RegexFilter {
-    val excludeSystemEvents: Regex       = "^[^$].*".r
+    val excludeSystemEvents: RegexFilter = apply("^[^$].*".r)
     def apply(regex: Regex): RegexFilter = RegexFilter(regex.pattern.toString)
   }
+
+}
+
+//======================================================================================================================
+
+sealed abstract case class SubscriptionFilterOptions(
+  filter: EventFilter,
+  maxSearchWindow: Option[Int],
+  checkpointIntervalMultiplier: Int
+)
+
+object SubscriptionFilterOptions {
+
+  /**
+   * @param filter See [[EventFilter]].
+   * @param maxSearchWindow Maximum number of events to read that do not match the filter.
+   *                        Minimum valid value is 1 and if provided value is less then 1 is used.
+   * @param checkpointIntervalMultiplier The checkpoint interval is multiplied by the max search window to
+   *                                     determine the number of events after which to checkpoint.
+   *                                     Minimum valid value is 1 and if provided value is less then 1 is used.
+   */
+  def apply(
+    filter: EventFilter,
+    maxSearchWindow: Option[Int] = 32.some,
+    checkpointIntervalMultiplier: Int = 1
+  ): SubscriptionFilterOptions =
+    new SubscriptionFilterOptions(filter, maxSearchWindow.map(_ max 1), checkpointIntervalMultiplier max 1) {}
 
 }
 

@@ -44,7 +44,14 @@ lazy val `sec-tests` = project
   .enablePlugins(BuildInfoPlugin, AutomateHeaderPlugin)
   .configs(SingleNodeITest, ClusterITest)
   .settings(commonSettings)
-  .settings(inConfig(SingleNodeITest)(Defaults.testSettings ++ Seq(parallelExecution := false)))
+  .settings(inConfig(SingleNodeITest)(Defaults.testSettings ++ Seq(
+    parallelExecution := false,
+    javaOptions ++= Seq(
+      "-Dcats.effect.global_scheduler.threads.core_pool_size=4",
+      "-Dcats.effect.global_scheduler.keep_alive_time_ms=10000"
+    ),
+    fork := true
+  )))
   .settings(inConfig(ClusterITest)(Defaults.testSettings ++ Seq(parallelExecution := false)))
   .settings(
     skip in publish := true,

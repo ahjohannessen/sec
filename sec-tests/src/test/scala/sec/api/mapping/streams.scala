@@ -74,31 +74,67 @@ class StreamsMappingSpec extends mutable.Specification {
       import ReadReq.Options.FilterOptions.Expression
       import ReadReq.Options.FilterOption.{Filter, NoFilter}
 
+      def mkOptions(f: EventFilter, maxWindow: Option[Int] = 10.some, multiplier: Int = 1) =
+        SubscriptionFilterOptions(f, maxWindow, multiplier).some
+
       mapReadEventFilter(None) shouldEqual NoFilter(empty)
 
-      mapReadEventFilter(prefix(ByStreamId, 10.some, "a", "b").some) shouldEqual
-        Filter(FilterOptions().withStreamName(Expression().withPrefix(List("a", "b"))).withMax(10))
+      mapReadEventFilter(mkOptions(prefixByStreamId("a", "b"))) shouldEqual Filter(
+        FilterOptions()
+          .withStreamName(Expression().withPrefix(List("a", "b")))
+          .withMax(10)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(prefix(ByStreamId, None, "a").some) shouldEqual
-        Filter(FilterOptions().withStreamName(Expression().withPrefix(List("a"))).withCount(empty))
+      mapReadEventFilter(mkOptions(prefixByStreamId("a"), None, 1)) shouldEqual Filter(
+        FilterOptions()
+          .withStreamName(Expression().withPrefix(List("a")))
+          .withCount(empty)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(prefix(ByEventType, 10.some, "a", "b").some) shouldEqual
-        Filter(FilterOptions().withEventType(Expression().withPrefix(List("a", "b"))).withMax(10))
+      mapReadEventFilter(mkOptions(prefixByEventType("a", "b"))) shouldEqual Filter(
+        FilterOptions()
+          .withEventType(Expression().withPrefix(List("a", "b")))
+          .withMax(10)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(prefix(ByEventType, None, "a").some) shouldEqual
-        Filter(FilterOptions().withEventType(Expression().withPrefix(List("a"))).withCount(empty))
+      mapReadEventFilter(mkOptions(prefixByEventType("a"), None, 1)) shouldEqual Filter(
+        FilterOptions()
+          .withEventType(Expression().withPrefix(List("a")))
+          .withCount(empty)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(regex(ByStreamId, 10.some, "^[^$].*").some) shouldEqual
-        Filter(FilterOptions().withStreamName(Expression().withRegex("^[^$].*")).withMax(10))
+      mapReadEventFilter(mkOptions(regexByStreamId("^[^$].*"))) shouldEqual Filter(
+        FilterOptions()
+          .withStreamName(Expression().withRegex("^[^$].*"))
+          .withMax(10)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(regex(ByStreamId, None, "^(ns_).+").some) shouldEqual
-        Filter(FilterOptions().withStreamName(Expression().withRegex("^(ns_).+")).withCount(empty))
+      mapReadEventFilter(mkOptions(regexByStreamId("^(ns_).+"), None, 1)) shouldEqual Filter(
+        FilterOptions()
+          .withStreamName(Expression().withRegex("^(ns_).+"))
+          .withCount(empty)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(regex(ByEventType, 10.some, "^[^$].*").some) shouldEqual
-        Filter(FilterOptions().withEventType(Expression().withRegex("^[^$].*")).withMax(10))
+      mapReadEventFilter(mkOptions(regexByEventType("^[^$].*"))) shouldEqual Filter(
+        FilterOptions()
+          .withEventType(Expression().withRegex("^[^$].*"))
+          .withMax(10)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(regex(ByEventType, None, "^(ns_).+").some) shouldEqual
-        Filter(FilterOptions().withEventType(Expression().withRegex("^(ns_).+")).withCount(empty))
+      mapReadEventFilter(mkOptions(regexByEventType("^(ns_).+"), None, 1)) shouldEqual Filter(
+        FilterOptions()
+          .withEventType(Expression().withRegex("^(ns_).+"))
+          .withCount(empty)
+          .withCheckpointIntervalMultiplier(1)
+      )
+
     }
 
     "mkSubscribeToStreamReq" >> {
@@ -130,7 +166,7 @@ class StreamsMappingSpec extends mutable.Specification {
       import c.Position._
       import EventFilter._
 
-      def test(exclusiveFrom: Option[c.Position], resolveLinkTos: Boolean, filter: Option[EventFilter]) =
+      def test(exclusiveFrom: Option[c.Position], resolveLinkTos: Boolean, filter: Option[SubscriptionFilterOptions]) =
         mkSubscribeToAllReq(exclusiveFrom, resolveLinkTos, filter) shouldEqual ReadReq().withOptions(
           ReadReq
             .Options()
@@ -145,7 +181,11 @@ class StreamsMappingSpec extends mutable.Specification {
       for {
         ef <- List(Option.empty[c.Position], Start.some, exact(1337L, 1337L).some, End.some)
         rt <- List(true, false)
-        fi <- List(Option.empty[EventFilter], prefix(ByStreamId, None, "abc").some)
+        fi <- List(
+                Option.empty[SubscriptionFilterOptions],
+                SubscriptionFilterOptions(prefixByStreamId("abc"), 64.some, 1).some,
+                SubscriptionFilterOptions(regexByEventType("^[^$].*")).some
+              )
       } yield test(ef, rt, fi)
     }
 

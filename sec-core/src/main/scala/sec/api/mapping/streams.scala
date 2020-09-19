@@ -67,24 +67,29 @@ private[sec] object streams {
       case Direction.Backwards => ReadReq.Options.ReadDirection.Backwards
     }
 
-    val mapReadEventFilter: Option[EventFilter] => ReadReq.Options.FilterOption = {
+    val mapReadEventFilter: Option[SubscriptionFilterOptions] => ReadReq.Options.FilterOption = {
 
       import ReadReq.Options.FilterOption
 
-      def filter(filter: EventFilter): FilterOption = {
+      def filter(options: SubscriptionFilterOptions): FilterOption = {
 
-        val expr = filter.option.fold(
+        val expr = options.filter.option.fold(
           nel => ReadReq.Options.FilterOptions.Expression().withPrefix(nel.map(_.value).toList),
           reg => ReadReq.Options.FilterOptions.Expression().withRegex(reg.value)
         )
 
-        val window = filter.maxSearchWindow
+        val window = options.maxSearchWindow
           .map(ReadReq.Options.FilterOptions.Window.Max)
           .getOrElse(ReadReq.Options.FilterOptions.Window.Count(empty))
 
-        val result = filter.kind match {
-          case EventFilter.ByStreamId  => ReadReq.Options.FilterOptions().withStreamName(expr).withWindow(window)
-          case EventFilter.ByEventType => ReadReq.Options.FilterOptions().withEventType(expr).withWindow(window)
+        val filterOptions = ReadReq.Options
+          .FilterOptions()
+          .withWindow(window)
+          .withCheckpointIntervalMultiplier(options.checkpointIntervalMultiplier)
+
+        val result = options.filter.kind match {
+          case EventFilter.ByStreamId  => filterOptions.withStreamName(expr)
+          case EventFilter.ByEventType => filterOptions.withEventType(expr)
         }
 
         FilterOption.Filter(result)
@@ -116,7 +121,7 @@ private[sec] object streams {
     def mkSubscribeToAllReq(
       exclusiveFrom: Option[Position],
       resolveLinkTos: Boolean,
-      filter: Option[EventFilter]
+      filterOptions: Option[SubscriptionFilterOptions]
     ): ReadReq = {
 
       val options = ReadReq
@@ -125,7 +130,7 @@ private[sec] object streams {
         .withSubscription(ReadReq.Options.SubscriptionOptions())
         .withReadDirection(mapDirection(Direction.Forwards))
         .withResolveLinks(resolveLinkTos)
-        .withFilterOption(mapReadEventFilter(filter))
+        .withFilterOption(mapReadEventFilter(filterOptions))
         .withUuidOption(uuidOption)
 
       ReadReq().withOptions(options)
