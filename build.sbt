@@ -39,13 +39,17 @@ lazy val `sec-netty` = project
 lazy val SingleNodeITest = config("sit") extend Test
 lazy val ClusterITest    = config("cit") extend Test
 
+lazy val integrationSettings = Defaults.testSettings ++ Seq(
+  parallelExecution := false
+)
+
 lazy val `sec-tests` = project
   .in(file("sec-tests"))
   .enablePlugins(BuildInfoPlugin, AutomateHeaderPlugin)
   .configs(SingleNodeITest, ClusterITest)
   .settings(commonSettings)
-  .settings(inConfig(SingleNodeITest)(Defaults.testSettings ++ Seq(parallelExecution := false)))
-  .settings(inConfig(ClusterITest)(Defaults.testSettings ++ Seq(parallelExecution := false)))
+  .settings(inConfig(SingleNodeITest)(integrationSettings))
+  .settings(inConfig(ClusterITest)(integrationSettings))
   .settings(
     skip in publish := true,
     buildInfoPackage := "sec",

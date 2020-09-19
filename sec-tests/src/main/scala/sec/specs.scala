@@ -21,14 +21,14 @@ import cats.effect._
 import cats.effect.testing.specs2._
 import org.specs2.mutable.Specification
 import org.specs2.specification.AfterAll
-import helpers.text.snakeCaseTransformation
+import helpers.text.mkSnakeCase
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import sec.client.EsClient
 import sec.api.{Gossip, MetaStreams, Streams}
 
 trait ResourceSpec[A] extends Specification with AfterAll with CatsIO {
-  final val testName                        = snakeCaseTransformation(getClass.getSimpleName)
+  final val testName                        = mkSnakeCase(getClass.getSimpleName)
   final private lazy val logger: Logger[IO] = Slf4jLogger.fromName[IO](testName).unsafeRunSync()
   final private lazy val (value, shutdown)  = makeResource.allocated[IO, A].unsafeRunSync()
   final override def afterAll(): Unit       = shutdown.unsafeRunSync()
