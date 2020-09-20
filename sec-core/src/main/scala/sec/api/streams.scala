@@ -26,6 +26,7 @@ import cats.effect._
 import cats.effect.concurrent.Ref
 import fs2.{Pipe, Pull, Stream}
 import com.eventstore.client.streams._
+import io.chrisdavenport.log4cats.Logger
 import sec.core._
 import sec.api.exceptions.StreamNotFound
 import sec.api.mapping.shared._
@@ -184,11 +185,13 @@ object Streams {
     opts: Opts[F]
   )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Event] = {
 
+    val opName: String                            = "subscribeToAll"
+    val pipeLog: Logger[F]                        = opts.log.withModifiedString(m => s"$opName: $m")
     val mkReq: Option[Position] => ReadReq        = mkSubscribeToAllReq(_, resolveLinkTos, None)
-    val sub: Option[Position] => Stream[F, Event] = ef => f(mkReq(ef)).through(subscriptionPipe)
+    val sub: Option[Position] => Stream[F, Event] = ef => f(mkReq(ef)).through(subscriptionPipe(pipeLog))
     val fn: Event => Option[Position]             = _.record.position.some
 
-    withRetryS(exclusiveFrom, sub, fn, opts, "subscribeToAll")
+    withRetryS(exclusiveFrom, sub, fn, opts, opName)
 
   }
 
@@ -201,11 +204,13 @@ object Streams {
 
     type O = Either[Checkpoint, Event]
 
+    val opName: String                        = "subscribeToAllWithFilter"
+    val pipeLog: Logger[F]                    = opts.log.withModifiedString(m => s"$opName: $m")
     val mkReq: Option[Position] => ReadReq    = mkSubscribeToAllReq(_, resolveLinkTos, filterOptions.some)
-    val sub: Option[Position] => Stream[F, O] = ef => f(mkReq(ef)).through(subAllFilteredPipe)
+    val sub: Option[Position] => Stream[F, O] = ef => f(mkReq(ef)).through(subAllFilteredPipe(pipeLog))
     val fn: O => Option[Position]             = _.fold(_.position, _.record.position).some
 
-    withRetryS(exclusiveFrom, sub, fn, opts, "subscribeToAll")
+    withRetryS(exclusiveFrom, sub, fn, opts, opName)
   }
 
   private[sec] def subscribeToStream0[F[_]: Sync: Timer](
@@ -215,11 +220,13 @@ object Streams {
     opts: Opts[F]
   )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Event] = {
 
+    val opName: String                               = "subscribeToStream"
+    val pipeLog: Logger[F]                           = opts.log.withModifiedString(m => s"$opName[${streamId.show}]: $m")
     val mkReq: Option[EventNumber] => ReadReq        = mkSubscribeToStreamReq(streamId, _, resolveLinkTos)
-    val sub: Option[EventNumber] => Stream[F, Event] = ef => f(mkReq(ef)).through(subscriptionPipe)
+    val sub: Option[EventNumber] => Stream[F, Event] = ef => f(mkReq(ef)).through(subscriptionPipe(pipeLog))
     val fn: Event => Option[EventNumber]             = _.record.number.some
 
-    withRetryS(exclusiveFrom, sub, fn, opts, "subscribeToStream")
+    withRetryS(exclusiveFrom, sub, fn, opts, opName)
   }
 
   private[sec] def readAll0[F[_]: Sync: Timer](
@@ -296,24 +303,27 @@ object Streams {
     )
   }
 
-  private[sec] def subConfirmationPipe[F[_]: ErrorM]: Pipe[F, ReadResp, ReadResp] = in => {
+  private[sec] def subConfirmationPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, ReadResp] = in => {
 
     val extractConfirmation: ReadResp => F[String] =
       _.content.confirmation.map(_.subscriptionId).require[F]("SubscriptionConfirmation expected!")
 
+    val logConfirmation: String => F[Unit] =
+      id => log.debug(s"SubscriptionConfirmation received, id: $id")
+
     val initialPull = in.pull.uncons1.flatMap {
-      case Some((hd, tail)) => Pull.eval(extractConfirmation(hd)) >> tail.pull.echo
+      case Some((hd, tail)) => Pull.eval(extractConfirmation(hd) >>= logConfirmation) >> tail.pull.echo
       case None             => Pull.done
     }
 
     initialPull.stream
   }
 
-  private[sec] def subscriptionPipe[F[_]: ErrorM]: Pipe[F, ReadResp, Event] =
-    _.through(subConfirmationPipe).through(readEventPipe)
+  private[sec] def subscriptionPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, Event] =
+    _.through(subConfirmationPipe(log)).through(readEventPipe)
 
-  private[sec] def subAllFilteredPipe[F[_]: ErrorM]: Pipe[F, ReadResp, Either[Checkpoint, Event]] =
-    _.through(subConfirmationPipe).through(_.evalMap(mkCheckpointOrEvent[F]).unNone)
+  private[sec] def subAllFilteredPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, Either[Checkpoint, Event]] =
+    _.through(subConfirmationPipe(log)).through(_.evalMap(mkCheckpointOrEvent[F]).unNone)
 
   // TODO: Tests
   private[sec] def withRetryS[F[_]: Sync: Timer, T: Eq, O](
@@ -379,8 +389,8 @@ object Streams {
 
     def readStreamForwards(
       streamId: StreamId,
-      from: EventNumber,
-      maxCount: Long,
+      from: EventNumber = EventNumber.Start,
+      maxCount: Long = Long.MaxValue,
       resolveLinkTos: Boolean = false,
       credentials: Option[UserCredentials] = None
     ): Stream[F, Event] =
@@ -388,24 +398,24 @@ object Streams {
 
     def readStreamBackwards(
       streamId: StreamId,
-      from: EventNumber,
-      maxCount: Long,
+      from: EventNumber = EventNumber.End,
+      maxCount: Long = Long.MaxValue,
       resolveLinkTos: Boolean = false,
       credentials: Option[UserCredentials] = None
     ): Stream[F, Event] =
       s.readStream(streamId, from, Direction.Backwards, maxCount, resolveLinkTos, credentials)
 
     def readAllForwards(
-      position: Position,
-      maxCount: Long,
+      position: Position = Position.Start,
+      maxCount: Long = Long.MaxValue,
       resolveLinkTos: Boolean = false,
       credentials: Option[UserCredentials] = None
     ): Stream[F, Event] =
       s.readAll(position, Direction.Forwards, maxCount, resolveLinkTos, credentials)
 
     def readAllBackwards(
-      position: Position,
-      maxCount: Long,
+      position: Position = Position.End,
+      maxCount: Long = Long.MaxValue,
       resolveLinkTos: Boolean = false,
       credentials: Option[UserCredentials] = None
     ): Stream[F, Event] =
