@@ -74,31 +74,67 @@ class StreamsMappingSpec extends mutable.Specification {
       import ReadReq.Options.FilterOptions.Expression
       import ReadReq.Options.FilterOption.{Filter, NoFilter}
 
+      def mkOptions(f: EventFilter, maxWindow: Option[Int] = 10.some, multiplier: Int = 1) =
+        SubscriptionFilterOptions(f, maxWindow, multiplier).some
+
       mapReadEventFilter(None) shouldEqual NoFilter(empty)
 
-      mapReadEventFilter(prefix(ByStreamId, 10.some, "a", "b").some) shouldEqual
-        Filter(FilterOptions().withStreamName(Expression().withPrefix(List("a", "b"))).withMax(10))
+      mapReadEventFilter(mkOptions(streamIdPrefix("a", "b"))) shouldEqual Filter(
+        FilterOptions()
+          .withStreamName(Expression().withPrefix(List("a", "b")))
+          .withMax(10)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(prefix(ByStreamId, None, "a").some) shouldEqual
-        Filter(FilterOptions().withStreamName(Expression().withPrefix(List("a"))).withCount(empty))
+      mapReadEventFilter(mkOptions(streamIdPrefix("a"), None, 1)) shouldEqual Filter(
+        FilterOptions()
+          .withStreamName(Expression().withPrefix(List("a")))
+          .withCount(empty)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(prefix(ByEventType, 10.some, "a", "b").some) shouldEqual
-        Filter(FilterOptions().withEventType(Expression().withPrefix(List("a", "b"))).withMax(10))
+      mapReadEventFilter(mkOptions(eventTypePrefix("a", "b"))) shouldEqual Filter(
+        FilterOptions()
+          .withEventType(Expression().withPrefix(List("a", "b")))
+          .withMax(10)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(prefix(ByEventType, None, "a").some) shouldEqual
-        Filter(FilterOptions().withEventType(Expression().withPrefix(List("a"))).withCount(empty))
+      mapReadEventFilter(mkOptions(eventTypePrefix("a"), None, 1)) shouldEqual Filter(
+        FilterOptions()
+          .withEventType(Expression().withPrefix(List("a")))
+          .withCount(empty)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(regex(ByStreamId, 10.some, "^[^$].*").some) shouldEqual
-        Filter(FilterOptions().withStreamName(Expression().withRegex("^[^$].*")).withMax(10))
+      mapReadEventFilter(mkOptions(streamIdRegex("^[^$].*"))) shouldEqual Filter(
+        FilterOptions()
+          .withStreamName(Expression().withRegex("^[^$].*"))
+          .withMax(10)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(regex(ByStreamId, None, "^(ns_).+").some) shouldEqual
-        Filter(FilterOptions().withStreamName(Expression().withRegex("^(ns_).+")).withCount(empty))
+      mapReadEventFilter(mkOptions(streamIdRegex("^(ns_).+"), None, 1)) shouldEqual Filter(
+        FilterOptions()
+          .withStreamName(Expression().withRegex("^(ns_).+"))
+          .withCount(empty)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(regex(ByEventType, 10.some, "^[^$].*").some) shouldEqual
-        Filter(FilterOptions().withEventType(Expression().withRegex("^[^$].*")).withMax(10))
+      mapReadEventFilter(mkOptions(eventTypeRegex("^[^$].*"))) shouldEqual Filter(
+        FilterOptions()
+          .withEventType(Expression().withRegex("^[^$].*"))
+          .withMax(10)
+          .withCheckpointIntervalMultiplier(1)
+      )
 
-      mapReadEventFilter(regex(ByEventType, None, "^(ns_).+").some) shouldEqual
-        Filter(FilterOptions().withEventType(Expression().withRegex("^(ns_).+")).withCount(empty))
+      mapReadEventFilter(mkOptions(eventTypeRegex("^(ns_).+"), None, 1)) shouldEqual Filter(
+        FilterOptions()
+          .withEventType(Expression().withRegex("^(ns_).+"))
+          .withCount(empty)
+          .withCheckpointIntervalMultiplier(1)
+      )
+
     }
 
     "mkSubscribeToStreamReq" >> {
@@ -130,7 +166,7 @@ class StreamsMappingSpec extends mutable.Specification {
       import c.Position._
       import EventFilter._
 
-      def test(exclusiveFrom: Option[c.Position], resolveLinkTos: Boolean, filter: Option[EventFilter]) =
+      def test(exclusiveFrom: Option[c.Position], resolveLinkTos: Boolean, filter: Option[SubscriptionFilterOptions]) =
         mkSubscribeToAllReq(exclusiveFrom, resolveLinkTos, filter) shouldEqual ReadReq().withOptions(
           ReadReq
             .Options()
@@ -145,7 +181,11 @@ class StreamsMappingSpec extends mutable.Specification {
       for {
         ef <- List(Option.empty[c.Position], Start.some, exact(1337L, 1337L).some, End.some)
         rt <- List(true, false)
-        fi <- List(Option.empty[EventFilter], prefix(ByStreamId, None, "abc").some)
+        fi <- List(
+                Option.empty[SubscriptionFilterOptions],
+                SubscriptionFilterOptions(streamIdPrefix("abc"), 64.some, 1).some,
+                SubscriptionFilterOptions(eventTypeRegex("^[^$].*")).some
+              )
       } yield test(ef, rt, fi)
     }
 
@@ -286,7 +326,7 @@ class StreamsMappingSpec extends mutable.Specification {
   "incoming" >> {
 
     import incoming._
-    import Streams.{DeleteResult, WriteResult}
+    import Streams.{Checkpoint, DeleteResult, WriteResult}
     import grpc.constants.Metadata.{ContentType, ContentTypes, Created, Type}
     import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
 
@@ -442,6 +482,49 @@ class StreamsMappingSpec extends mutable.Specification {
       // Bad Created
       mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.updated(Created, "chuck norris"))) shouldEqual
         ProtoResultError(s"Required value $Created missing or invalid.").asLeft
+    }
+
+    "mkCheckpoint" >> {
+
+      mkCheckpoint[ErrorOr](ReadResp.Checkpoint(1L, 1L)) shouldEqual
+        Checkpoint(c.Position.exact(1L, 1L)).asRight
+
+      mkCheckpoint[ErrorOr](ReadResp.Checkpoint(-1L, 1L)) shouldEqual
+        ProtoResultError("Invalid position for Checkpoint: commit must be >= 0, but is -1").asLeft
+    }
+
+    "mkCheckpointOrEvent" >> {
+
+      import arbitraries._
+
+      val created     = Instant.EPOCH.atZone(ZoneOffset.UTC)
+      val event       = sampleOfGen(eventGen.eventRecordOne).copy(created = created)
+      val eventData   = event.eventData
+      val eventType   = c.EventType.eventTypeToString(event.eventData.eventType)
+      val contentType = eventData.data.contentType.isBinary.fold(Binary, Json)
+      val metadata    = Map(ContentType -> contentType, Type -> eventType, Created -> created.getNano().toString)
+
+      val recordedEvent = ReadResp.ReadEvent
+        .RecordedEvent()
+        .withStreamIdentifier(event.streamId.stringValue.toStreamIdentifer)
+        .withStreamRevision(event.number.value)
+        .withCommitPosition(event.position.commit)
+        .withPreparePosition(event.position.prepare)
+        .withData(event.eventData.data.bytes.toByteString)
+        .withCustomMetadata(event.eventData.metadata.bytes.toByteString)
+        .withId(UUID().withString(event.eventData.eventId.toString))
+        .withMetadata(metadata)
+
+      val checkpoint = ReadResp.Checkpoint(1L, 1L)
+
+      mkCheckpointOrEvent[ErrorOr](ReadResp().withEvent(ReadResp.ReadEvent().withEvent(recordedEvent))) shouldEqual
+        Some(event.asRight[Checkpoint]).asRight
+
+      mkCheckpointOrEvent[ErrorOr](ReadResp().withCheckpoint(checkpoint)) shouldEqual
+        Some(Checkpoint(c.Position.exact(1L, 1L)).asLeft[c.Event]).asRight
+
+      mkCheckpointOrEvent[ErrorOr](ReadResp()) shouldEqual
+        None.asRight[Either[Checkpoint, c.Event]]
     }
 
     "mkEventType" >> {

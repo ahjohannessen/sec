@@ -30,7 +30,7 @@ import fs2.Stream
 import sec.core._
 import sec.api.Direction._
 import sec.api.exceptions._
-import helpers.text.{snakeCaseTransformation => sct}
+import helpers.text.mkSnakeCase
 
 class StreamsSpec extends SnSpec {
 
@@ -675,7 +675,7 @@ class StreamsSpec extends SnSpec {
 
         def test(expectedRevision: StreamRevision) = {
 
-          val id = genStreamId(s"${streamPrefix}non_existing_${sct(expectedRevision.show)}_")
+          val id = genStreamId(s"${streamPrefix}non_existing_${mkSnakeCase(expectedRevision.show)}_")
 
           streams.appendToStream(id, expectedRevision, events) >>= { wr =>
             streams.readStreamForwards(id, EventNumber.Start, 2).compile.toList.map { el =>
@@ -740,7 +740,7 @@ class StreamsSpec extends SnSpec {
 
         def test(expectedRevision: StreamRevision, expectedSecondRevision: StreamRevision) = {
 
-          val rev    = sct(expectedRevision.show)
+          val rev    = mkSnakeCase(expectedRevision.show)
           val id     = genStreamId(s"${streamPrefix}multiple_writes_multiple_events_same_uuid_${rev}_")
           val event  = genEvents(1).head
           val events = Nel.of(event, List.fill(5)(event): _*)
@@ -768,7 +768,7 @@ class StreamsSpec extends SnSpec {
       "append to tombstoned stream raises" >> {
 
         def test(expectedRevision: StreamRevision) = {
-          val rev    = sct(expectedRevision.show)
+          val rev    = mkSnakeCase(expectedRevision.show)
           val id     = genStreamId(s"${streamPrefix}tombstoned_stream_${rev}_")
           val events = genEvents(1)
           val delete = streams.tombstone(id, StreamRevision.NoStream)
@@ -799,7 +799,7 @@ class StreamsSpec extends SnSpec {
 
         def test(sndExpectedRevision: StreamRevision) = {
 
-          val rev                        = sct(sndExpectedRevision.show)
+          val rev                        = mkSnakeCase(sndExpectedRevision.show)
           val id                         = genStreamId(s"${streamPrefix}existing_stream_with_${rev}_")
           def write(esr: StreamRevision) = streams.appendToStream(id, esr, genEvents(1))
 
@@ -858,7 +858,7 @@ class StreamsSpec extends SnSpec {
 
         def test(expectedRevision: StreamRevision) = {
 
-          val rev = sct(expectedRevision.show)
+          val rev = mkSnakeCase(expectedRevision.show)
           val id  = genStreamId(s"${streamPrefix}stream_exists_and_deleted_${rev}_")
 
           streams.delete(id, StreamRevision.NoStream) >>
@@ -1117,7 +1117,7 @@ class StreamsSpec extends SnSpec {
 
         def run(expectedRevision: StreamRevision) = {
 
-          val rev = sct(expectedRevision.show)
+          val rev = mkSnakeCase(expectedRevision.show)
           val id  = genStreamId(s"${streamPrefix}non_existing_stream_with_expected_revision_${rev}_")
 
           streams.delete(id, expectedRevision).void
@@ -1192,7 +1192,7 @@ class StreamsSpec extends SnSpec {
 
         def run(expectedRevision: StreamRevision) = {
 
-          val rev          = sct(expectedRevision.show)
+          val rev          = mkSnakeCase(expectedRevision.show)
           val id           = genStreamId(s"${streamPrefix}and_recreate_with_expected_revision_${rev}_")
           val beforeEvents = genEvents(1)
           val afterEvents  = genEvents(3)
@@ -1397,7 +1397,7 @@ class StreamsSpec extends SnSpec {
 
         def run(expectedRevision: StreamRevision) = {
 
-          val rev = sct(expectedRevision.show)
+          val rev = mkSnakeCase(expectedRevision.show)
           val id  = genStreamId(s"${streamPrefix}non_existing_stream_with_expected_revision_${rev}_")
 
           streams.tombstone(id, expectedRevision).void

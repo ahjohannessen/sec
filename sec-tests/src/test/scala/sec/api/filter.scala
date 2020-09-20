@@ -30,16 +30,15 @@ class EventFilterSpec extends Specification with ScalaCheck {
   "EventFilter" >> {
 
     implicit val arbKind: Arbitrary[Kind]   = Arbitrary(Gen.oneOf[Kind](ByStreamId, ByEventType))
-    implicit val arbMax: Arbitrary[Int]     = Arbitrary(Gen.posNum[Int])
     implicit val arbRegex: Arbitrary[Regex] = Arbitrary(Gen.oneOf("^ctx1__.*".r, "^[^$].*".r))
 
-    "prefix" >> prop { (k: Kind, msw: Option[Int], fst: String, rest: List[String]) =>
-      prefix(k, msw, fst, rest: _*) shouldEqual
-        EventFilter(k, msw, NonEmptyList(PrefixFilter(fst), rest.map(PrefixFilter)).asLeft)
+    "prefix" >> prop { (k: Kind, fst: String, rest: List[String]) =>
+      prefix(k, fst, rest: _*) shouldEqual
+        EventFilter(k, NonEmptyList(PrefixFilter(fst), rest.map(PrefixFilter)).asLeft)
     }
 
-    "regex" >> prop { (k: Kind, msw: Option[Int], filter: Regex) =>
-      regex(k, msw, filter.pattern.toString) shouldEqual EventFilter(k, msw, RegexFilter(filter).asRight)
+    "regex" >> prop { (k: Kind, filter: Regex) =>
+      regex(k, filter.pattern.toString) shouldEqual EventFilter(k, RegexFilter(filter).asRight)
     }
 
   }

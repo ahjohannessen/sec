@@ -43,10 +43,10 @@ trait Streams[F[_]] {
 
   def subscribeToAll(
     exclusiveFrom: Option[Position],
-    filter: EventFilter,
+    filterOptions: SubscriptionFilterOptions,
     resolveLinkTos: Boolean,
     creds: Option[UserCredentials]
-  ): Stream[F, Either[Position, Event]]
+  ): Stream[F, Either[Streams.Checkpoint, Event]]
 
   def subscribeToStream(
     streamId: StreamId,
@@ -97,6 +97,7 @@ trait Streams[F[_]] {
 
 object Streams {
 
+  final case class Checkpoint(position: Position.Exact)
   final case class WriteResult(currentRevision: EventNumber.Exact, position: Position.Exact)
   final case class DeleteResult(position: Position.Exact)
 
@@ -117,11 +118,11 @@ object Streams {
 
     def subscribeToAll(
       exclusiveFrom: Option[Position],
-      filter: EventFilter,
+      filterOptions: SubscriptionFilterOptions,
       resolveLinkTos: Boolean,
       creds: Option[UserCredentials]
-    ): Stream[F, Either[Position, Event]] =
-      subscribeToAll0[F](exclusiveFrom, filter, resolveLinkTos, opts)(client.read(_, mkCtx(creds)))
+    ): Stream[F, Either[Checkpoint, Event]] =
+      subscribeToAll0[F](exclusiveFrom, filterOptions, resolveLinkTos, opts)(client.read(_, mkCtx(creds)))
 
     def subscribeToStream(
       streamId: StreamId,
@@ -193,16 +194,16 @@ object Streams {
 
   private[sec] def subscribeToAll0[F[_]: Sync: Timer](
     exclusiveFrom: Option[Position],
-    filter: EventFilter,
+    filterOptions: SubscriptionFilterOptions,
     resolveLinkTos: Boolean,
     opts: Opts[F]
-  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Either[Position, Event]] = {
+  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Either[Checkpoint, Event]] = {
 
-    type O = Either[Position, Event]
+    type O = Either[Checkpoint, Event]
 
-    val mkReq: Option[Position] => ReadReq    = mkSubscribeToAllReq(_, resolveLinkTos, filter.some)
+    val mkReq: Option[Position] => ReadReq    = mkSubscribeToAllReq(_, resolveLinkTos, filterOptions.some)
     val sub: Option[Position] => Stream[F, O] = ef => f(mkReq(ef)).through(subAllFilteredPipe)
-    val fn: O => Option[Position]             = _.fold(identity, _.record.position).some
+    val fn: O => Option[Position]             = _.fold(_.position, _.record.position).some
 
     withRetryS(exclusiveFrom, sub, fn, opts, "subscribeToAll")
   }
@@ -311,21 +312,8 @@ object Streams {
   private[sec] def subscriptionPipe[F[_]: ErrorM]: Pipe[F, ReadResp, Event] =
     _.through(subConfirmationPipe).through(readEventPipe)
 
-  private[sec] def subAllFilteredPipe[F[_]](implicit F: ErrorM[F]): Pipe[F, ReadResp, Either[Position, Event]] = {
-
-    import ReadResp._
-
-    type R = Option[Either[Position, Event]]
-
-    val checkpointOrEvent: Stream[F, ReadResp] => Stream[F, Either[Position, Event]] =
-      _.evalMap(_.content match {
-        case Content.Event(e)      => mkEvent[F](e).map[R](_.map(_.asRight))
-        case Content.Checkpoint(c) => F.pure[R](Position.exact(c.commitPosition, c.preparePosition).asLeft.some)
-        case _                     => F.pure[R](None)
-      }).unNone
-
-    _.through(subConfirmationPipe).through(checkpointOrEvent)
-  }
+  private[sec] def subAllFilteredPipe[F[_]: ErrorM]: Pipe[F, ReadResp, Either[Checkpoint, Event]] =
+    _.through(subConfirmationPipe).through(_.evalMap(mkCheckpointOrEvent[F]).unNone)
 
   // TODO: Tests
   private[sec] def withRetryS[F[_]: Sync: Timer, T: Eq, O](
@@ -373,11 +361,11 @@ object Streams {
 
     def subscribeToAllFiltered(
       exclusiveFrom: Option[Position],
-      filter: EventFilter,
+      filterOptions: SubscriptionFilterOptions,
       resolveLinkTos: Boolean = false,
       credentials: Option[UserCredentials] = None
-    ): Stream[F, Either[Position, Event]] =
-      s.subscribeToAll(exclusiveFrom, filter, resolveLinkTos, credentials)
+    ): Stream[F, Either[Checkpoint, Event]] =
+      s.subscribeToAll(exclusiveFrom, filterOptions, resolveLinkTos, credentials)
 
     def subscribeToStream(
       streamId: StreamId,
