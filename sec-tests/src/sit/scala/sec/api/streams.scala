@@ -22,11 +22,12 @@ import java.{util => ju}
 import scala.concurrent.duration._
 import scodec.bits.ByteVector
 import io.circe.Json
+import cats.Endo
 import cats.data.{NonEmptyList => Nel}
 import cats.syntax.all._
 import cats.effect.IO
 import cats.effect.concurrent.Ref
-import fs2.Stream
+import fs2._
 import sec.core._
 import sec.api.Direction._
 import sec.api.exceptions._
@@ -45,10 +46,6 @@ class StreamsSpec extends SnSpec {
       val streamPrefix                    = s"streams_subscribe_to_all_${genIdentifier}_"
       val fromBeginning: Option[Position] = Option.empty
       val fromEnd: Option[Position]       = Position.End.some
-
-      "works with empty database" >> {
-        pending("postponed because the test needs a fresh database, e.g. using test container")
-      }
 
       "works when streams do not exist prior to subscribing" >> {
 
@@ -70,7 +67,7 @@ class StreamsSpec extends SnSpec {
           val s2Events = genEvents(10)
           val count    = (s1Events.size + s2Events.size).toLong
 
-          val writeBoth = write(s1, s1Events).concurrently(write(s2, s2Events)).delayBy(300.millis)
+          val writeBoth = write(s1, s1Events).concurrently(write(s2, s2Events)).delayBy(500.millis)
           val run       = subscribe(exclusiveFrom, Set(s1, s2).contains).concurrently(writeBoth)
 
           run.take(count).compile.toList.map { events =>
@@ -124,7 +121,7 @@ class StreamsSpec extends SnSpec {
           write(s1, s1Before) >>= { wa => write(s2, s2Before).map(wb => (wa, wb)) }
 
         def writeAfter(s1: StreamId, r1: StreamRevision, s2: StreamId, r2: StreamRevision) =
-          (write(s1, s1After, r1) >> write(s2, s2After, r2)).delayBy(300.millis)
+          (write(s1, s1After, r1) >> write(s2, s2After, r2)).delayBy(500.millis)
 
         def test(exclusiveFrom: Option[Position], s1: StreamId, s2: StreamId) =
           writeBefore(s1, s2) >>= { case (wa, wb) =>
@@ -174,6 +171,178 @@ class StreamsSpec extends SnSpec {
 
     //==================================================================================================================
 
+    "subscribeToAll with filter" >> {
+
+      import EventFilter._
+      import StreamRevision.NoStream
+
+      val maxSearchWindow = 32
+      val multiplier      = 5
+
+      def writeRandom(amount: Int) = genStreamUuid[IO] >>= { sid =>
+        streams.appendToStream(sid, NoStream, genEvents(amount))
+      }
+
+      ///
+
+      def testBeginningOrEnd(from: Option[Position.End.type], includeBefore: Boolean)(
+        prefix: String,
+        filter: EventFilter,
+        adjustFn: Endo[EventData]
+      ) = {
+
+        val options  = SubscriptionFilterOptions(filter, maxSearchWindow.some, multiplier)
+        val before   = genEvents(10).map(adjustFn)
+        val after    = genEvents(10).map(adjustFn)
+        val expected = from.fold(includeBefore.fold(before.concatNel(after), after))(_ => after)
+
+        def mkStreamId = genStreamId(s"${prefix}_")
+
+        def write(eds: Nel[EventData]) =
+          eds.traverse(e => streams.appendToStream(mkStreamId, NoStream, Nel.one(e)))
+
+        val subscribe =
+          streams.subscribeToAllFiltered(from, options).takeThrough(_.fold(_ => true, _.eventData != after.last))
+
+        val writeBefore = (writeRandom(256) *> write(before)).whenA(includeBefore).void
+        val writeAfter  = (writeRandom(128) *> write(after)).delayBy(500.millis).void
+
+        val result =
+          Stream.eval(writeBefore) *> subscribe.concurrently(Stream.eval(writeAfter))
+
+        result.compile.toList.map { r =>
+          val (c, e) = r.partitionMap(identity)
+          e.size shouldEqual expected.size
+          e.map(_.eventData).toNel should beSome(expected)
+          c.nonEmpty should beTrue
+        }
+      }
+
+      ///
+
+      def testPosition(includeBefore: Boolean)(
+        prefix: String,
+        filter: EventFilter,
+        adjustFn: Endo[EventData]
+      ) = {
+
+        val options  = SubscriptionFilterOptions(filter, maxSearchWindow.some, multiplier)
+        val before   = genEvents(10).map(adjustFn)
+        val after    = genEvents(10).map(adjustFn)
+        val expected = includeBefore.fold(before.concatNel(after), after)
+        val existing = includeBefore.fold("existing_stream", "non_existing_stream")
+
+        def mkStreamId =
+          genStreamId(s"${prefix}_${existing}_from_position")
+
+        def write(eds: Nel[EventData]) =
+          eds.traverse(e => streams.appendToStream(mkStreamId, NoStream, Nel.one(e)))
+
+        def subscribe(from: Position) =
+          streams.subscribeToAllFiltered(from.some, options).takeThrough(_.fold(_ => true, _.eventData != after.last))
+
+        val writeBefore = (writeRandom(128) *> write(before)).whenA(includeBefore).void
+        val writeAfter  = (writeRandom(128) *> write(after)).delayBy(500.millis).void
+
+        val result = for {
+          pos  <- Stream.eval(writeRandom(1)).map(_.position)
+          _    <- Stream.eval(writeBefore)
+          data <- subscribe(pos).concurrently(Stream.eval(writeAfter))
+        } yield data
+
+        result.compile.toList.map { r =>
+          val (c, e) = r.partitionMap(identity)
+          e.size shouldEqual expected.size
+          e.map(_.eventData).toNel should beSome(expected)
+          c.nonEmpty should beTrue
+        }
+      }
+
+      ///
+
+      val replaceType: String => Endo[EventData] =
+        et => ed => EventData(et, ed.eventId, ed.data, ed.metadata).unsafe
+
+      val mkPrefix: String => String =
+        p => s"streams_subscribe_to_all_filter_${p}_$genIdentifier"
+
+      def runBeginningAndEnd(includeBefore: Boolean) = {
+
+        val existing = includeBefore.fold("exists", "non_present")
+
+        "from beginning" >> {
+
+          val append = s"_beginning_$existing"
+
+          val siPrefix = mkPrefix(s"stream_id_prefix$append")
+          val siRegex  = mkPrefix(s"stream_id_regex$append")
+          val etPrefix = mkPrefix(s"event_type_prefix$append")
+          val etRegex  = mkPrefix(s"event_type_regex_$append")
+
+          val testBeginning = testBeginningOrEnd(None, includeBefore) _
+
+          "stream id prefix" >> testBeginning(siPrefix, streamIdPrefix(siPrefix), identity)
+          "stream id regex" >> testBeginning(siRegex, streamIdRegex(siRegex), identity)
+          "event type prefix" >> testBeginning(etPrefix, eventTypePrefix(etPrefix), replaceType(etPrefix))
+          "event type regex" >> testBeginning(etRegex, eventTypeRegex(etRegex), replaceType(etRegex))
+
+        }
+
+        "from end" >> {
+
+          val append   = s"_end_$existing"
+          val siPrefix = mkPrefix(s"stream_id_prefix$append")
+          val siRegex  = mkPrefix(s"stream_id_regex$append")
+          val etPrefix = mkPrefix(s"event_type_prefix$append")
+          val etRegex  = mkPrefix(s"event_type_regex_$append")
+
+          val testEnd = testBeginningOrEnd(Position.End.some, includeBefore) _
+
+          "stream id prefix" >> testEnd(siPrefix, streamIdPrefix(siPrefix), identity)
+          "stream id regex" >> testEnd(siRegex, streamIdRegex(siRegex), identity)
+          "event type prefix" >> testEnd(etPrefix, eventTypePrefix(etPrefix), replaceType(etPrefix))
+          "event type regex" >> testEnd(etRegex, eventTypeRegex(etRegex), replaceType(etRegex))
+
+        }
+
+      }
+
+      def runPosition(includeBefore: Boolean) = {
+
+        val existing = includeBefore.fold("exists", "non_present")
+
+        "from position" >> {
+
+          val append   = s"_position_$existing"
+          val siPrefix = mkPrefix(s"stream_id_prefix$append")
+          val siRegex  = mkPrefix(s"stream_id_regex$append")
+          val etPrefix = mkPrefix(s"event_type_prefix$append")
+          val etRegex  = mkPrefix(s"event_type_regex_$append")
+
+          val test = testPosition(includeBefore) _
+
+          "stream id prefix" >> test(siPrefix, streamIdPrefix(siPrefix), identity)
+          "stream id regex" >> test(siRegex, streamIdRegex(siRegex), identity)
+          "event type prefix" >> test(etPrefix, eventTypePrefix(etPrefix), replaceType(etPrefix))
+          "event type regex" >> test(etRegex, eventTypeRegex(etRegex), replaceType(etRegex))
+
+        }
+      }
+
+      "works when streams does exist not prior to subscribing" >> {
+        runBeginningAndEnd(includeBefore = false)
+        runPosition(includeBefore        = false)
+      }
+
+      "works when streams exist prior to subscribing" >> {
+        runBeginningAndEnd(includeBefore = true)
+        runPosition(includeBefore        = true)
+      }
+
+    }
+
+    //==================================================================================================================
+
     "subscribeToStream" >> {
 
       val streamPrefix                              = s"streams_subscribe_to_stream_${genIdentifier}_"
@@ -189,7 +358,7 @@ class StreamsSpec extends SnSpec {
 
           val id        = genStreamId(s"${streamPrefix}non_existing_stream_")
           val subscribe = streams.subscribeToStream(id, exclusivefrom).take(takeCount.toLong).map(_.eventData)
-          val write     = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events)).delayBy(300.millis)
+          val write     = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events)).delayBy(500.millis)
           val result    = subscribe.concurrently(write)
 
           result.compile.toList
@@ -218,7 +387,7 @@ class StreamsSpec extends SnSpec {
         def test(exclusivFrom: Option[EventNumber], takeCount: Int) = {
 
           val id    = genStreamId(s"${streamPrefix}multiple_subscriptions_to_same_stream_")
-          val write = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events, None)).delayBy(300.millis)
+          val write = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events, None)).delayBy(500.millis)
 
           def mkSubscribers(onEvent: IO[Unit]): Stream[IO, Event] = Stream
             .emit(streams.subscribeToStream(id, exclusivFrom).evalTap(_ => onEvent).take(takeCount.toLong))
@@ -261,7 +430,7 @@ class StreamsSpec extends SnSpec {
             Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, beforeEvents, None))
 
           def afterWrite(rev: StreamRevision): Stream[IO, Streams.WriteResult] =
-            Stream.eval(streams.appendToStream(id, rev, afterEvents, None)).delayBy(300.millis)
+            Stream.eval(streams.appendToStream(id, rev, afterEvents, None)).delayBy(500.millis)
 
           def subscribe(onEvent: Event => IO[Unit]): Stream[IO, Event] =
             streams.subscribeToStream(id, exclusiveFrom).evalTap(onEvent).take(takeCount.toLong)
@@ -297,7 +466,7 @@ class StreamsSpec extends SnSpec {
 
           val id        = genStreamId(s"${streamPrefix}stream_is_tombstoned_")
           val subscribe = streams.subscribeToStream(id, exclusiveFrom)
-          val delete    = Stream.eval(streams.tombstone(id, StreamRevision.Any)).delayBy(300.millis)
+          val delete    = Stream.eval(streams.tombstone(id, StreamRevision.Any)).delayBy(500.millis)
           val expected  = StreamDeleted(id.stringValue).asLeft
 
           subscribe.concurrently(delete).compile.last.attempt.map(_.shouldEqual(expected))
