@@ -379,7 +379,7 @@ object MetaStreams {
     def apply[F[_]](s: Streams[F])(implicit F: Sync[F]): MetaRW[F] = new MetaRW[F] {
 
       def read(mid: MetaId, creds: Option[UserCredentials]): F[Option[EventRecord]] =
-        s.readStreamBackwards(mid, EventNumber.End, maxCount = 1, resolveLinkTos = false, creds)
+        s.readStreamBackwards(mid, maxCount = 1, credentials = creds)
           .collect { case er: EventRecord => er }
           .compile
           .last

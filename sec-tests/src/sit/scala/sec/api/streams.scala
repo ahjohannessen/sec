@@ -392,13 +392,13 @@ class StreamsSpec extends SnSpec {
             }
 
           val verifyDeleted =
-            streams.readStreamForwards(id, EventNumber.Start, 1).compile.drain.recoverWith {
+            streams.readStreamForwards(id, maxCount = 1).compile.drain.recoverWith {
               case e: StreamNotFound if normalDelete && e.streamId.eqv(id.stringValue) => IO.unit
               case e: StreamDeleted if !normalDelete && e.streamId.eqv(id.stringValue) => IO.unit
             }
 
           val read = streams
-            .readAllForwards(Start, Int.MaxValue - 1)
+            .readAllForwards()
             .filter(e => e.streamId.eqv(id) || e.streamId.eqv(id.metaId))
             .compile
             .toList
@@ -446,7 +446,7 @@ class StreamsSpec extends SnSpec {
             streams.appendToStream(id, StreamRevision.Any, data, None)
 
           def readLink(resolve: Boolean) =
-            streams.readStreamForwards(linkId, EventNumber.Start, 3, resolve, None).map(_.eventData).compile.toList
+            streams.readStreamForwards(linkId, maxCount = 3, resolveLinkTos = resolve).map(_.eventData).compile.toList
 
           val e1 = genEvents(1)
           val e2 = genEvents(1)
@@ -678,7 +678,7 @@ class StreamsSpec extends SnSpec {
           val id = genStreamId(s"${streamPrefix}non_existing_${mkSnakeCase(expectedRevision.show)}_")
 
           streams.appendToStream(id, expectedRevision, events) >>= { wr =>
-            streams.readStreamForwards(id, EventNumber.Start, 2).compile.toList.map { el =>
+            streams.readStreamForwards(id, maxCount = 2).compile.toList.map { el =>
               el.map(_.eventData).toNel shouldEqual events.some
               wr.currentRevision shouldEqual EventNumber.Start
             }
@@ -942,7 +942,7 @@ class StreamsSpec extends SnSpec {
             for {
               _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
               _ <- streams.appendToStream(id, nextExpected, Nel.one(events.head))
-              e <- streams.readStreamForwards(id, EventNumber.Start, events.size + 1L).compile.toList
+              e <- streams.readStreamForwards(id, maxCount = events.size + 1L).compile.toList
 
             } yield e.size shouldEqual events.size
           }
@@ -964,7 +964,7 @@ class StreamsSpec extends SnSpec {
           for {
             _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
             _ <- streams.appendToStream(id, EventNumber.exact(5), Nel.one(events.head))
-            e <- streams.readStreamForwards(id, EventNumber.Start, events.size + 2L).compile.toList
+            e <- streams.readStreamForwards(id, maxCount = events.size + 2L).compile.toList
 
           } yield e.size shouldEqual events.size + 1
 
@@ -1007,7 +1007,7 @@ class StreamsSpec extends SnSpec {
           for {
             _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
             _ <- streams.appendToStream(id, EventNumber.Start, Nel.one(events.head))
-            e <- streams.readStreamForwards(id, EventNumber.Start, events.size + 2L).compile.toList
+            e <- streams.readStreamForwards(id, maxCount = events.size + 2L).compile.toList
 
           } yield e.size shouldEqual events.size + 1
         }
@@ -1022,7 +1022,7 @@ class StreamsSpec extends SnSpec {
             for {
               _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
               _ <- streams.appendToStream(id, nextExpected, Nel.one(events.head))
-              e <- streams.readStreamForwards(id, EventNumber.Start, events.size + 1L).compile.toList
+              e <- streams.readStreamForwards(id, maxCount = events.size + 1L).compile.toList
 
             } yield e.size shouldEqual events.size
           }
@@ -1047,7 +1047,7 @@ class StreamsSpec extends SnSpec {
             _ <- streams.appendToStream(id, StreamRevision.NoStream, Nel.of(e1, e2, e3))
             _ <- streams.appendToStream(id, StreamRevision.Any, Nel.of(e2))
             _ <- streams.appendToStream(id, StreamRevision.Any, Nel.of(e2))
-            e <- streams.readStreamForwards(id, EventNumber.Start, 4).compile.toList
+            e <- streams.readStreamForwards(id, maxCount = 4).compile.toList
 
           } yield e.size shouldEqual 3
         }
@@ -1065,7 +1065,7 @@ class StreamsSpec extends SnSpec {
             for {
               _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
               _ <- streams.appendToStream(id, nextRevision, nextEvents)
-              e <- streams.readStreamForwards(id, EventNumber.Start, events.size + 1L).compile.toList
+              e <- streams.readStreamForwards(id, maxCount = events.size + 1L).compile.toList
 
             } yield e.size shouldEqual events.size
           }
@@ -1146,7 +1146,7 @@ class StreamsSpec extends SnSpec {
 
         for {
           wr  <- streams.appendToStream(id, StreamRevision.NoStream, events)
-          pos <- streams.readStreamForwards(id, EventNumber.Start, 1).compile.lastOrError.map(_.position)
+          pos <- streams.readStreamForwards(id, maxCount = 1).compile.lastOrError.map(_.position)
           dr  <- streams.delete(id, wr.currentRevision)
 
         } yield dr.position > pos
@@ -1161,7 +1161,7 @@ class StreamsSpec extends SnSpec {
         for {
           wr <- streams.appendToStream(id, StreamRevision.NoStream, events)
           _  <- streams.delete(id, wr.currentRevision)
-          at <- streams.readStreamForwards(id, EventNumber.Start, 1).compile.drain.attempt
+          at <- streams.readStreamForwards(id, maxCount = 1).compile.drain.attempt
 
         } yield at should beLike { case Left(StreamNotFound(_)) => ok }
 
@@ -1176,7 +1176,7 @@ class StreamsSpec extends SnSpec {
           wr  <- streams.appendToStream(id, StreamRevision.NoStream, events)
           _   <- streams.delete(id, wr.currentRevision)
           _   <- streams.tombstone(id, StreamRevision.Any)
-          rat <- streams.readStreamForwards(id, EventNumber.Start, 2).compile.drain.attempt
+          rat <- streams.readStreamForwards(id, maxCount = 2).compile.drain.attempt
           mat <- metaStreams.getMetadata(id, None).attempt
           aat <- streams.appendToStream(id, StreamRevision.Any, genEvents(1)).attempt
 
@@ -1202,7 +1202,7 @@ class StreamsSpec extends SnSpec {
             _   <- streams.delete(id, wr1.currentRevision)
             wr2 <- streams.appendToStream(id, expectedRevision, afterEvents)
             _   <- IO.sleep(100.millis) // Workaround for ES github issue #1744
-            evt <- streams.readStreamForwards(id, EventNumber.Start, 3).compile.toList
+            evt <- streams.readStreamForwards(id, maxCount = 3).compile.toList
             tbm <- metaStreams.getTruncateBefore(id, None)
 
           } yield {
@@ -1251,7 +1251,7 @@ class StreamsSpec extends SnSpec {
           mwr    <- metaStreams.setMetadata(id, StreamRevision.NoStream, metadata, None)
           _      <- streams.appendToStream(id, EventNumber.exact(1), afterEvents)
           _      <- IO.sleep(500.millis) // Workaround for ES github issue #1744
-          events <- streams.readStreamForwards(id, EventNumber.Start, 3).compile.toList
+          events <- streams.readStreamForwards(id, maxCount = 3).compile.toList
           meta   <- metaStreams.getMetadata(id, None)
 
         } yield {
@@ -1304,7 +1304,7 @@ class StreamsSpec extends SnSpec {
           _      <- streams.delete(id, wr0.currentRevision)
           wr1    <- streams.appendToStream(id, StreamRevision.Any, events1)
           wr2    <- streams.appendToStream(id, StreamRevision.Any, events2)
-          events <- streams.readStreamForwards(id, EventNumber.Start, 5).compile.toList
+          events <- streams.readStreamForwards(id, maxCount = 5).compile.toList
           tbr    <- metaStreams.getTruncateBefore(id, None)
         } yield {
 
@@ -1338,7 +1338,7 @@ class StreamsSpec extends SnSpec {
         for {
           _    <- streams.delete(id, StreamRevision.NoStream)
           mw   <- metaStreams.setMetadata(id, EventNumber.Start, metadata, None)
-          read <- streams.readStreamForwards(id, EventNumber.Start, 1).compile.toList.attempt
+          read <- streams.readStreamForwards(id, maxCount = 1).compile.toList.attempt
           meta <- metaStreams.getMetadata(id, None)
         } yield {
 
@@ -1370,7 +1370,7 @@ class StreamsSpec extends SnSpec {
           sw1  <- streams.appendToStream(id, StreamRevision.NoStream, events)
           _    <- streams.delete(id, sw1.currentRevision)
           mw1  <- metaStreams.setMetadata(id, EventNumber.Start, metadata, None)
-          read <- streams.readStreamForwards(id, EventNumber.Start, 2).compile.toList
+          read <- streams.readStreamForwards(id, maxCount = 2).compile.toList
           meta <- metaStreams.getMetadata(id, None)
         } yield {
 
@@ -1426,7 +1426,7 @@ class StreamsSpec extends SnSpec {
 
         for {
           wr  <- streams.appendToStream(id, StreamRevision.NoStream, events)
-          pos <- streams.readStreamForwards(id, EventNumber.Start, 1).compile.lastOrError.map(_.position)
+          pos <- streams.readStreamForwards(id, maxCount = 1).compile.lastOrError.map(_.position)
           dr  <- streams.tombstone(id, wr.currentRevision)
 
         } yield dr.position > pos
