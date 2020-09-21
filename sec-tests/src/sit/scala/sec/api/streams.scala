@@ -600,7 +600,7 @@ class StreamsSpec extends SnSpec {
 
           val deletedId = genStreamId("streams_read_all_linkto_deleted_")
           val linkId    = genStreamId("streams_read_all_linkto_link_")
-          val maxCount  = MaxCount(2)
+          val maxCount  = MaxCount(2).unsafe
 
           def linkData(number: Long) =
             Nel.one(
@@ -1016,7 +1016,7 @@ class StreamsSpec extends SnSpec {
       "append to stream with stream exists expected version works if metadata stream exists" >> {
 
         val id    = genStreamId(s"${streamPrefix}stream_exists_and_metadata_stream_exists_")
-        val meta  = metaStreams.setMaxAge(id, StreamRevision.NoStream, MaxAge(10.seconds), None)
+        val meta  = metaStreams.setMaxAge(id, StreamRevision.NoStream, MaxAge(10.seconds).unsafe, None)
         val write = streams.appendToStream(id, StreamRevision.StreamExists, genEvents(1))
 
         meta >> write.map(_.currentRevision shouldEqual EventNumber.Start)
@@ -1411,7 +1411,7 @@ class StreamsSpec extends SnSpec {
 
         val metadata = StreamMetadata.empty
           .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
-          .withMaxCount(MaxCount(100))
+          .withMaxCount(MaxCount(100).unsafe)
           .withTruncateBefore(EventNumber.exact(Long.MaxValue))
           .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
 
@@ -1499,7 +1499,7 @@ class StreamsSpec extends SnSpec {
         val id = genStreamId(s"${streamPrefix}and_recreate_on_empty_when_metadata_set_")
 
         val metadata = StreamMetadata.empty
-          .withMaxCount(MaxCount(100))
+          .withMaxCount(MaxCount(100).unsafe)
           .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
           .withTruncateBefore(EventNumber.exact(Long.MaxValue))
           .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
@@ -1531,7 +1531,7 @@ class StreamsSpec extends SnSpec {
         val events = genEvents(2)
 
         val metadata = StreamMetadata.empty
-          .withMaxCount(MaxCount(100))
+          .withMaxCount(MaxCount(100).unsafe)
           .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
           .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
 

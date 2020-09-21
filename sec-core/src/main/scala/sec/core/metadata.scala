@@ -115,15 +115,12 @@ object MaxAge {
   /**
    * @param maxAge must be greater than or equal to 1 second.
    */
-  def strict(maxAge: FiniteDuration): Attempt[MaxAge] =
+  def apply(maxAge: FiniteDuration): Attempt[MaxAge] =
     if (maxAge < 1.second) s"maxAge must be >= 1 second, it was $maxAge.".asLeft
     else new MaxAge(maxAge) {}.asRight
 
   def lift[F[_]: ErrorA](maxAge: FiniteDuration): F[MaxAge] =
-    strict(maxAge).orFail[F](InvalidMaxAge)
-
-  def apply(maxAge: FiniteDuration): MaxAge =
-    strict(maxAge max 1.second).unsafe
+    MaxAge(maxAge).orFail[F](InvalidMaxAge)
 
   implicit val showForMaxAge: Show[MaxAge] = Show.show(_.value.toString())
 
@@ -136,15 +133,12 @@ object MaxCount {
   /**
    * @param maxCount must be greater than or equal to 1.
    */
-  def strict(maxCount: Int): Attempt[MaxCount] =
+  def apply(maxCount: Int): Attempt[MaxCount] =
     if (maxCount < 1) s"max count must be >= 1, it was $maxCount.".asLeft
     else new MaxCount(maxCount) {}.asRight
 
   def lift[F[_]: ErrorA](maxCount: Int): F[MaxCount] =
-    strict(maxCount).orFail[F](InvalidMaxCount)
-
-  def apply(maxCount: Int): MaxCount =
-    strict(maxCount max 1).unsafe
+    MaxCount(maxCount).orFail[F](InvalidMaxCount)
 
   implicit val showForMaxCount: Show[MaxCount] = Show.show { mc =>
     s"${mc.value} event${if (mc.value == 1) "" else "s"}"
@@ -160,15 +154,12 @@ object CacheControl {
   /**
    * @param cacheControl must be greater than or equal to 1 second.
    */
-  def strict(cacheControl: FiniteDuration): Attempt[CacheControl] =
+  def apply(cacheControl: FiniteDuration): Attempt[CacheControl] =
     if (cacheControl < 1.second) s"cache control must be >= 1, it was $cacheControl.".asLeft
     else new CacheControl(cacheControl) {}.asRight
 
   def lift[F[_]: ErrorA](cacheControl: FiniteDuration): F[CacheControl] =
-    strict(cacheControl).orFail[F](InvalidCacheControl)
-
-  def apply(cacheControl: FiniteDuration): CacheControl =
-    strict(cacheControl max 1.second).unsafe
+    CacheControl(cacheControl).orFail[F](InvalidCacheControl)
 
   implicit val showForCacheControl: Show[CacheControl] = Show.show(_.value.toString())
 
@@ -220,13 +211,13 @@ private[sec] object StreamState {
         Codec.from(dl.map(FiniteDuration(_, SECONDS)), el.contramap(_.toSeconds))
 
       implicit val codecForMaxAge: Codec[MaxAge] =
-        Codec.from(cfd.emap(MaxAge.strict), cfd.contramap(_.value))
+        Codec.from(cfd.emap(MaxAge(_)), cfd.contramap(_.value))
 
       implicit val codecForMaxCount: Codec[MaxCount] =
-        Codec.from(di.emap(MaxCount.strict), ei.contramap(_.value))
+        Codec.from(di.emap(MaxCount(_)), ei.contramap(_.value))
 
       implicit val codecForCacheControl: Codec[CacheControl] =
-        Codec.from(cfd.emap(CacheControl.strict), cfd.contramap(_.value))
+        Codec.from(cfd.emap(CacheControl(_)), cfd.contramap(_.value))
 
       implicit val codecForEventNumber: Codec[EventNumber.Exact] =
         Codec.from(dl.map(EventNumber.exact), el.contramap(_.value))

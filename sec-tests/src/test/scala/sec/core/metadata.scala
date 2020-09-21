@@ -50,9 +50,9 @@ class StreamMetadataSpec extends Specification {
     val reserved = StreamMetadata.reservedKeys
 
     val system = StreamState(
-      maxAge         = MaxAge(1000.seconds).some,
+      maxAge         = MaxAge(1000.seconds).unsafe.some,
       maxCount       = None,
-      cacheControl   = CacheControl(12.hours).some,
+      cacheControl   = CacheControl(12.hours).unsafe.some,
       truncateBefore = EventNumber.exact(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
     )
@@ -130,9 +130,8 @@ class StreamStateSpec extends Specification {
   "show" >> {
 
     StreamState.empty
-      .copy(maxAge = MaxAge(10.days).some, maxCount = MaxCount(1).some)
-      .show shouldEqual (
-      s"""
+      .copy(maxAge = MaxAge(10.days).unsafe.some, maxCount = MaxCount(1).unsafe.some)
+      .show shouldEqual s"""
        |StreamState:
        |  max-age         = 10 days
        |  max-count       = 1 event
@@ -140,16 +139,14 @@ class StreamStateSpec extends Specification {
        |  truncate-before = n/a
        |  access-list     = n/a
        |""".stripMargin
-    )
 
     StreamState(
       maxAge         = None,
-      maxCount       = MaxCount(50).some,
-      cacheControl   = CacheControl(12.hours).some,
+      maxCount       = MaxCount(50).unsafe.some,
+      cacheControl   = CacheControl(12.hours).unsafe.some,
       truncateBefore = EventNumber.exact(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
-    ).show shouldEqual (
-      s"""
+    ).show shouldEqual s"""
        |StreamState:
        |  max-age         = n/a
        |  max-count       = 50 events
@@ -157,10 +154,8 @@ class StreamStateSpec extends Specification {
        |  truncate-before = EventNumber(1000)
        |  access-list     = read: [a, b], write: [], delete: [], meta-read: [], meta-write: []
        |""".stripMargin
-    )
 
-    StreamState.empty.show shouldEqual (
-      s"""
+    StreamState.empty.show shouldEqual s"""
        |StreamState:
        |  max-age         = n/a
        |  max-count       = n/a
@@ -168,7 +163,6 @@ class StreamStateSpec extends Specification {
        |  truncate-before = n/a
        |  access-list     = n/a
        |""".stripMargin
-    )
 
   }
 
@@ -215,9 +209,9 @@ class StreamAclSpec extends Specification {
   }
 
   "show" >> {
-    StreamAcl.empty.copy(readRoles = Set("a", "b"), Set("b")).show shouldEqual (
-      "read: [a, b], write: [b], delete: [], meta-read: [], meta-write: []"
-    )
+    StreamAcl.empty
+      .copy(readRoles = Set("a", "b"), Set("b"))
+      .show shouldEqual "read: [a, b], write: [b], delete: [], meta-read: [], meta-write: []"
   }
 
 }
