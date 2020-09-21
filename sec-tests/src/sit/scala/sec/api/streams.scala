@@ -205,7 +205,7 @@ class StreamsSpec extends SnSpec {
           streams.subscribeToAllFiltered(from, options).takeThrough(_.fold(_ => true, _.eventData != after.last))
 
         val writeBefore = (writeRandom(256) *> write(before)).whenA(includeBefore).void
-        val writeAfter  = (writeRandom(128) *> write(after)).delayBy(1.second).void
+        val writeAfter  = (writeRandom(256) *> write(after)).delayBy(1.second).void
 
         val result =
           Stream.eval(writeBefore) *> subscribe.concurrently(Stream.eval(writeAfter))
@@ -241,11 +241,11 @@ class StreamsSpec extends SnSpec {
         def subscribe(from: Position) =
           streams.subscribeToAllFiltered(from.some, options).takeThrough(_.fold(_ => true, _.eventData != after.last))
 
-        val writeBefore = (writeRandom(128) *> write(before)).whenA(includeBefore).void
-        val writeAfter  = (writeRandom(128) *> write(after)).delayBy(1.second).void
+        val writeBefore = (writeRandom(256) *> write(before)).whenA(includeBefore).void
+        val writeAfter  = (writeRandom(256) *> write(after)).delayBy(1.second).void
 
         val result = for {
-          pos  <- Stream.eval(writeRandom(1)).map(_.position)
+          pos  <- Stream.eval(writeRandom(256)).map(_.position)
           _    <- Stream.eval(writeBefore)
           data <- subscribe(pos).concurrently(Stream.eval(writeAfter))
         } yield data
