@@ -77,6 +77,7 @@ jobs:
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Start Single Node
+        if: contains(matrix.scala, '2.13.3')
         run: .docker/single-node.sh up -d
 
       - name: Check that workflows are up to date
@@ -86,26 +87,29 @@ jobs:
         run: sbt ++${{ matrix.scala }} compileTests sec-tests/test
 
       - name: Single node integration tests
+        if: contains(matrix.scala, '2.13.3')
         env:
           SEC_SIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_SIT_AUTHORITY: es.sec.local
         run: 'sbt ++${{ matrix.scala }} sec-tests/sit:test'
 
       - name: Stop Single Node
-        if: always()
+        if: always() && contains(matrix.scala, '2.13.3')
         run: .docker/single-node.sh down
 
       - name: Start Cluster Nodes
+        if: contains(matrix.scala, '2.13.3')
         run: .docker/cluster.sh up -d
 
       - name: Cluster integration tests
+        if: contains(matrix.scala, '2.13.3')
         env:
           SEC_CIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_CIT_AUTHORITY: es.sec.local
         run: 'sbt ++${{ matrix.scala }} sec-tests/cit:test'
 
       - name: Stop Cluster Nodes
-        if: always()
+        if: always() && contains(matrix.scala, '2.13.3')
         run: .docker/cluster.sh down
 
       - name: Compress target directories

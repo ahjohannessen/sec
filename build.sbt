@@ -110,6 +110,8 @@ addCommandAlias("runTests", "sec-tests/test; sec-tests/sit:test; sec-tests/cit:t
 
 // Github Actions
 
+def scalaCondition(version: String) = s"contains(matrix.scala, '$version')"
+
 inThisBuild(
   List(
     githubWorkflowJavaVersions := Seq("adopt@1.11"),
@@ -117,7 +119,8 @@ inThisBuild(
     githubWorkflowTargetBranches := Seq("master"),
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
-      commands = List(".docker/single-node.sh up -d")
+      commands = List(".docker/single-node.sh up -d"),
+      cond     = Some(scalaCondition(scalaVersion.value))
     ),
     githubWorkflowBuild := Seq(
       WorkflowStep.Sbt(
@@ -130,18 +133,20 @@ inThisBuild(
         env = Map(
           "SEC_SIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_SIT_AUTHORITY"  -> "es.sec.local"
-        )
+        ),
+        cond = Some(scalaCondition(scalaVersion.value))
       )
     ),
     githubWorkflowBuildPostamble += WorkflowStep.Run(
       name     = Some("Stop Single Node"),
       commands = List(".docker/single-node.sh down"),
-      cond     = Some("always()")
+      cond     = Some(s"always() && ${scalaCondition(scalaVersion.value)}")
     ),
     githubWorkflowBuildPostamble ++= Seq(
       WorkflowStep.Run(
         name     = Some("Start Cluster Nodes"),
-        commands = List(".docker/cluster.sh up -d")
+        commands = List(".docker/cluster.sh up -d"),
+        cond     = Some(scalaCondition(scalaVersion.value))
       ),
       WorkflowStep.Sbt(
         name     = Some("Cluster integration tests"),
@@ -149,12 +154,13 @@ inThisBuild(
         env = Map(
           "SEC_CIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_CIT_AUTHORITY"  -> "es.sec.local"
-        )
+        ),
+        cond = Some(scalaCondition(scalaVersion.value))
       ),
       WorkflowStep.Run(
         name     = Some("Stop Cluster Nodes"),
         commands = List(".docker/cluster.sh down"),
-        cond     = Some("always()")
+        cond     = Some(s"always() && ${scalaCondition(scalaVersion.value)}")
       )
     ),
     githubWorkflowPublishTargetBranches := Seq(
