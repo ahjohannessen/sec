@@ -67,7 +67,7 @@ class StreamsSpec extends SnSpec {
           val s2Events = genEvents(10)
           val count    = (s1Events.size + s2Events.size).toLong
 
-          val writeBoth = write(s1, s1Events).concurrently(write(s2, s2Events)).delayBy(1.second)
+          val writeBoth = write(s1, s1Events).concurrently(write(s2, s2Events)).delayBy(500.millis)
           val run       = subscribe(exclusiveFrom, Set(s1, s2).contains).concurrently(writeBoth)
 
           run.take(count).compile.toList.map { events =>
@@ -121,7 +121,7 @@ class StreamsSpec extends SnSpec {
           write(s1, s1Before) >>= { wa => write(s2, s2Before).map(wb => (wa, wb)) }
 
         def writeAfter(s1: StreamId, r1: StreamRevision, s2: StreamId, r2: StreamRevision) =
-          (write(s1, s1After, r1) >> write(s2, s2After, r2)).delayBy(1.second)
+          (write(s1, s1After, r1) >> write(s2, s2After, r2)).delayBy(500.millis)
 
         def test(exclusiveFrom: Option[Position], s1: StreamId, s2: StreamId) =
           writeBefore(s1, s2) >>= { case (wa, wb) =>
@@ -177,7 +177,7 @@ class StreamsSpec extends SnSpec {
       import StreamRevision.NoStream
 
       val maxSearchWindow = 32
-      val multiplier      = 5
+      val multiplier      = 3
 
       def writeRandom(amount: Int) = genStreamUuid[IO] >>= { sid =>
         streams.appendToStream(sid, NoStream, genEvents(amount))
@@ -204,11 +204,16 @@ class StreamsSpec extends SnSpec {
         val subscribe =
           streams.subscribeToAllFiltered(from, options).takeThrough(_.fold(_ => true, _.eventData != after.last))
 
-        val writeBefore = (writeRandom(256) *> write(before)).whenA(includeBefore).void
-        val writeAfter  = (writeRandom(256) *> write(after)).delayBy(1.second).void
+        val writeBefore = write(before).whenA(includeBefore).void
+        val writeAfter  = write(after).void
 
-        val result =
-          Stream.eval(writeBefore) *> subscribe.concurrently(Stream.eval(writeAfter))
+        val result = for {
+          _    <- Stream.eval(writeRandom(100))
+          _    <- Stream.eval(writeBefore)
+          _    <- Stream.eval(writeRandom(100))
+          _    <- Stream.sleep(500.millis)
+          data <- subscribe.concurrently(Stream.eval(writeAfter).delayBy(500.millis))
+        } yield data
 
         result.compile.toList.map { r =>
           val (c, e) = r.partitionMap(identity)
@@ -241,13 +246,15 @@ class StreamsSpec extends SnSpec {
         def subscribe(from: Position) =
           streams.subscribeToAllFiltered(from.some, options).takeThrough(_.fold(_ => true, _.eventData != after.last))
 
-        val writeBefore = (writeRandom(256) *> write(before)).whenA(includeBefore).void
-        val writeAfter  = (writeRandom(256) *> write(after)).delayBy(1.second).void
+        val writeBefore = write(before).whenA(includeBefore).void
+        val writeAfter  = write(after).void
 
         val result = for {
-          pos  <- Stream.eval(writeRandom(256)).map(_.position)
+          pos  <- Stream.eval(writeRandom(100)).map(_.position)
           _    <- Stream.eval(writeBefore)
-          data <- subscribe(pos).concurrently(Stream.eval(writeAfter))
+          _    <- Stream.eval(writeRandom(100))
+          _    <- Stream.sleep(500.millis)
+          data <- subscribe(pos).concurrently(Stream.eval(writeAfter).delayBy(500.millis))
         } yield data
 
         result.compile.toList.map { r =>
@@ -358,7 +365,7 @@ class StreamsSpec extends SnSpec {
 
           val id        = genStreamId(s"${streamPrefix}non_existing_stream_")
           val subscribe = streams.subscribeToStream(id, exclusivefrom).take(takeCount.toLong).map(_.eventData)
-          val write     = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events)).delayBy(1.second)
+          val write     = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events)).delayBy(500.millis)
           val result    = subscribe.concurrently(write)
 
           result.compile.toList
@@ -387,7 +394,7 @@ class StreamsSpec extends SnSpec {
         def test(exclusivFrom: Option[EventNumber], takeCount: Int) = {
 
           val id    = genStreamId(s"${streamPrefix}multiple_subscriptions_to_same_stream_")
-          val write = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events, None)).delayBy(1.second)
+          val write = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events, None)).delayBy(500.millis)
 
           def mkSubscribers(onEvent: IO[Unit]): Stream[IO, Event] = Stream
             .emit(streams.subscribeToStream(id, exclusivFrom).evalTap(_ => onEvent).take(takeCount.toLong))
@@ -430,7 +437,7 @@ class StreamsSpec extends SnSpec {
             Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, beforeEvents, None))
 
           def afterWrite(rev: StreamRevision): Stream[IO, Streams.WriteResult] =
-            Stream.eval(streams.appendToStream(id, rev, afterEvents, None)).delayBy(1.second)
+            Stream.eval(streams.appendToStream(id, rev, afterEvents, None)).delayBy(500.millis)
 
           def subscribe(onEvent: Event => IO[Unit]): Stream[IO, Event] =
             streams.subscribeToStream(id, exclusiveFrom).evalTap(onEvent).take(takeCount.toLong)
@@ -438,6 +445,7 @@ class StreamsSpec extends SnSpec {
           val result: Stream[IO, List[EventData]] = for {
             ref        <- Stream.eval(Ref.of[IO, List[EventData]](Nil))
             rev        <- beforeWrite.map(_.currentRevision)
+            _          <- Stream.sleep(500.millis)
             _          <- subscribe(e => ref.update(_ :+ e.eventData)).concurrently(afterWrite(rev))
             readEvents <- Stream.eval(ref.get)
           } yield readEvents
@@ -466,7 +474,7 @@ class StreamsSpec extends SnSpec {
 
           val id        = genStreamId(s"${streamPrefix}stream_is_tombstoned_")
           val subscribe = streams.subscribeToStream(id, exclusiveFrom)
-          val delete    = Stream.eval(streams.tombstone(id, StreamRevision.Any)).delayBy(1.second)
+          val delete    = Stream.eval(streams.tombstone(id, StreamRevision.Any)).delayBy(500.millis)
           val expected  = StreamDeleted(id.stringValue).asLeft
 
           subscribe.concurrently(delete).compile.last.attempt.map(_.shouldEqual(expected))
