@@ -19,7 +19,7 @@ package api
 
 import sec.api.Gossip._
 
-class GossipITest extends SnSpec {
+class GossipSuite extends SnSpec {
 
   sequential
 

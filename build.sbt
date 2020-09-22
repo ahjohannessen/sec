@@ -1,5 +1,17 @@
 import Dependencies._
 
+def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scalaVersion: String) = {
+
+  def extraDirs(suffix: String): List[File] =
+    List(srcBaseDir / srcName / suffix)
+
+  CrossVersion.partialVersion(scalaVersion) match {
+    case Some((2, 13)) => extraDirs("scala-2.13")
+    case Some((0, _))  => extraDirs("scala-3")
+    case _             => Nil
+  }
+}
+
 lazy val root = project
   .in(file("."))
   .settings(skip in publish := true)
@@ -24,7 +36,9 @@ lazy val `sec-core` = project
   .settings(
     name := "sec-core",
     libraryDependencies ++=
-      compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser)
+      compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser),
+    Compile / unmanagedSourceDirectories ++=
+      scalaVersionSpecificFolders("main", sourceDirectory.value, scalaVersion.value)
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
   .dependsOn(`sec-protos`)

@@ -50,6 +50,7 @@ object SnSpec {
   final private val authority   = sys.env.getOrElse("SEC_SIT_AUTHORITY", "es.sec.local")
   final private val address     = sys.env.getOrElse("SEC_SIT_HOST_ADDRESS", "127.0.0.1")
   final private val port        = sys.env.get("SEC_SIT_HOST_PORT").flatMap(_.toIntOption).getOrElse(2113)
+  final private val maxRetries  = 5
 
   ///
 
@@ -59,6 +60,7 @@ object SnSpec {
     .withCertificate(certPath)
     .withChannelShutdownAwait(0.seconds)
     .withLogger(log)
+    .withOperationsRetryMaxAttempts(maxRetries)
     .resource
 
 }

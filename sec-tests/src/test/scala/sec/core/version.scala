@@ -47,6 +47,9 @@ class VersionSpec extends Specification with Discipline {
 
   "EventNumber" >> {
 
+    import EventNumber.Exact
+    import EventNumber.Exact.InvalidExact
+
     "apply" >> {
       EventNumber(-1L) shouldEqual EventNumber.End
       EventNumber(0L) shouldEqual EventNumber.exact(0L)
@@ -54,8 +57,13 @@ class VersionSpec extends Specification with Discipline {
     }
 
     "Exact.apply" >> {
-      EventNumber.Exact(-1L) should beLeft("value must be >= 0, but is -1")
-      EventNumber.Exact(0L) should beRight(EventNumber.exact(0L))
+      Exact(-1L) should beLeft("value must be >= 0, but is -1")
+      Exact(0L) should beRight(EventNumber.exact(0L))
+    }
+
+    "Exact.lift" >> {
+      Exact.lift[ErrorOr](-1L) should beLeft(InvalidExact("value must be >= 0, but is -1"))
+      Exact.lift[ErrorOr](0L) should beRight(EventNumber.exact(0L))
     }
 
     "Show" >> {
@@ -71,6 +79,8 @@ class VersionSpec extends Specification with Discipline {
 
   "Position" >> {
 
+    import Position.Exact
+
     "apply" >> {
       Position(-1L, -1L) should beRight[Position](Position.End)
       Position(-1L, 0L) should beRight[Position](Position.End)
@@ -82,11 +92,11 @@ class VersionSpec extends Specification with Discipline {
     }
 
     "Exact.apply" >> {
-      Position.Exact(-1L, 0L) should beLeft("commit must be >= 0, but is -1")
-      Position.Exact(0L, -1L) should beLeft("prepare must be >= 0, but is -1")
-      Position.Exact(0L, 1L) should beLeft("commit must be >= prepare, but 0 < 1")
-      Position.Exact(0L, 0L) should beRight(Position.exact(0L, 0L))
-      Position.Exact(1L, 0L) should beRight(Position.exact(1L, 0L))
+      Exact(-1L, 0L) should beLeft("commit must be >= 0, but is -1")
+      Exact(0L, -1L) should beLeft("prepare must be >= 0, but is -1")
+      Exact(0L, 1L) should beLeft("commit must be >= prepare, but 0 < 1")
+      Exact(0L, 0L) should beRight(Position.exact(0L, 0L))
+      Exact(1L, 0L) should beRight(Position.exact(1L, 0L))
     }
 
     "Show" >> {
