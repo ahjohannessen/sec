@@ -31,9 +31,10 @@ import fs2._
 import sec.core._
 import sec.api.Direction._
 import sec.api.exceptions._
+import sec.syntax.api._
 import helpers.text.mkSnakeCase
 
-class StreamsSpec extends SnSpec {
+class StreamsSuite extends SnSpec {
 
   sequential
 
@@ -608,7 +609,6 @@ class StreamsSpec extends SnSpec {
 
           val deletedId = genStreamId("streams_read_all_linkto_deleted_")
           val linkId    = genStreamId("streams_read_all_linkto_link_")
-          val maxCount  = MaxCount(2).unsafe
 
           def linkData(number: Long) =
             Nel.one(
@@ -634,7 +634,7 @@ class StreamsSpec extends SnSpec {
           val l3 = linkData(2)
 
           append(deletedId, e1) >>
-            metaStreams.setMaxCount(deletedId, StreamRevision.NoStream, maxCount, None) >>
+            metaStreams.setMaxCount(deletedId, StreamRevision.NoStream, 2) >>
             append(deletedId, e2) >>
             append(deletedId, e3) >>
             append(linkId, l1) >>
@@ -1024,7 +1024,7 @@ class StreamsSpec extends SnSpec {
       "append to stream with stream exists expected version works if metadata stream exists" >> {
 
         val id    = genStreamId(s"${streamPrefix}stream_exists_and_metadata_stream_exists_")
-        val meta  = metaStreams.setMaxAge(id, StreamRevision.NoStream, MaxAge(10.seconds).unsafe, None)
+        val meta  = metaStreams.setMaxAge(id, StreamRevision.NoStream, 10.seconds)
         val write = streams.appendToStream(id, StreamRevision.StreamExists, genEvents(1))
 
         meta >> write.map(_.currentRevision shouldEqual EventNumber.Start)
@@ -1354,7 +1354,7 @@ class StreamsSpec extends SnSpec {
           _   <- streams.delete(id, wr.currentRevision)
           _   <- streams.tombstone(id, StreamRevision.Any)
           rat <- streams.readStreamForwards(id, maxCount = 2).compile.drain.attempt
-          mat <- metaStreams.getMetadata(id, None).attempt
+          mat <- metaStreams.getMetadata(id).attempt
           aat <- streams.appendToStream(id, StreamRevision.Any, genEvents(1)).attempt
 
         } yield {
@@ -1380,7 +1380,7 @@ class StreamsSpec extends SnSpec {
             wr2 <- streams.appendToStream(id, expectedRevision, afterEvents)
             _   <- IO.sleep(100.millis) // Workaround for ES github issue #1744
             evt <- streams.readStreamForwards(id, maxCount = 3).compile.toList
-            tbm <- metaStreams.getTruncateBefore(id, None)
+            tbm <- metaStreams.getTruncateBefore(id)
 
           } yield {
 
@@ -1425,11 +1425,11 @@ class StreamsSpec extends SnSpec {
 
         for {
           swr    <- streams.appendToStream(id, StreamRevision.NoStream, beforeEvents)
-          mwr    <- metaStreams.setMetadata(id, StreamRevision.NoStream, metadata, None)
+          mwr    <- metaStreams.setMetadata(id, StreamRevision.NoStream, metadata)
           _      <- streams.appendToStream(id, EventNumber.exact(1), afterEvents)
           _      <- IO.sleep(1.second) // Workaround for ES github issue #1744
           events <- streams.readStreamForwards(id, maxCount = 3).compile.toList
-          meta   <- metaStreams.getMetadata(id, None)
+          meta   <- metaStreams.getMetadata(id)
 
         } yield {
 
@@ -1482,7 +1482,7 @@ class StreamsSpec extends SnSpec {
           wr1    <- streams.appendToStream(id, StreamRevision.Any, events1)
           wr2    <- streams.appendToStream(id, StreamRevision.Any, events2)
           events <- streams.readStreamForwards(id, maxCount = 5).compile.toList
-          tbr    <- metaStreams.getTruncateBefore(id, None)
+          tbr    <- metaStreams.getTruncateBefore(id)
         } yield {
 
           wr0.currentRevision shouldEqual EventNumber.exact(1)
@@ -1514,9 +1514,9 @@ class StreamsSpec extends SnSpec {
 
         for {
           _    <- streams.delete(id, StreamRevision.NoStream)
-          mw   <- metaStreams.setMetadata(id, EventNumber.Start, metadata, None)
+          mw   <- metaStreams.setMetadata(id, EventNumber.Start, metadata)
           read <- streams.readStreamForwards(id, maxCount = 1).compile.toList.attempt
-          meta <- metaStreams.getMetadata(id, None)
+          meta <- metaStreams.getMetadata(id)
         } yield {
 
           mw.currentMetaRevision shouldEqual EventNumber.exact(1)
@@ -1546,9 +1546,9 @@ class StreamsSpec extends SnSpec {
         for {
           sw1  <- streams.appendToStream(id, StreamRevision.NoStream, events)
           _    <- streams.delete(id, sw1.currentRevision)
-          mw1  <- metaStreams.setMetadata(id, EventNumber.Start, metadata, None)
+          mw1  <- metaStreams.setMetadata(id, EventNumber.Start, metadata)
           read <- streams.readStreamForwards(id, maxCount = 2).compile.toList
-          meta <- metaStreams.getMetadata(id, None)
+          meta <- metaStreams.getMetadata(id)
         } yield {
 
           sw1.currentRevision shouldEqual EventNumber.exact(1)

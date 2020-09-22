@@ -18,6 +18,7 @@ package sec
 package core
 
 import scala.concurrent.duration._
+import scala.util.control.NoStackTrace
 import cats.Show
 import cats.Endo
 import cats.syntax.all._
@@ -124,7 +125,7 @@ object MaxAge {
 
   implicit val showForMaxAge: Show[MaxAge] = Show.show(_.value.toString())
 
-  final case class InvalidMaxAge(msg: String) extends RuntimeException(msg)
+  final case class InvalidMaxAge(msg: String) extends RuntimeException(msg) with NoStackTrace
 }
 
 sealed abstract case class MaxCount(value: Int)
@@ -144,7 +145,7 @@ object MaxCount {
     s"${mc.value} event${if (mc.value == 1) "" else "s"}"
   }
 
-  final case class InvalidMaxCount(msg: String) extends RuntimeException(msg)
+  final case class InvalidMaxCount(msg: String) extends RuntimeException(msg) with NoStackTrace
 
 }
 
@@ -163,7 +164,7 @@ object CacheControl {
 
   implicit val showForCacheControl: Show[CacheControl] = Show.show(_.value.toString())
 
-  final case class InvalidCacheControl(msg: String) extends RuntimeException(msg)
+  final case class InvalidCacheControl(msg: String) extends RuntimeException(msg) with NoStackTrace
 }
 
 //======================================================================================================================

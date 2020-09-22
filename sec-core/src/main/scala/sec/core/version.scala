@@ -17,6 +17,7 @@
 package sec
 package core
 
+import scala.util.control.NoStackTrace
 import cats.{Eq, Order, Show}
 import cats.syntax.all._
 
@@ -48,9 +49,18 @@ object EventNumber {
 
   sealed abstract case class Exact(value: Long) extends EventNumber with StreamRevision
   object Exact {
+
     private[EventNumber] def create(value: Long): Exact = new Exact(value) {}
+
     def apply(value: Long): Attempt[Exact] =
       Either.cond(value >= 0L, create(value), s"value must be >= 0, but is $value")
+
+    def lift[F[_]: ErrorA](value: Long): F[Exact] =
+      Exact(value).leftMap(InvalidExact).liftTo[F]
+
+    ///
+
+    final case class InvalidExact(msg: String) extends RuntimeException(msg) with NoStackTrace
   }
 
   case object End extends EventNumber
@@ -59,7 +69,8 @@ object EventNumber {
 
   ///
 
-  def apply(number: Long): EventNumber = if (number < 0) End else exact(number)
+  private[sec] def apply(number: Long): EventNumber =
+    if (number < 0) End else exact(number)
 
   implicit val orderForEventNumber: Order[EventNumber] = Order.from {
     case (x: Exact, y: Exact) => Order[Exact].compare(x, y)
