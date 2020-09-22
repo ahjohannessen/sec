@@ -67,7 +67,7 @@ class StreamsSpec extends SnSpec {
           val s2Events = genEvents(10)
           val count    = (s1Events.size + s2Events.size).toLong
 
-          val writeBoth = write(s1, s1Events).concurrently(write(s2, s2Events)).delayBy(500.millis)
+          val writeBoth = (write(s1, s1Events) ++ write(s2, s2Events)).delayBy(1.second)
           val run       = subscribe(exclusiveFrom, Set(s1, s2).contains).concurrently(writeBoth)
 
           run.take(count).compile.toList.map { events =>
