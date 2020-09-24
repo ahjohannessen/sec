@@ -28,12 +28,10 @@ import sec.arbitraries._
 
 class StreamMetadataSpec extends Specification {
 
-  import StreamMetadataSpec._
-
   "codec" >> {
 
-    val chuck   = Custom("chuck norris", List(1, 3, 3, 7))
-    val members = Members(Member("jimmy banana") :: Member("joe doe") :: Nil)
+    val chuck = Custom("chuck norris", List(1, 3, 3, 7))
+    val foo   = Foo(Bar("jimmy banana") :: Bar("joe doe") :: Nil)
 
     // roundtrips without custom
 
@@ -42,7 +40,7 @@ class StreamMetadataSpec extends Specification {
 
     // roundtrips with custom & no overlapping keys
 
-    val sm2 = StreamMetadata(sampleOf[StreamState], members.asJsonObject.some)
+    val sm2 = StreamMetadata(sampleOf[StreamState], foo.asJsonObject.some)
     Decoder[StreamMetadata].apply(Encoder[StreamMetadata].apply(sm2).hcursor) should beRight(sm2)
 
     /// roundtrips with custom & overlapping keys favors system reserved keys
@@ -66,7 +64,7 @@ class StreamMetadataSpec extends Specification {
         "$cacheControl" -> Json.Null,
         "name"          -> chuck.name.asJson,
         "numbers"       -> chuck.numbers.asJson,
-        "members"       -> members.members.asJson
+        "bars"          -> foo.bars.asJson
       )
     )
 
@@ -76,30 +74,8 @@ class StreamMetadataSpec extends Specification {
 
     decoded3 should beRight(sm3.copy(custom = custom.filterKeys(k => !reserved.contains(k)).some))
     Decoder[Custom].apply(encoded3.hcursor) should beRight(chuck)
-    Decoder[Members].apply(encoded3.hcursor) should beRight(members)
+    Decoder[Foo].apply(encoded3.hcursor) should beRight(foo)
 
-  }
-
-}
-
-object StreamMetadataSpec {
-
-  final case class Custom(name: String, numbers: List[Int])
-  object Custom {
-    implicit val codecForCustom: Codec.AsObject[Custom] =
-      Codec.forProduct2("name", "numbers")(Custom.apply)(c => (c.name, c.numbers))
-  }
-
-  final case class Member(name: String)
-  object Member {
-    implicit val codecForMember: Codec.AsObject[Member] =
-      Codec.forProduct1("name")(Member.apply)(_.name)
-  }
-
-  final case class Members(members: List[Member])
-  object Members {
-    implicit val codecForMembers: Codec.AsObject[Members] =
-      Codec.forProduct1("members")(Members.apply)(_.members)
   }
 
 }

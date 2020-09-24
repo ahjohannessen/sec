@@ -67,11 +67,14 @@ private[sec] object StreamMetadata {
 
     ///
 
-    def decodeCustom[F[_]: ErrorA, A: Decoder]: F[Option[A]] =
-      sm.custom.traverse(jo => Decoder[A].apply(Json.fromJsonObject(jo).hcursor).liftTo[F])
+    def getCustom[F[_]: ErrorA, T: Decoder]: F[Option[T]] =
+      sm.custom.traverse(jo => Decoder[T].apply(Json.fromJsonObject(jo).hcursor).liftTo[F])
 
-    def modifyCustom[F[_]: ErrorA, A: Codec.AsObject](fn: Endo[Option[A]]): F[StreamMetadata] =
-      decodeCustom[F, A].map(c => sm.copy(custom = fn(c).map(Encoder.AsObject[A].encodeObject)))
+    def setCustom[T: Encoder.AsObject](custom: T): StreamMetadata =
+      sm.withCustom(Encoder.AsObject[T].encodeObject(custom))
+
+    def modifyCustom[F[_]: ErrorA, T: Codec.AsObject](fn: Endo[Option[T]]): F[StreamMetadata] =
+      getCustom[F, T].map(c => sm.setCustom(fn(c).map(Encoder.AsObject[T].encodeObject)))
 
   }
 

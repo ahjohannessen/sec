@@ -20,11 +20,11 @@ package api
 import scala.concurrent.duration._
 import cats.effect.IO
 import cats.syntax.all._
-import io.circe._
 import sec.core._
+import sec.api._
 import sec.api.MetaStreams.Result
 import sec.api.exceptions.WrongExpectedVersion
-import sec.syntax.api._
+import sec.syntax.all._
 
 class MetaStreamsSuite extends SnSpec {
 
@@ -127,7 +127,7 @@ class MetaStreamsSuite extends SnSpec {
           ma1 <- metaStreams.getMaxAge(sid)
           wr1 <- metaStreams.setMaxAge(sid, NoStream, 1.day)
           ma2 <- metaStreams.getMaxAge(sid)
-          wr2 <- metaStreams.removeMaxAge(sid, wr1.currentMetaRevision)
+          wr2 <- metaStreams.unsetMaxAge(sid, wr1.currentMetaRevision)
           ma3 <- metaStreams.getMaxAge(sid)
         } yield {
           ma1 should beNone
@@ -145,7 +145,7 @@ class MetaStreamsSuite extends SnSpec {
           ma1 <- metaStreams.getMaxCount(sid)
           wr1 <- metaStreams.setMaxCount(sid, NoStream, 10)
           ma2 <- metaStreams.getMaxCount(sid)
-          wr2 <- metaStreams.removeMaxCount(sid, wr1.currentMetaRevision)
+          wr2 <- metaStreams.unsetMaxCount(sid, wr1.currentMetaRevision)
           ma3 <- metaStreams.getMaxCount(sid)
         } yield {
           ma1 should beNone
@@ -163,7 +163,7 @@ class MetaStreamsSuite extends SnSpec {
           ma1 <- metaStreams.getCacheControl(sid)
           wr1 <- metaStreams.setCacheControl(sid, NoStream, 20.days)
           ma2 <- metaStreams.getCacheControl(sid)
-          wr2 <- metaStreams.removeCacheControl(sid, wr1.currentMetaRevision)
+          wr2 <- metaStreams.unsetCacheControl(sid, wr1.currentMetaRevision)
           ma3 <- metaStreams.getCacheControl(sid)
         } yield {
           ma1 should beNone
@@ -182,7 +182,7 @@ class MetaStreamsSuite extends SnSpec {
           ma1 <- metaStreams.getAcl(sid)
           wr1 <- metaStreams.setAcl(sid, NoStream, rr)
           ma2 <- metaStreams.getAcl(sid)
-          wr2 <- metaStreams.removeAcl(sid, wr1.currentMetaRevision)
+          wr2 <- metaStreams.unsetAcl(sid, wr1.currentMetaRevision)
           ma3 <- metaStreams.getAcl(sid)
         } yield {
           ma1 should beNone
@@ -200,7 +200,7 @@ class MetaStreamsSuite extends SnSpec {
           ma1 <- metaStreams.getTruncateBefore(sid)
           wr1 <- metaStreams.setTruncateBefore(sid, NoStream, 100L)
           ma2 <- metaStreams.getTruncateBefore(sid)
-          wr2 <- metaStreams.removeTruncateBefore(sid, wr1.currentMetaRevision)
+          wr2 <- metaStreams.unsetTruncateBefore(sid, wr1.currentMetaRevision)
           ma3 <- metaStreams.getTruncateBefore(sid)
         } yield {
           ma1 should beNone
@@ -213,19 +213,13 @@ class MetaStreamsSuite extends SnSpec {
 
       "custom" >> {
 
-        final case class Bar(n: Int)
-        final case class Foo(bars: List[Bar])
-
-        implicit val codecBar: Codec.AsObject[Bar] = Codec.forProduct1("n")(Bar)(_.n)
-        implicit val codecFoo: Codec.AsObject[Foo] = Codec.forProduct1("bars")(Foo)(_.bars)
-
         for {
           sid <- mkStreamId("custom_api").pure[IO]
-          foo <- Foo(bars = (1 to 5).map(Bar).toList).pure[IO]
+          foo <- Foo(bars = (1 to 5).map(i => Bar(i.toString)).toList).pure[IO]
           ma1 <- metaStreams.getCustom[Foo](sid, None)
           wr1 <- metaStreams.setCustom(sid, NoStream, foo, None)
           ma2 <- metaStreams.getCustom[Foo](sid, None)
-          wr2 <- metaStreams.removeCustom(sid, wr1.currentMetaRevision, None)
+          wr2 <- metaStreams.unsetCustom(sid, wr1.currentMetaRevision, None)
           ma3 <- metaStreams.getCustom[Foo](sid, None)
         } yield {
           ma1 should beNone
