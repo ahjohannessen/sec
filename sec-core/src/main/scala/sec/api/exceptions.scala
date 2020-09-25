@@ -18,6 +18,7 @@ package sec
 package api
 
 import scala.util.control.NoStackTrace
+import cats.syntax.all._
 import sec.core._
 
 object exceptions {
@@ -53,26 +54,48 @@ object exceptions {
       s"Maximum append size ${maxSize.map(max => s"of $max bytes ").getOrElse("")}exceeded."
   }
 
+  final case class WrongExpectedRevision(
+    sid: StreamId,
+    expected: StreamRevision,
+    actual: StreamRevision
+  ) extends EsException(WrongExpectedRevision.msg(sid, expected, actual))
+
+  object WrongExpectedRevision {
+
+    def msg(sid: StreamId, expected: StreamRevision, actual: StreamRevision): String =
+      s"Wrong expected revision for stream: ${sid.show}, expected: ${expected.show}, actual: ${actual.show}"
+
+  }
+
+  // TODO: Remove when ESDB does not transport this via response headers
   final case class WrongExpectedVersion(
     streamId: String,
     expected: Option[Long],
     actual: Option[Long]
   ) extends EsException(WrongExpectedVersion.msg(streamId, expected, actual))
 
-  object WrongExpectedVersion {
-
-    def apply(
-      sid: StreamId,
-      expected: Option[EventNumber.Exact],
-      actual: Option[EventNumber.Exact]
-    ): WrongExpectedVersion =
-      WrongExpectedVersion(sid.stringValue, expected.map(_.value), actual.map(_.value))
+  private[sec] object WrongExpectedVersion {
 
     def msg(streamId: String, expected: Option[Long], actual: Option[Long]): String = {
       val exp = expected.map(_.toString).getOrElse("<unknown>")
       val act = actual.map(_.toString).getOrElse("<unknown>")
       s"WrongExpectedVersion for stream: $streamId, expected version: $exp, actual version: $act"
     }
+
+    def adaptOrFallback(e: WrongExpectedVersion, sid: StreamId, expected: StreamRevision): Throwable = {
+
+      def mkException(actual: StreamRevision) = WrongExpectedRevision(sid, expected, actual)
+      def noStream                            = mkException(StreamRevision.NoStream).some
+      def mkExact(a: Long)                    = EventNumber.Exact(a).toOption.map(mkException)
+
+      e.actual.fold(noStream)(mkExact).getOrElse(e)
+    }
+
+    implicit final class WrongExpectedVersionOps(val e: WrongExpectedVersion) extends AnyVal {
+      def adaptOrFallback(sid: StreamId, expected: StreamRevision): Throwable =
+        WrongExpectedVersion.adaptOrFallback(e, sid, expected)
+    }
+
   }
 
   object PersistentSubscription {

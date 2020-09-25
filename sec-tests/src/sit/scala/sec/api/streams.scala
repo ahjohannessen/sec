@@ -872,13 +872,15 @@ class StreamsSuite extends SnSpec {
 
         "raises with exact expected stream revision" >> {
           test(EventNumber.Start).attempt.map {
-            _ should beLike { case Left(WrongExpectedVersion(_, Some(0L), None)) => ok }
+            _ should beLike { case Left(WrongExpectedRevision(_, EventNumber.Start, StreamRevision.NoStream)) => ok }
           }
         }
 
         "raises with stream exists expected stream revision" >> {
           test(StreamRevision.StreamExists).attempt.map {
-            _ should beLike { case Left(WrongExpectedVersion(_, None, None)) => ok }
+            _ should beLike {
+              case Left(WrongExpectedRevision(_, StreamRevision.StreamExists, StreamRevision.NoStream)) => ok
+            }
           }
         }
 
@@ -1001,8 +1003,9 @@ class StreamsSuite extends SnSpec {
         }
 
         "raises with incorrect expected revision" >> {
-          test(EventNumber.exact(1)).attempt.map {
-            _ should beLike { case Left(WrongExpectedVersion(_, Some(1L), Some(0L))) => ok }
+          val expected = EventNumber.exact(1L)
+          test(expected).attempt.map {
+            _ should beLike { case Left(WrongExpectedRevision(_, `expected`, EventNumber.Start)) => ok }
           }
         }
 
@@ -1157,7 +1160,7 @@ class StreamsSuite extends SnSpec {
           } yield ()
 
           result.attempt.map {
-            _ should beLike { case Left(WrongExpectedVersion(_, Some(6), Some(5))) => ok }
+            _ should beLeft(WrongExpectedRevision(id, EventNumber.exact(6), EventNumber.exact(5)))
           }
         }
 
@@ -1172,7 +1175,7 @@ class StreamsSuite extends SnSpec {
           } yield ()
 
           result.attempt.map {
-            _ should beLike { case Left(WrongExpectedVersion(_, Some(4), Some(5))) => ok }
+            _ should beLeft(WrongExpectedRevision(id, EventNumber.exact(4), EventNumber.exact(5)))
           }
         }
 
@@ -1275,7 +1278,7 @@ class StreamsSuite extends SnSpec {
 
           streams.appendToStream(id, StreamRevision.NoStream, first) >> {
             streams.appendToStream(id, StreamRevision.NoStream, second).attempt.map {
-              _ should beLike { case Left(WrongExpectedVersion(_, _, Some(1L))) => ok }
+              _ should beLeft(WrongExpectedRevision(id, StreamRevision.NoStream, EventNumber.exact(1L)))
             }
           }
         }
@@ -1310,7 +1313,7 @@ class StreamsSuite extends SnSpec {
 
         "raises with wrong expected revision" >> {
           run(EventNumber.Start).attempt.map {
-            _ should beLike { case Left(WrongExpectedVersion(_, Some(0), None)) => ok }
+            _ should beLike { case Left(WrongExpectedRevision(_, EventNumber.Start, StreamRevision.NoStream)) => ok }
           }
         }
 
@@ -1460,11 +1463,7 @@ class StreamsSuite extends SnSpec {
 
           wr1.currentRevision shouldEqual EventNumber.exact(1)
           wr2.currentRevision shouldEqual EventNumber.exact(4)
-          wr3 should beLike { case Left(e: WrongExpectedVersion) =>
-            e.expected should beSome(-1) // NoStream
-            e.actual should beSome(4)
-            e.streamId shouldEqual id.stringValue
-          }
+          wr3 should beLeft(WrongExpectedRevision(id, StreamRevision.NoStream, EventNumber.exact(4L)))
         }
 
       }
@@ -1590,7 +1589,7 @@ class StreamsSuite extends SnSpec {
 
         "raises with wrong expected revision" >> {
           run(EventNumber.Start).attempt.map {
-            _ should beLike { case Left(WrongExpectedVersion(_, Some(0), None)) => ok }
+            _ should beLike { case Left(WrongExpectedRevision(_, EventNumber.Start, StreamRevision.NoStream)) => ok }
           }
         }
 

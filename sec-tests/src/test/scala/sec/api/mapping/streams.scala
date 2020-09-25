@@ -24,8 +24,9 @@ import cats.syntax.all._
 import cats.data.NonEmptyList
 import scodec.bits.ByteVector
 import org.specs2._
-import com.eventstore.client._
-import com.eventstore.client.streams._
+import com.eventstore.dbclient.proto.shared._
+import com.eventstore.dbclient.proto.streams._
+import sec.api.exceptions.WrongExpectedRevision
 import sec.{core => c}
 import sec.api.mapping.shared._
 import sec.api.mapping.streams.outgoing
@@ -40,7 +41,7 @@ class StreamsMappingSpec extends mutable.Specification {
     import ReadReq.Options.AllOptions.AllOption
     import ReadReq.Options.StreamOptions.RevisionOption
 
-    val empty = com.eventstore.client.Empty()
+    val empty = Empty()
 
     ///
 
@@ -81,14 +82,14 @@ class StreamsMappingSpec extends mutable.Specification {
 
       mapReadEventFilter(mkOptions(streamIdPrefix("a", "b"))) shouldEqual Filter(
         FilterOptions()
-          .withStreamName(Expression().withPrefix(List("a", "b")))
+          .withStreamIdentifier(Expression().withPrefix(List("a", "b")))
           .withMax(10)
           .withCheckpointIntervalMultiplier(1)
       )
 
       mapReadEventFilter(mkOptions(streamIdPrefix("a"), None, 1)) shouldEqual Filter(
         FilterOptions()
-          .withStreamName(Expression().withPrefix(List("a")))
+          .withStreamIdentifier(Expression().withPrefix(List("a")))
           .withCount(empty)
           .withCheckpointIntervalMultiplier(1)
       )
@@ -109,14 +110,14 @@ class StreamsMappingSpec extends mutable.Specification {
 
       mapReadEventFilter(mkOptions(streamIdRegex("^[^$].*"))) shouldEqual Filter(
         FilterOptions()
-          .withStreamName(Expression().withRegex("^[^$].*"))
+          .withStreamIdentifier(Expression().withRegex("^[^$].*"))
           .withMax(10)
           .withCheckpointIntervalMultiplier(1)
       )
 
       mapReadEventFilter(mkOptions(streamIdRegex("^(ns_).+"), None, 1)) shouldEqual Filter(
         FilterOptions()
-          .withStreamName(Expression().withRegex("^(ns_).+"))
+          .withStreamIdentifier(Expression().withRegex("^(ns_).+"))
           .withCount(empty)
           .withCheckpointIntervalMultiplier(1)
       )
@@ -330,7 +331,7 @@ class StreamsMappingSpec extends mutable.Specification {
     import grpc.constants.Metadata.{ContentType, ContentTypes, Created, Type}
     import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
 
-    val empty = com.eventstore.client.Empty()
+    val empty = Empty()
 
     "mkEvent" >> {
 
@@ -538,8 +539,11 @@ class StreamsMappingSpec extends mutable.Specification {
     "mkWriteResult" >> {
 
       import AppendResp.{Result, Success}
+      import AppendResp.WrongExpectedVersion.ExpectedRevisionOption
+      import AppendResp.WrongExpectedVersion.CurrentRevisionOption
 
-      val test: AppendResp => ErrorOr[WriteResult] = mkWriteResult[ErrorOr](c.StreamId.from("abc").unsafe, _)
+      val sid: c.StreamId.Id                       = c.StreamId.from("abc").unsafe
+      val test: AppendResp => ErrorOr[WriteResult] = mkWriteResult[ErrorOr](sid, _)
 
       val successRevOne   = Success().withCurrentRevision(1L).withPosition(AppendResp.Position(1L, 1L))
       val successRevEmpty = Success().withCurrentRevisionOption(Success.CurrentRevisionOption.Empty)
@@ -552,7 +556,7 @@ class StreamsMappingSpec extends mutable.Specification {
         ProtoResultError("Did not expect NoStream when using NonEmptyList").asLeft
 
       test(AppendResp().withSuccess(successRevEmpty)) shouldEqual
-        ProtoResultError("CurrentRevisionOptions is missing").asLeft
+        ProtoResultError("CurrentRevisionOption is missing").asLeft
 
       test(AppendResp().withSuccess(successRevOne.withNoPosition(empty))) shouldEqual
         ProtoResultError("Did not expect NoPosition when using NonEmptyList").asLeft
@@ -560,7 +564,43 @@ class StreamsMappingSpec extends mutable.Specification {
       test(AppendResp().withSuccess(successRevOne.withPositionOption(Success.PositionOption.Empty))) shouldEqual
         ProtoResultError("PositionOption is missing").asLeft
 
-      // TODO: WrongExpectedVersion
+      ///
+
+      val wreExpectedOne          = ExpectedRevisionOption.ExpectedRevision(1L)
+      val wreExpectedNoStream     = ExpectedRevisionOption.ExpectedNoStream(empty)
+      val wreExpectedAny          = ExpectedRevisionOption.ExpectedAny(empty)
+      val wreExpectedStreamExists = ExpectedRevisionOption.ExpectedStreamExists(empty)
+      val wreExpectedEmpty        = ExpectedRevisionOption.Empty
+
+      val wreCurrentRevTwo   = CurrentRevisionOption.CurrentRevision(2L)
+      val wreCurrentNoStream = CurrentRevisionOption.CurrentNoStream(empty)
+      val wreCurrentEmpty    = CurrentRevisionOption.Empty
+
+      def mkExpected(e: ExpectedRevisionOption) = AppendResp().withWrongExpectedVersion(
+        AppendResp.WrongExpectedVersion(expectedRevisionOption = e, currentRevisionOption = wreCurrentRevTwo)
+      )
+
+      def testExpected(ero: ExpectedRevisionOption, expected: c.StreamRevision) =
+        test(mkExpected(ero)) shouldEqual WrongExpectedRevision(sid, expected, c.EventNumber.exact(2L)).asLeft
+
+      testExpected(wreExpectedOne, c.EventNumber.exact(1L))
+      testExpected(wreExpectedNoStream, c.StreamRevision.NoStream)
+      testExpected(wreExpectedAny, c.StreamRevision.Any)
+      testExpected(wreExpectedStreamExists, c.StreamRevision.StreamExists)
+      test(mkExpected(wreExpectedEmpty)) shouldEqual ProtoResultError("ExpectedRevisionOption is missing").asLeft
+
+      def mkCurrent(c: CurrentRevisionOption) = AppendResp().withWrongExpectedVersion(
+        AppendResp.WrongExpectedVersion(expectedRevisionOption = wreExpectedOne, currentRevisionOption = c)
+      )
+
+      def testCurrent(cro: CurrentRevisionOption, actual: c.StreamRevision) =
+        test(mkCurrent(cro)) shouldEqual WrongExpectedRevision(sid, c.EventNumber.exact(1L), actual).asLeft
+
+      testCurrent(wreCurrentRevTwo, c.EventNumber.exact(2L))
+      testCurrent(wreCurrentNoStream, c.StreamRevision.NoStream)
+      test(mkCurrent(wreCurrentEmpty)) shouldEqual ProtoResultError("CurrentRevisionOption is missing").asLeft
+
+      ///
 
       test(AppendResp().withResult(Result.Empty)) shouldEqual
         ProtoResultError("Result is missing").asLeft

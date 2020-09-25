@@ -25,10 +25,10 @@ import cats.syntax.all._
 import cats.effect._
 import cats.effect.concurrent.Ref
 import fs2.{Pipe, Pull, Stream}
-import com.eventstore.client.streams._
+import com.eventstore.dbclient.proto.streams._
 import io.chrisdavenport.log4cats.Logger
 import sec.core._
-import sec.api.exceptions.StreamNotFound
+import sec.api.exceptions.{StreamNotFound, WrongExpectedVersion}
 import sec.api.mapping.shared._
 import sec.api.mapping.streams.outgoing._
 import sec.api.mapping.streams.incoming._
@@ -280,14 +280,18 @@ object Streams {
     expectedRevision: StreamRevision,
     opts: Opts[F]
   )(f: DeleteReq => F[DeleteResp]): F[DeleteResult] =
-    opts.run(f(mkDeleteReq(streamId, expectedRevision)), "delete") >>= mkDeleteResult[F]
+    (opts.run(f(mkDeleteReq(streamId, expectedRevision)), "delete") >>= mkDeleteResult[F]).adaptError {
+      case e: WrongExpectedVersion => e.adaptOrFallback(streamId, expectedRevision)
+    }
 
   private[sec] def tombstone0[F[_]: Concurrent: Timer](
     streamId: StreamId,
     expectedRevision: StreamRevision,
     opts: Opts[F]
   )(f: TombstoneReq => F[TombstoneResp]): F[DeleteResult] =
-    opts.run(f(mkTombstoneReq(streamId, expectedRevision)), "tombstone") >>= mkDeleteResult[F]
+    (opts.run(f(mkTombstoneReq(streamId, expectedRevision)), "tombstone") >>= mkDeleteResult[F]).adaptError {
+      case e: WrongExpectedVersion => e.adaptOrFallback(streamId, expectedRevision)
+    }
 
 //======================================================================================================================
 

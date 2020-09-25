@@ -21,9 +21,8 @@ import scala.concurrent.duration._
 import cats.effect.IO
 import cats.syntax.all._
 import sec.core._
-import sec.api._
 import sec.api.MetaStreams.Result
-import sec.api.exceptions.WrongExpectedVersion
+import sec.api.exceptions.WrongExpectedRevision
 import sec.syntax.all._
 
 class MetaStreamsSuite extends SnSpec {
@@ -114,7 +113,7 @@ class MetaStreamsSuite extends SnSpec {
       val sid = mkStreamId("set_metadata_with_wrong_expected_revision_raises")
 
       metaStreams.setMetadata(sid, exact(2), StreamMetadata.empty).attempt.map {
-        _ should beLike { case Left(e: WrongExpectedVersion) => e.streamId shouldEqual sid.metaId.stringValue }
+        _ should beLeft(WrongExpectedRevision(sid.metaId, exact(2), StreamRevision.NoStream))
       }
     }
 
