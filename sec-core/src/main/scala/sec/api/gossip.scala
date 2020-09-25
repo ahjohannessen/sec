@@ -23,8 +23,8 @@ import java.time.temporal.ChronoUnit.SECONDS
 import cats._
 import cats.implicits._
 import cats.effect.{Concurrent, Timer}
-import com.eventstore.client.gossip.{GossipFs2Grpc, ClusterInfo => PClusterInfo}
-import com.eventstore.client.Empty
+import com.eventstore.dbclient.proto.gossip.{GossipFs2Grpc, ClusterInfo => PClusterInfo}
+import com.eventstore.dbclient.proto.shared.Empty
 import sec.api.mapping.gossip.mkClusterInfo
 
 trait Gossip[F[_]] {

@@ -21,7 +21,7 @@ package mapping
 import java.util.{UUID => JUUID}
 import cats.syntax.all._
 import org.specs2._
-import com.eventstore.client._
+import com.eventstore.dbclient.proto.shared._
 import sec.api.mapping.shared._
 import sec.core.StreamId
 

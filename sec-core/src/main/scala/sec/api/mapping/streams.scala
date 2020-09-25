@@ -20,10 +20,10 @@ package mapping
 
 import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.all._
-import com.eventstore.client._
-import com.eventstore.client.streams._
+import com.eventstore.dbclient.proto.shared._
+import com.eventstore.dbclient.proto.streams._
 import sec.core._
-import sec.api.exceptions.WrongExpectedVersion
+import sec.api.exceptions._
 import sec.api.Streams._
 import sec.api.mapping.implicits._
 import sec.api.mapping.time._
@@ -88,7 +88,7 @@ private[sec] object streams {
           .withCheckpointIntervalMultiplier(options.checkpointIntervalMultiplier)
 
         val result = options.filter.kind match {
-          case EventFilter.ByStreamId  => filterOptions.withStreamName(expr)
+          case EventFilter.ByStreamId  => filterOptions.withStreamIdentifier(expr)
           case EventFilter.ByEventType => filterOptions.withEventType(expr)
         }
 
@@ -278,7 +278,9 @@ private[sec] object streams {
 
     def mkWriteResult[F[_]: ErrorA](sid: StreamId, ar: AppendResp): F[WriteResult] = {
 
-      import com.eventstore.client.streams.AppendResp.{Result, Success}
+      import AppendResp.{Result, Success}
+      import AppendResp.WrongExpectedVersion.ExpectedRevisionOption
+      import AppendResp.WrongExpectedVersion.CurrentRevisionOption
 
       def error[T](msg: String): Either[Throwable, T] =
         ProtoResultError(msg).asLeft[T]
@@ -294,7 +296,7 @@ private[sec] object streams {
         val revision: Either[Throwable, EventNumber.Exact] = s.value.currentRevisionOption match {
           case Success.CurrentRevisionOption.CurrentRevision(v) => EventNumber.exact(v).asRight
           case Success.CurrentRevisionOption.NoStream(_)        => error("Did not expect NoStream when using NonEmptyList")
-          case Success.CurrentRevisionOption.Empty              => error("CurrentRevisionOptions is missing")
+          case Success.CurrentRevisionOption.Empty              => error("CurrentRevisionOption is missing")
         }
 
         (revision, position).mapN((r, p) => WriteResult(r, p))
@@ -302,15 +304,27 @@ private[sec] object streams {
       }
 
       def wrongExpectedVersion(w: Result.WrongExpectedVersion) = {
-        // TODO: Decide what to do with other cases
-        val expected = w.value.expectedRevisionOption.expectedRevision
-        val actual   = w.value.currentRevisionOption.currentRevision
-        WrongExpectedVersion(sid.stringValue, expected, actual).asLeft
+
+        val expected: Either[Throwable, StreamRevision] = w.value.expectedRevisionOption match {
+          case ExpectedRevisionOption.ExpectedRevision(v)     => EventNumber.exact(v).asRight
+          case ExpectedRevisionOption.ExpectedNoStream(_)     => StreamRevision.NoStream.asRight
+          case ExpectedRevisionOption.ExpectedAny(_)          => StreamRevision.Any.asRight
+          case ExpectedRevisionOption.ExpectedStreamExists(_) => StreamRevision.StreamExists.asRight
+          case ExpectedRevisionOption.Empty                   => error("ExpectedRevisionOption is missing")
+        }
+
+        val actual: Either[Throwable, StreamRevision] = w.value.currentRevisionOption match {
+          case CurrentRevisionOption.CurrentRevision(v) => EventNumber.exact(v).asRight
+          case CurrentRevisionOption.CurrentNoStream(_) => StreamRevision.NoStream.asRight
+          case CurrentRevisionOption.Empty              => error("CurrentRevisionOption is missing")
+        }
+
+        (expected, actual).mapN((e, a) => WrongExpectedRevision(sid, e, a))
       }
 
-      val result = ar.result match {
+      val result: Either[Throwable, WriteResult] = ar.result match {
         case s: Result.Success              => success(s)
-        case w: Result.WrongExpectedVersion => wrongExpectedVersion(w)
+        case w: Result.WrongExpectedVersion => wrongExpectedVersion(w) >>= (_.asLeft[WriteResult])
         case Result.Empty                   => error("Result is missing")
       }
 

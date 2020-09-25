@@ -21,8 +21,8 @@ import scala.concurrent.duration._
 import cats.Endo
 import cats.data.NonEmptySet
 import cats.effect.{ConcurrentEffect, Timer}
-import com.eventstore.client.streams.StreamsFs2Grpc
-import com.eventstore.client.gossip.GossipFs2Grpc
+import com.eventstore.dbclient.proto.streams.StreamsFs2Grpc
+import com.eventstore.dbclient.proto.gossip.GossipFs2Grpc
 import io.grpc.{CallOptions, ManagedChannel}
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.noop.NoOpLogger
