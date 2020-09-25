@@ -25,72 +25,112 @@ import sec.core._
 import sec.core.EventNumber.Exact
 import sec.core.StreamId.Id
 
-object api {
-
-  implicit def syntaxForMetaStreams[F[_]: ErrorM](ms: MetaStreams[F]): MetaStreamsSyntax[F] =
-    new MetaStreamsSyntax[F](ms)
-
 //====================================================================================================================
 
-  final class MetaStreamsSyntax[F[_]: ErrorM](val ms: MetaStreams[F]) {
+trait MetaStreamsSyntax {
 
-    def getMaxAge(id: Id): F[Option[ReadResult[MaxAge]]] =
-      ms.getMaxAge(id, None)
-
-    def setMaxAge(id: Id, expectedRevision: StreamRevision, age: FiniteDuration): F[WriteResult] =
-      MaxAge.lift[F](age) >>= (ms.setMaxAge(id, expectedRevision, _, None))
-
-    def removeMaxAge(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
-      ms.removeMaxAge(id, expectedRevision, None)
-
-    def getMaxCount(id: Id): F[Option[ReadResult[MaxCount]]] =
-      ms.getMaxCount(id, None)
-
-    def setMaxCount(id: Id, expectedRevision: StreamRevision, count: Int): F[WriteResult] =
-      MaxCount.lift[F](count) >>= (ms.setMaxCount(id, expectedRevision, _, None))
-
-    def removeMaxCount(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
-      ms.removeMaxCount(id, expectedRevision, None)
-
-    def getCacheControl(id: Id): F[Option[ReadResult[CacheControl]]] =
-      ms.getCacheControl(id, None)
-
-    def setCacheControl(id: Id, expectedRevision: StreamRevision, cacheControl: FiniteDuration): F[WriteResult] =
-      CacheControl.lift[F](cacheControl) >>= (ms.setCacheControl(id, expectedRevision, _, None))
-
-    def removeCacheControl(id: Id, expectedRevision: StreamRevision): F[MetaStreams.WriteResult] =
-      ms.removeCacheControl(id, expectedRevision, None)
-
-    def getAcl(id: Id): F[Option[ReadResult[StreamAcl]]] =
-      ms.getAcl(id, None)
-
-    def setAcl(id: Id, expectedRevision: StreamRevision, acl: StreamAcl): F[WriteResult] =
-      ms.setAcl(id, expectedRevision, acl, None)
-
-    def removeAcl(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
-      ms.removeAcl(id, expectedRevision, None)
-
-    def getTruncateBefore(id: Id): F[Option[ReadResult[Exact]]] =
-      ms.getTruncateBefore(id, None)
-
-    def setTruncateBefore(id: Id, expectedRevision: StreamRevision, truncateBefore: Long): F[WriteResult] =
-      EventNumber.Exact.lift[F](truncateBefore) >>= (ms.setTruncateBefore(id, expectedRevision, _, None))
-
-    def removeTruncateBefore(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
-      ms.removeTruncateBefore(id, expectedRevision, None)
-
-    ///
-
-    private[sec] def getMetadata(id: Id): F[Option[MetaResult]] =
-      ms.getMetadata(id, None)
-
-    private[sec] def setMetadata(id: Id, expectedRevision: StreamRevision, data: StreamMetadata): F[WriteResult] =
-      ms.setMetadata(id, expectedRevision, data, None)
-
-    private[sec] def removeMetadata(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
-      ms.removeMetadata(id, expectedRevision, None)
-  }
-
-//====================================================================================================================
-
+  implicit final def syntaxForMetaStreams[F[_]: ErrorM](ms: MetaStreams[F]): MetaStreamsOps[F] =
+    new MetaStreamsOps[F](ms)
 }
+
+//====================================================================================================================
+
+final class MetaStreamsOps[F[_]: ErrorM](val ms: MetaStreams[F]) {
+
+  def getMaxAge(id: Id): F[Option[ReadResult[MaxAge]]] =
+    ms.getMaxAge(id, None)
+
+  def setMaxAge(id: Id, expectedRevision: StreamRevision, age: FiniteDuration): F[WriteResult] =
+    setMaxAgeF(id, expectedRevision, age, None)
+
+  def setMaxAge(id: Id, expectedRevision: StreamRevision, age: FiniteDuration, uc: UserCredentials): F[WriteResult] =
+    setMaxAgeF(id, expectedRevision, age, uc.some)
+
+  private def setMaxAgeF(id: Id, er: StreamRevision, age: FiniteDuration, uc: Option[UserCredentials]): F[WriteResult] =
+    MaxAge.lift[F](age) >>= (ms.setMaxAge(id, er, _, uc))
+
+  def unsetMaxAge(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
+    ms.unsetMaxAge(id, expectedRevision, None)
+
+  def getMaxCount(id: Id): F[Option[ReadResult[MaxCount]]] =
+    ms.getMaxCount(id, None)
+
+  def setMaxCount(id: Id, expectedRevision: StreamRevision, count: Int): F[WriteResult] =
+    setMaxCountF(id, expectedRevision, count, None)
+
+  def setMaxCount(id: Id, expectedRevision: StreamRevision, count: Int, uc: UserCredentials): F[WriteResult] =
+    setMaxCountF(id, expectedRevision, count, uc.some)
+
+  private def setMaxCountF(id: Id, er: StreamRevision, count: Int, uc: Option[UserCredentials]): F[WriteResult] =
+    MaxCount.lift[F](count) >>= (ms.setMaxCount(id, er, _, uc))
+
+  def unsetMaxCount(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
+    ms.unsetMaxCount(id, expectedRevision, None)
+
+  def getCacheControl(id: Id): F[Option[ReadResult[CacheControl]]] =
+    ms.getCacheControl(id, None)
+
+  def setCacheControl(id: Id, expectedRevision: StreamRevision, cacheControl: FiniteDuration): F[WriteResult] =
+    setCacheControlF(id, expectedRevision, cacheControl, None)
+
+  def setCacheControl(
+    id: Id,
+    expectedRevision: StreamRevision,
+    cacheControl: FiniteDuration,
+    uc: UserCredentials
+  ): F[WriteResult] =
+    setCacheControlF(id, expectedRevision, cacheControl, uc.some)
+
+  private def setCacheControlF(
+    id: Id,
+    er: StreamRevision,
+    cc: FiniteDuration,
+    uc: Option[UserCredentials]
+  ): F[WriteResult] =
+    CacheControl.lift[F](cc) >>= (ms.setCacheControl(id, er, _, uc))
+
+  def unsetCacheControl(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
+    ms.unsetCacheControl(id, expectedRevision, None)
+
+  def getAcl(id: Id): F[Option[ReadResult[StreamAcl]]] =
+    ms.getAcl(id, None)
+
+  def setAcl(id: Id, expectedRevision: StreamRevision, acl: StreamAcl): F[WriteResult] =
+    ms.setAcl(id, expectedRevision, acl, None)
+
+  def unsetAcl(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
+    ms.unsetAcl(id, expectedRevision, None)
+
+  def getTruncateBefore(id: Id): F[Option[ReadResult[Exact]]] =
+    ms.getTruncateBefore(id, None)
+
+  def setTruncateBefore(id: Id, expectedRevision: StreamRevision, truncateBefore: Long): F[WriteResult] =
+    setTruncateBeforeF(id, expectedRevision, truncateBefore, None)
+
+  def setTruncateBefore(
+    id: Id,
+    expectedRevision: StreamRevision,
+    truncateBefore: Long,
+    uc: UserCredentials
+  ): F[WriteResult] =
+    setTruncateBeforeF(id, expectedRevision, truncateBefore, uc.some)
+
+  private def setTruncateBeforeF(id: Id, er: StreamRevision, tb: Long, uc: Option[UserCredentials]): F[WriteResult] =
+    EventNumber.Exact.lift[F](tb) >>= (ms.setTruncateBefore(id, er, _, uc))
+
+  def unsetTruncateBefore(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
+    ms.unsetTruncateBefore(id, expectedRevision, None)
+
+  ///
+
+  private[sec] def getMetadata(id: Id): F[Option[MetaResult]] =
+    ms.getMetadata(id, None)
+
+  private[sec] def setMetadata(id: Id, expectedRevision: StreamRevision, data: StreamMetadata): F[WriteResult] =
+    ms.setMetadata(id, expectedRevision, data, None)
+
+  private[sec] def unsetMetadata(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
+    ms.unsetMetadata(id, expectedRevision, None)
+}
+
+//====================================================================================================================

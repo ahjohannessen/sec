@@ -31,7 +31,7 @@ import fs2._
 import sec.core._
 import sec.api.Direction._
 import sec.api.exceptions._
-import sec.syntax.api._
+import sec.syntax.all._
 import helpers.text.mkSnakeCase
 
 class StreamsSuite extends SnSpec {
