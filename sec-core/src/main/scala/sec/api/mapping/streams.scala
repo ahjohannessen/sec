@@ -239,6 +239,9 @@ private[sec] object streams {
       (event <+> checkpoint).value
     }
 
+    def mkStreamNotFound[F[_]: ErrorM](snf: ReadResp.StreamNotFound): F[StreamNotFound] =
+      snf.streamIdentifier.require[F]("StreamIdentifer expected") >>= (_.utf8[F].map(StreamNotFound))
+
     def mkEvent[F[_]: ErrorM](re: ReadResp.ReadEvent): F[Option[Event]] =
       re.event.traverse(mkEventRecord[F]) >>= { eOpt =>
         re.link.traverse(mkEventRecord[F]).map(lOpt => eOpt.map(er => lOpt.fold[Event](er)(ResolvedEvent(er, _))))

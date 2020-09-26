@@ -101,7 +101,7 @@ private[sec] object convert {
       s"${prefix}Channel closed."
 
     def normalizedMsg(msg: String): String =
-      s"${prefix}${msg.replace("UNAVAILABLE:", "").replace("UNAVAILABLE", "").trim}"
+      s"$prefix${msg.replace("UNAVAILABLE:", "").replace("UNAVAILABLE", "").trim}"
 
     def exMsg: Option[String] =
       Option(ex.getMessage).map(normalizedMsg).filter(_.isEmpty)

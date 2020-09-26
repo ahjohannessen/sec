@@ -43,6 +43,7 @@ object Dependencies {
   val catsEffectSpecs2 = "com.codecommit"    %% "cats-effect-testing-specs2"      % versions.catsEffectSpecs2
   val logback          = "ch.qos.logback"     % "logback-classic"                 % versions.logback
   val log4catsNoop     = "io.chrisdavenport" %% "log4cats-noop"                   % versions.log4cats
+  val log4catsTesting  = "io.chrisdavenport" %% "log4cats-testing"                % versions.log4cats
   val log4catsSlf4j    = "io.chrisdavenport" %% "log4cats-slf4j"                  % versions.log4cats
   val grpcNetty        = "io.grpc"            % "grpc-netty"                      % versions.grpc
   val tcnative         = "io.netty"           % "netty-tcnative-boringssl-static" % versions.tcnative

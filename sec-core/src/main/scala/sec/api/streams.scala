@@ -28,8 +28,7 @@ import fs2.{Pipe, Pull, Stream}
 import com.eventstore.dbclient.proto.streams._
 import io.chrisdavenport.log4cats.Logger
 import sec.core._
-import sec.api.exceptions.{StreamNotFound, WrongExpectedVersion}
-import sec.api.mapping.shared._
+import sec.api.exceptions.WrongExpectedVersion
 import sec.api.mapping.streams.outgoing._
 import sec.api.mapping.streams.incoming._
 import sec.api.mapping.implicits._
@@ -299,12 +298,7 @@ object Streams {
     _.evalMap(_.content.event.require[F]("ReadEvent expected!").flatMap(mkEvent[F])).unNone
 
   private[sec] def failStreamNotFound[F[_]: ErrorM]: Pipe[F, ReadResp, ReadResp] = _.evalMap { r =>
-    r.content.streamNotFound.fold(r.pure[F])(
-      _.streamIdentifier
-        .require[F]("StreamIdentifer expected!")
-        .flatMap(_.utf8[F].map(StreamNotFound))
-        .flatMap(_.raiseError[F, ReadResp])
-    )
+    r.content.streamNotFound.fold(r.pure[F])(mkStreamNotFound[F](_) >>= (_.raiseError[F, ReadResp]))
   }
 
   private[sec] def subConfirmationPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, ReadResp] = in => {
@@ -316,8 +310,8 @@ object Streams {
       id => log.debug(s"SubscriptionConfirmation received, id: $id")
 
     val initialPull = in.pull.uncons1.flatMap {
-      case Some((hd, tail)) => Pull.eval(extractConfirmation(hd) >>= logConfirmation) >> tail.pull.echo
-      case None             => Pull.done
+      case Some((head, tail)) => Pull.eval(extractConfirmation(head) >>= logConfirmation) >> tail.pull.echo
+      case None               => Pull.done
     }
 
     initialPull.stream

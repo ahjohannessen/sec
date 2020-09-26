@@ -56,14 +56,6 @@ private[sec] object retries {
           case _: Duration.Infinite => c.maxDelay
         }
 
-      def logWarn[F[_]](action: String, log: Logger[F])(attempt: Int, delay: FiniteDuration, th: Throwable): F[Unit] =
-        log.warn(
-          s"$action failed, attempt $attempt of ${c.maxAttempts}, retrying in ${format(delay)} - ${th.getMessage}"
-        )
-
-      def logError[F[_]](action: String, log: Logger[F])(th: Throwable): F[Unit] =
-        log.error(s"$action failed after ${c.maxAttempts} attempts - ${th.getMessage}")
-
     }
   }
 
@@ -72,8 +64,6 @@ private[sec] object retries {
   final case class Timeout(after: FiniteDuration) extends RuntimeException(s"Timed out after ${format(after)}.")
 
 //======================================================================================================================
-
-  // TODO: Tests
 
   def retry[F[_]: Concurrent: Timer, A](
     action: F[A],
@@ -87,8 +77,8 @@ private[sec] object retries {
       action.timeout(to).adaptError { case _: TimeoutException => Timeout(to) }
 
     val fa       = timeout.fold(action)(withTimeout)
-    val logWarn  = retryConfig.logWarn[F](actionName, log) _
-    val logError = retryConfig.logError[F](actionName, log) _
+    val logWarn  = retries.logWarn[F](retryConfig, actionName, log) _
+    val logError = retries.logError[F](retryConfig, actionName, log) _
 
     def run(attempts: Int, d: FiniteDuration): F[A] = fa.recoverWith {
       case NonFatal(t) if retryOn(t) =>
@@ -101,6 +91,18 @@ private[sec] object retries {
 
     run(0, retryConfig.delay)
   }
+
+//======================================================================================================================
+
+  def logWarn[F[_]](cfg: RetryConfig, action: String, log: Logger[F])(
+    attempt: Int,
+    delay: FiniteDuration,
+    th: Throwable
+  ): F[Unit] =
+    log.warn(s"$action failed, attempt $attempt of ${cfg.maxAttempts}, retrying in ${format(delay)} - ${th.getMessage}")
+
+  def logError[F[_]](cfg: RetryConfig, action: String, log: Logger[F])(th: Throwable): F[Unit] =
+    log.error(s"$action failed after ${cfg.maxAttempts} attempts - ${th.getMessage}")
 
 //======================================================================================================================
 
