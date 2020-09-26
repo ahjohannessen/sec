@@ -26,7 +26,7 @@ import scodec.bits.ByteVector
 import org.specs2._
 import com.eventstore.dbclient.proto.shared._
 import com.eventstore.dbclient.proto.streams._
-import sec.api.exceptions.WrongExpectedRevision
+import sec.api.exceptions.{StreamNotFound, WrongExpectedRevision}
 import sec.{core => c}
 import sec.api.mapping.shared._
 import sec.api.mapping.streams.outgoing
@@ -526,6 +526,16 @@ class StreamsMappingSpec extends mutable.Specification {
 
       mkCheckpointOrEvent[ErrorOr](ReadResp()) shouldEqual
         None.asRight[Either[Checkpoint, c.Event]]
+    }
+
+    "mkStreamNotFound" >> {
+
+      mkStreamNotFound[ErrorOr](ReadResp.StreamNotFound()) shouldEqual
+        ProtoResultError("Required value StreamIdentifer expected missing or invalid.").asLeft
+
+      mkStreamNotFound[ErrorOr](ReadResp.StreamNotFound().withStreamIdentifier("abc".toStreamIdentifer)) shouldEqual
+        StreamNotFound("abc").asRight
+
     }
 
     "mkEventType" >> {

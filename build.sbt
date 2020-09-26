@@ -71,7 +71,7 @@ lazy val `sec-tests` = project
     Test / headerSources ++= sources.in(SingleNodeITest).value ++ sources.in(ClusterITest).value,
     libraryDependencies ++=
       compileM(catsLaws, catsEffectLaws, disciplineSpecs2, specs2ScalaCheck, specs2Cats) ++
-        compileM(specs2, catsEffectSpecs2, log4catsSlf4j, logback)
+        compileM(specs2, catsEffectSpecs2, log4catsSlf4j, log4catsTesting, logback)
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
   .dependsOn(`sec-core`, `sec-netty`)

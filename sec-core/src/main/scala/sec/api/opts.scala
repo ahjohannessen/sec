@@ -36,16 +36,13 @@ private[sec] object Opts {
   implicit final class OptsOps[F[_]](val opts: Opts[F]) extends AnyVal {
 
     def run[A](fa: F[A], opName: String)(implicit F: Concurrent[F], T: Timer[F]): F[A] =
-      opts.retryEnabled.fold(
-        retry[F, A](fa, opName, opts.retryConfig, opts.log)(opts.retryOn),
-        fa
-      )
+      opts.retryEnabled.fold(retry[F, A](fa, opName, opts.retryConfig, opts.log)(opts.retryOn), fa)
 
     def logWarn(opName: String)(attempt: Int, delay: FiniteDuration, error: Throwable): F[Unit] =
-      opts.retryConfig.logWarn[F](opName, opts.log)(attempt, delay, error)
+      retries.logWarn(opts.retryConfig, opName, opts.log)(attempt, delay, error)
 
     def logError(opName: String)(error: Throwable): F[Unit] =
-      opts.retryConfig.logError[F](opName, opts.log)(error)
+      retries.logError(opts.retryConfig, opName, opts.log)(error)
 
   }
 }
