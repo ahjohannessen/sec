@@ -119,8 +119,8 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
       }
 
-      test(ServerUnavailable("Oh Noes"), maxAttempts) *>
-        test(new TimeoutException("Oh Noes"), maxAttempts) *>
+      test(ServerUnavailable("Oh Noes"), 6) *>
+        test(new TimeoutException("Oh Noes"), 6) *>
         test(new RuntimeException("Oh Noes"), 1)
 
     }
@@ -131,7 +131,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
       val ce: ConcurrentEffect[IO] = IO.ioConcurrentEffect(IO.contextShift(ec))
 
       val settings = ClusterSettings.default
-        .withMaxDiscoverAttempts(3.some)
+        .withMaxDiscoverAttempts(2.some)
         .withRetryDelay(50.millis)
         .withRetryBackoffFactor(1)
         .withReadTimeout(50.millis)

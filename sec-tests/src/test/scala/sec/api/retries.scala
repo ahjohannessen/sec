@@ -50,6 +50,26 @@ class RetriesSpec extends Specification with CatsEffect {
 
     ///
 
+    "immediate success" >> {
+      implicit val ec: TestContext = TestContext()
+
+      val config = RetryConfig(
+        delay         = 100.millis,
+        maxDelay      = 500.millis,
+        backoffFactor = 1,
+        maxAttempts   = 1,
+        timeout       = None
+      )
+
+      var attempts = 0
+      val action: IO[Int] = IO {
+        attempts += 1
+        attempts
+      }
+
+      test(action, config).value.map(_.toEither) should beSome(Right(1))
+    }
+
     "delay" >> {
 
       implicit val ec: TestContext = TestContext()
@@ -58,7 +78,7 @@ class RetriesSpec extends Specification with CatsEffect {
         delay         = 100.millis,
         maxDelay      = 500.millis,
         backoffFactor = 1,
-        maxAttempts   = 2,
+        maxAttempts   = 1,
         timeout       = None
       )
 
@@ -88,7 +108,7 @@ class RetriesSpec extends Specification with CatsEffect {
       val action = test(IO.raiseError[Int](Oops), config)
 
       action.value should beNone
-      ec.tick(900.millis)
+      ec.tick(1.second)
 
       action.value.map(_.toEither) should beSome(Oops.asLeft)
     }
@@ -101,7 +121,7 @@ class RetriesSpec extends Specification with CatsEffect {
         delay         = 100.millis,
         maxDelay      = 10.second,
         backoffFactor = 3,
-        maxAttempts   = 4,
+        maxAttempts   = 3,
         timeout       = None
       )
 
@@ -133,7 +153,7 @@ class RetriesSpec extends Specification with CatsEffect {
 
       val action = test(IO.raiseError[Int](Oops), config)
 
-      ec.tick(400.millis)
+      ec.tick(500.millis)
 
       action.value.map(_.toEither) shouldEqual Oops.asLeft.some
     }
@@ -143,24 +163,24 @@ class RetriesSpec extends Specification with CatsEffect {
       implicit val ec: TestContext = TestContext()
 
       val config = RetryConfig(
-        delay         = 1.second,
+        delay         = 100.millis,
         maxDelay      = 1.second,
         backoffFactor = 1,
         maxAttempts   = 1,
-        timeout       = Some(200.millis)
+        timeout       = Some(100.millis)
       )
 
-      val action1 = test(IO.sleep(201.millis)(ec.timer) *> IO[Int](1), config)
+      val action1 = test(IO.sleep(101.millis)(ec.timer) *> IO[Int](1), config)
 
       action1.value should beNone
-      ec.tick(200.millis)
+      ec.tick(300.millis)
 
-      action1.value.map(_.toEither) shouldEqual retries.Timeout(200.millis).asLeft.some
+      action1.value.map(_.toEither) shouldEqual retries.Timeout(100.millis).asLeft.some
 
-      val action2 = test(IO.sleep(199.millis)(ec.timer) *> IO[Int](1), config)
+      val action2 = test(IO.sleep(99.millis)(ec.timer) *> IO[Int](1), config)
 
       action2.value should beNone
-      ec.tick(199.millis)
+      ec.tick(99.millis)
       action2.value.map(_.toEither) should beSome(1.asRight)
 
     }
@@ -198,7 +218,7 @@ class RetriesSpec extends Specification with CatsEffect {
       val action = test(IO.raiseError[Int](Oops), config, log = logger)
 
       action.value should beNone
-      ec.tick(900.millis)
+      ec.tick(1.second)
 
       action.value.map(_.toEither) should beSome(Oops.asLeft)
 

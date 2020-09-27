@@ -19,7 +19,7 @@ package api
 
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
-import cats.Eq
+import cats._
 import cats.data._
 import cats.syntax.all._
 import cats.effect._
@@ -190,7 +190,7 @@ object Streams {
     val sub: Option[Position] => Stream[F, Event] = ef => f(mkReq(ef)).through(subscriptionPipe(pipeLog))
     val fn: Event => Option[Position]             = _.record.position.some
 
-    withRetryS(exclusiveFrom, sub, fn, opts, opName)
+    withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
 
   }
 
@@ -209,7 +209,7 @@ object Streams {
     val sub: Option[Position] => Stream[F, O] = ef => f(mkReq(ef)).through(subAllFilteredPipe(pipeLog))
     val fn: O => Option[Position]             = _.fold(_.position, _.record.position).some
 
-    withRetryS(exclusiveFrom, sub, fn, opts, opName)
+    withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
   }
 
   private[sec] def subscribeToStream0[F[_]: Sync: Timer](
@@ -225,7 +225,7 @@ object Streams {
     val sub: Option[EventNumber] => Stream[F, Event] = ef => f(mkReq(ef)).through(subscriptionPipe(pipeLog))
     val fn: Event => Option[EventNumber]             = _.record.number.some
 
-    withRetryS(exclusiveFrom, sub, fn, opts, opName)
+    withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
   }
 
   private[sec] def readAll0[F[_]: Sync: Timer](
@@ -240,7 +240,7 @@ object Streams {
     val read: Position => Stream[F, Event] = p => f(mkReq(p)).through(readEventPipe).take(maxCount)
     val fn: Event => Position              = _.record.position
 
-    if (maxCount > 0) withRetryS(from, read, fn, opts, "readAll") else Stream.empty
+    if (maxCount > 0) withRetry(from, read, fn, opts, "readAll", direction) else Stream.empty
   }
 
   private[sec] def readStream0[F[_]: Sync: Timer](
@@ -257,7 +257,7 @@ object Streams {
     val read: EventNumber => Stream[F, Event] = e => f(mkReq(e)).through(failStreamNotFound).through(readEventPipe)
     val fn: Event => EventNumber              = _.record.number
 
-    if (valid && maxCount > 0) withRetryS(from, read, fn, opts, "readStream") else Stream.empty
+    if (valid && maxCount > 0) withRetry(from, read, fn, opts, "readStream", direction) else Stream.empty
   }
 
   private[sec] def appendToStream0[F[_]: Concurrent: Timer](
@@ -323,32 +323,60 @@ object Streams {
   private[sec] def subAllFilteredPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, Either[Checkpoint, Event]] =
     _.through(subConfirmationPipe(log)).through(_.evalMap(mkCheckpointOrEvent[F]).unNone)
 
-  // TODO: Tests
-  private[sec] def withRetryS[F[_]: Sync: Timer, T: Eq, O](
+  private[sec] def withRetry[F[_]: Sync: Timer, T: Order, O](
     from: T,
     streamFn: T => Stream[F, O],
     extractFn: O => T,
     o: Opts[F],
-    opName: String
+    opName: String,
+    direction: Direction
   ): Stream[F, O] = {
 
-    val logWarn   = o.logWarn(opName) _
-    val logError  = o.logError(opName) _
-    val nextDelay = o.retryConfig.nextDelay _
+    if (o.retryEnabled) {
 
-    def run(f: T, attempts: Int, d: FiniteDuration): Stream[F, O] =
-      Stream.eval(Ref.of[F, T](f)).flatMap { r =>
-        streamFn(f).changesBy(extractFn).evalTap(o => r.set(extractFn(o))).recoverWith {
-          case NonFatal(t) if o.retryOn(t) =>
-            val attempt = attempts + 1
-            if (attempt < o.retryConfig.maxAttempts)
-              Stream.eval(logWarn(attempt, d, t) *> r.get).flatMap(run(_, attempt, nextDelay(d)).delayBy(d))
-            else
-              Stream.eval(logError(t)) *> Stream.raiseError[F](t)
+      val logWarn     = o.logWarn(opName) _
+      val logError    = o.logError(opName) _
+      val nextDelay   = o.retryConfig.nextDelay _
+      val maxAttempts = o.retryConfig.maxAttempts
+      val order       = Order[T]
+
+      Stream.eval(Ref.of[F, Option[T]](None)) >>= { state =>
+
+        val readFilter: O => F[Boolean] = o => {
+
+          val next: T              = extractFn(o)
+          val filter: T => Boolean = direction.fold(order.gt _, order.lt _)(next, _)
+
+          state.get.map(_.fold(true)(filter))
         }
+
+        def run(f: T, attempts: Int, d: FiniteDuration): Stream[F, O] = {
+
+          val readAndFilter: Stream[F, O] = streamFn(f).evalFilter(readFilter)
+          val readAndUpdate: Stream[F, O] = readAndFilter.evalTap(o => state.set(extractFn(o).some))
+
+          readAndUpdate.recoverWith {
+
+            case NonFatal(t) if o.retryOn(t) =>
+              if (attempts <= maxAttempts) {
+
+                val logWarning = logWarn(attempts, d, t).whenA(attempts < maxAttempts)
+                val getCurrent = state.get.map(_.getOrElse(f))
+
+                Stream.eval(logWarning *> getCurrent) >>= { c =>
+                  run(c, attempts + 1, nextDelay(d)).delayBy(d)
+                }
+
+              } else
+                Stream.eval(logError(t)) *> Stream.raiseError[F](t)
+          }
+        }
+
+        run(from, 1, o.retryConfig.delay)
       }
 
-    run(from, 0, o.retryConfig.delay)
+    } else streamFn(from)
+
   }
 
 }
