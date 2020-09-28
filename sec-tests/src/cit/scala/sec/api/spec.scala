@@ -40,8 +40,6 @@ object CSpec {
     endpointFrom("SEC_CLUSTER_ES3_ADDRESS", "SEC_CIT_ES3_PORT", "127.0.0.1", 2116)
   )
 
-  final private val maxRetries = 5
-
   ///
 
   def mkClient[F[_]: ConcurrentEffect: Timer](log: Logger[F]): Resource[F, EsClient[F]] = EsClient
@@ -49,7 +47,7 @@ object CSpec {
     .withChannelShutdownAwait(0.seconds)
     .withCertificate(caPath)
     .withLogger(log)
-    .withOperationsRetryMaxAttempts(maxRetries)
+    .withOperationsRetryDisabled
     .resource
 
 }
