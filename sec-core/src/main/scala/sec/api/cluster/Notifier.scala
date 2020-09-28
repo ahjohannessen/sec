@@ -17,10 +17,7 @@
 package sec
 package api
 package cluster
-package grpc
 
-import scala.jdk.CollectionConverters._
-import io.grpc.NameResolver.ResolutionResult
 import cats.data.{NonEmptyList => Nel, NonEmptySet => Nes}
 import cats.syntax.all._
 import cats.effect._
@@ -30,12 +27,19 @@ import fs2.Stream
 import fs2.concurrent.SignallingRef
 import sec.api.Gossip._
 import sec.api.Gossip.VNodeState._
+import Notifier.Listener
 
 private[sec] trait Notifier[F[_]] {
   def start(l: Listener[F]): F[Unit]
 }
 
 private[sec] object Notifier {
+
+  trait Listener[F[_]] {
+    def onResult(result: Nel[Endpoint]): F[Unit]
+  }
+
+  ///
 
   object gossip {
 
@@ -54,12 +58,12 @@ private[sec] object Notifier {
       halt: SignallingRef[F, Boolean]
     )(implicit F: Concurrent[F]): Notifier[F] = (l: Listener[F]) => {
 
-      val bootstrap = l.onResult(mkResult(seed))
+      val bootstrap = l.onResult(seed.toNonEmptyList)
 
       def update(ci: ClusterInfo): F[Unit] =
         endpoints.get.flatMap { current =>
           val next = determineNext(ci, seed)
-          (endpoints.set(next) >> l.onResult(mkResult(next))).whenA(current =!= next)
+          (endpoints.set(next) >> l.onResult(next.toNonEmptyList)).whenA(current =!= next)
         }
 
       val run = updates.evalMap(update).interruptWhen(halt)
@@ -72,9 +76,6 @@ private[sec] object Notifier {
         case x :: xs => Nes.of(x, xs: _*)
         case Nil     => seed
       }
-
-    def mkResult(endpoints: Nes[Endpoint]): ResolutionResult =
-      ResolutionResult.newBuilder().setAddresses(endpoints.toList.map(_.toEquivalentAddressGroup).asJava).build()
 
   }
 
@@ -99,7 +100,7 @@ private[sec] object Notifier {
       def update(ci: ClusterInfo): F[Unit] =
         determineNext(ci, np) >>= {
           case Nil     => F.unit
-          case x :: xs => l.onResult(mkResult(x :: xs))
+          case x :: xs => l.onResult(Nel(x, xs).map(_.httpEndpoint))
         }
 
       val run = updates.evalMap(update).interruptWhen(halt)
@@ -124,9 +125,6 @@ private[sec] object Notifier {
 
     def prioritizeNodes[F[_]: Sync](ci: ClusterInfo, np: NodePreference): F[List[MemberInfo]] =
       Nel.fromList(ci.members.toList).map(NodePrioritizer.prioritizeNodes[F](_, np)).getOrElse(List.empty.pure[F])
-
-    def mkResult(ms: List[MemberInfo]): ResolutionResult =
-      ResolutionResult.newBuilder().setAddresses(ms.map(_.httpEndpoint.toEquivalentAddressGroup).asJava).build()
 
   }
 
