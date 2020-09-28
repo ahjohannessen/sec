@@ -19,27 +19,36 @@ package api
 package cluster
 package grpc
 
-import cats.data.NonEmptySet
+import scala.jdk.CollectionConverters._
+import cats.data.{NonEmptyList, NonEmptySet}
 import cats.syntax.all._
 import cats.effect._
 import cats.effect.implicits._
-import io.grpc.NameResolver
-import io.grpc.NameResolver.Listener2
 import fs2.Stream
 import fs2.concurrent.SignallingRef
+import io.grpc.NameResolver
+import io.grpc.NameResolver.{Listener2, ResolutionResult}
 import sec.api.Gossip._
+import sec.api.cluster.Notifier.Listener
+import sec.api.cluster.grpc.Resolver.mkListener
 
 final private[sec] case class Resolver[F[_]: Effect](
   authority: String,
   notifier: Notifier[F]
 ) extends NameResolver {
-  override def start(l: Listener2): Unit   = notifier.start(Listener[F](l)).toIO.unsafeRunSync()
+  override def start(l: Listener2): Unit   = notifier.start(mkListener[F](l)).toIO.unsafeRunSync()
   override val shutdown: Unit              = ()
   override val getServiceAuthority: String = authority
   override val refresh: Unit               = ()
 }
 
 private[sec] object Resolver {
+
+  def mkResult(endpoints: NonEmptyList[Endpoint]): ResolutionResult =
+    ResolutionResult.newBuilder().setAddresses(endpoints.toList.map(_.toEquivalentAddressGroup).asJava).build()
+
+  def mkListener[F[_]](l2: Listener2)(implicit F: Sync[F]): Listener[F] =
+    (endpoints: NonEmptyList[Endpoint]) => F.delay(l2.onResult(mkResult(endpoints)))
 
   def gossip[F[_]: ConcurrentEffect](
     authority: String,
