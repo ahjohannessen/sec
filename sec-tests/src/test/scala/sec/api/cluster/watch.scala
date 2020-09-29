@@ -23,6 +23,7 @@ import java.time.ZonedDateTime
 import scala.concurrent.duration._
 import scala.concurrent.TimeoutException
 import org.specs2.mutable.Specification
+import cats.data.{NonEmptyList => Nel}
 import cats.syntax.all._
 import cats.effect._
 import cats.effect.concurrent.Ref
@@ -36,7 +37,6 @@ import sec.api.Gossip._
 import sec.arbitraries._
 import org.scalacheck.Gen
 
-// TODO: Redo this entire spec
 class ClusterWatchSpec extends Specification with CatsIO {
 
   import ClusterWatch.Cache
@@ -63,23 +63,21 @@ class ClusterWatchSpec extends Specification with CatsIO {
       val ci4 = ClusterInfo(Set(m1, m2, m3))
       val ci5 = ClusterInfo(Set(m1, m3))
 
-      def readFn(ref: Ref[IO, Int]): IO[ClusterInfo] =
-        ref.get.flatMap {
-          case 0 => ref.update(_ + 1) *> ci1.pure[IO]
-          case 1 => ref.update(_ + 1) *> ci2.pure[IO]
-          case 2 => ref.update(_ + 1) *> ci3.pure[IO]
-          case 3 => ref.update(_ + 1) *> ci4.pure[IO]
-          case _ => ref.update(_ + 1) *> ci5.pure[IO]
+      def readFn(ref: Ref[IO, Nel[ClusterInfo]]): IO[ClusterInfo] = ref
+        .getAndUpdate {
+          case Nel(_, t :: ts) => Nel(t, ts)
+          case Nel(h, Nil)     => Nel.one(h)
         }
+        .map(_.head)
 
       type Res = (Stream[IO, ClusterInfo], Ref[IO, List[ClusterInfo]])
 
       val result: Resource[IO, Res] = for {
-        readCountRef <- Resource.liftF(Ref.of[IO, Int](0))
-        store        <- Resource.liftF(Ref.of[IO, List[ClusterInfo]](ci1 :: Nil))
-        log          <- Resource.liftF(mkLog)
-        watch        <- ClusterWatch.create[IO](readFn(readCountRef), settings, recordingCache(store), log)
-        changes      <- Resource.liftF(watch.subscribe.pure[IO])
+        infos   <- Resource.liftF(Ref.of[IO, Nel[ClusterInfo]](Nel.of(ci1, ci2, ci3, ci4, ci5)))
+        store   <- Resource.liftF(Ref.of[IO, List[ClusterInfo]](ci1 :: Nil))
+        log     <- Resource.liftF(mkLog)
+        watch   <- ClusterWatch.create[IO](readFn(infos), settings, recordingCache(store), log)
+        changes <- Resource.liftF(watch.subscribe.pure[IO])
       } yield (changes, store)
 
       result.map { case (changes, store) =>
