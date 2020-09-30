@@ -28,8 +28,9 @@ final case class Endpoint(
 
 private[sec] object Endpoint {
 
-  implicit val orderForEndpoint: Order[Endpoint] = Order.by(ep => (ep.address, ep.port))
-  implicit val showForEndpoint: Show[Endpoint]   = Show.show(ep => s"${ep.address}:${ep.port}")
+  implicit val orderForEndpoint: Order[Endpoint]       = Order.by(ep => (ep.address, ep.port))
+  implicit val orderingForEndpoint: Ordering[Endpoint] = orderForEndpoint.toOrdering
+  implicit val showForEndpoint: Show[Endpoint]         = Show.show(ep => s"${ep.address}:${ep.port}")
 
   implicit final class EndpointOps(val ep: Endpoint) extends AnyVal {
     def toInetSocketAddress: InetSocketAddress = new InetSocketAddress(ep.address, ep.port)

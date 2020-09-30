@@ -21,22 +21,21 @@ package grpc
 
 import scala.jdk.CollectionConverters._
 import cats.data.{NonEmptyList, NonEmptySet}
-import cats.syntax.all._
 import cats.effect._
-import cats.effect.implicits._
 import fs2.Stream
-import fs2.concurrent.SignallingRef
+import io.chrisdavenport.log4cats.Logger
 import io.grpc.NameResolver
 import io.grpc.NameResolver.{Listener2, ResolutionResult}
 import sec.api.Gossip._
 import sec.api.cluster.Notifier.Listener
 import sec.api.cluster.grpc.Resolver.mkListener
 
-final private[sec] case class Resolver[F[_]: Effect](
+final private[sec] case class Resolver[F[_]](
   authority: String,
   notifier: Notifier[F]
-) extends NameResolver {
-  override def start(l: Listener2): Unit   = notifier.start(mkListener[F](l)).toIO.unsafeRunSync()
+)(implicit F: Effect[F])
+  extends NameResolver {
+  override def start(l: Listener2): Unit   = F.toIO(notifier.start(mkListener[F](l)).allocated).void.unsafeRunSync()
   override val shutdown: Unit              = ()
   override val getServiceAuthority: String = authority
   override val refresh: Unit               = ()
@@ -54,16 +53,16 @@ private[sec] object Resolver {
     authority: String,
     seed: NonEmptySet[Endpoint],
     updates: Stream[F, ClusterInfo],
-    halt: SignallingRef[F, Boolean]
-  ): F[Resolver[F]] =
-    Notifier.gossip[F](seed, updates, halt).map(Resolver[F](authority, _))
+    log: Logger[F]
+  ): Resource[F, Resolver[F]] =
+    Notifier.gossip[F](seed, updates, log).map(Resolver[F](authority, _))
 
   def bestNodes[F[_]: ConcurrentEffect](
     authority: String,
     np: NodePreference,
     updates: Stream[F, ClusterInfo],
-    halt: SignallingRef[F, Boolean]
-  ): F[Resolver[F]] =
-    Notifier.bestNodes[F](np, updates, halt).map(Resolver[F](authority, _))
+    log: Logger[F]
+  ): Resource[F, Resolver[F]] =
+    Notifier.bestNodes[F](np, updates, log).map(Resolver[F](authority, _))
 
 }

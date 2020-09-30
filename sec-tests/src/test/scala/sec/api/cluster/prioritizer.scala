@@ -37,7 +37,7 @@ class NodePrioritizerSpec extends Specification with CatsIO {
     def id      = sampleOf[ju.UUID]
     def ts      = sampleOf[ZonedDateTime]
     def port    = sampleOfGen(Gen.chooseNum(1, 65535))
-    def address = sampleOfGen(Gen.chooseNum(0, 255).map(i => s"127.0.0.$i"))
+    def address = sampleOfGen(Gen.chooseNum(0, 254).map(i => s"127.0.0.$i"))
 
     "pick valid members" >> {
 
