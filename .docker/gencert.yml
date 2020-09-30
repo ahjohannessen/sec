@@ -10,7 +10,7 @@ services:
        - "$SEC_GENCERT_CERTS_PATH:/tmp/certs"
      network_mode: none
   cert-gen:
-     image: quay.io/ahjohannessen/es-gencert-cli:1.0.2
+     image: eventstore/es-gencert-cli:1.0.2
      env_file:
        - shared.env
      entrypoint: bash

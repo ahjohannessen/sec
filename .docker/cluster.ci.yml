@@ -6,7 +6,7 @@ x-common-variables: &common-variables
 services:
 
   es1:
-    image: quay.io/ahjohannessen/es-v6:latest
+    image: eventstore/eventstore:20.6.1-bionic
     env_file:
       - shared.env
     environment:
@@ -24,7 +24,7 @@ services:
       - cert-gen
 
   es2:
-    image: quay.io/ahjohannessen/es-v6:latest
+    image: eventstore/eventstore:20.6.1-bionic
     env_file:
       - shared.env
     environment:
@@ -42,7 +42,7 @@ services:
       - cert-gen
 
   es3:
-    image: quay.io/ahjohannessen/es-v6:latest
+    image: eventstore/eventstore:20.6.1-bionic
     env_file:
       - shared.env
     environment:
