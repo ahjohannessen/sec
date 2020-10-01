@@ -24,8 +24,7 @@ import org.specs2.specification.AfterAll
 import helpers.text.mkSnakeCase
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import sec.client.EsClient
-import sec.api.{Gossip, MetaStreams, Streams}
+import sec.api.{EsClient, Gossip, MetaStreams, Streams}
 
 trait ResourceSpec[A] extends Specification with AfterAll with CatsIO {
   final val testName                        = mkSnakeCase(getClass.getSimpleName)

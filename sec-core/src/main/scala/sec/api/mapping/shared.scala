@@ -19,10 +19,11 @@ package api
 package mapping
 
 import java.util.{UUID => JUUID}
+
 import cats.syntax.all._
 import com.google.protobuf.ByteString
 import com.eventstore.dbclient.proto.shared.{StreamIdentifier, UUID}
-import sec.core.StreamId
+import sec.StreamId
 
 private[sec] object shared {
 

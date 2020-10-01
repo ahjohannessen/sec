@@ -17,8 +17,6 @@
 package sec
 package api
 
-import sec.api.Gossip._
-
 class GossipSuite extends SnSpec {
 
   sequential

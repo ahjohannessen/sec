@@ -28,7 +28,6 @@ import cats.syntax.all._
 import cats.effect.IO
 import cats.effect.concurrent.Ref
 import fs2._
-import sec.core._
 import sec.api.Direction._
 import sec.api.exceptions._
 import sec.syntax.all._
@@ -437,7 +436,7 @@ class StreamsSuite extends SnSpec {
           val beforeWrite =
             Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, beforeEvents, None))
 
-          def afterWrite(rev: StreamRevision): Stream[IO, Streams.WriteResult] =
+          def afterWrite(rev: StreamRevision): Stream[IO, WriteResult] =
             Stream.eval(streams.appendToStream(id, rev, afterEvents, None)).delayBy(500.millis)
 
           def subscribe(onEvent: Event => IO[Unit]): Stream[IO, Event] =
@@ -1437,7 +1436,7 @@ class StreamsSuite extends SnSpec {
         } yield {
 
           swr.currentRevision shouldEqual EventNumber.exact(1)
-          mwr.currentMetaRevision shouldEqual EventNumber.Start
+          mwr.currentRevision shouldEqual EventNumber.Start
 
           events.size shouldEqual afterEvents.size
           events.map(_.number) shouldEqual List(EventNumber.exact(2), EventNumber.exact(3), EventNumber.exact(4))
@@ -1518,7 +1517,7 @@ class StreamsSuite extends SnSpec {
           meta <- metaStreams.getMetadata(id)
         } yield {
 
-          mw.currentMetaRevision shouldEqual EventNumber.exact(1)
+          mw.currentRevision shouldEqual EventNumber.exact(1)
 
           read should beLike { case Left(e: StreamNotFound) =>
             e.streamId shouldEqual id.stringValue
@@ -1551,7 +1550,7 @@ class StreamsSuite extends SnSpec {
         } yield {
 
           sw1.currentRevision shouldEqual EventNumber.exact(1)
-          mw1.currentMetaRevision shouldEqual EventNumber.exact(1)
+          mw1.currentRevision shouldEqual EventNumber.exact(1)
           read.size shouldEqual 0
 
           meta.fold(ko) { m =>

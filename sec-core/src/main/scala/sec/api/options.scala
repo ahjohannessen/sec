@@ -1,0 +1,130 @@
+/*
+ * Copyright 2020 Alex Henning Johannessen
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package sec
+package api
+
+import java.nio.file.Path
+import scala.concurrent.duration._
+import cats.syntax.all._
+
+//======================================================================================================================
+
+private[sec] case class Options(
+  connectionName: String,
+  credentials: Option[UserCredentials],
+  operationOptions: OperationOptions,
+  connectionMode: ConnectionMode
+)
+
+private[sec] object Options {
+
+  import ConnectionMode._
+
+  val default: Options = Options(
+    connectionName   = "sec",
+    credentials      = UserCredentials.unsafe("admin", "changeit").some,
+    operationOptions = OperationOptions.default,
+    connectionMode   = Insecure
+  )
+
+  implicit final class OptionsOps(val o: Options) extends AnyVal {
+
+    private def modifyOO(fn: OperationOptions => OperationOptions): Options =
+      o.copy(operationOptions = fn(o.operationOptions))
+
+    def withSecureMode(certChain: Path): Options                    = o.copy(connectionMode = Secure(certChain))
+    def withInsecureMode: Options                                   = o.copy(connectionMode = Insecure)
+    def withConnectionName(name: String): Options                   = o.copy(connectionName = name)
+    def withCredentials(creds: Option[UserCredentials]): Options    = o.copy(credentials = creds)
+    def withOperationsRetryDelay(delay: FiniteDuration): Options    = modifyOO(_.copy(retryDelay = delay))
+    def withOperationsRetryMaxDelay(delay: FiniteDuration): Options = modifyOO(_.copy(retryMaxDelay = delay))
+    def withOperationsRetryMaxAttempts(max: Int): Options           = modifyOO(_.copy(retryMaxAttempts = max))
+    def withOperationsRetryBackoffFactor(factor: Double): Options   = modifyOO(_.copy(retryBackoffFactor = factor))
+    def withOperationsRetryEnabled: Options                         = modifyOO(_.copy(retryEnabled = true))
+    def withOperationsRetryDisabled: Options                        = modifyOO(_.copy(retryEnabled = false))
+  }
+
+}
+
+//======================================================================================================================
+
+sealed private[sec] trait ConnectionMode
+private[sec] object ConnectionMode {
+  case object Insecure                     extends ConnectionMode
+  final case class Secure(certChain: Path) extends ConnectionMode
+}
+
+//======================================================================================================================
+
+final private[sec] case class ClusterOptions(
+  maxDiscoverAttempts: Option[Int],
+  retryDelay: FiniteDuration,
+  retryMaxDelay: FiniteDuration,
+  retryBackoffFactor: Double,
+  readTimeout: FiniteDuration,
+  notificationInterval: FiniteDuration,
+  preference: NodePreference,
+  channelShutdownAwait: FiniteDuration
+)
+
+private[sec] object ClusterOptions {
+
+  val default: ClusterOptions = ClusterOptions(
+    maxDiscoverAttempts  = None,
+    retryDelay           = 100.millis,
+    retryMaxDelay        = 2.seconds,
+    retryBackoffFactor   = 1.25,
+    readTimeout          = 5.seconds,
+    notificationInterval = 100.millis,
+    preference           = NodePreference.Leader,
+    channelShutdownAwait = 10.seconds
+  )
+
+  implicit final class ClusterOptionsOps(val co: ClusterOptions) extends AnyVal {
+    def withMaxDiscoverAttempts(max: Option[Int]): ClusterOptions          = co.copy(maxDiscoverAttempts = max)
+    def withRetryDelay(delay: FiniteDuration): ClusterOptions              = co.copy(retryDelay = delay)
+    def withRetryMaxDelay(maxDelay: FiniteDuration): ClusterOptions        = co.copy(retryMaxDelay = maxDelay)
+    def withRetryBackoffFactor(factor: Double): ClusterOptions             = co.copy(retryBackoffFactor = factor)
+    def withReadTimeout(timeout: FiniteDuration): ClusterOptions           = co.copy(readTimeout = timeout)
+    def withNotificationInterval(interval: FiniteDuration): ClusterOptions = co.copy(notificationInterval = interval)
+    def withNodePreference(np: NodePreference): ClusterOptions             = co.copy(preference = np)
+    def withChannelShutdownAwait(await: FiniteDuration): ClusterOptions    = co.copy(channelShutdownAwait = await)
+  }
+
+}
+
+//======================================================================================================================
+
+final private[sec] case class OperationOptions(
+  retryEnabled: Boolean,
+  retryDelay: FiniteDuration,
+  retryMaxDelay: FiniteDuration,
+  retryBackoffFactor: Double,
+  retryMaxAttempts: Int
+)
+
+private[sec] object OperationOptions {
+
+  val default: OperationOptions = OperationOptions(
+    retryEnabled       = true,
+    retryDelay         = 250.millis,
+    retryMaxDelay      = 5.seconds,
+    retryBackoffFactor = 1.5,
+    retryMaxAttempts   = 100
+  )
+
+}

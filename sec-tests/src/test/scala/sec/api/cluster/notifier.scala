@@ -30,8 +30,7 @@ import cats.effect._
 import cats.effect.concurrent.Ref
 import fs2.Stream
 import fs2.concurrent.SignallingRef
-import Gossip._
-import Gossip.VNodeState._
+import VNodeState._
 import Notifier._
 import io.chrisdavenport.log4cats.testing.TestingLogger
 import sec.arbitraries._

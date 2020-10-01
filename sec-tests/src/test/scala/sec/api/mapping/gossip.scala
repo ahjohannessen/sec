@@ -24,8 +24,7 @@ import cats.syntax.all._
 import org.specs2._
 import com.eventstore.dbclient.proto.shared.UUID
 import com.eventstore.dbclient.proto.{gossip => g}
-import sec.api.Gossip._
-import sec.api.Gossip.VNodeState._
+import VNodeState._
 import sec.api.mapping.gossip._
 
 class GossipMappingSpec extends mutable.Specification {

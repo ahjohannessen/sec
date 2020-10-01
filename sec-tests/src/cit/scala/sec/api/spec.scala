@@ -22,7 +22,7 @@ import scala.concurrent.duration._
 import cats.data.NonEmptySet
 import cats.effect._
 import io.chrisdavenport.log4cats.Logger
-import sec.client._
+import sec.api._
 import helpers.endpoint.endpointFrom
 
 trait CSpec extends ClientSpec {

@@ -15,17 +15,11 @@
  */
 
 import java.util.Locale
-import scala.util.Random
 import scala.concurrent.duration._
 import cats.{ApplicativeError, MonadError}
 import cats.syntax.all._
-import cats.effect.Sync
 
 package object sec {
-
-  //======================================================================================================================
-
-  private[sec] type EndoF[F[_], A] = A => F[A]
 
 //======================================================================================================================
 
@@ -53,12 +47,6 @@ package object sec {
   implicit final private[sec] class AttemptOps[A](val inner: Attempt[A]) extends AnyVal {
     def unsafe: A                                           = inner.leftMap(require(false, _)).toOption.get
     def orFail[F[_]: ErrorA](fn: String => Throwable): F[A] = inner.leftMap(fn(_)).liftTo[F]
-  }
-
-//======================================================================================================================
-
-  implicit final private[sec] class ListOps[A](val inner: List[A]) extends AnyVal {
-    def shuffle[F[_]: Sync]: F[List[A]] = Sync[F].delay(Random.shuffle(inner))
   }
 
 //======================================================================================================================

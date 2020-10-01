@@ -15,19 +15,8 @@ def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scala
 lazy val root = project
   .in(file("."))
   .settings(skip in publish := true)
-  .dependsOn(`sec-protos`, `sec-core`, `sec-netty`, `sec-tests`)
-  .aggregate(`sec-protos`, `sec-core`, `sec-netty`, `sec-tests`)
-
-lazy val `sec-protos` = project
-  .in(file("sec-protos"))
-  .enablePlugins(Fs2Grpc)
-  .settings(commonSettings)
-  .settings(
-    name := "sec-protos",
-    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    libraryDependencies ++= compileM(scalaPb)
-  )
-  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
+  .dependsOn(`sec-core`, `sec-fs2-core`, `sec-fs2-netty`, `sec-tests`)
+  .aggregate(`sec-core`, `sec-fs2-core`, `sec-fs2-netty`, `sec-tests`)
 
 lazy val `sec-core` = project
   .in(file("sec-core"))
@@ -35,20 +24,34 @@ lazy val `sec-core` = project
   .settings(commonSettings)
   .settings(
     name := "sec-core",
+    libraryDependencies ++= compileM(cats, scodecBits, circe, scalaPb, grpcApi),
+    Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
+    Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (sourceManaged in Compile).value)
+  )
+  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
+
+lazy val `sec-fs2-core` = project
+  .in(file("sec-fs2-core"))
+  .enablePlugins(AutomateHeaderPlugin, Fs2Grpc)
+  .settings(commonSettings)
+  .settings(
+    name := "sec-fs2-core",
     libraryDependencies ++=
       compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser),
     Compile / unmanagedSourceDirectories ++=
-      scalaVersionSpecificFolders("main", sourceDirectory.value, scalaVersion.value)
+      scalaVersionSpecificFolders("main", sourceDirectory.value, scalaVersion.value),
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
+    Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf")
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
-  .dependsOn(`sec-protos`)
+  .dependsOn(`sec-core`)
 
-lazy val `sec-netty` = project
-  .in(file("sec-netty"))
+lazy val `sec-fs2-netty` = project
+  .in(file("sec-fs2-netty"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
-  .settings(name := "sec", libraryDependencies ++= compileM(grpcNetty, tcnative))
-  .dependsOn(`sec-core`)
+  .settings(name := "sec-fs2", libraryDependencies ++= compileM(grpcNetty, tcnative))
+  .dependsOn(`sec-fs2-core`)
 
 lazy val SingleNodeITest = config("sit") extend Test
 lazy val ClusterITest    = config("cit") extend Test
@@ -74,7 +77,7 @@ lazy val `sec-tests` = project
         compileM(specs2, catsEffectSpecs2, log4catsSlf4j, log4catsTesting, logback)
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
-  .dependsOn(`sec-core`, `sec-netty`)
+  .dependsOn(`sec-core`, `sec-fs2-netty`)
 
 // General Settings
 

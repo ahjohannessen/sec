@@ -24,10 +24,9 @@ import cats.syntax.all._
 import cats.data.NonEmptyList
 import scodec.bits.ByteVector
 import org.specs2._
-import com.eventstore.dbclient.proto.shared._
-import com.eventstore.dbclient.proto.streams._
+import com.eventstore.dbclient.proto.shared.{Empty, UUID}
+import com.eventstore.dbclient.proto.{streams => s}
 import sec.api.exceptions.{StreamNotFound, WrongExpectedRevision}
-import sec.{core => c}
 import sec.api.mapping.shared._
 import sec.api.mapping.streams.outgoing
 import sec.api.mapping.streams.incoming
@@ -38,42 +37,42 @@ class StreamsMappingSpec extends mutable.Specification {
   "outgoing" >> {
 
     import outgoing._
-    import ReadReq.Options.AllOptions.AllOption
-    import ReadReq.Options.StreamOptions.RevisionOption
+    import s.ReadReq.Options.AllOptions.AllOption
+    import s.ReadReq.Options.StreamOptions.RevisionOption
 
     val empty = Empty()
 
     ///
 
     "uuidOption" >> {
-      uuidOption shouldEqual ReadReq.Options.UUIDOption().withStructured(empty)
+      uuidOption shouldEqual s.ReadReq.Options.UUIDOption().withStructured(empty)
     }
 
     "mapPosition" >> {
-      mapPosition(c.Position.exact(1L, 2L)) shouldEqual AllOption.Position(ReadReq.Options.Position(1L, 2L))
-      mapPosition(c.Position.End) shouldEqual AllOption.End(empty)
-      mapPositionOpt(c.Position.exact(0L, 0L).some) shouldEqual AllOption.Position(ReadReq.Options.Position(0L, 0L))
+      mapPosition(sec.Position.exact(1L, 2L)) shouldEqual AllOption.Position(s.ReadReq.Options.Position(1L, 2L))
+      mapPosition(sec.Position.End) shouldEqual AllOption.End(empty)
+      mapPositionOpt(sec.Position.exact(0L, 0L).some) shouldEqual AllOption.Position(s.ReadReq.Options.Position(0L, 0L))
       mapPositionOpt(None) shouldEqual AllOption.Start(empty)
     }
 
     "mapEventNumber" >> {
-      mapEventNumber(c.EventNumber.exact(1L)) shouldEqual RevisionOption.Revision(1L)
-      mapEventNumber(c.EventNumber.End) shouldEqual RevisionOption.End(empty)
-      mapEventNumberOpt(c.EventNumber.exact(0L).some) shouldEqual RevisionOption.Revision(0L)
+      mapEventNumber(sec.EventNumber.exact(1L)) shouldEqual RevisionOption.Revision(1L)
+      mapEventNumber(sec.EventNumber.End) shouldEqual RevisionOption.End(empty)
+      mapEventNumberOpt(sec.EventNumber.exact(0L).some) shouldEqual RevisionOption.Revision(0L)
       mapEventNumberOpt(None) shouldEqual RevisionOption.Start(empty)
     }
 
     "mapDirection" >> {
-      mapDirection(Direction.Forwards) shouldEqual ReadReq.Options.ReadDirection.Forwards
-      mapDirection(Direction.Backwards) shouldEqual ReadReq.Options.ReadDirection.Backwards
+      mapDirection(Direction.Forwards) shouldEqual s.ReadReq.Options.ReadDirection.Forwards
+      mapDirection(Direction.Backwards) shouldEqual s.ReadReq.Options.ReadDirection.Backwards
     }
 
     "mapReadEventFilter" >> {
 
       import EventFilter._
-      import ReadReq.Options.FilterOptions
-      import ReadReq.Options.FilterOptions.Expression
-      import ReadReq.Options.FilterOption.{Filter, NoFilter}
+      import s.ReadReq.Options.FilterOptions
+      import s.ReadReq.Options.FilterOptions.Expression
+      import s.ReadReq.Options.FilterOption.{Filter, NoFilter}
 
       def mkOptions(f: EventFilter, maxWindow: Option[Int] = 10.some, multiplier: Int = 1) =
         SubscriptionFilterOptions(f, maxWindow, multiplier).some
@@ -139,48 +138,51 @@ class StreamsMappingSpec extends mutable.Specification {
     }
 
     "mkSubscribeToStreamReq" >> {
-      import c.StreamId
-      import c.EventNumber._
+      import EventNumber._
 
       val sid = StreamId.from("abc").unsafe
 
-      def test(exclusiveFrom: Option[c.EventNumber], resolveLinkTos: Boolean) =
-        mkSubscribeToStreamReq(sid, exclusiveFrom, resolveLinkTos) shouldEqual ReadReq().withOptions(
-          ReadReq
-            .Options()
-            .withStream(ReadReq.Options.StreamOptions(sid.esSid.some, mapEventNumberOpt(exclusiveFrom)))
-            .withSubscription(ReadReq.Options.SubscriptionOptions())
-            .withReadDirection(ReadReq.Options.ReadDirection.Forwards)
-            .withResolveLinks(resolveLinkTos)
-            .withNoFilter(empty)
-            .withUuidOption(uuidOption)
-        )
+      def test(exclusiveFrom: Option[EventNumber], resolveLinkTos: Boolean) =
+        mkSubscribeToStreamReq(sid, exclusiveFrom, resolveLinkTos) shouldEqual s
+          .ReadReq()
+          .withOptions(
+            s.ReadReq
+              .Options()
+              .withStream(s.ReadReq.Options.StreamOptions(sid.esSid.some, mapEventNumberOpt(exclusiveFrom)))
+              .withSubscription(s.ReadReq.Options.SubscriptionOptions())
+              .withReadDirection(s.ReadReq.Options.ReadDirection.Forwards)
+              .withResolveLinks(resolveLinkTos)
+              .withNoFilter(empty)
+              .withUuidOption(uuidOption)
+          )
 
       for {
-        ef <- List(Option.empty[c.EventNumber], Start.some, exact(1337L).some, End.some)
+        ef <- List(Option.empty[EventNumber], Start.some, exact(1337L).some, End.some)
         rt <- List(true, false)
       } yield test(ef, rt)
     }
 
     "mkSubscribeToAllReq" >> {
 
-      import c.Position._
+      import Position._
       import EventFilter._
 
-      def test(exclusiveFrom: Option[c.Position], resolveLinkTos: Boolean, filter: Option[SubscriptionFilterOptions]) =
-        mkSubscribeToAllReq(exclusiveFrom, resolveLinkTos, filter) shouldEqual ReadReq().withOptions(
-          ReadReq
-            .Options()
-            .withAll(ReadReq.Options.AllOptions(mapPositionOpt(exclusiveFrom)))
-            .withSubscription(ReadReq.Options.SubscriptionOptions())
-            .withReadDirection(ReadReq.Options.ReadDirection.Forwards)
-            .withResolveLinks(resolveLinkTos)
-            .withFilterOption(mapReadEventFilter(filter))
-            .withUuidOption(uuidOption)
-        )
+      def test(exclusiveFrom: Option[Position], resolveLinkTos: Boolean, filter: Option[SubscriptionFilterOptions]) =
+        mkSubscribeToAllReq(exclusiveFrom, resolveLinkTos, filter) shouldEqual s
+          .ReadReq()
+          .withOptions(
+            s.ReadReq
+              .Options()
+              .withAll(s.ReadReq.Options.AllOptions(mapPositionOpt(exclusiveFrom)))
+              .withSubscription(s.ReadReq.Options.SubscriptionOptions())
+              .withReadDirection(s.ReadReq.Options.ReadDirection.Forwards)
+              .withResolveLinks(resolveLinkTos)
+              .withFilterOption(mapReadEventFilter(filter))
+              .withUuidOption(uuidOption)
+          )
 
       for {
-        ef <- List(Option.empty[c.Position], Start.some, exact(1337L, 1337L).some, End.some)
+        ef <- List(Option.empty[Position], Start.some, exact(1337L, 1337L).some, End.some)
         rt <- List(true, false)
         fi <- List(
                 Option.empty[SubscriptionFilterOptions],
@@ -192,23 +194,25 @@ class StreamsMappingSpec extends mutable.Specification {
 
     "mkReadStreamReq" >> {
 
-      val sid = c.StreamId.from("abc").unsafe
+      val sid = sec.StreamId.from("abc").unsafe
 
-      def test(rd: Direction, from: c.EventNumber, count: Long, rlt: Boolean) =
-        mkReadStreamReq(sid, from, rd, count, rlt) shouldEqual ReadReq().withOptions(
-          ReadReq
-            .Options()
-            .withStream(ReadReq.Options.StreamOptions(sid.esSid.some, mapEventNumber(from)))
-            .withCount(count)
-            .withReadDirection(mapDirection(rd))
-            .withResolveLinks(rlt)
-            .withNoFilter(empty)
-            .withUuidOption(uuidOption)
-        )
+      def test(rd: Direction, from: EventNumber, count: Long, rlt: Boolean) =
+        mkReadStreamReq(sid, from, rd, count, rlt) shouldEqual s
+          .ReadReq()
+          .withOptions(
+            s.ReadReq
+              .Options()
+              .withStream(s.ReadReq.Options.StreamOptions(sid.esSid.some, mapEventNumber(from)))
+              .withCount(count)
+              .withReadDirection(mapDirection(rd))
+              .withResolveLinks(rlt)
+              .withNoFilter(empty)
+              .withUuidOption(uuidOption)
+          )
 
       for {
         rd <- List(Direction.Forwards, Direction.Backwards)
-        fr <- List(c.EventNumber.Start, c.EventNumber.exact(2200), c.EventNumber.End)
+        fr <- List(sec.EventNumber.Start, sec.EventNumber.exact(2200), sec.EventNumber.End)
         ct <- List(100L, 1000L, 10000L)
         rt <- List(true, false)
       } yield test(rd, fr, ct, rt)
@@ -216,21 +220,23 @@ class StreamsMappingSpec extends mutable.Specification {
 
     "mkReadAllReq" >> {
 
-      def test(from: c.Position, rd: Direction, maxCount: Long, rlt: Boolean) =
-        mkReadAllReq(from, rd, maxCount, rlt) shouldEqual ReadReq().withOptions(
-          ReadReq
-            .Options()
-            .withAll(ReadReq.Options.AllOptions(mapPosition(from)))
-            .withSubscription(ReadReq.Options.SubscriptionOptions())
-            .withCount(maxCount)
-            .withReadDirection(mapDirection(rd))
-            .withResolveLinks(rlt)
-            .withNoFilter(empty)
-            .withUuidOption(uuidOption)
-        )
+      def test(from: Position, rd: Direction, maxCount: Long, rlt: Boolean) =
+        mkReadAllReq(from, rd, maxCount, rlt) shouldEqual s
+          .ReadReq()
+          .withOptions(
+            s.ReadReq
+              .Options()
+              .withAll(s.ReadReq.Options.AllOptions(mapPosition(from)))
+              .withSubscription(s.ReadReq.Options.SubscriptionOptions())
+              .withCount(maxCount)
+              .withReadDirection(mapDirection(rd))
+              .withResolveLinks(rlt)
+              .withNoFilter(empty)
+              .withUuidOption(uuidOption)
+          )
 
       for {
-        fr <- List(c.Position.Start, c.Position.exact(1337L, 1337L), c.Position.End)
+        fr <- List(sec.Position.Start, sec.Position.exact(1337L, 1337L), sec.Position.End)
         rd <- List(Direction.Forwards, Direction.Backwards)
         mc <- List(100L, 1000L, 10000L)
         rt <- List(true, false)
@@ -239,47 +245,47 @@ class StreamsMappingSpec extends mutable.Specification {
 
     "mkDeleteReq" >> {
 
-      import DeleteReq.Options.ExpectedStreamRevision
-      val sid = c.StreamId.from("abc").unsafe
+      import s.DeleteReq.Options.ExpectedStreamRevision
+      val sid = sec.StreamId.from("abc").unsafe
 
-      def test(sr: c.StreamRevision, esr: ExpectedStreamRevision) =
+      def test(sr: StreamRevision, esr: ExpectedStreamRevision) =
         mkDeleteReq(sid, sr) shouldEqual
-          DeleteReq().withOptions(DeleteReq.Options(sid.esSid.some, esr))
+          s.DeleteReq().withOptions(s.DeleteReq.Options(sid.esSid.some, esr))
 
-      test(c.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
-      test(c.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
-      test(c.StreamRevision.StreamExists, ExpectedStreamRevision.StreamExists(empty))
-      test(c.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
+      test(sec.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
+      test(sec.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
+      test(sec.StreamRevision.StreamExists, ExpectedStreamRevision.StreamExists(empty))
+      test(sec.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
     }
 
     "mkTombstoneReq" >> {
 
-      import TombstoneReq.Options.ExpectedStreamRevision
-      val sid = c.StreamId.from("abc").unsafe
+      import s.TombstoneReq.Options.ExpectedStreamRevision
+      val sid = sec.StreamId.from("abc").unsafe
 
-      def test(sr: c.StreamRevision, esr: ExpectedStreamRevision) =
+      def test(sr: StreamRevision, esr: ExpectedStreamRevision) =
         mkTombstoneReq(sid, sr) shouldEqual
-          TombstoneReq().withOptions(TombstoneReq.Options(sid.esSid.some, esr))
+          s.TombstoneReq().withOptions(s.TombstoneReq.Options(sid.esSid.some, esr))
 
-      test(c.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
-      test(c.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
-      test(c.StreamRevision.StreamExists, ExpectedStreamRevision.StreamExists(empty))
-      test(c.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
+      test(sec.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
+      test(sec.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
+      test(sec.StreamRevision.StreamExists, ExpectedStreamRevision.StreamExists(empty))
+      test(sec.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
     }
 
     "mkAppendHeaderReq" >> {
 
-      import AppendReq.Options.ExpectedStreamRevision
-      val sid = c.StreamId.from("abc").unsafe
+      import s.AppendReq.Options.ExpectedStreamRevision
+      val sid = sec.StreamId.from("abc").unsafe
 
-      def test(sr: c.StreamRevision, esr: ExpectedStreamRevision) =
+      def test(sr: StreamRevision, esr: ExpectedStreamRevision) =
         mkAppendHeaderReq(sid, sr) shouldEqual
-          AppendReq().withOptions(AppendReq.Options(sid.esSid.some, esr))
+          s.AppendReq().withOptions(s.AppendReq.Options(sid.esSid.some, esr))
 
-      test(c.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
-      test(c.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
-      test(c.StreamRevision.StreamExists, ExpectedStreamRevision.StreamExists(empty))
-      test(c.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
+      test(sec.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
+      test(sec.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
+      test(sec.StreamRevision.StreamExists, ExpectedStreamRevision.StreamExists(empty))
+      test(sec.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
     }
 
     "mkAppendProposalsReq" >> {
@@ -287,32 +293,33 @@ class StreamsMappingSpec extends mutable.Specification {
       import grpc.constants.Metadata.{ContentType, ContentTypes, Type}
       import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
 
-      def json(nr: Int): c.EventData = {
+      def json(nr: Int): EventData = {
         val id = JUUID.randomUUID()
         val et = s"et-$nr"
-        val da = c.Content.json(s"""{ "data" : "$nr" }""").unsafe
-        val md = c.Content.json(s"""{ "meta" : "$nr" }""").unsafe
-        c.EventData(et, id, da, md).unsafe
+        val da = Content.json(s"""{ "data" : "$nr" }""").unsafe
+        val md = sec.Content.json(s"""{ "meta" : "$nr" }""").unsafe
+        sec.EventData(et, id, da, md).unsafe
       }
 
-      def binary(nr: Int): c.EventData = {
+      def binary(nr: Int): EventData = {
         val id = JUUID.randomUUID()
         val et = s"et-$nr"
-        val da = c.Content.binary(s"data@$nr").unsafe
-        val md = c.Content.binary(s"meta@$nr").unsafe
-        c.EventData(et, id, da, md).unsafe
+        val da = sec.Content.binary(s"data@$nr").unsafe
+        val md = sec.Content.binary(s"meta@$nr").unsafe
+        sec.EventData(et, id, da, md).unsafe
       }
 
-      def test(nel: NonEmptyList[c.EventData]) = {
+      def test(nel: NonEmptyList[EventData]) = {
         mkAppendProposalsReq(nel) shouldEqual nel.zipWithIndex.map { case (e, i) =>
-          AppendReq().withProposedMessage(
-            AppendReq
-              .ProposedMessage()
-              .withId(mkUuid(e.eventId))
-              .withMetadata(Map(Type -> s"et-$i", ContentType -> e.contentType.fold(Binary, Json)))
-              .withData(e.data.bytes.toByteString)
-              .withCustomMetadata(e.metadata.bytes.toByteString)
-          )
+          s.AppendReq()
+            .withProposedMessage(
+              s.AppendReq
+                .ProposedMessage()
+                .withId(mkUuid(e.eventId))
+                .withMetadata(Map(Type -> s"et-$i", ContentType -> e.contentType.fold(Binary, Json)))
+                .withData(e.data.bytes.toByteString)
+                .withCustomMetadata(e.metadata.bytes.toByteString)
+            )
         }
       }
 
@@ -327,7 +334,6 @@ class StreamsMappingSpec extends mutable.Specification {
   "incoming" >> {
 
     import incoming._
-    import Streams.{Checkpoint, DeleteResult, WriteResult}
     import grpc.constants.Metadata.{ContentType, ContentTypes, Created, Type}
     import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
 
@@ -347,7 +353,7 @@ class StreamsMappingSpec extends mutable.Specification {
       val metadata   = Map(ContentType -> Json, Type -> eventType, Created -> created.getNano().toString)
 
       val eventProto =
-        ReadResp.ReadEvent
+        s.ReadResp.ReadEvent
           .RecordedEvent()
           .withStreamIdentifier(streamId.toStreamIdentifer)
           .withStreamRevision(revision)
@@ -363,13 +369,13 @@ class StreamsMappingSpec extends mutable.Specification {
       val linkCommit     = 10L
       val linkPrepare    = 10L
       val linkId         = "b8f5ed88-5aa1-49a6-85d6-c173556436ae"
-      val linkEventType  = c.EventType.systemTypes.LinkTo
-      val linkData       = c.Content.binary(s"$revision@$streamId").unsafe.bytes
+      val linkEventType  = EventType.systemTypes.LinkTo
+      val linkData       = sec.Content.binary(s"$revision@$streamId").unsafe.bytes
       val linkCustomMeta = ByteVector.empty
       val linkCreated    = Instant.EPOCH.atZone(ZoneOffset.UTC)
       val linkMetadata   = Map(ContentType -> Binary, Type -> linkEventType, Created -> linkCreated.getNano().toString)
 
-      val linkProto = ReadResp.ReadEvent
+      val linkProto = s.ReadResp.ReadEvent
         .RecordedEvent()
         .withStreamIdentifier(linkStreamId.toStreamIdentifer)
         .withStreamRevision(linkRevision)
@@ -380,38 +386,38 @@ class StreamsMappingSpec extends mutable.Specification {
         .withId(UUID().withString(linkId))
         .withMetadata(linkMetadata)
 
-      val eventRecord = c.EventRecord(
-        c.StreamId.from(streamId).unsafe,
-        c.EventNumber.exact(revision),
-        c.Position.exact(commit, prepare),
-        c.EventData.json(c.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta),
+      val eventRecord = EventRecord(
+        sec.StreamId.from(streamId).unsafe,
+        sec.EventNumber.exact(revision),
+        sec.Position.exact(commit, prepare),
+        sec.EventData.json(sec.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta),
         created
       )
 
-      val linkRecord = c.EventRecord(
-        c.StreamId.from(linkStreamId).unsafe,
-        c.EventNumber.exact(linkRevision),
-        c.Position.exact(linkCommit, linkPrepare),
-        c.EventData.binary(c.EventType.LinkTo, JUUID.fromString(linkId), linkData, linkCustomMeta),
+      val linkRecord = sec.EventRecord(
+        sec.StreamId.from(linkStreamId).unsafe,
+        sec.EventNumber.exact(linkRevision),
+        sec.Position.exact(linkCommit, linkPrepare),
+        sec.EventData.binary(sec.EventType.LinkTo, JUUID.fromString(linkId), linkData, linkCustomMeta),
         linkCreated
       )
 
       ///
 
-      val readEvent = ReadResp.ReadEvent()
+      val readEvent = s.ReadResp.ReadEvent()
 
       // Event & No Link => EventRecord
       mkEvent[ErrorOr](readEvent.withEvent(eventProto)) shouldEqual eventRecord.some.asRight
 
       // Event & Link => ResolvedEvent
       mkEvent[ErrorOr](readEvent.withEvent(eventProto).withLink(linkProto)) shouldEqual
-        c.ResolvedEvent(eventRecord, linkRecord).some.asRight
+        ResolvedEvent(eventRecord, linkRecord).some.asRight
 
       // No Event & No Link => None
-      mkEvent[ErrorOr](readEvent) shouldEqual Option.empty[c.Event].asRight
+      mkEvent[ErrorOr](readEvent) shouldEqual Option.empty[Event].asRight
 
       // No Event & Link, i.e. link to deleted event => None
-      mkEvent[ErrorOr](readEvent.withLink(linkProto)) shouldEqual Option.empty[c.Event].asRight
+      mkEvent[ErrorOr](readEvent.withLink(linkProto)) shouldEqual Option.empty[Event].asRight
     }
 
     "mkEventRecord" >> {
@@ -430,7 +436,7 @@ class StreamsMappingSpec extends mutable.Specification {
       val metadata        = Map(ContentType -> Binary, Type -> eventType, Created -> created.getNano().toString)
 
       val recordedEvent =
-        ReadResp.ReadEvent
+        s.ReadResp.ReadEvent
           .RecordedEvent()
           .withStreamIdentifier(streamId.toStreamIdentifer)
           .withStreamRevision(revision)
@@ -441,11 +447,11 @@ class StreamsMappingSpec extends mutable.Specification {
           .withId(UUID().withString(id))
           .withMetadata(metadata)
 
-      val eventRecord = c.EventRecord(
-        c.StreamId.from(streamId).unsafe,
-        c.EventNumber.exact(revision),
-        c.Position.exact(commit, prepare),
-        c.EventData.binary(c.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta),
+      val eventRecord = sec.EventRecord(
+        sec.StreamId.from(streamId).unsafe,
+        sec.EventNumber.exact(revision),
+        sec.Position.exact(commit, prepare),
+        sec.EventData.binary(sec.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta),
         created
       )
 
@@ -487,10 +493,10 @@ class StreamsMappingSpec extends mutable.Specification {
 
     "mkCheckpoint" >> {
 
-      mkCheckpoint[ErrorOr](ReadResp.Checkpoint(1L, 1L)) shouldEqual
-        Checkpoint(c.Position.exact(1L, 1L)).asRight
+      mkCheckpoint[ErrorOr](s.ReadResp.Checkpoint(1L, 1L)) shouldEqual
+        Checkpoint(sec.Position.exact(1L, 1L)).asRight
 
-      mkCheckpoint[ErrorOr](ReadResp.Checkpoint(-1L, 1L)) shouldEqual
+      mkCheckpoint[ErrorOr](s.ReadResp.Checkpoint(-1L, 1L)) shouldEqual
         ProtoResultError("Invalid position for Checkpoint: commit must be >= 0, but is -1").asLeft
     }
 
@@ -501,11 +507,11 @@ class StreamsMappingSpec extends mutable.Specification {
       val created     = Instant.EPOCH.atZone(ZoneOffset.UTC)
       val event       = sampleOfGen(eventGen.eventRecordOne).copy(created = created)
       val eventData   = event.eventData
-      val eventType   = c.EventType.eventTypeToString(event.eventData.eventType)
+      val eventType   = sec.EventType.eventTypeToString(event.eventData.eventType)
       val contentType = eventData.data.contentType.isBinary.fold(Binary, Json)
       val metadata    = Map(ContentType -> contentType, Type -> eventType, Created -> created.getNano().toString)
 
-      val recordedEvent = ReadResp.ReadEvent
+      val recordedEvent = s.ReadResp.ReadEvent
         .RecordedEvent()
         .withStreamIdentifier(event.streamId.stringValue.toStreamIdentifer)
         .withStreamRevision(event.number.value)
@@ -516,24 +522,24 @@ class StreamsMappingSpec extends mutable.Specification {
         .withId(UUID().withString(event.eventData.eventId.toString))
         .withMetadata(metadata)
 
-      val checkpoint = ReadResp.Checkpoint(1L, 1L)
+      val checkpoint = s.ReadResp.Checkpoint(1L, 1L)
 
-      mkCheckpointOrEvent[ErrorOr](ReadResp().withEvent(ReadResp.ReadEvent().withEvent(recordedEvent))) shouldEqual
+      mkCheckpointOrEvent[ErrorOr](s.ReadResp().withEvent(s.ReadResp.ReadEvent().withEvent(recordedEvent))) shouldEqual
         Some(event.asRight[Checkpoint]).asRight
 
-      mkCheckpointOrEvent[ErrorOr](ReadResp().withCheckpoint(checkpoint)) shouldEqual
-        Some(Checkpoint(c.Position.exact(1L, 1L)).asLeft[c.Event]).asRight
+      mkCheckpointOrEvent[ErrorOr](s.ReadResp().withCheckpoint(checkpoint)) shouldEqual
+        Some(Checkpoint(sec.Position.exact(1L, 1L)).asLeft[Event]).asRight
 
-      mkCheckpointOrEvent[ErrorOr](ReadResp()) shouldEqual
-        None.asRight[Either[Checkpoint, c.Event]]
+      mkCheckpointOrEvent[ErrorOr](s.ReadResp()) shouldEqual
+        None.asRight[Either[Checkpoint, Event]]
     }
 
     "mkStreamNotFound" >> {
 
-      mkStreamNotFound[ErrorOr](ReadResp.StreamNotFound()) shouldEqual
+      mkStreamNotFound[ErrorOr](s.ReadResp.StreamNotFound()) shouldEqual
         ProtoResultError("Required value StreamIdentifer expected missing or invalid.").asLeft
 
-      mkStreamNotFound[ErrorOr](ReadResp.StreamNotFound().withStreamIdentifier("abc".toStreamIdentifer)) shouldEqual
+      mkStreamNotFound[ErrorOr](s.ReadResp.StreamNotFound().withStreamIdentifier("abc".toStreamIdentifer)) shouldEqual
         StreamNotFound("abc").asRight
 
     }
@@ -541,37 +547,37 @@ class StreamsMappingSpec extends mutable.Specification {
     "mkEventType" >> {
       mkEventType[ErrorOr](null) shouldEqual ProtoResultError("Event type name cannot be empty").asLeft
       mkEventType[ErrorOr]("") shouldEqual ProtoResultError("Event type name cannot be empty").asLeft
-      mkEventType[ErrorOr]("sec.protos.A") shouldEqual c.EventType.userDefined("sec.protos.A").unsafe.asRight
-      mkEventType[ErrorOr]("$system-type") shouldEqual c.EventType.systemDefined("system-type").unsafe.asRight
-      mkEventType[ErrorOr]("$>") shouldEqual c.EventType.LinkTo.asRight
+      mkEventType[ErrorOr]("sec.protos.A") shouldEqual sec.EventType.userDefined("sec.protos.A").unsafe.asRight
+      mkEventType[ErrorOr]("$system-type") shouldEqual sec.EventType.systemDefined("system-type").unsafe.asRight
+      mkEventType[ErrorOr]("$>") shouldEqual sec.EventType.LinkTo.asRight
     }
 
     "mkWriteResult" >> {
 
-      import AppendResp.{Result, Success}
-      import AppendResp.WrongExpectedVersion.ExpectedRevisionOption
-      import AppendResp.WrongExpectedVersion.CurrentRevisionOption
+      import s.AppendResp.{Result, Success}
+      import s.AppendResp.WrongExpectedVersion.ExpectedRevisionOption
+      import s.AppendResp.WrongExpectedVersion.CurrentRevisionOption
 
-      val sid: c.StreamId.Id                       = c.StreamId.from("abc").unsafe
-      val test: AppendResp => ErrorOr[WriteResult] = mkWriteResult[ErrorOr](sid, _)
+      val sid: StreamId.Id                           = sec.StreamId.from("abc").unsafe
+      val test: s.AppendResp => ErrorOr[WriteResult] = mkWriteResult[ErrorOr](sid, _)
 
-      val successRevOne   = Success().withCurrentRevision(1L).withPosition(AppendResp.Position(1L, 1L))
+      val successRevOne   = Success().withCurrentRevision(1L).withPosition(s.AppendResp.Position(1L, 1L))
       val successRevEmpty = Success().withCurrentRevisionOption(Success.CurrentRevisionOption.Empty)
       val successNoStream = Success().withNoStream(empty)
 
-      test(AppendResp().withSuccess(successRevOne)) shouldEqual
-        WriteResult(c.EventNumber.exact(1L), c.Position.exact(1L, 1L)).asRight
+      test(s.AppendResp().withSuccess(successRevOne)) shouldEqual
+        WriteResult(sec.EventNumber.exact(1L), sec.Position.exact(1L, 1L)).asRight
 
-      test(AppendResp().withSuccess(successNoStream)) shouldEqual
+      test(s.AppendResp().withSuccess(successNoStream)) shouldEqual
         ProtoResultError("Did not expect NoStream when using NonEmptyList").asLeft
 
-      test(AppendResp().withSuccess(successRevEmpty)) shouldEqual
+      test(s.AppendResp().withSuccess(successRevEmpty)) shouldEqual
         ProtoResultError("CurrentRevisionOption is missing").asLeft
 
-      test(AppendResp().withSuccess(successRevOne.withNoPosition(empty))) shouldEqual
+      test(s.AppendResp().withSuccess(successRevOne.withNoPosition(empty))) shouldEqual
         ProtoResultError("Did not expect NoPosition when using NonEmptyList").asLeft
 
-      test(AppendResp().withSuccess(successRevOne.withPositionOption(Success.PositionOption.Empty))) shouldEqual
+      test(s.AppendResp().withSuccess(successRevOne.withPositionOption(Success.PositionOption.Empty))) shouldEqual
         ProtoResultError("PositionOption is missing").asLeft
 
       ///
@@ -586,48 +592,52 @@ class StreamsMappingSpec extends mutable.Specification {
       val wreCurrentNoStream = CurrentRevisionOption.CurrentNoStream(empty)
       val wreCurrentEmpty    = CurrentRevisionOption.Empty
 
-      def mkExpected(e: ExpectedRevisionOption) = AppendResp().withWrongExpectedVersion(
-        AppendResp.WrongExpectedVersion(expectedRevisionOption = e, currentRevisionOption = wreCurrentRevTwo)
-      )
+      def mkExpected(e: ExpectedRevisionOption) = s
+        .AppendResp()
+        .withWrongExpectedVersion(
+          s.AppendResp.WrongExpectedVersion(expectedRevisionOption = e, currentRevisionOption = wreCurrentRevTwo)
+        )
 
-      def testExpected(ero: ExpectedRevisionOption, expected: c.StreamRevision) =
-        test(mkExpected(ero)) shouldEqual WrongExpectedRevision(sid, expected, c.EventNumber.exact(2L)).asLeft
+      def testExpected(ero: ExpectedRevisionOption, expected: StreamRevision) =
+        test(mkExpected(ero)) shouldEqual WrongExpectedRevision(sid, expected, sec.EventNumber.exact(2L)).asLeft
 
-      testExpected(wreExpectedOne, c.EventNumber.exact(1L))
-      testExpected(wreExpectedNoStream, c.StreamRevision.NoStream)
-      testExpected(wreExpectedAny, c.StreamRevision.Any)
-      testExpected(wreExpectedStreamExists, c.StreamRevision.StreamExists)
+      testExpected(wreExpectedOne, sec.EventNumber.exact(1L))
+      testExpected(wreExpectedNoStream, sec.StreamRevision.NoStream)
+      testExpected(wreExpectedAny, sec.StreamRevision.Any)
+      testExpected(wreExpectedStreamExists, sec.StreamRevision.StreamExists)
       test(mkExpected(wreExpectedEmpty)) shouldEqual ProtoResultError("ExpectedRevisionOption is missing").asLeft
 
-      def mkCurrent(c: CurrentRevisionOption) = AppendResp().withWrongExpectedVersion(
-        AppendResp.WrongExpectedVersion(expectedRevisionOption = wreExpectedOne, currentRevisionOption = c)
-      )
+      def mkCurrent(c: CurrentRevisionOption) = s
+        .AppendResp()
+        .withWrongExpectedVersion(
+          s.AppendResp.WrongExpectedVersion(expectedRevisionOption = wreExpectedOne, currentRevisionOption = c)
+        )
 
-      def testCurrent(cro: CurrentRevisionOption, actual: c.StreamRevision) =
-        test(mkCurrent(cro)) shouldEqual WrongExpectedRevision(sid, c.EventNumber.exact(1L), actual).asLeft
+      def testCurrent(cro: CurrentRevisionOption, actual: StreamRevision) =
+        test(mkCurrent(cro)) shouldEqual WrongExpectedRevision(sid, sec.EventNumber.exact(1L), actual).asLeft
 
-      testCurrent(wreCurrentRevTwo, c.EventNumber.exact(2L))
-      testCurrent(wreCurrentNoStream, c.StreamRevision.NoStream)
+      testCurrent(wreCurrentRevTwo, sec.EventNumber.exact(2L))
+      testCurrent(wreCurrentNoStream, sec.StreamRevision.NoStream)
       test(mkCurrent(wreCurrentEmpty)) shouldEqual ProtoResultError("CurrentRevisionOption is missing").asLeft
 
       ///
 
-      test(AppendResp().withResult(Result.Empty)) shouldEqual
+      test(s.AppendResp().withResult(Result.Empty)) shouldEqual
         ProtoResultError("Result is missing").asLeft
 
     }
 
     "mkDeleteResult" >> {
-      mkDeleteResult[ErrorOr](DeleteResp().withPosition(DeleteResp.Position(1L, 1L))) shouldEqual
-        DeleteResult(c.Position.exact(1L, 1L)).asRight
+      mkDeleteResult[ErrorOr](s.DeleteResp().withPosition(s.DeleteResp.Position(1L, 1L))) shouldEqual
+        DeleteResult(sec.Position.exact(1L, 1L)).asRight
 
-      mkDeleteResult[ErrorOr](DeleteResp().withNoPosition(empty)) shouldEqual
+      mkDeleteResult[ErrorOr](s.DeleteResp().withNoPosition(empty)) shouldEqual
         ProtoResultError("Required value DeleteResp.PositionOptions.Position missing or invalid.").asLeft
 
-      mkDeleteResult[ErrorOr](TombstoneResp().withPosition(TombstoneResp.Position(1L, 1L))) shouldEqual
-        DeleteResult(c.Position.exact(1L, 1L)).asRight
+      mkDeleteResult[ErrorOr](s.TombstoneResp().withPosition(s.TombstoneResp.Position(1L, 1L))) shouldEqual
+        DeleteResult(sec.Position.exact(1L, 1L)).asRight
 
-      mkDeleteResult[ErrorOr](TombstoneResp().withNoPosition(empty)) shouldEqual
+      mkDeleteResult[ErrorOr](s.TombstoneResp().withNoPosition(empty)) shouldEqual
         ProtoResultError("Required value TombstoneResp.PositionOptions.Position missing or invalid.").asLeft
     }
 

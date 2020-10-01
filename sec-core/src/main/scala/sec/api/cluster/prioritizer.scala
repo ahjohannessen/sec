@@ -20,13 +20,11 @@ package cluster
 
 import cats.data.NonEmptyList
 import cats.implicits._
-import cats.effect.Sync
-import sec.api.Gossip._
-import sec.api.Gossip.VNodeState._
+import VNodeState._
 
 private[sec] object NodePrioritizer {
 
-  final val notAllowedStates: Set[VNodeState] =
+  val notAllowedStates: Set[VNodeState] =
     Set(
       Manager,
       ShuttingDown,
@@ -44,39 +42,48 @@ private[sec] object NodePrioritizer {
       DiscoverLeader
     )
 
-  def pickBestNode[F[_]: Sync](
-    members: NonEmptyList[MemberInfo],
-    preference: NodePreference
-  ): F[Option[MemberInfo]] = prioritizeNodes[F](members, preference).map(_.headOption)
-
-  def prioritizeNodes[F[_]: Sync](
-    members: NonEmptyList[MemberInfo],
-    preference: NodePreference
-  ): F[List[MemberInfo]] =
-    prioritizeNodes[F](members, preference, (m: MemberInfo) => !notAllowedStates.contains(m.state))
-
-  def prioritizeNodes[F[_]: Sync](
+  def pickBestNode(
     members: NonEmptyList[MemberInfo],
     preference: NodePreference,
+    randomSeed: Long
+  ): Option[MemberInfo] = prioritizeNodes(members, preference, randomSeed).headOption
+
+  def prioritizeNodes(
+    members: NonEmptyList[MemberInfo],
+    preference: NodePreference,
+    randomSeed: Long
+  ): List[MemberInfo] =
+    prioritizeNodes(members, preference, randomSeed, (m: MemberInfo) => !notAllowedStates.contains(m.state))
+
+  def prioritizeNodes(
+    members: NonEmptyList[MemberInfo],
+    preference: NodePreference,
+    randomSeed: Long,
     allowed: MemberInfo => Boolean
-  ): F[List[MemberInfo]] = {
+  ): List[MemberInfo] = {
 
     val candidates: List[MemberInfo] =
       members.filter(_.isAlive).filter(allowed).sortBy(_.state).reverse
 
-    def arrange(p: MemberInfo => Boolean): F[List[MemberInfo]] = {
+    def arrange(p: MemberInfo => Boolean): List[MemberInfo] = {
       val (satisfy, remaining) = candidates.partition(p)
-      satisfy.shuffle[F].map(_ ::: remaining)
+      satisfy.shuffle(randomSeed) ::: remaining
     }
 
     val isReadOnlyReplicaState: MemberInfo => Boolean =
-      m => m.state.eqv(ReadOnlyLeaderless) || m.state.eqv(ReadOnlyReplica)
+      m => m.state.eqv(VNodeState.ReadOnlyLeaderless) || m.state.eqv(VNodeState.ReadOnlyReplica)
 
     preference match {
-      case NodePreference.Leader          => arrange(_.state.eqv(Leader))
-      case NodePreference.Follower        => arrange(_.state.eqv(Follower))
+      case NodePreference.Leader          => arrange(_.state.eqv(VNodeState.Leader))
+      case NodePreference.Follower        => arrange(_.state.eqv(VNodeState.Follower))
       case NodePreference.ReadOnlyReplica => arrange(isReadOnlyReplicaState)
     }
+  }
+
+//======================================================================================================================
+
+  implicit final private[sec] class ListOps[A](val inner: List[A]) extends AnyVal {
+    def shuffle(seed: Long): List[A] = new scala.util.Random(seed).shuffle(inner)
   }
 
 }
