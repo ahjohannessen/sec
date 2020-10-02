@@ -84,7 +84,7 @@ object VNodeState {
   case object ReadOnlyReplica    extends VNodeState
   case object ResigningLeader    extends VNodeState
 
-  final private[sec] val values: List[VNodeState] = List(
+  final private[sec] val values: Set[VNodeState] = Set(
     Initializing,
     DiscoverLeader,
     Unknown,

@@ -20,7 +20,6 @@ package cluster
 
 import java.{util => ju}
 import java.time.ZonedDateTime
-
 import org.specs2.mutable.Specification
 import org.scalacheck.{Arbitrary, Gen}
 import cats.data.{NonEmptyList => Nel}
@@ -40,6 +39,11 @@ class NodePrioritizerSpec extends Specification with CatsIO {
     def port       = sampleOfGen(Gen.chooseNum(1, 65535))
     def address    = sampleOfGen(Gen.chooseNum(0, 254).map(i => s"127.0.0.$i"))
     val randomSeed = sampleOf(Arbitrary.arbLong)
+
+    "allowed vnode states" >> {
+      allowedStates shouldEqual Set(Leader, Follower, ReadOnlyReplica, ReadOnlyLeaderless)
+      VNodeState.values.diff(allowedStates).size shouldEqual 12
+    }
 
     "pick valid members" >> {
 
