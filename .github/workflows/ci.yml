@@ -113,7 +113,7 @@ jobs:
         run: .docker/cluster.sh down
 
       - name: Compress target directories
-        run: tar cf targets.tar target sec-core/target sec-tests/target sec-netty/target sec-protos/target project/target
+        run: tar cf targets.tar target sec-fs2-netty/target sec-fs2-core/target sec-core/target sec-tests/target project/target
 
       - name: Upload target directories
         uses: actions/upload-artifact@v2

@@ -20,24 +20,26 @@ package cluster
 
 import java.{util => ju}
 import java.time.ZonedDateTime
+
 import org.specs2.mutable.Specification
-import org.scalacheck.Gen
+import org.scalacheck.{Arbitrary, Gen}
 import cats.data.{NonEmptyList => Nel}
 import cats.syntax.all._
 import cats.effect.testing.specs2.CatsIO
-import cats.effect._
-import Gossip._
-import Gossip.VNodeState._
+import VNodeState._
 import sec.arbitraries._
 
 class NodePrioritizerSpec extends Specification with CatsIO {
 
+  import NodePrioritizer._
+
   "NodePrioritizer" should {
 
-    def id      = sampleOf[ju.UUID]
-    def ts      = sampleOf[ZonedDateTime]
-    def port    = sampleOfGen(Gen.chooseNum(1, 65535))
-    def address = sampleOfGen(Gen.chooseNum(0, 254).map(i => s"127.0.0.$i"))
+    def id         = sampleOf[ju.UUID]
+    def ts         = sampleOf[ZonedDateTime]
+    def port       = sampleOfGen(Gen.chooseNum(1, 65535))
+    def address    = sampleOfGen(Gen.chooseNum(0, 254).map(i => s"127.0.0.$i"))
+    val randomSeed = sampleOf(Arbitrary.arbLong)
 
     "pick valid members" >> {
 
@@ -58,12 +60,12 @@ class NodePrioritizerSpec extends Specification with CatsIO {
         DiscoverLeader
       )
 
-      val invalidMembers = invalidStates.map(MemberInfo(id, ts, _, true, Endpoint(address, port)))
+      val invalidMembers = invalidStates.map(MemberInfo(id, ts, _, isAlive = true, Endpoint(address, port)))
 
-      def test(ms: Nel[MemberInfo]) =
-        NodePrioritizer.pickBestNode[IO](ms, NodePreference.Leader).map(_ should beNone)
+      def test(ms: Nel[MemberInfo]) = pickBestNode(ms, NodePreference.Leader, randomSeed) should beNone
 
-      invalidMembers.traverse(m => test(Nel.one(m))) *> test(invalidMembers)
+      invalidMembers.map(m => test(Nel.one(m)))
+      test(invalidMembers)
 
     }
 
@@ -91,14 +93,10 @@ class NodePrioritizerSpec extends Specification with CatsIO {
         )
 
       def test(pref: NodePreference, expected: VNodeState) =
-        NodePrioritizer
-          .pickBestNode[IO](members(expected), pref)
-          .map(_.map(_.httpEndpoint.port))
-          .map(_ shouldEqual members(expected).filter(_.state.eqv(expected)).lastOption.map(_.httpEndpoint.port))
+        pickBestNode(members(expected), pref, randomSeed).map(_.httpEndpoint.port) shouldEqual
+          members(expected).filter(_.state.eqv(expected)).lastOption.map(_.httpEndpoint.port)
 
-      expectations.toList.traverse { case (p, e) =>
-        test(p, e)
-      }
+      expectations.toList.map({ case (p, e) => test(p, e) })
 
     }
 
@@ -111,10 +109,14 @@ class NodePrioritizerSpec extends Specification with CatsIO {
           MemberInfo(id, ts, Follower, isAlive = true, Endpoint(address, 2222))
         )
 
-      NodePrioritizer
-        .pickBestNode[IO](members, NodePreference.Leader)
-        .map(_.map(_.httpEndpoint.port))
-        .map(_ shouldEqual members.filter(_.state.eqv(Follower)).lastOption.map(_.httpEndpoint.port))
+      pickBestNode(members, NodePreference.Leader, randomSeed).map(_.httpEndpoint.port) shouldEqual
+        members.filter(_.state.eqv(Follower)).lastOption.map(_.httpEndpoint.port)
+    }
+
+    "ListOps" >> {
+      "shuffle is referentially transparent" >> {
+        List(1, 2, 3).shuffle(1L) shouldEqual List(1, 2, 3).shuffle(1L)
+      }
     }
 
   }

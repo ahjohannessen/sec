@@ -22,9 +22,7 @@ import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.all._
 import com.eventstore.dbclient.proto.shared._
 import com.eventstore.dbclient.proto.streams._
-import sec.core._
 import sec.api.exceptions._
-import sec.api.Streams._
 import sec.api.mapping.implicits._
 import sec.api.mapping.time._
 import sec.api.mapping.shared._
@@ -265,7 +263,7 @@ private[sec] object streams {
         ct.fold(binary(t, i, data, customMeta), json(t, i, data, customMeta))
       }
 
-      (streamId, eventData, created).mapN((id, ed, c) => EventRecord(id, eventNumber, position, ed, c))
+      (streamId, eventData, created).mapN((id, ed, c) => sec.EventRecord(id, eventNumber, position, ed, c))
 
     }
 

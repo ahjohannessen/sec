@@ -25,10 +25,8 @@ import scala.collection.immutable.Nil
 import cats.data.NonEmptyList
 import cats.implicits._
 import scodec.bits.ByteVector
-import sec.core._
-import sec.core.StreamRevision.{Any, NoStream, StreamExists}
-import sec.api.Gossip._
-import sec.api.Endpoint
+import StreamRevision.{Any, NoStream, StreamExists}
+import sec.api._
 import org.scalacheck._
 import org.scalacheck.Arbitrary.arbitrary
 
@@ -248,7 +246,7 @@ object arbitraries {
       n   <- arbEventNumberExact.arbitrary.suchThat(_.value < p.commit)
       ed  <- arbEventData.arbitrary
       c   <- arbZonedDateTime.arbitrary
-    } yield EventRecord(sid, n, p, ed, c)
+    } yield sec.EventRecord(sid, n, p, ed, c)
 
     def eventRecordNelN(
       n: Int,
@@ -265,7 +263,7 @@ object arbitraries {
         val position = Position.exact(commit, commit)
         val number   = EventNumber.exact(i.toLong)
         val created  = zdt.plusSeconds(i.toLong)
-        EventRecord(sid, number, position, ed, created)
+        sec.EventRecord(sid, number, position, ed, created)
       }
     }
 

@@ -23,7 +23,6 @@ import com.eventstore.dbclient.proto.{gossip => p}
 import sec.api.mapping.shared._
 import sec.api.mapping.time._
 import sec.api.mapping.implicits._
-import sec.api.Gossip._
 
 private[sec] object gossip {
 

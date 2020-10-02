@@ -22,132 +22,107 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit.SECONDS
 import cats._
 import cats.implicits._
-import cats.effect.{Concurrent, Timer}
-import com.eventstore.dbclient.proto.gossip.{GossipFs2Grpc, ClusterInfo => PClusterInfo}
-import com.eventstore.dbclient.proto.shared.Empty
-import sec.api.mapping.gossip.mkClusterInfo
 
-trait Gossip[F[_]] {
-  def read(creds: Option[UserCredentials]): F[Gossip.ClusterInfo]
+final case class ClusterInfo(
+  members: Set[MemberInfo]
+)
+
+object ClusterInfo {
+  implicit val orderForClusterInfo: Order[ClusterInfo] = Order.by(_.members.toList.sorted)
+  implicit val showForClusterInfo: Show[ClusterInfo] = Show.show { ci =>
+    val padTo   = ci.members.map(_.state.show).map(_.length).maxOption.getOrElse(0)
+    val members = ci.members.toList.sorted
+    s"ClusterInfo:\n${members.map(mi => s" ${MemberInfo.mkShow(padTo).show(mi)}").mkString("\n")}"
+  }
 }
 
-object Gossip {
+final case class MemberInfo(
+  instanceId: ju.UUID,
+  timestamp: ZonedDateTime,
+  state: VNodeState,
+  isAlive: Boolean,
+  httpEndpoint: Endpoint
+)
 
-  private[sec] def apply[F[_]: Concurrent: Timer, C](
-    client: GossipFs2Grpc[F, C],
-    mkCtx: Option[UserCredentials] => C,
-    opts: Opts[F]
-  ): Gossip[F] = new Gossip[F] {
-    def read(creds: Option[UserCredentials]): F[ClusterInfo] = read0(opts)(client.read(Empty(), mkCtx(creds)))
+object MemberInfo {
+
+  implicit val orderForMemberInfo: Order[MemberInfo] =
+    Order.by(mi => (mi.httpEndpoint, mi.state, mi.isAlive, mi.instanceId))
+
+  implicit val showForMemberInfo: Show[MemberInfo] = mkShow(0)
+
+  private[sec] def mkShow(padTo: Int): Show[MemberInfo] = Show.show { mi =>
+
+    val alive    = s"${mi.isAlive.fold("✔", "✕")}"
+    val state    = s"${mi.state.show.padTo(padTo, ' ')}"
+    val endpoint = s"${mi.httpEndpoint.show}"
+    val ts       = s"${mi.timestamp.truncatedTo(SECONDS)}"
+    val id       = s"${mi.instanceId}"
+
+    s"$alive $state $endpoint $ts $id"
   }
 
-  private[sec] def read0[F[_]: Concurrent: Timer](o: Opts[F])(f: F[PClusterInfo]): F[ClusterInfo] =
-    o.run(f, "read") >>= mkClusterInfo[F]
+}
 
-//======================================================================================================================
+sealed trait VNodeState
+object VNodeState {
 
-  final case class ClusterInfo(
-    members: Set[MemberInfo]
+  case object Initializing       extends VNodeState
+  case object DiscoverLeader     extends VNodeState
+  case object Unknown            extends VNodeState
+  case object PreReplica         extends VNodeState
+  case object CatchingUp         extends VNodeState
+  case object Clone              extends VNodeState
+  case object Follower           extends VNodeState
+  case object PreLeader          extends VNodeState
+  case object Leader             extends VNodeState
+  case object Manager            extends VNodeState
+  case object ShuttingDown       extends VNodeState
+  case object Shutdown           extends VNodeState
+  case object ReadOnlyLeaderless extends VNodeState
+  case object PreReadOnlyReplica extends VNodeState
+  case object ReadOnlyReplica    extends VNodeState
+  case object ResigningLeader    extends VNodeState
+
+  final private[sec] val values: List[VNodeState] = List(
+    Initializing,
+    DiscoverLeader,
+    Unknown,
+    PreReplica,
+    CatchingUp,
+    Clone,
+    Follower,
+    PreLeader,
+    Leader,
+    Manager,
+    ShuttingDown,
+    Shutdown,
+    ReadOnlyLeaderless,
+    PreReadOnlyReplica,
+    ReadOnlyReplica,
+    ResigningLeader
   )
 
-  object ClusterInfo {
-    implicit val orderForClusterInfo: Order[ClusterInfo] = Order.by(_.members.toList.sorted)
-    implicit val showForClusterInfo: Show[ClusterInfo] = Show.show { ci =>
-      val padTo   = ci.members.map(_.state.show).map(_.length).maxOption.getOrElse(0)
-      val members = ci.members.toList.sorted
-      s"ClusterInfo:\n${members.map(mi => s" ${MemberInfo.mkShow(padTo).show(mi)}").mkString("\n")}"
-    }
-  }
-
-  final case class MemberInfo(
-    instanceId: ju.UUID,
-    timestamp: ZonedDateTime,
-    state: VNodeState,
-    isAlive: Boolean,
-    httpEndpoint: Endpoint
-  )
-
-  object MemberInfo {
-
-    implicit val orderForMemberInfo: Order[MemberInfo] =
-      Order.by(mi => (mi.httpEndpoint, mi.state, mi.isAlive, mi.instanceId))
-
-    implicit val showForMemberInfo: Show[MemberInfo] = mkShow(0)
-
-    private[sec] def mkShow(padTo: Int): Show[MemberInfo] = Show.show { mi =>
-
-      val alive    = s"${mi.isAlive.fold("✔", "✕")}"
-      val state    = s"${mi.state.show.padTo(padTo, ' ')}"
-      val endpoint = s"${mi.httpEndpoint.show}"
-      val ts       = s"${mi.timestamp.truncatedTo(SECONDS)}"
-      val id       = s"${mi.instanceId}"
-
-      s"$alive $state $endpoint $ts $id"
+  implicit val orderForVNodeState: Order[VNodeState] =
+    Order.by[VNodeState, Int] {
+      case Initializing       => 0
+      case DiscoverLeader     => 1
+      case Unknown            => 2
+      case PreReplica         => 3
+      case CatchingUp         => 4
+      case Clone              => 5
+      case Follower           => 6
+      case PreLeader          => 7
+      case Leader             => 8
+      case Manager            => 9
+      case ShuttingDown       => 10
+      case Shutdown           => 11
+      case ReadOnlyLeaderless => 12
+      case PreReadOnlyReplica => 13
+      case ReadOnlyReplica    => 14
+      case ResigningLeader    => 15
     }
 
-  }
-
-  sealed trait VNodeState
-  object VNodeState {
-
-    case object Initializing       extends VNodeState
-    case object DiscoverLeader     extends VNodeState
-    case object Unknown            extends VNodeState
-    case object PreReplica         extends VNodeState
-    case object CatchingUp         extends VNodeState
-    case object Clone              extends VNodeState
-    case object Follower           extends VNodeState
-    case object PreLeader          extends VNodeState
-    case object Leader             extends VNodeState
-    case object Manager            extends VNodeState
-    case object ShuttingDown       extends VNodeState
-    case object Shutdown           extends VNodeState
-    case object ReadOnlyLeaderless extends VNodeState
-    case object PreReadOnlyReplica extends VNodeState
-    case object ReadOnlyReplica    extends VNodeState
-    case object ResigningLeader    extends VNodeState
-
-    final private[sec] val values: List[VNodeState] = List(
-      Initializing,
-      DiscoverLeader,
-      Unknown,
-      PreReplica,
-      CatchingUp,
-      Clone,
-      Follower,
-      PreLeader,
-      Leader,
-      Manager,
-      ShuttingDown,
-      Shutdown,
-      ReadOnlyLeaderless,
-      PreReadOnlyReplica,
-      ReadOnlyReplica,
-      ResigningLeader
-    )
-
-    implicit val orderForVNodeState: Order[VNodeState] =
-      Order.by[VNodeState, Int] {
-        case Initializing       => 0
-        case DiscoverLeader     => 1
-        case Unknown            => 2
-        case PreReplica         => 3
-        case CatchingUp         => 4
-        case Clone              => 5
-        case Follower           => 6
-        case PreLeader          => 7
-        case Leader             => 8
-        case Manager            => 9
-        case ShuttingDown       => 10
-        case Shutdown           => 11
-        case ReadOnlyLeaderless => 12
-        case PreReadOnlyReplica => 13
-        case ReadOnlyReplica    => 14
-        case ResigningLeader    => 15
-      }
-
-    implicit val showForVNodeState: Show[VNodeState] = Show.fromToString[VNodeState]
-
-  }
+  implicit val showForVNodeState: Show[VNodeState] = Show.fromToString[VNodeState]
 
 }

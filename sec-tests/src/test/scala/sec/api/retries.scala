@@ -33,7 +33,7 @@ class RetriesSpec extends Specification with CatsEffect {
   import RetriesSpec.Oops
   import sec.api.retries.{retry => _, _}
 
-  override val Timeout = 1.second
+  override val Timeout: Duration = 1.second
 
   "retries" >> {
 

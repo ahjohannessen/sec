@@ -33,7 +33,6 @@ import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import io.chrisdavenport.log4cats.Logger
 import fs2.Stream
 import sec.api.exceptions.ServerUnavailable
-import sec.api.Gossip._
 import sec.arbitraries._
 import org.scalacheck.Gen
 
@@ -44,9 +43,11 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
   "ClusterWatch" should {
 
+    val mkLog: IO[Logger[IO]] = Slf4jLogger.fromName[IO]("cluster-watch-spec")
+
     "only emit changes in cluster info" >> {
 
-      val settings = ClusterSettings.default
+      val options = ClusterOptions.default
         .withMaxDiscoverAttempts(1.some)
         .withNotificationInterval(150.millis)
 
@@ -76,7 +77,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
         infos   <- Resource.liftF(Ref.of[IO, Nel[ClusterInfo]](Nel.of(ci1, ci2, ci3, ci4, ci5)))
         store   <- Resource.liftF(Ref.of[IO, List[ClusterInfo]](ci1 :: Nil))
         log     <- Resource.liftF(mkLog)
-        watch   <- ClusterWatch.create[IO](readFn(infos), settings, recordingCache(store), log)
+        watch   <- ClusterWatch.create[IO](readFn(infos), options, recordingCache(store), log)
         changes <- Resource.liftF(watch.subscribe.pure[IO])
       } yield (changes, store)
 
@@ -91,7 +92,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
       val maxAttempts = 5
 
-      val settings = ClusterSettings.default
+      val options = ClusterOptions.default
         .withMaxDiscoverAttempts(maxAttempts.some)
         .withRetryDelay(50.millis)
         .withRetryBackoffFactor(1)
@@ -106,7 +107,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
           readFn        = readCountRef.update(_ + 1) *> IO.raiseError(err) *> IO(ClusterInfo(Set.empty))
           log          <- Stream.eval(mkLog)
           _ <- Stream
-                 .resource(ClusterWatch.create[IO](readFn, settings, recordingCache(store), log))
+                 .resource(ClusterWatch.create[IO](readFn, options, recordingCache(store), log))
                  .map(_ => -1)
                  .handleErrorWith(_ => Stream.eval(readCountRef.get))
           _     <- Stream.sleep(500.millis)
@@ -128,7 +129,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
       val ec: TestContext          = TestContext()
       val ce: ConcurrentEffect[IO] = IO.ioConcurrentEffect(IO.contextShift(ec))
 
-      val settings = ClusterSettings.default
+      val options = ClusterOptions.default
         .withMaxDiscoverAttempts(2.some)
         .withRetryDelay(50.millis)
         .withRetryBackoffFactor(1)
@@ -142,10 +143,10 @@ class ClusterWatchSpec extends Specification with CatsIO {
       val cache    = recordingCache(storeRef)
       val readFn   = countRef.update(_ + 1) *> IO.raiseError(error) *> IO(ClusterInfo(Set.empty))
       val log      = mkLog.unsafeRunSync()
-      val watch    = ClusterWatch.create[IO](readFn, settings, cache, log)(ce, ec.timer)
+      val watch    = ClusterWatch.create[IO](readFn, options, cache, log)(ce, ec.timer)
 
       def test(expected: Int) = {
-        ec.tick(settings.retryDelay)
+        ec.tick(options.retryDelay)
         countRef.get.unsafeRunSync() shouldEqual expected
       }
 
@@ -159,12 +160,9 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
   }
 
-  def recordingCache(ref: Ref[IO, List[ClusterInfo]]): Cache[IO] =
-    new Cache[IO] {
-      def set(ci: ClusterInfo): IO[Unit] = ref.update(_ :+ ci)
-      def get: IO[ClusterInfo]           = ref.get.map(_.lastOption.getOrElse(ClusterInfo(Set.empty)))
-    }
-
-  val mkLog: IO[Logger[IO]] = Slf4jLogger.fromName[IO]("cluster-watch-spec")
+  def recordingCache(ref: Ref[IO, List[ClusterInfo]]): Cache[IO] = new Cache[IO] {
+    def set(ci: ClusterInfo): IO[Unit] = ref.update(_ :+ ci)
+    def get: IO[ClusterInfo]           = ref.get.map(_.lastOption.getOrElse(ClusterInfo(Set.empty)))
+  }
 
 }

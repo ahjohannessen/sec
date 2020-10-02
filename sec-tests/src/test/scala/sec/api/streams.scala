@@ -342,9 +342,9 @@ class StreamsSpec extends Specification with CatsIO {
       val f2AllOpt    = f2All.map(Option(_))
 
       val f2a = runForwards(0, f2Before, f2After).map(_ shouldEqual f2All)
-      val f2b = runForwards(0, f2Before, f2After, false).map(_ shouldEqual f2All.tail)
+      val f2b = runForwards(0, f2Before, f2After, emitFrom = false).map(_ shouldEqual f2All.tail)
       val f2c = runForwards(Option(0), f2BeforeOpt, f2AfterOpt).map(_ shouldEqual f2AllOpt)
-      val f2d = runForwards(Option(0), f2BeforeOpt, f2AfterOpt, false).map(_ shouldEqual f2AllOpt.tail)
+      val f2d = runForwards(Option(0), f2BeforeOpt, f2AfterOpt, emitFrom = false).map(_ shouldEqual f2AllOpt.tail)
 
       val forwards = f1a *> f1b *> f1c *> f1d *> f1e *> f2a *> f2b *> f2c *> f2d
 
