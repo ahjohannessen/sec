@@ -96,12 +96,6 @@ trait Streams[F[_]] {
 
 object Streams {
 
-//  final case class Checkpoint(position: Position.Exact)
-//  final case class WriteResult(currentRevision: EventNumber.Exact, position: Position.Exact)
-//  final case class DeleteResult(position: Position.Exact)
-
-//======================================================================================================================
-
   private[sec] def apply[F[_]: Concurrent: Timer, C](
     client: StreamsFs2Grpc[F, C],
     mkCtx: Option[UserCredentials] => C,

@@ -1,22 +1,12 @@
 import Dependencies._
 
-def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scalaVersion: String) = {
-
-  def extraDirs(suffix: String): List[File] =
-    List(srcBaseDir / srcName / suffix)
-
-  CrossVersion.partialVersion(scalaVersion) match {
-    case Some((2, 13)) => extraDirs("scala-2.13")
-    case Some((0, _))  => extraDirs("scala-3")
-    case _             => Nil
-  }
-}
-
 lazy val root = project
   .in(file("."))
   .settings(skip in publish := true)
-  .dependsOn(`sec-core`, `sec-fs2-core`, `sec-fs2-netty`, `sec-tests`)
-  .aggregate(`sec-core`, `sec-fs2-core`, `sec-fs2-netty`, `sec-tests`)
+  .dependsOn(`sec-core`, `sec-fs2-core`, `sec-fs2-netty`, `sec-zio-core`, `sec-zio-netty`, `sec-tests`)
+  .aggregate(`sec-core`, `sec-fs2-core`, `sec-fs2-netty`, `sec-zio-core`, `sec-zio-netty`, `sec-tests`)
+
+//==== Core ============================================================================================================
 
 lazy val `sec-core` = project
   .in(file("sec-core"))
@@ -24,11 +14,13 @@ lazy val `sec-core` = project
   .settings(commonSettings)
   .settings(
     name := "sec-core",
-    libraryDependencies ++= compileM(cats, scodecBits, circe, scalaPb, grpcApi),
+    libraryDependencies ++= compileM(cats, scodecBits, circe, scalaPb, grpcApi) ++ protobufM(scalaPb),
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
-    Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (sourceManaged in Compile).value)
+    Compile / PB.targets := Seq(scalapb.gen(grpc = false) -> (sourceManaged in Compile).value)
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
+
+//==== FS2 =============================================================================================================
 
 lazy val `sec-fs2-core` = project
   .in(file("sec-fs2-core"))
@@ -37,7 +29,7 @@ lazy val `sec-fs2-core` = project
   .settings(
     name := "sec-fs2-core",
     libraryDependencies ++=
-      compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser),
+      compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, circe, circeParser),
     Compile / unmanagedSourceDirectories ++=
       scalaVersionSpecificFolders("main", sourceDirectory.value, scalaVersion.value),
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
@@ -52,6 +44,37 @@ lazy val `sec-fs2-netty` = project
   .settings(commonSettings)
   .settings(name := "sec-fs2", libraryDependencies ++= compileM(grpcNetty, tcnative))
   .dependsOn(`sec-fs2-core`)
+
+//==== ZIO =============================================================================================================
+
+lazy val `sec-zio-core` = project
+  .in(file("sec-zio-core"))
+  .enablePlugins(AutomateHeaderPlugin)
+  .settings(commonSettings)
+  .settings(
+    name := "sec-zio-core",
+    libraryDependencies ++=
+      compileM(grpcScalaPb) ++ protobufM(scalaPb),
+    Compile / unmanagedSourceDirectories ++=
+      scalaVersionSpecificFolders("main", sourceDirectory.value, scalaVersion.value),
+    Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
+    Compile / PB.targets := Seq(
+      scalapb.gen(grpc = true) -> (sourceManaged in Compile).value,
+      scalapb.zio_grpc.ZioCodeGenerator -> (sourceManaged in Compile).value
+    ),
+    scalacOptions -= "-language:implicitConversions"
+  )
+  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
+  .dependsOn(`sec-core`)
+
+lazy val `sec-zio-netty` = project
+  .in(file("sec-zio-netty"))
+  .enablePlugins(AutomateHeaderPlugin)
+  .settings(commonSettings)
+  .settings(name := "sec-zio", libraryDependencies ++= compileM(grpcNetty, tcnative))
+  .dependsOn(`sec-zio-core`)
+
+//==== Tests ===========================================================================================================
 
 lazy val SingleNodeITest = config("sit") extend Test
 lazy val ClusterITest    = config("cit") extend Test
@@ -79,7 +102,19 @@ lazy val `sec-tests` = project
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
   .dependsOn(`sec-core`, `sec-fs2-netty`)
 
-// General Settings
+//==== Common ==========================================================================================================
+
+def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scalaVersion: String) = {
+
+  def extraDirs(suffix: String): List[File] =
+    List(srcBaseDir / srcName / suffix)
+
+  CrossVersion.partialVersion(scalaVersion) match {
+    case Some((2, 13)) => extraDirs("scala-2.13")
+    case Some((0, _))  => extraDirs("scala-3")
+    case _             => Nil
+  }
+}
 
 lazy val commonSettings = Seq(
   scalacOptions ++= {
@@ -94,7 +129,7 @@ lazy val commonSettings = Seq(
 inThisBuild(
   List(
     scalaVersion := crossScalaVersions.value.last,
-    crossScalaVersions := Seq("0.27.0-RC1", "2.13.3"),
+    crossScalaVersions := Seq("2.13.3"),
     scalacOptions ++= Seq("-target:jvm-1.8"),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
@@ -122,10 +157,9 @@ inThisBuild(
   )
 )
 
-addCommandAlias("compileTests", "sec-tests/test:compile; sec-tests/sit:compile; sec-tests/cit:compile;")
-addCommandAlias("runTests", "sec-tests/test; sec-tests/sit:test; sec-tests/cit:test;")
+//==== Github Actions ==================================================================================================
 
-// Github Actions
+addCommandAlias("compileTests", "sec-tests/test:compile; sec-tests/sit:compile; sec-tests/cit:compile;")
 
 def scalaCondition(version: String) = s"contains(matrix.scala, '$version')"
 

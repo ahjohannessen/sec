@@ -34,22 +34,22 @@ object Dependencies {
 
   // Testing & Demo
 
-  val specs2           = "org.specs2"        %% "specs2-core"                     % versions.specs2
-  val specs2ScalaCheck = "org.specs2"        %% "specs2-scalacheck"               % versions.specs2
-  val specs2Cats       = "org.specs2"        %% "specs2-cats"                     % versions.specs2
-  val disciplineSpecs2 = "org.typelevel"     %% "discipline-specs2"               % versions.disciplineSpecs2
-  val catsLaws         = "org.typelevel"     %% "cats-laws"                       % versions.catsCore
-  val catsEffectLaws   = "org.typelevel"     %% "cats-effect-laws"                % versions.catsEffect
-  val catsEffectSpecs2 = "com.codecommit"    %% "cats-effect-testing-specs2"      % versions.catsEffectSpecs2
-  val logback          = "ch.qos.logback"     % "logback-classic"                 % versions.logback
-  val log4catsNoop     = "io.chrisdavenport" %% "log4cats-noop"                   % versions.log4cats
-  val log4catsTesting  = "io.chrisdavenport" %% "log4cats-testing"                % versions.log4cats
-  val log4catsSlf4j    = "io.chrisdavenport" %% "log4cats-slf4j"                  % versions.log4cats
+  val specs2           = "org.specs2"        %% "specs2-core"                % versions.specs2
+  val specs2ScalaCheck = "org.specs2"        %% "specs2-scalacheck"          % versions.specs2
+  val specs2Cats       = "org.specs2"        %% "specs2-cats"                % versions.specs2
+  val disciplineSpecs2 = "org.typelevel"     %% "discipline-specs2"          % versions.disciplineSpecs2
+  val catsLaws         = "org.typelevel"     %% "cats-laws"                  % versions.catsCore
+  val catsEffectLaws   = "org.typelevel"     %% "cats-effect-laws"           % versions.catsEffect
+  val catsEffectSpecs2 = "com.codecommit"    %% "cats-effect-testing-specs2" % versions.catsEffectSpecs2
+  val logback          = "ch.qos.logback"     % "logback-classic"            % versions.logback
+  val log4catsNoop     = "io.chrisdavenport" %% "log4cats-noop"              % versions.log4cats
+  val log4catsTesting  = "io.chrisdavenport" %% "log4cats-testing"           % versions.log4cats
+  val log4catsSlf4j    = "io.chrisdavenport" %% "log4cats-slf4j"             % versions.log4cats
 
-
-  val grpcApi          = "io.grpc"            % "grpc-api"                      % versions.grpc
-  val grpcNetty        = "io.grpc"            % "grpc-netty"                      % versions.grpc
-  val tcnative         = "io.netty"           % "netty-tcnative-boringssl-static" % versions.tcnative
+  val grpcScalaPb = "com.thesamet.scalapb" %% "scalapb-runtime-grpc"            % versions.scalaPb
+  val grpcApi     = "io.grpc"               % "grpc-api"                        % versions.grpc
+  val grpcNetty   = "io.grpc"               % "grpc-netty"                      % versions.grpc
+  val tcnative    = "io.netty"              % "netty-tcnative-boringssl-static" % versions.tcnative
 
   // Misc
 

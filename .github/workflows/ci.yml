@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [0.27.0-RC1, 2.13.3]
+        scala: [2.13.3]
         java: [adopt@1.11]
     runs-on: ${{ matrix.os }}
     steps:
@@ -113,7 +113,7 @@ jobs:
         run: .docker/cluster.sh down
 
       - name: Compress target directories
-        run: tar cf targets.tar target sec-fs2-netty/target sec-fs2-core/target sec-core/target sec-tests/target project/target
+        run: tar cf targets.tar target sec-zio-netty/target sec-fs2-netty/target sec-fs2-core/target sec-core/target sec-tests/target sec-zio-core/target project/target
 
       - name: Upload target directories
         uses: actions/upload-artifact@v2
@@ -180,16 +180,6 @@ jobs:
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
-
-      - name: Download target directories (0.27.0-RC1)
-        uses: actions/download-artifact@v2
-        with:
-          name: target-${{ matrix.os }}-0.27.0-RC1-${{ matrix.java }}
-
-      - name: Inflate target directories (0.27.0-RC1)
-        run: |
-          tar xf targets.tar
-          rm targets.tar
 
       - name: Download target directories (2.13.3)
         uses: actions/download-artifact@v2

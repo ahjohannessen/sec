@@ -3,7 +3,6 @@ pull_request_rules:
   - name: Automatically merge pull requests
     conditions:
       - status-success~=Build and Test \(ubuntu-latest, 2\.13\.\d{1}.+\)
-      - status-success~=Build and Test \(ubuntu-latest, 0\..+\)
       - label=merge
     actions:
       merge:
@@ -14,7 +13,6 @@ pull_request_rules:
     conditions:
       - author=scala-steward
       - status-success~=Build and Test \(ubuntu-latest, 2\.13\.\d{1}.+\)
-      - status-success~=Build and Test \(ubuntu-latest, 0\..+\)
       - body~=labels:.*semver-patch.*
     actions:
       merge:
