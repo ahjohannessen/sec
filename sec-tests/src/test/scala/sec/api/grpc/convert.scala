@@ -18,7 +18,6 @@ package sec
 package api
 package grpc
 
-import java.nio.channels.ClosedChannelException
 import cats.syntax.all._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
 import org.specs2._
@@ -187,12 +186,8 @@ class ConvertSpec extends mutable.Specification {
 
     /// From Status Codes & Causes
 
-    convertToEs(Status.UNAVAILABLE.asRuntimeException()) should beSome(
-      ServerUnavailable("Server Unavailable: No description specified.")
-    )
-
-    convertToEs(Status.UNKNOWN.withCause(new ClosedChannelException()).asRuntimeException()) should beSome(
-      ServerUnavailable("Server Unavailable: Channel closed.")
+    convertToEs(Status.UNAVAILABLE.withDescription("Oops").asRuntimeException()) should beSome(
+      ServerUnavailable("UNAVAILABLE: Oops")
     )
 
   }

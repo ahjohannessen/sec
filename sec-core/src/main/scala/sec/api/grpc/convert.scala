@@ -20,7 +20,6 @@ package grpc
 
 import cats.syntax.all._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
-import java.nio.channels.ClosedChannelException
 import sec.api.grpc.constants.{Exceptions => ce}
 import sec.api.exceptions._
 
@@ -82,35 +81,8 @@ private[sec] object convert {
     reified orElse serverUnavailable(ex)
   }
 
-  private val serverUnavailable: StatusRuntimeException => Option[ServerUnavailable] = { ex =>
-
-    val status = ex.getStatus
-    val code   = status.getCode
-    val cause  = status.getCause
-
-    val unavailable = code == Status.Code.UNAVAILABLE
-    def chClosed    = code == Status.Code.UNKNOWN && cause.isInstanceOf[ClosedChannelException]
-
-    def prefix: String =
-      "Server Unavailable: "
-
-    def noDescription: String =
-      s"${prefix}No description specified."
-
-    def channelClosed: String =
-      s"${prefix}Channel closed."
-
-    def normalizedMsg(msg: String): String =
-      s"$prefix${msg.replace("UNAVAILABLE:", "").replace("UNAVAILABLE", "").trim}"
-
-    def exMsg: Option[String] =
-      Option(ex.getMessage).map(normalizedMsg).filter(_.isEmpty)
-
-    val msg = Option
-      .when(unavailable)(exMsg.getOrElse(noDescription))
-      .getOrElse(channelClosed)
-
-    Option.when(unavailable || chClosed)(ServerUnavailable(msg))
+  val serverUnavailable: StatusRuntimeException => Option[ServerUnavailable] = { ex =>
+    Option.when(ex.getStatus.getCode == Status.Code.UNAVAILABLE)(ServerUnavailable(ex.getMessage))
   }
 
 //======================================================================================================================
