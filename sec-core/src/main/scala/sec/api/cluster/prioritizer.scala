@@ -24,23 +24,8 @@ import VNodeState._
 
 private[sec] object NodePrioritizer {
 
-  val notAllowedStates: Set[VNodeState] =
-    Set(
-      Manager,
-      ShuttingDown,
-      Manager,
-      Shutdown,
-      Unknown,
-      Initializing,
-      CatchingUp,
-      ResigningLeader,
-      ShuttingDown,
-      PreLeader,
-      PreReplica,
-      PreReadOnlyReplica,
-      Clone,
-      DiscoverLeader
-    )
+  val allowedStates: Set[VNodeState] =
+    Set(Leader, Follower, ReadOnlyReplica, ReadOnlyLeaderless)
 
   def pickBestNode(
     members: NonEmptyList[MemberInfo],
@@ -53,7 +38,7 @@ private[sec] object NodePrioritizer {
     preference: NodePreference,
     randomSeed: Long
   ): List[MemberInfo] =
-    prioritizeNodes(members, preference, randomSeed, (m: MemberInfo) => !notAllowedStates.contains(m.state))
+    prioritizeNodes(members, preference, randomSeed, (m: MemberInfo) => allowedStates.contains(m.state))
 
   def prioritizeNodes(
     members: NonEmptyList[MemberInfo],
