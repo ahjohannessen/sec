@@ -24,6 +24,7 @@ import cats.syntax.all._
 import cats.effect.{Concurrent, Timer}
 import cats.effect.implicits._
 import io.chrisdavenport.log4cats.Logger
+import sec.utilities._
 
 private[sec] object retries {
 

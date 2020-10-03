@@ -19,11 +19,9 @@ package api
 package mapping
 
 import java.util.{UUID => JUUID}
-
 import cats.syntax.all._
 import org.specs2._
 import com.eventstore.dbclient.proto.shared._
-import sec.StreamId
 import sec.api.mapping.shared._
 
 class SharedMappingSpec extends mutable.Specification {

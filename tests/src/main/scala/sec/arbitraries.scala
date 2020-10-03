@@ -26,9 +26,9 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import scodec.bits.ByteVector
 import StreamRevision.{Any, NoStream, StreamExists}
-import sec.api._
 import org.scalacheck._
 import org.scalacheck.Arbitrary.arbitrary
+import sec.api._
 
 object arbitraries {
 

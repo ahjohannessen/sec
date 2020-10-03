@@ -21,6 +21,7 @@ import java.util.UUID
 import cats.Show
 import cats.syntax.all._
 import scodec.bits.ByteVector
+import sec.utilities.{guardNonEmpty, guardNotStartsWith}
 
 //======================================================================================================================
 
