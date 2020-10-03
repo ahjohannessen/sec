@@ -25,9 +25,21 @@ import io.grpc.netty.NettyChannelBuilder.{forAddress, forTarget}
 import io.grpc.netty.GrpcSslContexts.forClient
 import io.netty.handler.ssl.SslContext
 
-private[sec] object netty {
+object netty {
 
-  def mkBuilder[F[_]: Sync](p: ChannelBuilderParams): F[NettyChannelBuilder] = {
+//======================================================================================================================
+
+  final class SingleNodeBuilderOps[F[_]: ConcurrentEffect: Timer](val b: SingleNodeBuilder[F]) {
+    def resource: Resource[F, EsClient[F]] = b.build(mkBuilder[F])
+  }
+
+  final class ClusterBuilderOps[F[_]: ConcurrentEffect: Timer](val b: ClusterBuilder[F]) {
+    def resource: Resource[F, EsClient[F]] = b.build(mkBuilder[F])
+  }
+
+//======================================================================================================================
+
+  private[sec] def mkBuilder[F[_]: Sync](p: ChannelBuilderParams): F[NettyChannelBuilder] = {
 
     def mkSslContext(chainPath: Path): F[SslContext] = Sync[F].delay {
       forClient().trustManager(chainPath.toFile).build()
@@ -42,5 +54,7 @@ private[sec] object netty {
     }
 
   }
+
+//======================================================================================================================
 
 }
