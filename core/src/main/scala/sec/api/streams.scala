@@ -20,3 +20,5 @@ package api
 final case class Checkpoint(position: Position.Exact)
 final case class WriteResult(currentRevision: EventNumber.Exact, position: Position.Exact)
 final case class DeleteResult(position: Position.Exact)
+
+final private[sec] case class SubscriptionConfirmation(id: String)

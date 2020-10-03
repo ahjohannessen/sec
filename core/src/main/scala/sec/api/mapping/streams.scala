@@ -238,7 +238,19 @@ private[sec] object streams {
     }
 
     def mkStreamNotFound[F[_]: ErrorM](snf: ReadResp.StreamNotFound): F[StreamNotFound] =
-      snf.streamIdentifier.require[F]("StreamIdentifer expected") >>= (_.utf8[F].map(StreamNotFound))
+      snf.streamIdentifier.require[F]("StreamIdentifer") >>= (_.utf8[F].map(StreamNotFound))
+
+    def failStreamNotFound[F[_]: ErrorM](rr: ReadResp): F[ReadResp] =
+      rr.content.streamNotFound.fold(rr.pure[F])(mkStreamNotFound[F](_) >>= (_.raiseError[F, ReadResp]))
+
+    def reqReadEvent[F[_]: ErrorM](rr: ReadResp): F[Option[Event]] =
+      rr.content.event.require[F]("ReadEvent") >>= mkEvent[F]
+
+    def reqConfirmation[F[_]: ErrorA](rr: ReadResp): F[SubscriptionConfirmation] =
+      rr.content.confirmation
+        .map(_.subscriptionId)
+        .require[F]("SubscriptionConfirmation")
+        .map(SubscriptionConfirmation)
 
     def mkEvent[F[_]: ErrorM](re: ReadResp.ReadEvent): F[Option[Event]] =
       re.event.traverse(mkEventRecord[F]) >>= { eOpt =>

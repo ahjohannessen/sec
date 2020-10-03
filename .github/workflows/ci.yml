@@ -84,14 +84,14 @@ jobs:
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
       - name: Regular tests
-        run: sbt ++${{ matrix.scala }} compileTests sec-tests/test
+        run: sbt ++${{ matrix.scala }} compileTests tests/test
 
       - name: Single node integration tests
         if: contains(matrix.scala, '2.13.3')
         env:
           SEC_SIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_SIT_AUTHORITY: es.sec.local
-        run: 'sbt ++${{ matrix.scala }} sec-tests/sit:test'
+        run: 'sbt ++${{ matrix.scala }} tests/sit:test'
 
       - name: Stop Single Node
         if: always() && contains(matrix.scala, '2.13.3')
@@ -106,14 +106,14 @@ jobs:
         env:
           SEC_CIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_CIT_AUTHORITY: es.sec.local
-        run: 'sbt ++${{ matrix.scala }} sec-tests/cit:test'
+        run: 'sbt ++${{ matrix.scala }} tests/cit:test'
 
       - name: Stop Cluster Nodes
         if: always() && contains(matrix.scala, '2.13.3')
         run: .docker/cluster.sh down
 
       - name: Compress target directories
-        run: tar cf targets.tar target sec-fs2-netty/target sec-fs2-core/target sec-core/target sec-tests/target project/target
+        run: tar cf targets.tar tests/target fs2-netty/target target fs2/target core/target project/target
 
       - name: Upload target directories
         uses: actions/upload-artifact@v2
