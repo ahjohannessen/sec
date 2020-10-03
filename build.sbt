@@ -12,14 +12,16 @@ def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scala
   }
 }
 
-lazy val root = project
+lazy val sec = project
   .in(file("."))
   .settings(skip in publish := true)
-  .dependsOn(`sec-core`, `sec-fs2-core`, `sec-fs2-netty`, `sec-tests`)
-  .aggregate(`sec-core`, `sec-fs2-core`, `sec-fs2-netty`, `sec-tests`)
+  .dependsOn(core, `fs2-core`, `fs2-netty`, tests)
+  .aggregate(core, `fs2-core`, `fs2-netty`, tests)
 
-lazy val `sec-core` = project
-  .in(file("sec-core"))
+//==== Core ============================================================================================================
+
+lazy val core = project
+  .in(file("core"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
   .settings(
@@ -30,12 +32,14 @@ lazy val `sec-core` = project
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
 
-lazy val `sec-fs2-core` = project
-  .in(file("sec-fs2-core"))
+//==== FS2 =============================================================================================================
+
+lazy val `fs2-core` = project
+  .in(file("fs2"))
   .enablePlugins(AutomateHeaderPlugin, Fs2Grpc)
   .settings(commonSettings)
   .settings(
-    name := "sec-fs2-core",
+    name := "sec-fs2",
     libraryDependencies ++=
       compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser),
     Compile / unmanagedSourceDirectories ++=
@@ -44,14 +48,16 @@ lazy val `sec-fs2-core` = project
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf")
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
-  .dependsOn(`sec-core`)
+  .dependsOn(core)
 
-lazy val `sec-fs2-netty` = project
-  .in(file("sec-fs2-netty"))
+lazy val `fs2-netty` = project
+  .in(file("fs2-netty"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
-  .settings(name := "sec-fs2", libraryDependencies ++= compileM(grpcNetty, tcnative))
-  .dependsOn(`sec-fs2-core`)
+  .settings(name := "sec-fs2-client", libraryDependencies ++= compileM(grpcNetty, tcnative))
+  .dependsOn(`fs2-core`)
+
+//==== Tests ===========================================================================================================
 
 lazy val SingleNodeITest = config("sit") extend Test
 lazy val ClusterITest    = config("cit") extend Test
@@ -60,8 +66,8 @@ lazy val integrationSettings = Defaults.testSettings ++ Seq(
   parallelExecution := false
 )
 
-lazy val `sec-tests` = project
-  .in(file("sec-tests"))
+lazy val tests = project
+  .in(file("tests"))
   .enablePlugins(BuildInfoPlugin, AutomateHeaderPlugin)
   .configs(SingleNodeITest, ClusterITest)
   .settings(commonSettings)
@@ -77,9 +83,9 @@ lazy val `sec-tests` = project
         compileM(specs2, catsEffectSpecs2, log4catsSlf4j, log4catsTesting, logback)
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
-  .dependsOn(`sec-core`, `sec-fs2-netty`)
+  .dependsOn(core, `fs2-netty`)
 
-// General Settings
+//==== Common ==========================================================================================================
 
 lazy val commonSettings = Seq(
   scalacOptions ++= {
@@ -122,10 +128,9 @@ inThisBuild(
   )
 )
 
-addCommandAlias("compileTests", "sec-tests/test:compile; sec-tests/sit:compile; sec-tests/cit:compile;")
-addCommandAlias("runTests", "sec-tests/test; sec-tests/sit:test; sec-tests/cit:test;")
+//==== Github Actions ==================================================================================================
 
-// Github Actions
+addCommandAlias("compileTests", "tests/test:compile; tests/sit:compile; tests/cit:compile;")
 
 def scalaCondition(version: String) = s"contains(matrix.scala, '$version')"
 
@@ -142,11 +147,11 @@ inThisBuild(
     githubWorkflowBuild := Seq(
       WorkflowStep.Sbt(
         name     = Some("Regular tests"),
-        commands = List("compileTests", "sec-tests/test")
+        commands = List("compileTests", "tests/test")
       ),
       WorkflowStep.Sbt(
         name     = Some("Single node integration tests"),
-        commands = List("sec-tests/sit:test"),
+        commands = List("tests/sit:test"),
         env = Map(
           "SEC_SIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_SIT_AUTHORITY"  -> "es.sec.local"
@@ -167,7 +172,7 @@ inThisBuild(
       ),
       WorkflowStep.Sbt(
         name     = Some("Cluster integration tests"),
-        commands = List("sec-tests/cit:test"),
+        commands = List("tests/cit:test"),
         env = Map(
           "SEC_CIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_CIT_AUTHORITY"  -> "es.sec.local"

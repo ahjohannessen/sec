@@ -418,6 +418,13 @@ class StreamsMappingSpec extends mutable.Specification {
 
       // No Event & Link, i.e. link to deleted event => None
       mkEvent[ErrorOr](readEvent.withLink(linkProto)) shouldEqual Option.empty[Event].asRight
+
+      // Require read event
+      reqReadEvent[ErrorOr](s.ReadResp().withEvent(readEvent.withEvent(eventProto))) shouldEqual
+        eventRecord.some.asRight
+
+      reqReadEvent[ErrorOr](s.ReadResp()) shouldEqual
+        ProtoResultError("Required value ReadEvent missing or invalid.").asLeft
     }
 
     "mkEventRecord" >> {
@@ -536,11 +543,34 @@ class StreamsMappingSpec extends mutable.Specification {
 
     "mkStreamNotFound" >> {
 
-      mkStreamNotFound[ErrorOr](s.ReadResp.StreamNotFound()) shouldEqual
-        ProtoResultError("Required value StreamIdentifer expected missing or invalid.").asLeft
+      val sn  = s.ReadResp.StreamNotFound()
+      val sni = sn.withStreamIdentifier("abc".toStreamIdentifer)
 
-      mkStreamNotFound[ErrorOr](s.ReadResp.StreamNotFound().withStreamIdentifier("abc".toStreamIdentifer)) shouldEqual
-        StreamNotFound("abc").asRight
+      mkStreamNotFound[ErrorOr](sn) shouldEqual
+        ProtoResultError("Required value StreamIdentifer missing or invalid.").asLeft
+
+      mkStreamNotFound[ErrorOr](sni) shouldEqual StreamNotFound("abc").asRight
+
+    }
+
+    "failStreamNotFound" >> {
+
+      val rr = s.ReadResp()
+      val cp = rr.withCheckpoint(s.ReadResp.Checkpoint(1L, 1L))
+      val sn = rr.withStreamNotFound(s.ReadResp.StreamNotFound().withStreamIdentifier("abc".toStreamIdentifer))
+
+      failStreamNotFound[ErrorOr](sn) shouldEqual StreamNotFound("abc").asLeft
+      failStreamNotFound[ErrorOr](cp) shouldEqual cp.asRight
+
+    }
+
+    "reqConfirmation" >> {
+
+      reqConfirmation[ErrorOr](s.ReadResp()) shouldEqual
+        ProtoResultError("Required value SubscriptionConfirmation missing or invalid.").asLeft
+
+      reqConfirmation[ErrorOr](s.ReadResp().withConfirmation(s.ReadResp.SubscriptionConfirmation("id"))) shouldEqual
+        SubscriptionConfirmation("id").asRight
 
     }
 

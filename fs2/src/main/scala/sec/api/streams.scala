@@ -30,7 +30,6 @@ import io.chrisdavenport.log4cats.Logger
 import sec.api.exceptions.WrongExpectedVersion
 import sec.api.mapping.streams.outgoing._
 import sec.api.mapping.streams.incoming._
-import sec.api.mapping.implicits._
 
 trait Streams[F[_]] {
 
@@ -95,10 +94,6 @@ trait Streams[F[_]] {
 }
 
 object Streams {
-
-//  final case class Checkpoint(position: Position.Exact)
-//  final case class WriteResult(currentRevision: EventNumber.Exact, position: Position.Exact)
-//  final case class DeleteResult(position: Position.Exact)
 
 //======================================================================================================================
 
@@ -253,7 +248,7 @@ object Streams {
 
     val valid: Boolean                        = direction.fold(from =!= EventNumber.End, true)
     val mkReq: EventNumber => ReadReq         = mkReadStreamReq(streamId, _, direction, maxCount, resolveLinkTos)
-    val read: EventNumber => Stream[F, Event] = e => f(mkReq(e)).through(failStreamNotFound).through(readEventPipe)
+    val read: EventNumber => Stream[F, Event] = e => f(mkReq(e)).through(streamNotFoundPipe).through(readEventPipe)
     val fn: Event => EventNumber              = _.record.number
 
     if (valid && maxCount > 0) withRetry(from, read, fn, opts, "readStream", direction) else Stream.empty
@@ -294,23 +289,19 @@ object Streams {
 //======================================================================================================================
 
   private[sec] def readEventPipe[F[_]: ErrorM]: Pipe[F, ReadResp, Event] =
-    _.evalMap(_.content.event.require[F]("ReadEvent expected!").flatMap(mkEvent[F])).unNone
+    _.evalMap(reqReadEvent[F]).unNone
 
-  private[sec] def failStreamNotFound[F[_]: ErrorM]: Pipe[F, ReadResp, ReadResp] = _.evalMap { r =>
-    r.content.streamNotFound.fold(r.pure[F])(mkStreamNotFound[F](_) >>= (_.raiseError[F, ReadResp]))
-  }
+  private[sec] def streamNotFoundPipe[F[_]: ErrorM]: Pipe[F, ReadResp, ReadResp] =
+    _.evalMap(failStreamNotFound[F])
 
-  private[sec] def subConfirmationPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, ReadResp] = in => {
+  private[sec] def subConfirmationPipe[F[_]: ErrorM](logger: Logger[F]): Pipe[F, ReadResp, ReadResp] = in => {
 
-    val extractConfirmation: ReadResp => F[String] =
-      _.content.confirmation.map(_.subscriptionId).require[F]("SubscriptionConfirmation expected!")
-
-    val logConfirmation: String => F[Unit] =
-      id => log.debug(s"SubscriptionConfirmation received, id: $id")
+    val log: SubscriptionConfirmation => F[Unit] =
+      sc => logger.debug(s"$sc received")
 
     val initialPull = in.pull.uncons1.flatMap {
-      case Some((head, tail)) => Pull.eval(extractConfirmation(head) >>= logConfirmation) >> tail.pull.echo
-      case None               => Pull.done
+      case Some((h, t)) => Pull.eval(reqConfirmation[F](h) >>= log) >> t.pull.echo
+      case None         => Pull.done
     }
 
     initialPull.stream
