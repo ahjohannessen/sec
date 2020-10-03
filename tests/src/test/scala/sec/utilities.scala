@@ -16,13 +16,15 @@
 
 package sec
 
+import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 import cats.syntax.all._
 import org.specs2.mutable.Specification
+import sec.utilities._
 
-class SecPackageSpec extends Specification {
+class UtilitiesSpec extends Specification {
 
-  import SecPackageSpec._
+  import UtilitiesSpec._
 
   "AttemptOps" >> {
     "unsafe" >> {
@@ -31,7 +33,7 @@ class SecPackageSpec extends Specification {
     }
 
     "orFail" >> {
-      "oops".asLeft[Int].orFail[ErrorOr](Oops(_)) shouldEqual Oops("oops").asLeft
+      "oops".asLeft[Int].orFail[ErrorOr](Oops) shouldEqual Oops("oops").asLeft
     }
   }
 
@@ -53,8 +55,14 @@ class SecPackageSpec extends Specification {
     guardNotStartsWith("$")("a$") should beRight("a$")
   }
 
+  "format duration" >> {
+    format(150.millis) shouldEqual "150.0ms"
+    format(1001.millis) shouldEqual "1.001s"
+    format(4831.millis) shouldEqual "4.831s"
+  }
+
 }
 
-object SecPackageSpec {
+object UtilitiesSpec {
   final case class Oops(msg: String) extends RuntimeException(msg) with NoStackTrace
 }

@@ -18,6 +18,7 @@ package sec
 
 import cats.syntax.all._
 import cats.{ApplicativeError, Eq, Show}
+import sec.utilities.{guardNonEmpty, guardNotStartsWith}
 
 //======================================================================================================================
 

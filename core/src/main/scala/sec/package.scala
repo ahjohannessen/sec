@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import java.util.Locale
-import scala.concurrent.duration._
 import cats.{ApplicativeError, MonadError}
-import cats.syntax.all._
 
 package object sec {
+
+  import utilities._
 
 //======================================================================================================================
 
@@ -30,64 +29,9 @@ package object sec {
 
 //======================================================================================================================
 
-  private[sec] def guardNonEmpty(param: String): String => Attempt[String] =
-    p => Either.fromOption(Option(p).filter(_.nonEmpty), s"$param cannot be empty")
-
-  private[sec] def guardNotStartsWith(prefix: String): String => Attempt[String] =
-    n => Either.cond(!n.startsWith(prefix), n, s"value must not start with $prefix, but is $n")
+  implicit private[sec] def syntaxForBoolean(b: Boolean): BooleanOps          = new BooleanOps(b)
+  implicit private[sec] def syntaxForAttempt[A](a: Attempt[A]): AttemptOps[A] = new AttemptOps[A](a)
 
 //======================================================================================================================
-
-  implicit final private[sec] class BooleanOps(val b: Boolean) extends AnyVal {
-    def fold[A](t: => A, f: => A): A = if (b) t else f
-  }
-
-//======================================================================================================================
-
-  implicit final private[sec] class AttemptOps[A](val inner: Attempt[A]) extends AnyVal {
-    def unsafe: A                                           = inner.leftMap(require(false, _)).toOption.get
-    def orFail[F[_]: ErrorA](fn: String => Throwable): F[A] = inner.leftMap(fn(_)).liftTo[F]
-  }
-
-//======================================================================================================================
-
-  private[sec] def format(duration: Duration): String = {
-
-    def chooseUnit(fd: FiniteDuration): TimeUnit = {
-      if (fd.toDays > 0) DAYS
-      else if (fd.toHours > 0) HOURS
-      else if (fd.toMinutes > 0) MINUTES
-      else if (fd.toSeconds > 0) SECONDS
-      else if (fd.toMillis > 0) MILLISECONDS
-      else if (fd.toMicros > 0) MICROSECONDS
-      else NANOSECONDS
-    }
-
-    def abbreviate(unit: TimeUnit): String = unit match {
-      case NANOSECONDS  => "ns"
-      case MICROSECONDS => "μs"
-      case MILLISECONDS => "ms"
-      case SECONDS      => "s"
-      case MINUTES      => "m"
-      case HOURS        => "h"
-      case DAYS         => "d"
-    }
-
-    def format(d: FiniteDuration): String = {
-
-      val precision: Int = 4
-      val nanos: Long    = d.toNanos
-      val unit: TimeUnit = chooseUnit(d)
-      val value: Double  = nanos.toDouble / NANOSECONDS.convert(1, unit)
-
-      s"%.${precision}g%s".formatLocal(Locale.ROOT, value, abbreviate(unit))
-    }
-
-    duration match {
-      case d: FiniteDuration => format(d)
-      case d: Duration       => d.toString
-    }
-
-  }
 
 }
