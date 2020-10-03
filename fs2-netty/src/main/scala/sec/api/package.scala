@@ -20,12 +20,14 @@ import cats.effect._
 
 package object api {
 
-  implicit final class SingleNodeBuilderOps[F[_]: ConcurrentEffect: Timer](val b: SingleNodeBuilder[F]) {
-    def resource: Resource[F, EsClient[F]] = b.build(netty.mkBuilder[F])
-  }
+  import sec.api.netty._
 
-  implicit final class ClusterBuilderOps[F[_]: ConcurrentEffect: Timer](val b: ClusterBuilder[F]) {
-    def resource: Resource[F, EsClient[F]] = b.build(netty.mkBuilder[F])
-  }
+  implicit def singleNodeBuilderSyntax[F[_]: ConcurrentEffect: Timer](
+    snb: SingleNodeBuilder[F]
+  ): SingleNodeBuilderOps[F] = new SingleNodeBuilderOps[F](snb)
+
+  implicit def clusterBuilderSyntax[F[_]: ConcurrentEffect: Timer](
+    cb: ClusterBuilder[F]
+  ): ClusterBuilderOps[F] = new ClusterBuilderOps[F](cb)
 
 }

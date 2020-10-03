@@ -26,7 +26,6 @@ import cats.effect._
 import io.chrisdavenport.log4cats.Logger
 import org.scalacheck.Gen
 import sec.arbitraries._
-import sec.api._
 
 trait SnSpec extends ClientSpec {
 
