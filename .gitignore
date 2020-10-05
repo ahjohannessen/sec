@@ -31,6 +31,9 @@ tmp
 project/.bloop/*
 project/metals.sbt
 
+# BSP
+.bsp/*
+
 # Generated Certificates
 certs/
 
