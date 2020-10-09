@@ -46,7 +46,7 @@ final class MetaStreamsOps[F[_]: ErrorM](val ms: MetaStreams[F]) {
     setMaxAgeF(id, expectedRevision, age, uc.some)
 
   private def setMaxAgeF(id: Id, er: StreamRevision, age: FiniteDuration, uc: Option[UserCredentials]): F[WriteResult] =
-    MaxAge.lift[F](age) >>= (ms.setMaxAge(id, er, _, uc))
+    MaxAge.of[F](age) >>= (ms.setMaxAge(id, er, _, uc))
 
   def unsetMaxAge(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
     ms.unsetMaxAge(id, expectedRevision, None)
@@ -61,7 +61,7 @@ final class MetaStreamsOps[F[_]: ErrorM](val ms: MetaStreams[F]) {
     setMaxCountF(id, expectedRevision, count, uc.some)
 
   private def setMaxCountF(id: Id, er: StreamRevision, count: Int, uc: Option[UserCredentials]): F[WriteResult] =
-    MaxCount.lift[F](count) >>= (ms.setMaxCount(id, er, _, uc))
+    MaxCount.of[F](count) >>= (ms.setMaxCount(id, er, _, uc))
 
   def unsetMaxCount(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
     ms.unsetMaxCount(id, expectedRevision, None)
@@ -86,7 +86,7 @@ final class MetaStreamsOps[F[_]: ErrorM](val ms: MetaStreams[F]) {
     cc: FiniteDuration,
     uc: Option[UserCredentials]
   ): F[WriteResult] =
-    CacheControl.lift[F](cc) >>= (ms.setCacheControl(id, er, _, uc))
+    CacheControl.of[F](cc) >>= (ms.setCacheControl(id, er, _, uc))
 
   def unsetCacheControl(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
     ms.unsetCacheControl(id, expectedRevision, None)
@@ -115,7 +115,7 @@ final class MetaStreamsOps[F[_]: ErrorM](val ms: MetaStreams[F]) {
     setTruncateBeforeF(id, expectedRevision, truncateBefore, uc.some)
 
   private def setTruncateBeforeF(id: Id, er: StreamRevision, tb: Long, uc: Option[UserCredentials]): F[WriteResult] =
-    EventNumber.Exact.lift[F](tb) >>= (ms.setTruncateBefore(id, er, _, uc))
+    EventNumber.Exact.of[F](tb) >>= (ms.setTruncateBefore(id, er, _, uc))
 
   def unsetTruncateBefore(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
     ms.unsetTruncateBefore(id, expectedRevision, None)

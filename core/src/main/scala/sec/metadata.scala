@@ -121,7 +121,7 @@ object MaxAge {
     if (maxAge < 1.second) s"maxAge must be >= 1 second, it was $maxAge.".asLeft
     else new MaxAge(maxAge) {}.asRight
 
-  def lift[F[_]: ErrorA](maxAge: FiniteDuration): F[MaxAge] =
+  def of[F[_]: ErrorA](maxAge: FiniteDuration): F[MaxAge] =
     MaxAge(maxAge).orFail[F](InvalidMaxAge)
 
   implicit val showForMaxAge: Show[MaxAge] = Show.show(_.value.toString())
@@ -139,7 +139,7 @@ object MaxCount {
     if (maxCount < 1) s"max count must be >= 1, it was $maxCount.".asLeft
     else new MaxCount(maxCount) {}.asRight
 
-  def lift[F[_]: ErrorA](maxCount: Int): F[MaxCount] =
+  def of[F[_]: ErrorA](maxCount: Int): F[MaxCount] =
     MaxCount(maxCount).orFail[F](InvalidMaxCount)
 
   implicit val showForMaxCount: Show[MaxCount] = Show.show { mc =>
@@ -160,7 +160,7 @@ object CacheControl {
     if (cacheControl < 1.second) s"cache control must be >= 1, it was $cacheControl.".asLeft
     else new CacheControl(cacheControl) {}.asRight
 
-  def lift[F[_]: ErrorA](cacheControl: FiniteDuration): F[CacheControl] =
+  def of[F[_]: ErrorA](cacheControl: FiniteDuration): F[CacheControl] =
     CacheControl(cacheControl).orFail[F](InvalidCacheControl)
 
   implicit val showForCacheControl: Show[CacheControl] = Show.show(_.value.toString())

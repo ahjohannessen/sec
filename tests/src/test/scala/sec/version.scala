@@ -60,9 +60,9 @@ class VersionSpec extends Specification with Discipline {
       Exact(0L) should beRight(EventNumber.exact(0L))
     }
 
-    "Exact.lift" >> {
-      Exact.lift[ErrorOr](-1L) should beLeft(InvalidExact("value must be >= 0, but is -1"))
-      Exact.lift[ErrorOr](0L) should beRight(EventNumber.exact(0L))
+    "Exact.of" >> {
+      Exact.of[ErrorOr](-1L) should beLeft(InvalidExact("value must be >= 0, but is -1"))
+      Exact.of[ErrorOr](0L) should beRight(EventNumber.exact(0L))
     }
 
     "Show" >> {
