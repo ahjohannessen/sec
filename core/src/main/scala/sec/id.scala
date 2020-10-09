@@ -17,7 +17,7 @@
 package sec
 
 import cats.syntax.all._
-import cats.{ApplicativeError, Eq, Show}
+import cats.{Eq, Show}
 import sec.utilities.{guardNonEmpty, guardNotStartsWith}
 
 //======================================================================================================================
@@ -40,11 +40,11 @@ object StreamId {
   sealed abstract case class System(name: String) extends SystemId
   sealed abstract case class Normal(name: String) extends NormalId
 
-  def apply[F[_]](name: String)(implicit F: ApplicativeError[F, Throwable]): F[Id] =
-    from(name).leftMap(StreamIdError).liftTo[F]
-
-  def from(name: String): Attempt[Id] =
+  def apply(name: String): Attempt[Id] =
     guardNonEmptyName(name) >>= guardNotStartsWith(metadataPrefix) >>= stringToId
+
+  def of[F[_]: ErrorA](name: String): F[Id] =
+    StreamId(name).leftMap(StreamIdError).liftTo[F]
 
   final case class StreamIdError(msg: String) extends RuntimeException(msg)
 

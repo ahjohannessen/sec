@@ -27,38 +27,38 @@ class StreamIdSpec extends Specification with Discipline {
 
   import StreamId.{systemStreams => ss}
 
-  val normalId = StreamId.normal("normal").unsafe
-  val systemId = StreamId.system("system").unsafe
-
-  "from" >> {
-    StreamId.from("") should beLeft("name cannot be empty")
-    StreamId.from("$$meta") should beLeft("value must not start with $$, but is $$meta")
-    StreamId.from("$users") shouldEqual StreamId.system("users")
-    StreamId.from("users") shouldEqual StreamId.normal("users")
-    StreamId.from(ss.All) shouldEqual StreamId.All.asRight
-    StreamId.from(ss.Settings) shouldEqual StreamId.Settings.asRight
-    StreamId.from(ss.Stats) shouldEqual StreamId.Stats.asRight
-    StreamId.from(ss.Scavenges) shouldEqual StreamId.Scavenges.asRight
-    StreamId.from(ss.Streams) shouldEqual StreamId.Streams.asRight
-  }
+  val normalId: StreamId.Normal = StreamId.normal("normal").unsafe
+  val systemId: StreamId.System = StreamId.system("system").unsafe
 
   "apply" >> {
+    StreamId("") should beLeft("name cannot be empty")
+    StreamId("$$meta") should beLeft("value must not start with $$, but is $$meta")
+    StreamId("$users") shouldEqual StreamId.system("users")
+    StreamId("users") shouldEqual StreamId.normal("users")
+    StreamId(ss.All) shouldEqual StreamId.All.asRight
+    StreamId(ss.Settings) shouldEqual StreamId.Settings.asRight
+    StreamId(ss.Stats) shouldEqual StreamId.Stats.asRight
+    StreamId(ss.Scavenges) shouldEqual StreamId.Scavenges.asRight
+    StreamId(ss.Streams) shouldEqual StreamId.Streams.asRight
+  }
 
-    StreamId[ErrorOr]("") should beLike { case Left(StreamId.StreamIdError("name cannot be empty")) =>
+  "of" >> {
+
+    StreamId.of[ErrorOr]("") should beLike { case Left(StreamId.StreamIdError("name cannot be empty")) =>
       ok
     }
 
-    StreamId[ErrorOr]("$$m") should beLike {
+    StreamId.of[ErrorOr]("$$m") should beLike {
       case Left(StreamId.StreamIdError("value must not start with $$, but is $$m")) => ok
     }
 
-    StreamId[ErrorOr]("$users") shouldEqual StreamId.system("users")
-    StreamId[ErrorOr]("users") shouldEqual StreamId.normal("users")
-    StreamId[ErrorOr](ss.All) shouldEqual StreamId.All.asRight
-    StreamId[ErrorOr](ss.Settings) shouldEqual StreamId.Settings.asRight
-    StreamId[ErrorOr](ss.Stats) shouldEqual StreamId.Stats.asRight
-    StreamId[ErrorOr](ss.Scavenges) shouldEqual StreamId.Scavenges.asRight
-    StreamId[ErrorOr](ss.Streams) shouldEqual StreamId.Streams.asRight
+    StreamId.of[ErrorOr]("$users") shouldEqual StreamId.system("users")
+    StreamId.of[ErrorOr]("users") shouldEqual StreamId.normal("users")
+    StreamId.of[ErrorOr](ss.All) shouldEqual StreamId.All.asRight
+    StreamId.of[ErrorOr](ss.Settings) shouldEqual StreamId.Settings.asRight
+    StreamId.of[ErrorOr](ss.Stats) shouldEqual StreamId.Stats.asRight
+    StreamId.of[ErrorOr](ss.Scavenges) shouldEqual StreamId.Scavenges.asRight
+    StreamId.of[ErrorOr](ss.Streams) shouldEqual StreamId.Streams.asRight
   }
 
   "streamIdToString" >> {
