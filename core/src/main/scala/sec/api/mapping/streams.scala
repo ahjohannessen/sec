@@ -209,8 +209,8 @@ private[sec] object streams {
     def mkAppendProposalsReq(events: NonEmptyList[EventData]): NonEmptyList[AppendReq] =
       events.map { e =>
         val id         = mkUuid(e.eventId)
-        val customMeta = e.metadata.bytes.toByteString
-        val data       = e.data.bytes.toByteString
+        val customMeta = e.metadata.toByteString
+        val data       = e.data.toByteString
         val ct         = e.contentType.fold(ContentTypes.ApplicationOctetStream, ContentTypes.ApplicationJson)
         val meta       = Map(Type -> EventType.eventTypeToString(e.eventType), ContentType -> ct)
         AppendReq().withProposedMessage(AppendReq.ProposedMessage(id.some, meta, customMeta, data))
@@ -259,8 +259,6 @@ private[sec] object streams {
 
     def mkEventRecord[F[_]: ErrorM](e: ReadResp.ReadEvent.RecordedEvent): F[EventRecord] = {
 
-      import EventData.{binary, json}
-
       val streamId    = mkStreamId[F](e.streamIdentifier)
       val eventNumber = EventNumber.exact(e.streamRevision)
       val position    = Position.exact(e.commitPosition, e.preparePosition)
@@ -270,19 +268,16 @@ private[sec] object streams {
       val eventType   = e.metadata.get(Type).require[F](Type) >>= mkEventType[F]
       val contentType = e.metadata.get(ContentType).require[F](ContentType) >>= mkContentType[F]
       val created     = e.metadata.get(Created).flatMap(_.toLongOption).require[F](Created) >>= fromTicksSinceEpoch[F]
-
-      val eventData = (eventType, eventId, contentType).mapN { (t, i, ct) =>
-        ct.fold(binary(t, i, data, customMeta), json(t, i, data, customMeta))
-      }
+      val eventData   = (eventType, eventId, contentType).mapN((t, i, ct) => EventData(t, i, data, customMeta, ct))
 
       (streamId, eventData, created).mapN((id, ed, c) => sec.EventRecord(id, eventNumber, position, ed, c))
 
     }
 
-    def mkContentType[F[_]](ct: String)(implicit F: ErrorA[F]): F[Content.Type] =
+    def mkContentType[F[_]](ct: String)(implicit F: ErrorA[F]): F[ContentType] =
       ct match {
-        case ContentTypes.ApplicationOctetStream => F.pure(Content.Type.Binary)
-        case ContentTypes.ApplicationJson        => F.pure(Content.Type.Json)
+        case ContentTypes.ApplicationOctetStream => F.pure(sec.ContentType.Binary)
+        case ContentTypes.ApplicationJson        => F.pure(sec.ContentType.Json)
         case unknown                             => F.raiseError(ProtoResultError(s"Required value $ContentType missing or invalid: $unknown"))
       }
 

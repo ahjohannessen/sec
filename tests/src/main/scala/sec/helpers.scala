@@ -17,11 +17,18 @@
 package sec
 
 import java.util.regex.Pattern
+import cats.syntax.all._
+import scodec.bits.ByteVector
 import sec.api.Endpoint
 
 object helpers {
 
   object text {
+
+    def encodeToBV(content: String): Attempt[ByteVector] =
+      ByteVector.encodeUtf8(content).leftMap(_.getMessage)
+
+    ///
 
     final private val basePattern: Pattern = Pattern.compile("([A-Z]+)([A-Z][a-z])")
     final private val swapPattern: Pattern = Pattern.compile("([a-z\\d])([A-Z])")

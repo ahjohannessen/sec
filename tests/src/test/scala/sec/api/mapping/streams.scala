@@ -31,8 +31,12 @@ import sec.api.mapping.shared._
 import sec.api.mapping.streams.outgoing
 import sec.api.mapping.streams.incoming
 import sec.api.mapping.implicits._
+import sec.helpers.text.encodeToBV
 
 class StreamsMappingSpec extends mutable.Specification {
+
+  def bv(data: String): ByteVector =
+    encodeToBV(data).unsafe
 
   "outgoing" >> {
 
@@ -296,17 +300,17 @@ class StreamsMappingSpec extends mutable.Specification {
       def json(nr: Int): EventData = {
         val id = JUUID.randomUUID()
         val et = s"et-$nr"
-        val da = Content.json(s"""{ "data" : "$nr" }""").unsafe
-        val md = sec.Content.json(s"""{ "meta" : "$nr" }""").unsafe
-        sec.EventData(et, id, da, md).unsafe
+        val da = bv(s"""{ "data" : "$nr" }""")
+        val md = bv(s"""{ "meta" : "$nr" }""")
+        sec.EventData(et, id, da, md, sec.ContentType.Json).unsafe
       }
 
       def binary(nr: Int): EventData = {
         val id = JUUID.randomUUID()
         val et = s"et-$nr"
-        val da = sec.Content.binary(s"data@$nr").unsafe
-        val md = sec.Content.binary(s"meta@$nr").unsafe
-        sec.EventData(et, id, da, md).unsafe
+        val da = bv(s"data@$nr")
+        val md = bv(s"meta@$nr")
+        sec.EventData(et, id, da, md, sec.ContentType.Binary).unsafe
       }
 
       def test(nel: NonEmptyList[EventData]) = {
@@ -317,8 +321,8 @@ class StreamsMappingSpec extends mutable.Specification {
                 .ProposedMessage()
                 .withId(mkUuid(e.eventId))
                 .withMetadata(Map(Type -> s"et-$i", ContentType -> e.contentType.fold(Binary, Json)))
-                .withData(e.data.bytes.toByteString)
-                .withCustomMetadata(e.metadata.bytes.toByteString)
+                .withData(e.data.toByteString)
+                .withCustomMetadata(e.metadata.toByteString)
             )
         }
       }
@@ -370,7 +374,7 @@ class StreamsMappingSpec extends mutable.Specification {
       val linkPrepare    = 10L
       val linkId         = "b8f5ed88-5aa1-49a6-85d6-c173556436ae"
       val linkEventType  = EventType.systemTypes.LinkTo
-      val linkData       = sec.Content.binary(s"$revision@$streamId").unsafe.bytes
+      val linkData       = bv(s"$revision@$streamId")
       val linkCustomMeta = ByteVector.empty
       val linkCreated    = Instant.EPOCH.atZone(ZoneOffset.UTC)
       val linkMetadata   = Map(ContentType -> Binary, Type -> linkEventType, Created -> linkCreated.getNano().toString)
@@ -390,7 +394,7 @@ class StreamsMappingSpec extends mutable.Specification {
         sec.StreamId.from(streamId).unsafe,
         sec.EventNumber.exact(revision),
         sec.Position.exact(commit, prepare),
-        sec.EventData.json(sec.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta),
+        sec.EventData(sec.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta, sec.ContentType.Json),
         created
       )
 
@@ -398,7 +402,7 @@ class StreamsMappingSpec extends mutable.Specification {
         sec.StreamId.from(linkStreamId).unsafe,
         sec.EventNumber.exact(linkRevision),
         sec.Position.exact(linkCommit, linkPrepare),
-        sec.EventData.binary(sec.EventType.LinkTo, JUUID.fromString(linkId), linkData, linkCustomMeta),
+        sec.EventData(sec.EventType.LinkTo, JUUID.fromString(linkId), linkData, linkCustomMeta, sec.ContentType.Binary),
         linkCreated
       )
 
@@ -458,7 +462,7 @@ class StreamsMappingSpec extends mutable.Specification {
         sec.StreamId.from(streamId).unsafe,
         sec.EventNumber.exact(revision),
         sec.Position.exact(commit, prepare),
-        sec.EventData.binary(sec.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta),
+        sec.EventData(sec.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta, sec.ContentType.Binary),
         created
       )
 
@@ -515,7 +519,7 @@ class StreamsMappingSpec extends mutable.Specification {
       val event       = sampleOfGen(eventGen.eventRecordOne).copy(created = created)
       val eventData   = event.eventData
       val eventType   = sec.EventType.eventTypeToString(event.eventData.eventType)
-      val contentType = eventData.data.contentType.isBinary.fold(Binary, Json)
+      val contentType = eventData.contentType.isBinary.fold(Binary, Json)
       val metadata    = Map(ContentType -> contentType, Type -> eventType, Created -> created.getNano().toString)
 
       val recordedEvent = s.ReadResp.ReadEvent
@@ -524,8 +528,8 @@ class StreamsMappingSpec extends mutable.Specification {
         .withStreamRevision(event.number.value)
         .withCommitPosition(event.position.commit)
         .withPreparePosition(event.position.prepare)
-        .withData(event.eventData.data.bytes.toByteString)
-        .withCustomMetadata(event.eventData.metadata.bytes.toByteString)
+        .withData(event.eventData.data.toByteString)
+        .withCustomMetadata(event.eventData.metadata.toByteString)
         .withId(UUID().withString(event.eventData.eventId.toString))
         .withMetadata(metadata)
 
