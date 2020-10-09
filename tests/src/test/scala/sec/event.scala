@@ -19,9 +19,11 @@ package sec
 import java.{util => ju}
 import java.time.ZonedDateTime
 import java.util.UUID
+
 import cats.syntax.all._
 import scodec.bits.ByteVector
 import org.specs2.mutable.Specification
+import sec.EventType.InvalidEventType
 import sec.arbitraries._
 import sec.helpers.text.encodeToBV
 
@@ -33,7 +35,7 @@ class EventSpec extends Specification {
     ByteVector.encodeUtf8(data).leftMap(_.getMessage).unsafe
 
   val er: EventRecord = sec.EventRecord(
-    StreamId.from("abc-1234").unsafe,
+    StreamId("abc-1234").unsafe,
     EventNumber.exact(5L),
     sampleOf[Position.Exact],
     EventData("et", sampleOf[ju.UUID], bv("abc"), ContentType.Binary).unsafe,
@@ -130,6 +132,12 @@ class EventTypeSpec extends Specification {
     EventType("") should beLeft("Event type name cannot be empty")
     EventType("$users") should beLeft("value must not start with $, but is $users")
     EventType("users") should beRight(EventType.userDefined("users").unsafe)
+  }
+
+  "of" >> {
+    EventType.of[ErrorOr]("") should beLeft(InvalidEventType("Event type name cannot be empty"))
+    EventType.of[ErrorOr]("$users") should beLeft(InvalidEventType("value must not start with $, but is $users"))
+    EventType.of[ErrorOr]("users") should beRight(EventType.userDefined("users").unsafe)
   }
 
   "eventTypeToString" >> {

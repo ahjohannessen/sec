@@ -144,7 +144,7 @@ class StreamsMappingSpec extends mutable.Specification {
     "mkSubscribeToStreamReq" >> {
       import EventNumber._
 
-      val sid = StreamId.from("abc").unsafe
+      val sid = StreamId("abc").unsafe
 
       def test(exclusiveFrom: Option[EventNumber], resolveLinkTos: Boolean) =
         mkSubscribeToStreamReq(sid, exclusiveFrom, resolveLinkTos) shouldEqual s
@@ -198,7 +198,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
     "mkReadStreamReq" >> {
 
-      val sid = sec.StreamId.from("abc").unsafe
+      val sid = sec.StreamId("abc").unsafe
 
       def test(rd: Direction, from: EventNumber, count: Long, rlt: Boolean) =
         mkReadStreamReq(sid, from, rd, count, rlt) shouldEqual s
@@ -250,7 +250,7 @@ class StreamsMappingSpec extends mutable.Specification {
     "mkDeleteReq" >> {
 
       import s.DeleteReq.Options.ExpectedStreamRevision
-      val sid = sec.StreamId.from("abc").unsafe
+      val sid = sec.StreamId("abc").unsafe
 
       def test(sr: StreamRevision, esr: ExpectedStreamRevision) =
         mkDeleteReq(sid, sr) shouldEqual
@@ -265,7 +265,7 @@ class StreamsMappingSpec extends mutable.Specification {
     "mkTombstoneReq" >> {
 
       import s.TombstoneReq.Options.ExpectedStreamRevision
-      val sid = sec.StreamId.from("abc").unsafe
+      val sid = sec.StreamId("abc").unsafe
 
       def test(sr: StreamRevision, esr: ExpectedStreamRevision) =
         mkTombstoneReq(sid, sr) shouldEqual
@@ -280,7 +280,7 @@ class StreamsMappingSpec extends mutable.Specification {
     "mkAppendHeaderReq" >> {
 
       import s.AppendReq.Options.ExpectedStreamRevision
-      val sid = sec.StreamId.from("abc").unsafe
+      val sid = sec.StreamId("abc").unsafe
 
       def test(sr: StreamRevision, esr: ExpectedStreamRevision) =
         mkAppendHeaderReq(sid, sr) shouldEqual
@@ -391,7 +391,7 @@ class StreamsMappingSpec extends mutable.Specification {
         .withMetadata(linkMetadata)
 
       val eventRecord = EventRecord(
-        sec.StreamId.from(streamId).unsafe,
+        sec.StreamId(streamId).unsafe,
         sec.EventNumber.exact(revision),
         sec.Position.exact(commit, prepare),
         sec.EventData(sec.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta, sec.ContentType.Json),
@@ -399,7 +399,7 @@ class StreamsMappingSpec extends mutable.Specification {
       )
 
       val linkRecord = sec.EventRecord(
-        sec.StreamId.from(linkStreamId).unsafe,
+        sec.StreamId(linkStreamId).unsafe,
         sec.EventNumber.exact(linkRevision),
         sec.Position.exact(linkCommit, linkPrepare),
         sec.EventData(sec.EventType.LinkTo, JUUID.fromString(linkId), linkData, linkCustomMeta, sec.ContentType.Binary),
@@ -459,7 +459,7 @@ class StreamsMappingSpec extends mutable.Specification {
           .withMetadata(metadata)
 
       val eventRecord = sec.EventRecord(
-        sec.StreamId.from(streamId).unsafe,
+        sec.StreamId(streamId).unsafe,
         sec.EventNumber.exact(revision),
         sec.Position.exact(commit, prepare),
         sec.EventData(sec.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta, sec.ContentType.Binary),
@@ -592,7 +592,7 @@ class StreamsMappingSpec extends mutable.Specification {
       import s.AppendResp.WrongExpectedVersion.ExpectedRevisionOption
       import s.AppendResp.WrongExpectedVersion.CurrentRevisionOption
 
-      val sid: StreamId.Id                           = sec.StreamId.from("abc").unsafe
+      val sid: StreamId.Id                           = sec.StreamId("abc").unsafe
       val test: s.AppendResp => ErrorOr[WriteResult] = mkWriteResult[ErrorOr](sid, _)
 
       val successRevOne   = Success().withCurrentRevision(1L).withPosition(s.AppendResp.Position(1L, 1L))

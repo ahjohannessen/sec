@@ -54,7 +54,7 @@ object EventNumber {
     def apply(value: Long): Attempt[Exact] =
       Either.cond(value >= 0L, create(value), s"value must be >= 0, but is $value")
 
-    def lift[F[_]: ErrorA](value: Long): F[Exact] =
+    def of[F[_]: ErrorA](value: Long): F[Exact] =
       Exact(value).leftMap(InvalidExact).liftTo[F]
 
     ///
