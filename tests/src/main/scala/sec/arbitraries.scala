@@ -183,14 +183,14 @@ object arbitraries {
 
   private[sec] object eventdataGen {
 
-    private def bv(content: String, ct: Content.Type): ByteVector =
-      ct.fold(Content.binary(content).map(_.bytes).unsafe, Content.json(content).map(_.bytes).unsafe)
+    private def encode(data: String): ByteVector =
+      helpers.text.encodeToBV(data).unsafe
 
-    private def dataBV(id: ju.UUID, ct: Content.Type): ByteVector =
-      ct.fold(bv(s"data@$id", ct), bv(s"""{ "data" : "$id" }""", ct))
+    private def dataBV(id: ju.UUID, ct: ContentType): ByteVector =
+      ct.fold(encode(s"data@$id"), encode(s"""{ "data" : "$id" }"""))
 
-    private def metaBV(id: ju.UUID, ct: Content.Type, empty: Boolean): ByteVector =
-      Option.unless(empty)(ct.fold(bv(s"meta@$id", ct), bv(s"""{ "meta" : "$id" }""", ct))).getOrElse(ByteVector.empty)
+    private def metaBV(id: ju.UUID, ct: ContentType, empty: Boolean): ByteVector =
+      Option.unless(empty)(ct.fold(encode(s"meta@$id"), encode(s"""{ "meta" : "$id" }"""))).getOrElse(ByteVector.empty)
 
     private def eventIdAndType(etPrefix: String): Gen[(ju.UUID, EventType)] =
       for {
@@ -198,8 +198,8 @@ object arbitraries {
         eventType <- eventTypeGen.genEventTypeUserDefined(etPrefix)
       } yield (uuid, eventType)
 
-    val genMeta: Gen[Boolean]    = Gen.oneOf(true, false)
-    val genCT: Gen[Content.Type] = Gen.oneOf(Content.Type.Binary, Content.Type.Json)
+    val genMeta: Gen[Boolean]   = Gen.oneOf(true, false)
+    val genCT: Gen[ContentType] = Gen.oneOf(ContentType.Binary, ContentType.Json)
 
     def eventDataN(n: Int, etPrefix: String): Gen[List[EventData]] =
       for {
@@ -210,7 +210,7 @@ object arbitraries {
         (id, et)    = gen
         data        = dataBV(id, ct)
         meta        = metaBV(id, ct, gm)
-      } yield ct.fold(EventData.binary(et, id, data, meta), EventData.json(et, id, data, meta))
+      } yield EventData(et, id, data, meta, ct)
 
     val eventDataOne: Gen[EventData] = for {
       ct        <- genCT
@@ -218,7 +218,7 @@ object arbitraries {
       (id, et)   = idAndType
       data       = dataBV(id, ct)
       meta       = metaBV(id, ct, empty = false)
-    } yield ct.fold(EventData.binary(et, id, data, meta), EventData.json(et, id, data, meta))
+    } yield EventData(et, id, data, meta, ct)
 
     @tailrec
     def eventDataNelN(n: Int, etPrefix: String): Gen[NonEmptyList[EventData]] =

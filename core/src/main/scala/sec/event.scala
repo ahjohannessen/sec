@@ -68,8 +68,8 @@ object EventRecord {
        |  type     = ${er.eventData.eventType.show},
        |  number   = ${er.number.show},
        |  position = ${er.position.show},
-       |  data     = ${er.eventData.data.show}, 
-       |  metadata = ${er.eventData.metadata.show}, 
+       |  data     = ${er.eventData.showData}, 
+       |  metadata = ${er.eventData.showMetadata}, 
        |  created  = ${er.created}
        |)
        |""".stripMargin
@@ -167,108 +167,82 @@ object EventType {
 
 //======================================================================================================================
 
-sealed abstract case class EventData(
+final case class EventData(
   eventType: EventType,
   eventId: UUID,
-  data: Content,
-  metadata: Content
+  data: ByteVector,
+  metadata: ByteVector,
+  contentType: ContentType
 )
 
 object EventData {
 
-  private def create(et: EventType, eventId: UUID, data: Content, metadata: Content): EventData =
-    new EventData(et, eventId, data, metadata) {}
+  def apply(
+    eventType: EventType,
+    eventId: UUID,
+    data: ByteVector,
+    contentType: ContentType
+  ): EventData =
+    EventData(eventType, eventId, data, ByteVector.empty, contentType)
+
+  def apply(
+    eventType: String,
+    eventId: UUID,
+    data: ByteVector,
+    contentType: ContentType
+  ): Attempt[EventData] =
+    EventType(eventType).map(EventData(_, eventId, data, ByteVector.empty, contentType))
+
+  def apply(
+    eventType: String,
+    eventId: UUID,
+    data: ByteVector,
+    metadata: ByteVector,
+    contentType: ContentType
+  ): Attempt[EventData] =
+    EventType(eventType).map(EventData(_, eventId, data, metadata, contentType))
 
   ///
 
-  def apply(eventType: String, eventId: UUID, data: Content): Attempt[EventData] =
-    EventData(eventType, eventId, data, Content(ByteVector.empty, data.contentType))
+  implicit final private[sec] class EventDataOps(val ed: EventData) extends AnyVal {
+    def showData: String     = render(ed.data, ed.contentType)
+    def showMetadata: String = render(ed.metadata, ed.contentType)
+  }
 
-  def apply(eventType: String, eventId: UUID, data: Content, metadata: Content): Attempt[EventData] =
-    EventType(eventType) >>= (EventData(_, eventId, data, metadata))
+  private[sec] def render(bv: ByteVector, ct: ContentType): String =
+    if (bv.isEmpty || ct.isBinary) s"${ct.show}(${renderByteVector(bv)})"
+    else s"${bv.decodeUtf8.getOrElse("Failed decoding utf8")}"
 
-  private[sec] def apply(et: EventType, eventId: UUID, data: Content): EventData =
-    create(et, eventId, data, Content(ByteVector.empty, data.contentType))
-
-  private[sec] def apply(et: EventType, eventId: UUID, data: Content, metadata: Content): Attempt[EventData] =
-    if (data.contentType == metadata.contentType) create(et, eventId, data, metadata).asRight
-    else "Different content types for data & metadata is not supported.".asLeft
-
-  private[sec] def json(et: EventType, eventId: UUID, data: ByteVector, metadata: ByteVector): EventData =
-    create(et, eventId, Content(data, Content.Type.Json), Content(metadata, Content.Type.Json))
-
-  private[sec] def binary(et: EventType, eventId: UUID, data: ByteVector, metadata: ByteVector): EventData =
-    create(et, eventId, Content(data, Content.Type.Binary), Content(metadata, Content.Type.Binary))
-
-  ///
-
-  implicit class EventDataOps(ed: EventData) {
-    def contentType: Content.Type = ed.data.contentType
+  private[sec] def renderByteVector(bv: ByteVector): String = {
+    if (bv.isEmpty) s"empty"
+    else if (bv.size < 32) s"${bv.size} bytes, 0x${bv.toHex}"
+    else s"${bv.size} bytes, #${bv.hashCode}"
   }
 
 }
 
 //======================================================================================================================
 
-final case class Content(
-  bytes: ByteVector,
-  contentType: Content.Type
-)
+sealed trait ContentType
+object ContentType {
 
-object Content {
+  case object Binary extends ContentType
+  case object Json   extends ContentType
 
-  sealed trait Type
-  object Type {
+  implicit final class ContentTypeOps(val ct: ContentType) extends AnyVal {
 
-    case object Binary extends Type
-    case object Json   extends Type
-
-    implicit final class TypeOps(val tpe: Type) extends AnyVal {
-
-      private[sec] def fold[A](binary: => A, json: => A): A = tpe match {
-        case Binary => binary
-        case Json   => json
-      }
-
-      def isJson: Boolean   = tpe.fold(false, true)
-      def isBinary: Boolean = !isJson
+    private[sec] def fold[A](binary: => A, json: => A): A = ct match {
+      case Binary => binary
+      case Json   => json
     }
 
-    implicit val showForType: Show[Type] = Show.show[Type] {
-      case Binary => "Binary"
-      case Json   => "Json"
-    }
-
+    def isJson: Boolean   = ct.fold(false, true)
+    def isBinary: Boolean = !isJson
   }
 
-  ///
-
-  def empty(t: Type): Content = Content(ByteVector.empty, t)
-  val BinaryEmpty: Content    = empty(Type.Binary)
-  val JsonEmpty: Content      = empty(Type.Json)
-
-  def apply(data: String, ct: Type): Attempt[Content] =
-    encode[ErrorOr](data, ct).leftMap(_.getMessage)
-
-  def encode[F[_]: ErrorA](data: String, ct: Type): F[Content] =
-    ByteVector.encodeUtf8(data).map(Content(_, ct)).liftTo[F]
-
-  def binary(data: String): Attempt[Content]          = Content(data, Type.Binary)
-  def binaryF[F[_]: ErrorA](data: String): F[Content] = encode[F](data, Type.Binary)
-  def json(data: String): Attempt[Content]            = Content(data, Type.Json)
-  def jsonF[F[_]: ErrorA](data: String): F[Content]   = encode[F](data, Type.Json)
-
-  ///
-
-  implicit private[sec] val showByteVector: Show[ByteVector] = Show.show[ByteVector] { bv =>
-    if (bv.isEmpty) s"empty"
-    else if (bv.size < 32) s"${bv.size} bytes, 0x${bv.toHex}"
-    else s"${bv.size} bytes, #${bv.hashCode}"
-  }
-
-  implicit val showForContent: Show[Content] = Show.show {
-    case Content(b, t) if b.isEmpty || t.isBinary => s"${t.show}(${showByteVector.show(b)})"
-    case Content(b, t) if t.isJson                => s"${b.decodeUtf8.getOrElse("Failed decoding utf8")}"
+  implicit val showForType: Show[ContentType] = Show.show[ContentType] {
+    case Binary => "Binary"
+    case Json   => "Json"
   }
 
 }

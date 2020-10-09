@@ -18,32 +18,37 @@ package sec
 
 import java.{util => ju}
 import java.time.ZonedDateTime
+import java.util.UUID
 import cats.syntax.all._
 import scodec.bits.ByteVector
 import org.specs2.mutable.Specification
 import sec.arbitraries._
+import sec.helpers.text.encodeToBV
 
 //======================================================================================================================
 
 class EventSpec extends Specification {
 
-  val er = sec.EventRecord(
+  private def bv(data: String): ByteVector =
+    ByteVector.encodeUtf8(data).leftMap(_.getMessage).unsafe
+
+  val er: EventRecord = sec.EventRecord(
     StreamId.from("abc-1234").unsafe,
     EventNumber.exact(5L),
     sampleOf[Position.Exact],
-    EventData("et", sampleOf[ju.UUID], Content.binary("abc").unsafe).unsafe,
+    EventData("et", sampleOf[ju.UUID], bv("abc"), ContentType.Binary).unsafe,
     sampleOf[ZonedDateTime]
   )
 
-  val link = sec.EventRecord(
+  val link: EventRecord = sec.EventRecord(
     StreamId.system("ce-abc").unsafe,
     EventNumber.exact(10L),
     Position.exact(1337L, 1337L),
-    EventData(EventType.LinkTo, sampleOf[ju.UUID], Content.binary("5@abc-1234").unsafe),
+    EventData(EventType.LinkTo, sampleOf[ju.UUID], bv("5@abc-1234"), ContentType.Binary),
     sampleOf[ZonedDateTime]
   )
 
-  val re = ResolvedEvent(er, link)
+  val re: ResolvedEvent = ResolvedEvent(er, link)
 
   ///
 
@@ -88,29 +93,25 @@ class EventSpec extends Specification {
 
   "show" >> {
 
-    er.show shouldEqual (
-      s"""
+    er.show shouldEqual s"""
         |EventRecord(
         |  streamId = ${er.streamId.show},
         |  eventId  = ${er.eventData.eventId},
         |  type     = ${er.eventData.eventType.show},
         |  number   = ${er.number.show},
         |  position = ${er.position.show},
-        |  data     = ${er.eventData.data.show}, 
-        |  metadata = ${er.eventData.metadata.show}, 
+        |  data     = ${er.eventData.showData}, 
+        |  metadata = ${er.eventData.showMetadata}, 
         |  created  = ${er.created}
         |)
         |""".stripMargin
-    )
 
-    re.show shouldEqual (
-      s"""
+    re.show shouldEqual s"""
         |ResolvedEvent(
         |  event = ${re.event.show},
         |  link  = ${re.link.show}
         |)
         |""".stripMargin
-    )
 
   }
 
@@ -164,99 +165,69 @@ class EventTypeSpec extends Specification {
 
 class EventDataSpec extends Specification {
 
-  import Content.Type.{Binary, Json}
+  import ContentType.{Binary, Json}
 
-  val bve = ByteVector.empty
-  val et  = EventType("eventType").unsafe
-  val id  = sampleOf[ju.UUID]
+  def encode(data: String): ByteVector =
+    encodeToBV(data).unsafe
 
-  val dataJson   = Content.json("""{ "data": "1" }""").unsafe
-  val metaJson   = Content.json("""{ "meta": "2" }""").unsafe
-  val dataBinary = Content.binary("data").unsafe
-  val metaBinary = Content.binary("meta").unsafe
+  val bve: ByteVector           = ByteVector.empty
+  val et: EventType.UserDefined = EventType("eventType").unsafe
+  val id: UUID                  = sampleOf[ju.UUID]
+
+  val dataJson: ByteVector   = encode("""{ "data": "1" }""")
+  val metaJson: ByteVector   = encode("""{ "meta": "2" }""")
+  val dataBinary: ByteVector = encode("data")
+  val metaBinary: ByteVector = encode("meta")
 
   "apply" >> {
 
-    val errEmpty   = "Event type name cannot be empty"
-    val errStart   = "value must not start with $, but is $system"
-    val errContent = "Different content types for data & metadata is not supported."
+    val errEmpty = "Event type name cannot be empty"
+    val errStart = "value must not start with $, but is $system"
 
-    def testCommon(data: Content, meta: Content) = {
+    def testCommon(data: ByteVector, meta: ByteVector, ct: ContentType) = {
 
-      val empty = Content.empty(data.contentType)
-
-      EventData("", id, data) should beLeft(errEmpty)
-      EventData("", id, data, meta) should beLeft(errEmpty)
-      EventData("$system", id, data) should beLeft(errStart)
-      EventData("$system", id, data, meta) should beLeft(errStart)
-      EventData(et, id, data) should beLike { case EventData(`et`, `id`, `data`, `empty`) => ok }
-      EventData(et, id, data, meta) should beLike { case Right(EventData(`et`, `id`, `data`, `meta`)) => ok }
+      EventData("", id, data, ct) should beLeft(errEmpty)
+      EventData("", id, data, meta, ct) should beLeft(errEmpty)
+      EventData("$system", id, data, ct) should beLeft(errStart)
+      EventData("$system", id, data, meta, ct) should beLeft(errStart)
+      EventData(et, id, data, ct) should beLike { case EventData(`et`, `id`, `data`, `bve`, `ct`) => ok }
+      EventData(et, id, data, meta, ct) should beLike { case EventData(`et`, `id`, `data`, `meta`, `ct`) => ok }
     }
 
     ///
 
-    testCommon(dataJson, metaJson)
-    testCommon(dataBinary, metaBinary)
-
-    EventData(et, id, dataBinary, metaJson) should beLeft(errContent)
-    EventData(et, id, dataJson, metaBinary) should beLeft(errContent)
-
-    val json = EventData.json(et, id, bve, bve)
-    json.data.contentType shouldEqual Json
-    json.metadata.contentType shouldEqual Json
-
-    val binary = EventData.binary(et, id, bve, bve)
-    binary.data.contentType shouldEqual Binary
-    binary.metadata.contentType shouldEqual Binary
+    testCommon(dataJson, metaJson, Json)
+    testCommon(dataBinary, metaBinary, Binary)
   }
 
-  "EventDataOps" >> {
-    "contentType" >> {
-      EventData(et, id, dataJson).contentType shouldEqual Content.Type.Json
-      EventData(et, id, dataBinary).contentType shouldEqual Content.Type.Binary
+  "EventData" >> {
+
+    "render" >> {
+      EventData.render(bve, Json) shouldEqual "Json(empty)"
+      EventData.render(bve, Binary) shouldEqual "Binary(empty)"
+      EventData.render(encode("""{ "link" : "1@a" }"""), Json) shouldEqual """{ "link" : "1@a" }"""
+      EventData.render(encode("a"), Binary) shouldEqual "Binary(1 bytes, 0x61)"
+      EventData.render(encode("a" * 31), Binary) shouldEqual s"Binary(31 bytes, 0x${"61" * 31})"
+      EventData.render(encode("a" * 32), Binary) shouldEqual "Binary(32 bytes, #-547736941)"
     }
+
   }
 
 }
 
 //======================================================================================================================
 
-class ContentSpec extends Specification {
+class ContentTypeSpec extends Specification {
 
-  import Content.Type.{Binary, Json}
-
-  "apply" >> {
-    Content("\uD800", Binary) should beLeft("Input length = 1")
-    Content("\uD800", Json) should beLeft("Input length = 1")
-    Content("", Binary) should beRight(Content.BinaryEmpty)
-    Content("", Json) should beRight(Content.JsonEmpty)
-  }
-
-  "binary" >> {
-    Content.binary("1@a") shouldEqual Content("1@a", Binary)
-  }
-
-  "json" >> {
-    Content.json("""{ "link" : "1@a" }""") shouldEqual Content("""{ "link" : "1@a" }""", Json)
-  }
+  import ContentType._
 
   "show" >> {
-    Content.JsonEmpty.show shouldEqual ("Json(empty)")
-    Content.BinaryEmpty.show shouldEqual ("Binary(empty)")
-    Content.json("""{ "link" : "1@a" }""").unsafe.show shouldEqual """{ "link" : "1@a" }"""
-    Content.binary("a").unsafe.show shouldEqual "Binary(1 bytes, 0x61)"
-    Content.binary("a" * 31).unsafe.show shouldEqual (s"Binary(31 bytes, 0x${"61" * 31})")
-    Content.binary("a" * 32).unsafe.show shouldEqual "Binary(32 bytes, #-547736941)"
+    (Binary: ContentType).show shouldEqual "Binary"
+    (Json: ContentType).show shouldEqual "Json"
   }
 
-  "Type" >> {
-    "show" >> {
-      (Binary: Content.Type).show shouldEqual "Binary"
-      (Json: Content.Type).show shouldEqual "Json"
-    }
-  }
+  "ContentTypeOps" >> {
 
-  "TypeOps" >> {
     "fold" >> {
       Binary.fold("b", "j") shouldEqual "b"
       Json.fold("b", "j") shouldEqual "j"
@@ -271,6 +242,7 @@ class ContentSpec extends Specification {
       Binary.isBinary should beTrue
       Json.isBinary should beFalse
     }
+
   }
 
 }

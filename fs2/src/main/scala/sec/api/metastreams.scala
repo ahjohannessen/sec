@@ -24,6 +24,7 @@ import cats.effect.Sync
 import cats.syntax.all._
 import io.circe._
 import io.circe.parser.decode
+import scodec.bits.ByteVector
 import StreamId.Id
 import EventNumber.Exact
 import StreamId.MetaId
@@ -287,7 +288,7 @@ object MetaStreams {
     private[sec] def getMetadata(id: Id, uc: Option[UserCredentials]): F[Option[MetaResult]] = {
 
       val decodeJson: EventRecord => F[StreamMetadata] =
-        _.eventData.data.bytes.decodeUtf8.leftMap(DecodingError(_)).liftTo[F] >>= { utf8 =>
+        _.eventData.data.decodeUtf8.leftMap(DecodingError(_)).liftTo[F] >>= { utf8 =>
           decode[StreamMetadata](utf8).leftMap(DecodingError(_)).liftTo[F]
         }
 
@@ -341,13 +342,14 @@ object MetaStreams {
 
   ///
 
-  private[sec] val jsonPrinter: Printer         = Printer.noSpaces.copy(dropNullValues = true)
+  private[sec] val printer: Printer             = Printer.noSpaces.copy(dropNullValues = true)
   private[sec] def uuid[F[_]: Sync]: F[ju.UUID] = Sync[F].delay(ju.UUID.randomUUID())
 
-  private[sec] def mkEventData[F[_]: ErrorA](eventId: ju.UUID, sm: StreamMetadata): F[EventData] = {
-    val json = jsonPrinter.print(Encoder[StreamMetadata].apply(sm))
-    Content.jsonF[F](json).map(EventData(EventType.StreamMetadata, eventId, _))
-  }
+  private[sec] def mkEventData[F[_]: ErrorA](eventId: ju.UUID, sm: StreamMetadata): F[EventData] =
+    ByteVector
+      .encodeUtf8(printer.print(Encoder[StreamMetadata].apply(sm)))
+      .map(EventData(EventType.StreamMetadata, eventId, _, ContentType.Json))
+      .liftTo[F]
 
   ///
 

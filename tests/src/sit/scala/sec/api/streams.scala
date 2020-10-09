@@ -268,7 +268,7 @@ class StreamsSuite extends SnSpec {
       ///
 
       val replaceType: String => Endo[EventData] =
-        et => ed => EventData(et, ed.eventId, ed.data, ed.metadata).unsafe
+        et => ed => EventData(et, ed.eventId, ed.data, ed.metadata, ed.contentType).unsafe
 
       val mkPrefix: String => String =
         p => s"streams_subscribe_to_all_filter_${p}_$genIdentifier"
@@ -564,7 +564,7 @@ class StreamsSuite extends SnSpec {
             if (normalDelete) streams.delete(id, er, None) else streams.tombstone(id, er, None)
 
           val decodeJson: EventRecord => IO[StreamMetadata] =
-            _.eventData.data.bytes.decodeUtf8.liftTo[IO] >>= {
+            _.eventData.data.decodeUtf8.liftTo[IO] >>= {
               io.circe.parser.decode[StreamMetadata](_).liftTo[IO]
             }
 
@@ -608,14 +608,17 @@ class StreamsSuite extends SnSpec {
 
           val deletedId = genStreamId("streams_read_all_linkto_deleted_")
           val linkId    = genStreamId("streams_read_all_linkto_link_")
+          def encode(content: String): ByteVector =
+            ByteVector.encodeUtf8(content).leftMap(_.getMessage).unsafe
 
           def linkData(number: Long) =
             Nel.one(
-              EventData.binary(
+              EventData(
                 EventType.LinkTo,
                 ju.UUID.randomUUID(),
-                Content.binary(s"$number@${deletedId.stringValue}").unsafe.bytes,
-                ByteVector.empty
+                encode(s"$number@${deletedId.stringValue}"),
+                ByteVector.empty,
+                ContentType.Binary
               ))
 
           def append(id: StreamId, data: Nel[EventData]) =
@@ -1067,7 +1070,13 @@ class StreamsSuite extends SnSpec {
         val max = 1024 * 1024 // Default ESDB setting
 
         def mkEvent(sizeBytes: Int): IO[EventData] = IO(UUID.randomUUID()).map { uuid =>
-          EventData.binary(EventType("et").unsafe, uuid, ByteVector.fill(sizeBytes.toLong)(0), ByteVector.empty)
+
+          val et       = EventType("et").unsafe
+          val data     = ByteVector.fill(sizeBytes.toLong)(0)
+          val metadata = ByteVector.empty
+          val ct       = ContentType.Binary
+
+          EventData(et, uuid, data, metadata, ct)
         }
 
         "less than or equal max append size works" >> {
