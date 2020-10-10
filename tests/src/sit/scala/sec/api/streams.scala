@@ -71,7 +71,7 @@ class StreamsSuite extends SnSpec {
           val run       = subscribe(exclusiveFrom, Set(s1, s2).contains).concurrently(writeBoth)
 
           run.take(count).compile.toList.map { events =>
-            events.size shouldEqual count
+            events.size.toLong shouldEqual count
             events.filter(_.streamId == s1).map(_.eventData).toNel should beSome(s1Events)
             events.filter(_.streamId == s2).map(_.eventData).toNel should beSome(s2Events)
 
