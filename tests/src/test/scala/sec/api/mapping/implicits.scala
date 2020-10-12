@@ -31,6 +31,10 @@ class ImplicitsSpec extends mutable.Specification {
       case Left(ProtoResultError("Required value test missing or invalid.")) => ok
     }
 
+    Option.empty[Int].require[ErrorOr]("test", details = "Oh Noes!".some) should beLike {
+      case Left(ProtoResultError("Required value test missing or invalid. Oh Noes!")) => ok
+    }
+
     Option(1).require[ErrorOr]("test") should beRight(1)
   }
 
