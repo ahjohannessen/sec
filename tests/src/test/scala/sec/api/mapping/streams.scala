@@ -571,7 +571,7 @@ class StreamsMappingSpec extends mutable.Specification {
     "reqConfirmation" >> {
 
       reqConfirmation[ErrorOr](s.ReadResp()) shouldEqual
-        ProtoResultError("Required value SubscriptionConfirmation missing or invalid.").asLeft
+        ProtoResultError("Required value SubscriptionConfirmation missing or invalid. Got Empty instead").asLeft
 
       reqConfirmation[ErrorOr](s.ReadResp().withConfirmation(s.ReadResp.SubscriptionConfirmation("id"))) shouldEqual
         SubscriptionConfirmation("id").asRight

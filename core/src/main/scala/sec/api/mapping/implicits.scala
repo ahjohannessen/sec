@@ -35,8 +35,14 @@ private[sec] object implicits {
   ///
 
   implicit final class OptionOps[A](private val o: Option[A]) extends AnyVal {
-    def require[F[_]: ErrorA](value: String): F[A] =
-      o.toRight(ProtoResultError(s"Required value $value missing or invalid.")).liftTo[F]
+
+    def require[F[_]: ErrorA](value: String): F[A] = require[F](value, None)
+
+    def require[F[_]: ErrorA](value: String, details: Option[String]) = {
+      def extra = details.map(d => s" $d").getOrElse("")
+      def msg   = s"Required value $value missing or invalid.$extra"
+      o.toRight(ProtoResultError(msg)).liftTo[F]
+    }
   }
 
 }

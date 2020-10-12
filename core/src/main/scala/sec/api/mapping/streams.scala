@@ -249,7 +249,7 @@ private[sec] object streams {
     def reqConfirmation[F[_]: ErrorA](rr: ReadResp): F[SubscriptionConfirmation] =
       rr.content.confirmation
         .map(_.subscriptionId)
-        .require[F]("SubscriptionConfirmation")
+        .require[F]("SubscriptionConfirmation", details = s"Got ${rr.content} instead".some)
         .map(SubscriptionConfirmation)
 
     def mkEvent[F[_]: ErrorM](re: ReadResp.ReadEvent): F[Option[Event]] =
