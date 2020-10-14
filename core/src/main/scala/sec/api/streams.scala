@@ -17,8 +17,8 @@
 package sec
 package api
 
-final case class Checkpoint(position: Position.Exact)
-final case class WriteResult(currentRevision: EventNumber.Exact, position: Position.Exact)
-final case class DeleteResult(position: Position.Exact)
+final case class Checkpoint(logPosition: LogPosition.Exact)
+final case class WriteResult(streamPosition: StreamPosition.Exact, logPosition: LogPosition.Exact)
+final case class DeleteResult(logPosition: LogPosition.Exact)
 
 final private[sec] case class SubscriptionConfirmation(id: String)

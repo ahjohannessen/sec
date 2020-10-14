@@ -43,9 +43,9 @@ class StreamsSuite extends SnSpec {
 
     "subscribeToAll" >> {
 
-      val streamPrefix                    = s"streams_subscribe_to_all_${genIdentifier}_"
-      val fromBeginning: Option[Position] = Option.empty
-      val fromEnd: Option[Position]       = Position.End.some
+      val streamPrefix                       = s"streams_subscribe_to_all_${genIdentifier}_"
+      val fromBeginning: Option[LogPosition] = Option.empty
+      val fromEnd: Option[LogPosition]       = LogPosition.End.some
 
       "works when streams do not exist prior to subscribing" >> {
 
@@ -55,11 +55,11 @@ class StreamsSuite extends SnSpec {
         def write(id: StreamId, data: Nel[EventData]) =
           Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, data))
 
-        def subscribe(exclusiveFrom: Option[Position], filter: StreamId => Boolean) = streams
+        def subscribe(exclusiveFrom: Option[LogPosition], filter: StreamId => Boolean) = streams
           .subscribeToAll(exclusiveFrom)
           .filter(e => e.streamId.isNormal && filter(e.streamId))
 
-        def test(exclusiveFrom: Option[Position]) = {
+        def test(exclusiveFrom: Option[LogPosition]) = {
 
           val s1       = mkId("s1")
           val s2       = mkId("s2")
@@ -83,10 +83,10 @@ class StreamsSuite extends SnSpec {
           test(fromBeginning)
         }
 
-        "from position" >> {
+        "from log position" >> {
 
           val initId  = mkId("init")
-          val prepare = write(initId, genEvents(10)).map(_.position)
+          val prepare = write(initId, genEvents(10)).map(_.logPosition)
           prepare.compile.lastOrError >>= { pos => test(pos.some) }
         }
 
@@ -104,7 +104,7 @@ class StreamsSuite extends SnSpec {
         def write(id: StreamId, data: Nel[EventData], rev: StreamRevision = StreamRevision.NoStream) =
           Stream.eval(streams.appendToStream(id, rev, data))
 
-        def subscribe(exclusiveFrom: Option[Position], filter: StreamId => Boolean) =
+        def subscribe(exclusiveFrom: Option[LogPosition], filter: StreamId => Boolean) =
           streams.subscribeToAll(exclusiveFrom).filter(e => e.streamId.isNormal && filter(e.streamId))
 
         val s1Before = genEvents(12)
@@ -123,10 +123,10 @@ class StreamsSuite extends SnSpec {
         def writeAfter(s1: StreamId, r1: StreamRevision, s2: StreamId, r2: StreamRevision) =
           (write(s1, s1After, r1) >> write(s2, s2After, r2)).delayBy(500.millis)
 
-        def test(exclusiveFrom: Option[Position], s1: StreamId, s2: StreamId) =
+        def test(exclusiveFrom: Option[LogPosition], s1: StreamId, s2: StreamId) =
           writeBefore(s1, s2) >>= { case (wa, wb) =>
             subscribe(exclusiveFrom, Set(s1, s2).contains)
-              .concurrently(writeAfter(s1, wa.currentRevision, s2, wb.currentRevision))
+              .concurrently(writeAfter(s1, wa.streamPosition, s2, wb.streamPosition))
               .map(_.eventData)
           }
 
@@ -139,7 +139,7 @@ class StreamsSuite extends SnSpec {
           test(fromBeginning, s1, s2).take(count).compile.toList.map(_.toNel should beSome(all))
         }
 
-        "from position" >> {
+        "from log position" >> {
 
           val s1       = mkId("s1_pos")
           val s2       = mkId("s2_pos")
@@ -147,8 +147,8 @@ class StreamsSuite extends SnSpec {
           val count    = expected.size.toLong
 
           val result = writeBefore(s1, s2) >>= { case (wrs1, wrs2) =>
-            subscribe(wrs1.position.some, Set(s1, s2).contains)
-              .concurrently(writeAfter(s1, wrs1.currentRevision, s2, wrs2.currentRevision))
+            subscribe(wrs1.logPosition.some, Set(s1, s2).contains)
+              .concurrently(writeAfter(s1, wrs1.streamPosition, s2, wrs2.streamPosition))
               .map(_.eventData)
               .take(count)
           }
@@ -185,7 +185,7 @@ class StreamsSuite extends SnSpec {
 
       ///
 
-      def testBeginningOrEnd(from: Option[Position.End.type], includeBefore: Boolean)(
+      def testBeginningOrEnd(from: Option[LogPosition.End.type], includeBefore: Boolean)(
         prefix: String,
         filter: EventFilter,
         adjustFn: Endo[EventData]
@@ -238,19 +238,19 @@ class StreamsSuite extends SnSpec {
         val existing = includeBefore.fold("existing_stream", "non_existing_stream")
 
         def mkStreamId =
-          genStreamId(s"${prefix}_${existing}_from_position")
+          genStreamId(s"${prefix}_${existing}_from_log_position")
 
         def write(eds: Nel[EventData]) =
           eds.traverse(e => streams.appendToStream(mkStreamId, NoStream, Nel.one(e)))
 
-        def subscribe(from: Position) =
+        def subscribe(from: LogPosition) =
           streams.subscribeToAllFiltered(from.some, options).takeThrough(_.fold(_ => true, _.eventData != after.last))
 
         val writeBefore = write(before).whenA(includeBefore).void
         val writeAfter  = write(after).void
 
         val result = for {
-          pos  <- Stream.eval(writeRandom(100)).map(_.position)
+          pos  <- Stream.eval(writeRandom(100)).map(_.logPosition)
           _    <- Stream.eval(writeBefore)
           _    <- Stream.eval(writeRandom(100))
           _    <- Stream.sleep(500.millis)
@@ -303,7 +303,7 @@ class StreamsSuite extends SnSpec {
           val etPrefix = mkPrefix(s"event_type_prefix$append")
           val etRegex  = mkPrefix(s"event_type_regex_$append")
 
-          val testEnd = testBeginningOrEnd(Position.End.some, includeBefore) _
+          val testEnd = testBeginningOrEnd(LogPosition.End.some, includeBefore) _
 
           "stream id prefix" >> testEnd(siPrefix, streamIdPrefix(siPrefix), identity)
           "stream id regex" >> testEnd(siRegex, streamIdRegex(siRegex), identity)
@@ -318,9 +318,9 @@ class StreamsSuite extends SnSpec {
 
         val existing = includeBefore.fold("exists", "non_present")
 
-        "from position" >> {
+        "from log position" >> {
 
-          val append   = s"_position_$existing"
+          val append   = s"_log_position_$existing"
           val siPrefix = mkPrefix(s"stream_id_prefix$append")
           val siRegex  = mkPrefix(s"stream_id_regex$append")
           val etPrefix = mkPrefix(s"event_type_prefix$append")
@@ -352,16 +352,16 @@ class StreamsSuite extends SnSpec {
 
     "subscribeToStream" >> {
 
-      val streamPrefix                              = s"streams_subscribe_to_stream_${genIdentifier}_"
-      val fromBeginning: Option[EventNumber]        = Option.empty
-      val fromRevision: Long => Option[EventNumber] = r => EventNumber.exact(r).some
-      val fromEnd: Option[EventNumber]              = EventNumber.End.some
+      val streamPrefix                                       = s"streams_subscribe_to_stream_${genIdentifier}_"
+      val fromBeginning: Option[StreamPosition]              = Option.empty
+      val fromStreamPosition: Long => Option[StreamPosition] = r => StreamPosition.exact(r).some
+      val fromEnd: Option[StreamPosition]                    = StreamPosition.End.some
 
       "works when stream does not exist prior to subscribing" >> {
 
         val events = genEvents(50)
 
-        def test(exclusivefrom: Option[EventNumber], takeCount: Int) = {
+        def test(exclusivefrom: Option[StreamPosition], takeCount: Int) = {
 
           val id        = genStreamId(s"${streamPrefix}non_existing_stream_")
           val subscribe = streams.subscribeToStream(id, exclusivefrom).take(takeCount.toLong).map(_.eventData)
@@ -375,8 +375,8 @@ class StreamsSuite extends SnSpec {
           test(fromBeginning, events.size).map(_ shouldEqual events.toList)
         }
 
-        "from revision" >> {
-          test(fromRevision(4), events.size - 5).map(_ shouldEqual events.toList.drop(5))
+        "from stream position" >> {
+          test(fromStreamPosition(4), events.size - 5).map(_ shouldEqual events.toList.drop(5))
         }
 
         "from end" >> {
@@ -391,7 +391,7 @@ class StreamsSuite extends SnSpec {
         val subscriberCount = 4
         val events          = genEvents(eventCount)
 
-        def test(exclusivFrom: Option[EventNumber], takeCount: Int) = {
+        def test(exclusivFrom: Option[StreamPosition], takeCount: Int) = {
 
           val id    = genStreamId(s"${streamPrefix}multiple_subscriptions_to_same_stream_")
           val write = Stream.eval(streams.appendToStream(id, StreamRevision.NoStream, events, None)).delayBy(500.millis)
@@ -413,8 +413,8 @@ class StreamsSuite extends SnSpec {
           test(fromBeginning, eventCount)
         }
 
-        "from revision" >> {
-          test(fromRevision(0), eventCount - 1)
+        "from stream position" >> {
+          test(fromStreamPosition(0), eventCount - 1)
         }
 
         "from end" >> {
@@ -429,7 +429,7 @@ class StreamsSuite extends SnSpec {
         val afterEvents  = genEvents(10)
         val totalEvents  = beforeEvents.concatNel(afterEvents)
 
-        def test(exclusiveFrom: Option[EventNumber], takeCount: Int) = {
+        def test(exclusiveFrom: Option[StreamPosition], takeCount: Int) = {
 
           val id = genStreamId(s"${streamPrefix}existing_and_new_")
 
@@ -444,7 +444,7 @@ class StreamsSuite extends SnSpec {
 
           val result: Stream[IO, List[EventData]] = for {
             ref        <- Stream.eval(Ref.of[IO, List[EventData]](Nil))
-            rev        <- beforeWrite.map(_.currentRevision)
+            rev        <- beforeWrite.map(_.streamPosition)
             _          <- Stream.sleep(500.millis)
             _          <- subscribe(e => ref.update(_ :+ e.eventData)).concurrently(afterWrite(rev))
             readEvents <- Stream.eval(ref.get)
@@ -458,8 +458,8 @@ class StreamsSuite extends SnSpec {
           test(fromBeginning, totalEvents.size).map(_.toNel shouldEqual totalEvents.some)
         }
 
-        "from revision - reads events after revision and listens for new ones" >> {
-          test(fromRevision(29), 20).map(_ shouldEqual totalEvents.toList.drop(30))
+        "from stream position - reads events after stream position and listens for new ones" >> {
+          test(fromStreamPosition(29), 20).map(_ shouldEqual totalEvents.toList.drop(30))
         }
 
         "from end - listens for new events at given end of stream" >> {
@@ -470,7 +470,7 @@ class StreamsSuite extends SnSpec {
 
       "raises when stream is tombstoned" >> {
 
-        def test(exclusiveFrom: Option[EventNumber]) = {
+        def test(exclusiveFrom: Option[StreamPosition]) = {
 
           val id        = genStreamId(s"${streamPrefix}stream_is_tombstoned_")
           val subscribe = streams.subscribeToStream(id, exclusiveFrom)
@@ -484,8 +484,8 @@ class StreamsSuite extends SnSpec {
           test(fromBeginning)
         }
 
-        "from revision" >> {
-          test(fromRevision(5))
+        "from stream position" >> {
+          test(fromStreamPosition(5))
         }
 
         "from end" >> {
@@ -500,7 +500,7 @@ class StreamsSuite extends SnSpec {
 
     "readAll" >> {
 
-      import Position._
+      import LogPosition._
 
       val streamPrefix    = s"streams_read_all_${genIdentifier}_"
       val eventTypePrefix = s"sec.$genIdentifier.Event"
@@ -515,8 +515,8 @@ class StreamsSuite extends SnSpec {
         streams.appendToStream(id1, StreamRevision.NoStream, events1, None) *>
           streams.appendToStream(id2, StreamRevision.NoStream, events2, None)
 
-      def read(position: Position, direction: Direction, maxCount: Long = 1) =
-        streams.readAll(position, direction, maxCount, resolveLinkTos = false, None).compile.toList
+      def read(from: LogPosition, direction: Direction, maxCount: Long = 1) =
+        streams.readAll(from, direction, maxCount, resolveLinkTos = false, None).compile.toList
 
       //
 
@@ -560,7 +560,7 @@ class StreamsSuite extends SnSpec {
           val events = genEvents(10)
           val write  = streams.appendToStream(id, StreamRevision.NoStream, events, None)
 
-          def delete(er: EventNumber.Exact) =
+          def delete(er: StreamPosition.Exact) =
             if (normalDelete) streams.delete(id, er, None) else streams.tombstone(id, er, None)
 
           val decodeJson: EventRecord => IO[StreamMetadata] =
@@ -580,7 +580,7 @@ class StreamsSuite extends SnSpec {
             .compile
             .toList
 
-          val setup = write >>= { wr => delete(wr.currentRevision).void >> verifyDeleted >> read }
+          val setup = write >>= { wr => delete(wr.streamPosition).void >> verifyDeleted >> read }
 
           def verify(es: List[Event]) =
             es.lastOption.toRight(new RuntimeException("expected metadata")).liftTo[IO] >>= { ts =>
@@ -685,17 +685,17 @@ class StreamsSuite extends SnSpec {
 
     "readStream" >> {
 
-      import EventNumber._
+      import StreamPosition._
 
       val streamPrefix = s"streams_read_stream_${genIdentifier}_"
       val id           = genStreamId(streamPrefix)
       val events       = genEvents(25)
       val writeEvents  = streams.appendToStream(id, StreamRevision.NoStream, events, None)
 
-      def read(id: StreamId, from: EventNumber, direction: Direction, count: Long = 50) =
+      def read(id: StreamId, from: StreamPosition, direction: Direction, count: Long = 50) =
         streams.readStream(id, from, direction, count, resolveLinkTos = false, None).compile.toList
 
-      def readData(id: StreamId, from: EventNumber, direction: Direction, count: Long = 50) =
+      def readData(id: StreamId, from: StreamPosition, direction: Direction, count: Long = 50) =
         read(id, from, direction, count).map(_.map(_.eventData))
 
       //
@@ -751,11 +751,11 @@ class StreamsSuite extends SnSpec {
             read(id, Start, Forwards, 5).attempt.map(_ should beLeft(ex))
         }
 
-        "reading single event from arbitrary position" >> {
+        "reading single event from arbitrary stream position" >> {
           readData(id, exact(7), Forwards, 1).map(_.lastOption shouldEqual events.get(7))
         }
 
-        "reading from arbitrary position" >> {
+        "reading from arbitrary stream position" >> {
           readData(id, exact(3L), Forwards, 2).map(_ shouldEqual events.toList.slice(3, 5))
         }
 
@@ -821,12 +821,12 @@ class StreamsSuite extends SnSpec {
             read(id, End, Backwards, 5).attempt.map(_ should beLeft(ex))
         }
 
-        "reading single event from arbitrary position" >> {
-          readData(id, EventNumber.exact(20), Backwards, 1).map(_.lastOption shouldEqual events.get(20))
+        "reading single event from arbitrary stream position" >> {
+          readData(id, StreamPosition.exact(20), Backwards, 1).map(_.lastOption shouldEqual events.get(20))
         }
 
-        "reading from arbitrary position" >> {
-          readData(id, EventNumber.exact(3L), Backwards, 2).map(_ shouldEqual events.toList.slice(2, 4).reverse)
+        "reading from arbitrary stream position" >> {
+          readData(id, StreamPosition.exact(3L), Backwards, 2).map(_ shouldEqual events.toList.slice(2, 4).reverse)
         }
 
         "max count is respected" >> {
@@ -859,7 +859,7 @@ class StreamsSuite extends SnSpec {
           streams.appendToStream(id, expectedRevision, events) >>= { wr =>
             streams.readStreamForwards(id, maxCount = 2).compile.toList.map { el =>
               el.map(_.eventData).toNel shouldEqual events.some
-              wr.currentRevision shouldEqual EventNumber.Start
+              wr.streamPosition shouldEqual StreamPosition.Start
             }
           }
         }
@@ -873,8 +873,8 @@ class StreamsSuite extends SnSpec {
         }
 
         "raises with exact expected stream revision" >> {
-          test(EventNumber.Start).attempt.map {
-            _ should beLike { case Left(WrongExpectedRevision(_, EventNumber.Start, StreamRevision.NoStream)) => ok }
+          test(StreamPosition.Start).attempt.map {
+            _ should beLike { case Left(WrongExpectedRevision(_, StreamPosition.Start, StreamRevision.NoStream)) => ok }
           }
         }
 
@@ -898,8 +898,8 @@ class StreamsSuite extends SnSpec {
 
           write >>= { first =>
             write.map { second =>
-              first.currentRevision shouldEqual second.currentRevision
-              first.currentRevision shouldEqual EventNumber.exact(3L)
+              first.streamPosition shouldEqual second.streamPosition
+              first.streamPosition shouldEqual StreamPosition.exact(3L)
             }
           }
 
@@ -912,7 +912,7 @@ class StreamsSuite extends SnSpec {
           val events = Nel.of(event, List.fill(5)(event): _*)
           val write  = streams.appendToStream(id, StreamRevision.Any, events)
 
-          write.map(_.currentRevision shouldEqual EventNumber.exact(5))
+          write.map(_.streamPosition shouldEqual StreamPosition.exact(5))
         }
 
       }
@@ -929,19 +929,19 @@ class StreamsSuite extends SnSpec {
 
           write >>= { first =>
             write.map { second =>
-              first.currentRevision shouldEqual EventNumber.exact(5)
-              second.currentRevision shouldEqual expectedSecondRevision
+              first.streamPosition shouldEqual StreamPosition.exact(5)
+              second.streamPosition shouldEqual expectedSecondRevision
             }
           }
 
         }
 
         "any then next expected revision is unreliable" >> {
-          test(StreamRevision.Any, EventNumber.Start)
+          test(StreamRevision.Any, StreamPosition.Start)
         }
 
         "no stream then next expected revision is correct" >> {
-          test(StreamRevision.NoStream, EventNumber.exact(5))
+          test(StreamRevision.NoStream, StreamPosition.exact(5))
         }
 
       }
@@ -971,7 +971,7 @@ class StreamsSuite extends SnSpec {
         }
 
         "with incorrect expected revision" >> {
-          test(EventNumber.exact(5))
+          test(StreamPosition.exact(5))
         }
 
       }
@@ -986,28 +986,28 @@ class StreamsSuite extends SnSpec {
 
           write(StreamRevision.NoStream) >>= { first =>
             write(sndExpectedRevision).map { second =>
-              first.currentRevision shouldEqual EventNumber.Start
-              second.currentRevision
+              first.streamPosition shouldEqual StreamPosition.Start
+              second.streamPosition
             }
           }
         }
 
         "works with correct expected revision" >> {
-          test(EventNumber.Start).map(_ shouldEqual EventNumber.exact(1))
+          test(StreamPosition.Start).map(_ shouldEqual StreamPosition.exact(1))
         }
 
         "works with any expected revision" >> {
-          test(StreamRevision.Any).map(_ shouldEqual EventNumber.exact(1))
+          test(StreamRevision.Any).map(_ shouldEqual StreamPosition.exact(1))
         }
 
         "works with stream exists expected revision" >> {
-          test(StreamRevision.StreamExists).map(_ shouldEqual EventNumber.exact(1))
+          test(StreamRevision.StreamExists).map(_ shouldEqual StreamPosition.exact(1))
         }
 
         "raises with incorrect expected revision" >> {
-          val expected = EventNumber.exact(1L)
+          val expected = StreamPosition.exact(1L)
           test(expected).attempt.map {
-            _ should beLike { case Left(WrongExpectedRevision(_, `expected`, EventNumber.Start)) => ok }
+            _ should beLike { case Left(WrongExpectedRevision(_, `expected`, StreamPosition.Start)) => ok }
           }
         }
 
@@ -1022,7 +1022,7 @@ class StreamsSuite extends SnSpec {
 
         prepare >> streams
           .appendToStream(id, StreamRevision.StreamExists, genEvents(1))
-          .map(_.currentRevision shouldEqual EventNumber.exact(5))
+          .map(_.streamPosition shouldEqual StreamPosition.exact(5))
 
       }
 
@@ -1032,7 +1032,7 @@ class StreamsSuite extends SnSpec {
         val meta  = metaStreams.setMaxAge(id, StreamRevision.NoStream, 10.seconds)
         val write = streams.appendToStream(id, StreamRevision.StreamExists, genEvents(1))
 
-        meta >> write.map(_.currentRevision shouldEqual EventNumber.Start)
+        meta >> write.map(_.streamPosition shouldEqual StreamPosition.Start)
 
       }
 
@@ -1059,9 +1059,9 @@ class StreamsSuite extends SnSpec {
 
         val id       = genStreamId(s"${streamPrefix}multiple_events_at_once_")
         val events   = genEvents(100)
-        val expected = EventNumber.exact(99)
+        val expected = StreamPosition.exact(99)
 
-        streams.appendToStream(id, StreamRevision.NoStream, events).map(_.currentRevision shouldEqual expected)
+        streams.appendToStream(id, StreamRevision.NoStream, events).map(_.streamPosition shouldEqual expected)
 
       }
 
@@ -1088,7 +1088,7 @@ class StreamsSuite extends SnSpec {
           def run(rev: StreamRevision)(data: Nel[EventData]) =
             streams.appendToStream(id, rev, data).as(ok)
 
-          (equal >>= run(StreamRevision.NoStream)) >> (lessThan >>= run(EventNumber.exact(1)))
+          (equal >>= run(StreamRevision.NoStream)) >> (lessThan >>= run(StreamPosition.exact(1)))
 
         }
 
@@ -1151,7 +1151,7 @@ class StreamsSuite extends SnSpec {
 
           for {
             _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
-            _ <- streams.appendToStream(id, EventNumber.exact(5), Nel.one(events.head))
+            _ <- streams.appendToStream(id, StreamPosition.exact(5), Nel.one(events.head))
             e <- streams.readStreamForwards(id, maxCount = events.size + 2L).compile.toList
 
           } yield e.size shouldEqual events.size + 1
@@ -1164,11 +1164,11 @@ class StreamsSuite extends SnSpec {
           val events = genEvents(6)
           val result = for {
             _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
-            _ <- streams.appendToStream(id, EventNumber.exact(6), Nel.one(events.head))
+            _ <- streams.appendToStream(id, StreamPosition.exact(6), Nel.one(events.head))
           } yield ()
 
           result.attempt.map {
-            _ should beLeft(WrongExpectedRevision(id, EventNumber.exact(6), EventNumber.exact(5)))
+            _ should beLeft(WrongExpectedRevision(id, StreamPosition.exact(6), StreamPosition.exact(5)))
           }
         }
 
@@ -1179,11 +1179,11 @@ class StreamsSuite extends SnSpec {
 
           val result = for {
             _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
-            _ <- streams.appendToStream(id, EventNumber.exact(4), Nel.one(events.head))
+            _ <- streams.appendToStream(id, StreamPosition.exact(4), Nel.one(events.head))
           } yield ()
 
           result.attempt.map {
-            _ should beLeft(WrongExpectedRevision(id, EventNumber.exact(4), EventNumber.exact(5)))
+            _ should beLeft(WrongExpectedRevision(id, StreamPosition.exact(4), StreamPosition.exact(5)))
           }
         }
 
@@ -1194,7 +1194,7 @@ class StreamsSuite extends SnSpec {
 
           for {
             _ <- streams.appendToStream(id, StreamRevision.NoStream, events)
-            _ <- streams.appendToStream(id, EventNumber.Start, Nel.one(events.head))
+            _ <- streams.appendToStream(id, StreamPosition.Start, Nel.one(events.head))
             e <- streams.readStreamForwards(id, maxCount = events.size + 2L).compile.toList
 
           } yield e.size shouldEqual events.size + 1
@@ -1267,7 +1267,7 @@ class StreamsSuite extends SnSpec {
           }
 
           "S 1e0  E is idempotent" >> {
-            run(EventNumber.Start, onlyLast = true)
+            run(StreamPosition.Start, onlyLast = true)
           }
 
           "S 1any E is idempotent" >> {
@@ -1286,7 +1286,7 @@ class StreamsSuite extends SnSpec {
 
           streams.appendToStream(id, StreamRevision.NoStream, first) >> {
             streams.appendToStream(id, StreamRevision.NoStream, second).attempt.map {
-              _ should beLeft(WrongExpectedRevision(id, StreamRevision.NoStream, EventNumber.exact(1L)))
+              _ should beLeft(WrongExpectedRevision(id, StreamRevision.NoStream, StreamPosition.exact(1L)))
             }
           }
         }
@@ -1320,8 +1320,8 @@ class StreamsSuite extends SnSpec {
         }
 
         "raises with wrong expected revision" >> {
-          run(EventNumber.Start).attempt.map {
-            _ should beLike { case Left(WrongExpectedRevision(_, EventNumber.Start, StreamRevision.NoStream)) => ok }
+          run(StreamPosition.Start).attempt.map {
+            _ should beLike { case Left(WrongExpectedRevision(_, StreamPosition.Start, StreamRevision.NoStream)) => ok }
           }
         }
 
@@ -1334,10 +1334,10 @@ class StreamsSuite extends SnSpec {
 
         for {
           wr  <- streams.appendToStream(id, StreamRevision.NoStream, events)
-          pos <- streams.readStreamForwards(id, maxCount = 1).compile.lastOrError.map(_.position)
-          dr  <- streams.delete(id, wr.currentRevision)
+          pos <- streams.readStreamForwards(id, maxCount = 1).compile.lastOrError.map(_.logPosition)
+          dr  <- streams.delete(id, wr.streamPosition)
 
-        } yield dr.position > pos
+        } yield dr.logPosition > pos
 
       }
 
@@ -1348,7 +1348,7 @@ class StreamsSuite extends SnSpec {
 
         for {
           wr <- streams.appendToStream(id, StreamRevision.NoStream, events)
-          _  <- streams.delete(id, wr.currentRevision)
+          _  <- streams.delete(id, wr.streamPosition)
           at <- streams.readStreamForwards(id, maxCount = 1).compile.drain.attempt
 
         } yield at should beLike { case Left(StreamNotFound(_)) => ok }
@@ -1362,7 +1362,7 @@ class StreamsSuite extends SnSpec {
 
         for {
           wr  <- streams.appendToStream(id, StreamRevision.NoStream, events)
-          _   <- streams.delete(id, wr.currentRevision)
+          _   <- streams.delete(id, wr.streamPosition)
           _   <- streams.tombstone(id, StreamRevision.Any)
           rat <- streams.readStreamForwards(id, maxCount = 2).compile.drain.attempt
           mat <- metaStreams.getMetadata(id).attempt
@@ -1387,7 +1387,7 @@ class StreamsSuite extends SnSpec {
 
           for {
             wr1 <- streams.appendToStream(id, StreamRevision.NoStream, beforeEvents)
-            _   <- streams.delete(id, wr1.currentRevision)
+            _   <- streams.delete(id, wr1.streamPosition)
             wr2 <- streams.appendToStream(id, expectedRevision, afterEvents)
             _   <- IO.sleep(100.millis) // Workaround for ES github issue #1744
             evt <- streams.readStreamForwards(id, maxCount = 3).compile.toList
@@ -1395,14 +1395,16 @@ class StreamsSuite extends SnSpec {
 
           } yield {
 
-            wr1.currentRevision shouldEqual EventNumber.Start
-            wr2.currentRevision shouldEqual EventNumber.exact(3)
+            wr1.streamPosition shouldEqual StreamPosition.Start
+            wr2.streamPosition shouldEqual StreamPosition.exact(3)
 
             evt.size shouldEqual 3
             evt.map(_.eventData).toNel shouldEqual afterEvents.some
-            evt.map(_.number) shouldEqual List(EventNumber.exact(1), EventNumber.exact(2), EventNumber.exact(3))
+            evt.map(_.streamPosition) shouldEqual List(StreamPosition.exact(1),
+                                                       StreamPosition.exact(2),
+                                                       StreamPosition.exact(3))
 
-            tbm should beSome(MetaStreams.Result(EventNumber.exact(1), EventNumber.exact(1).some))
+            tbm should beSome(MetaStreams.Result(StreamPosition.exact(1), StreamPosition.exact(1).some))
 
           }
 
@@ -1417,7 +1419,7 @@ class StreamsSuite extends SnSpec {
         }
 
         "exact expected revision" >> {
-          run(EventNumber.Start)
+          run(StreamPosition.Start)
         }
 
       }
@@ -1431,28 +1433,30 @@ class StreamsSuite extends SnSpec {
         val metadata = StreamMetadata.empty
           .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
           .withMaxCount(MaxCount(100).unsafe)
-          .withTruncateBefore(EventNumber.exact(Long.MaxValue))
+          .withTruncateBefore(StreamPosition.exact(Long.MaxValue))
           .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
 
         for {
           swr    <- streams.appendToStream(id, StreamRevision.NoStream, beforeEvents)
           mwr    <- metaStreams.setMetadata(id, StreamRevision.NoStream, metadata)
-          _      <- streams.appendToStream(id, EventNumber.exact(1), afterEvents)
+          _      <- streams.appendToStream(id, StreamPosition.exact(1), afterEvents)
           _      <- IO.sleep(1.second) // Workaround for ES github issue #1744
           events <- streams.readStreamForwards(id, maxCount = 3).compile.toList
           meta   <- metaStreams.getMetadata(id)
 
         } yield {
 
-          swr.currentRevision shouldEqual EventNumber.exact(1)
-          mwr.currentRevision shouldEqual EventNumber.Start
+          swr.streamPosition shouldEqual StreamPosition.exact(1)
+          mwr.streamPosition shouldEqual StreamPosition.Start
 
           events.size shouldEqual afterEvents.size
-          events.map(_.number) shouldEqual List(EventNumber.exact(2), EventNumber.exact(3), EventNumber.exact(4))
+          events.map(_.streamPosition) shouldEqual List(StreamPosition.exact(2),
+                                                        StreamPosition.exact(3),
+                                                        StreamPosition.exact(4))
 
           meta.fold(ko) { m =>
-            m.metaRevision shouldEqual EventNumber.exact(1)
-            m.data shouldEqual metadata.withTruncateBefore(EventNumber.exact(2))
+            m.metaRevision shouldEqual StreamPosition.exact(1)
+            m.data shouldEqual metadata.withTruncateBefore(StreamPosition.exact(2))
           }
         }
 
@@ -1464,14 +1468,14 @@ class StreamsSuite extends SnSpec {
 
         for {
           wr1 <- streams.appendToStream(id, StreamRevision.NoStream, genEvents(2))
-          _   <- streams.delete(id, wr1.currentRevision, None)
+          _   <- streams.delete(id, wr1.streamPosition, None)
           wr2 <- streams.appendToStream(id, StreamRevision.NoStream, genEvents(3))
           wr3 <- streams.appendToStream(id, StreamRevision.NoStream, genEvents(1)).attempt
         } yield {
 
-          wr1.currentRevision shouldEqual EventNumber.exact(1)
-          wr2.currentRevision shouldEqual EventNumber.exact(4)
-          wr3 should beLeft(WrongExpectedRevision(id, StreamRevision.NoStream, EventNumber.exact(4L)))
+          wr1.streamPosition shouldEqual StreamPosition.exact(1)
+          wr2.streamPosition shouldEqual StreamPosition.exact(4)
+          wr3 should beLeft(WrongExpectedRevision(id, StreamRevision.NoStream, StreamPosition.exact(4L)))
         }
 
       }
@@ -1485,24 +1489,24 @@ class StreamsSuite extends SnSpec {
 
         for {
           wr0    <- streams.appendToStream(id, StreamRevision.NoStream, events0)
-          _      <- streams.delete(id, wr0.currentRevision)
+          _      <- streams.delete(id, wr0.streamPosition)
           wr1    <- streams.appendToStream(id, StreamRevision.Any, events1)
           wr2    <- streams.appendToStream(id, StreamRevision.Any, events2)
           events <- streams.readStreamForwards(id, maxCount = 5).compile.toList
           tbr    <- metaStreams.getTruncateBefore(id)
         } yield {
 
-          wr0.currentRevision shouldEqual EventNumber.exact(1)
-          wr1.currentRevision shouldEqual EventNumber.exact(4)
-          wr2.currentRevision shouldEqual EventNumber.exact(6)
+          wr0.streamPosition shouldEqual StreamPosition.exact(1)
+          wr1.streamPosition shouldEqual StreamPosition.exact(4)
+          wr2.streamPosition shouldEqual StreamPosition.exact(6)
 
           events.size shouldEqual 5
           events.map(_.eventData) shouldEqual events1.concatNel(events2).toList
-          events.map(_.number) shouldEqual (2L to 6L).map(EventNumber.exact).toList
+          events.map(_.streamPosition) shouldEqual (2L to 6L).map(StreamPosition.exact).toList
 
           tbr.fold(ko) { result =>
-            result.data should beSome(EventNumber.exact(2))
-            result.metaRevision shouldEqual EventNumber.exact(1)
+            result.data should beSome(StreamPosition.exact(2))
+            result.metaRevision shouldEqual StreamPosition.exact(1)
 
           }
         }
@@ -1516,25 +1520,25 @@ class StreamsSuite extends SnSpec {
         val metadata = StreamMetadata.empty
           .withMaxCount(MaxCount(100).unsafe)
           .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
-          .withTruncateBefore(EventNumber.exact(Long.MaxValue))
+          .withTruncateBefore(StreamPosition.exact(Long.MaxValue))
           .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
 
         for {
           _    <- streams.delete(id, StreamRevision.NoStream)
-          mw   <- metaStreams.setMetadata(id, EventNumber.Start, metadata)
+          mw   <- metaStreams.setMetadata(id, StreamPosition.Start, metadata)
           read <- streams.readStreamForwards(id, maxCount = 1).compile.toList.attempt
           meta <- metaStreams.getMetadata(id)
         } yield {
 
-          mw.currentRevision shouldEqual EventNumber.exact(1)
+          mw.streamPosition shouldEqual StreamPosition.exact(1)
 
           read should beLike { case Left(e: StreamNotFound) =>
             e.streamId shouldEqual id.stringValue
           }
 
           meta.fold(ko) { m =>
-            m.metaRevision shouldEqual EventNumber.exact(2)
-            m.data shouldEqual metadata.withTruncateBefore(EventNumber.Start)
+            m.metaRevision shouldEqual StreamPosition.exact(2)
+            m.data shouldEqual metadata.withTruncateBefore(StreamPosition.Start)
           }
         }
 
@@ -1552,18 +1556,18 @@ class StreamsSuite extends SnSpec {
 
         for {
           sw1  <- streams.appendToStream(id, StreamRevision.NoStream, events)
-          _    <- streams.delete(id, sw1.currentRevision)
-          mw1  <- metaStreams.setMetadata(id, EventNumber.Start, metadata)
+          _    <- streams.delete(id, sw1.streamPosition)
+          mw1  <- metaStreams.setMetadata(id, StreamPosition.Start, metadata)
           read <- streams.readStreamForwards(id, maxCount = 2).compile.toList
           meta <- metaStreams.getMetadata(id)
         } yield {
 
-          sw1.currentRevision shouldEqual EventNumber.exact(1)
-          mw1.currentRevision shouldEqual EventNumber.exact(1)
+          sw1.streamPosition shouldEqual StreamPosition.exact(1)
+          mw1.streamPosition shouldEqual StreamPosition.exact(1)
           read.size shouldEqual 0
 
           meta.fold(ko) { m =>
-            m.data shouldEqual metadata.withTruncateBefore(EventNumber.exact(events.size.toLong))
+            m.data shouldEqual metadata.withTruncateBefore(StreamPosition.exact(events.size.toLong))
           }
         }
 
@@ -1596,8 +1600,8 @@ class StreamsSuite extends SnSpec {
         }
 
         "raises with wrong expected revision" >> {
-          run(EventNumber.Start).attempt.map {
-            _ should beLike { case Left(WrongExpectedRevision(_, EventNumber.Start, StreamRevision.NoStream)) => ok }
+          run(StreamPosition.Start).attempt.map {
+            _ should beLike { case Left(WrongExpectedRevision(_, StreamPosition.Start, StreamRevision.NoStream)) => ok }
           }
         }
 
@@ -1610,10 +1614,10 @@ class StreamsSuite extends SnSpec {
 
         for {
           wr  <- streams.appendToStream(id, StreamRevision.NoStream, events)
-          pos <- streams.readStreamForwards(id, maxCount = 1).compile.lastOrError.map(_.position)
-          dr  <- streams.tombstone(id, wr.currentRevision)
+          pos <- streams.readStreamForwards(id, maxCount = 1).compile.lastOrError.map(_.logPosition)
+          dr  <- streams.tombstone(id, wr.streamPosition)
 
-        } yield dr.position > pos
+        } yield dr.logPosition > pos
 
       }
 

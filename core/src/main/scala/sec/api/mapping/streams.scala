@@ -40,23 +40,23 @@ private[sec] object streams {
 
     val uuidOption: ReadReq.Options.UUIDOption = ReadReq.Options.UUIDOption().withStructured(empty)
 
-    val mapPosition: Position => ReadReq.Options.AllOptions.AllOption = {
-      case Position.Exact(c, p) => ReadReq.Options.AllOptions.AllOption.Position(ReadReq.Options.Position(c, p))
-      case Position.End         => ReadReq.Options.AllOptions.AllOption.End(empty)
+    val mapLogPosition: LogPosition => ReadReq.Options.AllOptions.AllOption = {
+      case LogPosition.Exact(c, p) => ReadReq.Options.AllOptions.AllOption.Position(ReadReq.Options.Position(c, p))
+      case LogPosition.End         => ReadReq.Options.AllOptions.AllOption.End(empty)
     }
 
-    val mapPositionOpt: Option[Position] => ReadReq.Options.AllOptions.AllOption = {
-      case Some(v) => mapPosition(v)
+    val mapLogPositionOpt: Option[LogPosition] => ReadReq.Options.AllOptions.AllOption = {
+      case Some(v) => mapLogPosition(v)
       case None    => ReadReq.Options.AllOptions.AllOption.Start(empty)
     }
 
-    val mapEventNumber: EventNumber => ReadReq.Options.StreamOptions.RevisionOption = {
-      case EventNumber.Exact(nr) => ReadReq.Options.StreamOptions.RevisionOption.Revision(nr)
-      case EventNumber.End       => ReadReq.Options.StreamOptions.RevisionOption.End(empty)
+    val mapStreamPosition: StreamPosition => ReadReq.Options.StreamOptions.RevisionOption = {
+      case StreamPosition.Exact(nr) => ReadReq.Options.StreamOptions.RevisionOption.Revision(nr)
+      case StreamPosition.End       => ReadReq.Options.StreamOptions.RevisionOption.End(empty)
     }
 
-    val mapEventNumberOpt: Option[EventNumber] => ReadReq.Options.StreamOptions.RevisionOption = {
-      case Some(v) => mapEventNumber(v)
+    val mapStreamPositionOpt: Option[StreamPosition] => ReadReq.Options.StreamOptions.RevisionOption = {
+      case Some(v) => mapStreamPosition(v)
       case None    => ReadReq.Options.StreamOptions.RevisionOption.Start(empty)
     }
 
@@ -100,13 +100,13 @@ private[sec] object streams {
 
     def mkSubscribeToStreamReq(
       streamId: StreamId,
-      exclusiveFrom: Option[EventNumber],
+      exclusiveFrom: Option[StreamPosition],
       resolveLinkTos: Boolean
     ): ReadReq = {
 
       val options = ReadReq
         .Options()
-        .withStream(ReadReq.Options.StreamOptions(streamId.esSid.some, mapEventNumberOpt(exclusiveFrom)))
+        .withStream(ReadReq.Options.StreamOptions(streamId.esSid.some, mapStreamPositionOpt(exclusiveFrom)))
         .withSubscription(ReadReq.Options.SubscriptionOptions())
         .withReadDirection(mapDirection(Direction.Forwards))
         .withResolveLinks(resolveLinkTos)
@@ -117,14 +117,14 @@ private[sec] object streams {
     }
 
     def mkSubscribeToAllReq(
-      exclusiveFrom: Option[Position],
+      exclusiveFrom: Option[LogPosition],
       resolveLinkTos: Boolean,
       filterOptions: Option[SubscriptionFilterOptions]
     ): ReadReq = {
 
       val options = ReadReq
         .Options()
-        .withAll(ReadReq.Options.AllOptions(mapPositionOpt(exclusiveFrom)))
+        .withAll(ReadReq.Options.AllOptions(mapLogPositionOpt(exclusiveFrom)))
         .withSubscription(ReadReq.Options.SubscriptionOptions())
         .withReadDirection(mapDirection(Direction.Forwards))
         .withResolveLinks(resolveLinkTos)
@@ -136,7 +136,7 @@ private[sec] object streams {
 
     def mkReadStreamReq(
       streamId: StreamId,
-      from: EventNumber,
+      from: StreamPosition,
       direction: Direction,
       count: Long,
       resolveLinkTos: Boolean
@@ -144,7 +144,7 @@ private[sec] object streams {
 
       val options = ReadReq
         .Options()
-        .withStream(ReadReq.Options.StreamOptions(streamId.esSid.some, mapEventNumber(from)))
+        .withStream(ReadReq.Options.StreamOptions(streamId.esSid.some, mapStreamPosition(from)))
         .withCount(count)
         .withReadDirection(mapDirection(direction))
         .withResolveLinks(resolveLinkTos)
@@ -155,7 +155,7 @@ private[sec] object streams {
     }
 
     def mkReadAllReq(
-      position: Position,
+      from: LogPosition,
       direction: Direction,
       maxCount: Long,
       resolveLinkTos: Boolean
@@ -163,7 +163,7 @@ private[sec] object streams {
 
       val options = ReadReq
         .Options()
-        .withAll(ReadReq.Options.AllOptions(mapPosition(position)))
+        .withAll(ReadReq.Options.AllOptions(mapLogPosition(from)))
         .withCount(maxCount)
         .withReadDirection(mapDirection(direction))
         .withResolveLinks(resolveLinkTos)
@@ -176,7 +176,7 @@ private[sec] object streams {
     def mkDeleteReq(streamId: StreamId, expectedRevision: StreamRevision): DeleteReq = {
 
       val mapDeleteRevision: StreamRevision => DeleteReq.Options.ExpectedStreamRevision = {
-        case EventNumber.Exact(v)        => DeleteReq.Options.ExpectedStreamRevision.Revision(v)
+        case StreamPosition.Exact(v)     => DeleteReq.Options.ExpectedStreamRevision.Revision(v)
         case StreamRevision.NoStream     => DeleteReq.Options.ExpectedStreamRevision.NoStream(empty)
         case StreamRevision.StreamExists => DeleteReq.Options.ExpectedStreamRevision.StreamExists(empty)
         case StreamRevision.Any          => DeleteReq.Options.ExpectedStreamRevision.Any(empty)
@@ -187,7 +187,7 @@ private[sec] object streams {
     def mkTombstoneReq(streamId: StreamId, expectedRevision: StreamRevision): TombstoneReq = {
 
       val mapTombstoneRevision: StreamRevision => TombstoneReq.Options.ExpectedStreamRevision = {
-        case EventNumber.Exact(v)        => TombstoneReq.Options.ExpectedStreamRevision.Revision(v)
+        case StreamPosition.Exact(v)     => TombstoneReq.Options.ExpectedStreamRevision.Revision(v)
         case StreamRevision.NoStream     => TombstoneReq.Options.ExpectedStreamRevision.NoStream(empty)
         case StreamRevision.StreamExists => TombstoneReq.Options.ExpectedStreamRevision.StreamExists(empty)
         case StreamRevision.Any          => TombstoneReq.Options.ExpectedStreamRevision.Any(empty)
@@ -198,7 +198,7 @@ private[sec] object streams {
     def mkAppendHeaderReq(streamId: StreamId, expectedRevision: StreamRevision): AppendReq = {
 
       val mapAppendRevision: StreamRevision => AppendReq.Options.ExpectedStreamRevision = {
-        case EventNumber.Exact(v)        => AppendReq.Options.ExpectedStreamRevision.Revision(v)
+        case StreamPosition.Exact(v)     => AppendReq.Options.ExpectedStreamRevision.Revision(v)
         case StreamRevision.NoStream     => AppendReq.Options.ExpectedStreamRevision.NoStream(empty)
         case StreamRevision.StreamExists => AppendReq.Options.ExpectedStreamRevision.StreamExists(empty)
         case StreamRevision.Any          => AppendReq.Options.ExpectedStreamRevision.Any(empty)
@@ -223,7 +223,7 @@ private[sec] object streams {
 
   object incoming {
 
-    def mkCheckpoint[F[_]: ErrorA](c: ReadResp.Checkpoint): F[Checkpoint] = Position
+    def mkCheckpoint[F[_]: ErrorA](c: ReadResp.Checkpoint): F[Checkpoint] = LogPosition
       .Exact(c.commitPosition, c.preparePosition)
       .map(Checkpoint)
       .leftMap(error => ProtoResultError(s"Invalid position for Checkpoint: $error"))
@@ -259,18 +259,18 @@ private[sec] object streams {
 
     def mkEventRecord[F[_]: ErrorM](e: ReadResp.ReadEvent.RecordedEvent): F[EventRecord] = {
 
-      val streamId    = mkStreamId[F](e.streamIdentifier)
-      val eventNumber = EventNumber.exact(e.streamRevision)
-      val position    = Position.exact(e.commitPosition, e.preparePosition)
-      val data        = e.data.toByteVector
-      val customMeta  = e.customMetadata.toByteVector
-      val eventId     = e.id.require[F]("UUID") >>= mkJuuid[F]
-      val eventType   = e.metadata.get(Type).require[F](Type) >>= mkEventType[F]
-      val contentType = e.metadata.get(ContentType).require[F](ContentType) >>= mkContentType[F]
-      val created     = e.metadata.get(Created).flatMap(_.toLongOption).require[F](Created) >>= fromTicksSinceEpoch[F]
-      val eventData   = (eventType, eventId, contentType).mapN((t, i, ct) => EventData(t, i, data, customMeta, ct))
+      val streamId       = mkStreamId[F](e.streamIdentifier)
+      val streamPosition = StreamPosition.exact(e.streamRevision)
+      val logPosition    = LogPosition.exact(e.commitPosition, e.preparePosition)
+      val data           = e.data.toByteVector
+      val customMeta     = e.customMetadata.toByteVector
+      val eventId        = e.id.require[F]("UUID") >>= mkJuuid[F]
+      val eventType      = e.metadata.get(Type).require[F](Type) >>= mkEventType[F]
+      val contentType    = e.metadata.get(ContentType).require[F](ContentType) >>= mkContentType[F]
+      val created        = e.metadata.get(Created).flatMap(_.toLongOption).require[F](Created) >>= fromTicksSinceEpoch[F]
+      val eventData      = (eventType, eventId, contentType).mapN((t, i, ct) => EventData(t, i, data, customMeta, ct))
 
-      (streamId, eventData, created).mapN((id, ed, c) => sec.EventRecord(id, eventNumber, position, ed, c))
+      (streamId, eventData, created).mapN((id, ed, c) => sec.EventRecord(id, streamPosition, logPosition, ed, c))
 
     }
 
@@ -295,26 +295,26 @@ private[sec] object streams {
 
       def success(s: Result.Success) = {
 
-        val position: Either[Throwable, Position.Exact] = s.value.positionOption match {
-          case Success.PositionOption.Position(p)   => Position.exact(p.commitPosition, p.preparePosition).asRight
+        val logPositionExact: Either[Throwable, LogPosition.Exact] = s.value.positionOption match {
+          case Success.PositionOption.Position(p)   => LogPosition.exact(p.commitPosition, p.preparePosition).asRight
           case Success.PositionOption.NoPosition(_) => error("Did not expect NoPosition when using NonEmptyList")
           case Success.PositionOption.Empty         => error("PositionOption is missing")
         }
 
-        val revision: Either[Throwable, EventNumber.Exact] = s.value.currentRevisionOption match {
-          case Success.CurrentRevisionOption.CurrentRevision(v) => EventNumber.exact(v).asRight
+        val streamPositionExact: Either[Throwable, StreamPosition.Exact] = s.value.currentRevisionOption match {
+          case Success.CurrentRevisionOption.CurrentRevision(v) => StreamPosition.exact(v).asRight
           case Success.CurrentRevisionOption.NoStream(_)        => error("Did not expect NoStream when using NonEmptyList")
           case Success.CurrentRevisionOption.Empty              => error("CurrentRevisionOption is missing")
         }
 
-        (revision, position).mapN((r, p) => WriteResult(r, p))
+        (streamPositionExact, logPositionExact).mapN((r, p) => WriteResult(r, p))
 
       }
 
       def wrongExpectedVersion(w: Result.WrongExpectedVersion) = {
 
         val expected: Either[Throwable, StreamRevision] = w.value.expectedRevisionOption match {
-          case ExpectedRevisionOption.ExpectedRevision(v)     => EventNumber.exact(v).asRight
+          case ExpectedRevisionOption.ExpectedRevision(v)     => StreamPosition.exact(v).asRight
           case ExpectedRevisionOption.ExpectedNoStream(_)     => StreamRevision.NoStream.asRight
           case ExpectedRevisionOption.ExpectedAny(_)          => StreamRevision.Any.asRight
           case ExpectedRevisionOption.ExpectedStreamExists(_) => StreamRevision.StreamExists.asRight
@@ -322,7 +322,7 @@ private[sec] object streams {
         }
 
         val actual: Either[Throwable, StreamRevision] = w.value.currentRevisionOption match {
-          case CurrentRevisionOption.CurrentRevision(v) => EventNumber.exact(v).asRight
+          case CurrentRevisionOption.CurrentRevision(v) => StreamPosition.exact(v).asRight
           case CurrentRevisionOption.CurrentNoStream(_) => StreamRevision.NoStream.asRight
           case CurrentRevisionOption.Empty              => error("CurrentRevisionOption is missing")
         }
@@ -341,12 +341,12 @@ private[sec] object streams {
 
     def mkDeleteResult[F[_]: ErrorA](dr: DeleteResp): F[DeleteResult] =
       dr.positionOption.position
-        .map(p => DeleteResult(Position.exact(p.commitPosition, p.preparePosition)))
+        .map(p => DeleteResult(LogPosition.exact(p.commitPosition, p.preparePosition)))
         .require[F]("DeleteResp.PositionOptions.Position")
 
     def mkDeleteResult[F[_]: ErrorA](tr: TombstoneResp): F[DeleteResult] =
       tr.positionOption.position
-        .map(p => DeleteResult(Position.exact(p.commitPosition, p.preparePosition)))
+        .map(p => DeleteResult(LogPosition.exact(p.commitPosition, p.preparePosition)))
         .require[F]("TombstoneResp.PositionOptions.Position")
 
   }

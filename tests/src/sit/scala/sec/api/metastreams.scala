@@ -31,7 +31,7 @@ class MetaStreamsSuite extends SnSpec {
   "MetaStreams" should {
 
     import StreamRevision.NoStream
-    import EventNumber.{exact, Start}
+    import StreamPosition.{exact, Start}
 
     val mkStreamId: String => StreamId.Id =
       usecase => genStreamId(s"meta_streams_${genIdentifier}_$usecase")
@@ -54,8 +54,8 @@ class MetaStreamsSuite extends SnSpec {
         wr <- metaStreams.setMetadata(sid, NoStream, StreamMetadata.empty)
         mr <- metaStreams.getMetadata(sid)
       } yield {
-        wr.currentRevision shouldEqual Start
-        mr should beSome(Result(wr.currentRevision, StreamMetadata.empty))
+        wr.streamPosition shouldEqual Start
+        mr should beSome(Result(wr.streamPosition, StreamMetadata.empty))
       }
     }
 
@@ -80,13 +80,13 @@ class MetaStreamsSuite extends SnSpec {
         for {
           wr1 <- metaStreams.setMetadata(sid, NoStream, meta1)
           mr1 <- metaStreams.getMetadata(sid)
-          wr2 <- metaStreams.setMetadata(sid, wr1.currentRevision, meta2)
+          wr2 <- metaStreams.setMetadata(sid, wr1.streamPosition, meta2)
           mr2 <- metaStreams.getMetadata(sid)
         } yield {
-          wr1.currentRevision shouldEqual Start
-          wr2.currentRevision shouldEqual exact(1L)
-          mr1 should beSome(Result(wr1.currentRevision, meta1))
-          mr2 should beSome(Result(wr2.currentRevision, meta2))
+          wr1.streamPosition shouldEqual Start
+          wr2.streamPosition shouldEqual exact(1L)
+          mr1 should beSome(Result(wr1.streamPosition, meta1))
+          mr2 should beSome(Result(wr2.streamPosition, meta2))
         }
       }
 
@@ -125,14 +125,14 @@ class MetaStreamsSuite extends SnSpec {
           ma1 <- metaStreams.getMaxAge(sid)
           wr1 <- metaStreams.setMaxAge(sid, NoStream, 1.day)
           ma2 <- metaStreams.getMaxAge(sid)
-          wr2 <- metaStreams.unsetMaxAge(sid, wr1.currentRevision)
+          wr2 <- metaStreams.unsetMaxAge(sid, wr1.streamPosition)
           ma3 <- metaStreams.getMaxAge(sid)
         } yield {
           ma1 should beNone
-          wr1.currentRevision shouldEqual Start
+          wr1.streamPosition shouldEqual Start
           ma2 should beSome(Result(Start, Some(MaxAge(1.day).unsafe)))
-          wr2.currentRevision shouldEqual exact(1L)
-          ma3 should beSome(Result(wr2.currentRevision, None))
+          wr2.streamPosition shouldEqual exact(1L)
+          ma3 should beSome(Result(wr2.streamPosition, None))
         }
       }
 
@@ -143,14 +143,14 @@ class MetaStreamsSuite extends SnSpec {
           ma1 <- metaStreams.getMaxCount(sid)
           wr1 <- metaStreams.setMaxCount(sid, NoStream, 10)
           ma2 <- metaStreams.getMaxCount(sid)
-          wr2 <- metaStreams.unsetMaxCount(sid, wr1.currentRevision)
+          wr2 <- metaStreams.unsetMaxCount(sid, wr1.streamPosition)
           ma3 <- metaStreams.getMaxCount(sid)
         } yield {
           ma1 should beNone
-          wr1.currentRevision shouldEqual Start
+          wr1.streamPosition shouldEqual Start
           ma2 should beSome(Result(Start, Some(MaxCount(10).unsafe)))
-          wr2.currentRevision shouldEqual exact(1L)
-          ma3 should beSome(Result(wr2.currentRevision, None))
+          wr2.streamPosition shouldEqual exact(1L)
+          ma3 should beSome(Result(wr2.streamPosition, None))
         }
       }
 
@@ -161,14 +161,14 @@ class MetaStreamsSuite extends SnSpec {
           ma1 <- metaStreams.getCacheControl(sid)
           wr1 <- metaStreams.setCacheControl(sid, NoStream, 20.days)
           ma2 <- metaStreams.getCacheControl(sid)
-          wr2 <- metaStreams.unsetCacheControl(sid, wr1.currentRevision)
+          wr2 <- metaStreams.unsetCacheControl(sid, wr1.streamPosition)
           ma3 <- metaStreams.getCacheControl(sid)
         } yield {
           ma1 should beNone
-          wr1.currentRevision shouldEqual Start
+          wr1.streamPosition shouldEqual Start
           ma2 should beSome(Result(Start, Some(CacheControl(20.days).unsafe)))
-          wr2.currentRevision shouldEqual exact(1L)
-          ma3 should beSome(Result(wr2.currentRevision, None))
+          wr2.streamPosition shouldEqual exact(1L)
+          ma3 should beSome(Result(wr2.streamPosition, None))
         }
       }
 
@@ -180,14 +180,14 @@ class MetaStreamsSuite extends SnSpec {
           ma1 <- metaStreams.getAcl(sid)
           wr1 <- metaStreams.setAcl(sid, NoStream, rr)
           ma2 <- metaStreams.getAcl(sid)
-          wr2 <- metaStreams.unsetAcl(sid, wr1.currentRevision)
+          wr2 <- metaStreams.unsetAcl(sid, wr1.streamPosition)
           ma3 <- metaStreams.getAcl(sid)
         } yield {
           ma1 should beNone
-          wr1.currentRevision shouldEqual Start
+          wr1.streamPosition shouldEqual Start
           ma2 should beSome(Result(Start, Some(rr)))
-          wr2.currentRevision shouldEqual exact(1L)
-          ma3 should beSome(Result(wr2.currentRevision, None))
+          wr2.streamPosition shouldEqual exact(1L)
+          ma3 should beSome(Result(wr2.streamPosition, None))
         }
       }
 
@@ -198,14 +198,14 @@ class MetaStreamsSuite extends SnSpec {
           ma1 <- metaStreams.getTruncateBefore(sid)
           wr1 <- metaStreams.setTruncateBefore(sid, NoStream, 100L)
           ma2 <- metaStreams.getTruncateBefore(sid)
-          wr2 <- metaStreams.unsetTruncateBefore(sid, wr1.currentRevision)
+          wr2 <- metaStreams.unsetTruncateBefore(sid, wr1.streamPosition)
           ma3 <- metaStreams.getTruncateBefore(sid)
         } yield {
           ma1 should beNone
-          wr1.currentRevision shouldEqual Start
+          wr1.streamPosition shouldEqual Start
           ma2 should beSome(Result(Start, Some(exact(100L))))
-          wr2.currentRevision shouldEqual exact(1L)
-          ma3 should beSome(Result(wr2.currentRevision, None))
+          wr2.streamPosition shouldEqual exact(1L)
+          ma3 should beSome(Result(wr2.streamPosition, None))
         }
       }
 
@@ -217,14 +217,14 @@ class MetaStreamsSuite extends SnSpec {
           ma1 <- metaStreams.getCustom[Foo](sid, None)
           wr1 <- metaStreams.setCustom(sid, NoStream, foo, None)
           ma2 <- metaStreams.getCustom[Foo](sid, None)
-          wr2 <- metaStreams.unsetCustom(sid, wr1.currentRevision, None)
+          wr2 <- metaStreams.unsetCustom(sid, wr1.streamPosition, None)
           ma3 <- metaStreams.getCustom[Foo](sid, None)
         } yield {
           ma1 should beNone
-          wr1.currentRevision shouldEqual Start
+          wr1.streamPosition shouldEqual Start
           ma2 should beSome(Result(Start, Some(foo)))
-          wr2.currentRevision shouldEqual exact(1L)
-          ma3 should beSome(Result(wr2.currentRevision, None))
+          wr2.streamPosition shouldEqual exact(1L)
+          ma3 should beSome(Result(wr2.streamPosition, None))
         }
 
       }

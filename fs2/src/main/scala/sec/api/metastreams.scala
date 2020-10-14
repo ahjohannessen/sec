@@ -26,7 +26,7 @@ import io.circe._
 import io.circe.parser.decode
 import scodec.bits.ByteVector
 import StreamId.Id
-import EventNumber.Exact
+import StreamPosition.Exact
 import StreamId.MetaId
 import sec.api.exceptions.StreamNotFound
 import sec.api.mapping._
@@ -175,7 +175,7 @@ object MetaStreams {
   private[sec] type MetaResult = Result[StreamMetadata]
 
   final case class Result[T](
-    metaRevision: EventNumber.Exact,
+    metaRevision: StreamPosition.Exact,
     data: T
   )
 
@@ -185,10 +185,6 @@ object MetaStreams {
       def zoom[B](fn: A => B): Result[B]  = r.copy(data = fn(r.data))
     }
   }
-
-//  final case class WriteResult(
-//    currentMetaRevision: EventNumber.Exact
-//  )
 
   //====================================================================================================================
 
@@ -297,7 +293,7 @@ object MetaStreams {
       }
 
       meta.read(id.metaId, uc).recover(recoverRead) >>= {
-        _.traverse(er => decodeJson(er).map(Result(er.number, _)))
+        _.traverse(er => decodeJson(er).map(Result(er.streamPosition, _)))
       }
 
     }

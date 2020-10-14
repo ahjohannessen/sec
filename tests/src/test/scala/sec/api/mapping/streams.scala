@@ -52,18 +52,19 @@ class StreamsMappingSpec extends mutable.Specification {
       uuidOption shouldEqual s.ReadReq.Options.UUIDOption().withStructured(empty)
     }
 
-    "mapPosition" >> {
-      mapPosition(sec.Position.exact(1L, 2L)) shouldEqual AllOption.Position(s.ReadReq.Options.Position(1L, 2L))
-      mapPosition(sec.Position.End) shouldEqual AllOption.End(empty)
-      mapPositionOpt(sec.Position.exact(0L, 0L).some) shouldEqual AllOption.Position(s.ReadReq.Options.Position(0L, 0L))
-      mapPositionOpt(None) shouldEqual AllOption.Start(empty)
+    "LogPosition" >> {
+      mapLogPosition(sec.LogPosition.exact(1L, 2L)) shouldEqual AllOption.Position(s.ReadReq.Options.Position(1L, 2L))
+      mapLogPosition(sec.LogPosition.End) shouldEqual AllOption.End(empty)
+      mapLogPositionOpt(sec.LogPosition.exact(0L, 0L).some) shouldEqual AllOption.Position(
+        s.ReadReq.Options.Position(0L, 0L))
+      mapLogPositionOpt(None) shouldEqual AllOption.Start(empty)
     }
 
-    "mapEventNumber" >> {
-      mapEventNumber(sec.EventNumber.exact(1L)) shouldEqual RevisionOption.Revision(1L)
-      mapEventNumber(sec.EventNumber.End) shouldEqual RevisionOption.End(empty)
-      mapEventNumberOpt(sec.EventNumber.exact(0L).some) shouldEqual RevisionOption.Revision(0L)
-      mapEventNumberOpt(None) shouldEqual RevisionOption.Start(empty)
+    "mapStreamPosition" >> {
+      mapStreamPosition(sec.StreamPosition.exact(1L)) shouldEqual RevisionOption.Revision(1L)
+      mapStreamPosition(sec.StreamPosition.End) shouldEqual RevisionOption.End(empty)
+      mapStreamPositionOpt(sec.StreamPosition.exact(0L).some) shouldEqual RevisionOption.Revision(0L)
+      mapStreamPositionOpt(None) shouldEqual RevisionOption.Start(empty)
     }
 
     "mapDirection" >> {
@@ -142,17 +143,17 @@ class StreamsMappingSpec extends mutable.Specification {
     }
 
     "mkSubscribeToStreamReq" >> {
-      import EventNumber._
+      import StreamPosition._
 
       val sid = StreamId("abc").unsafe
 
-      def test(exclusiveFrom: Option[EventNumber], resolveLinkTos: Boolean) =
+      def test(exclusiveFrom: Option[StreamPosition], resolveLinkTos: Boolean) =
         mkSubscribeToStreamReq(sid, exclusiveFrom, resolveLinkTos) shouldEqual s
           .ReadReq()
           .withOptions(
             s.ReadReq
               .Options()
-              .withStream(s.ReadReq.Options.StreamOptions(sid.esSid.some, mapEventNumberOpt(exclusiveFrom)))
+              .withStream(s.ReadReq.Options.StreamOptions(sid.esSid.some, mapStreamPositionOpt(exclusiveFrom)))
               .withSubscription(s.ReadReq.Options.SubscriptionOptions())
               .withReadDirection(s.ReadReq.Options.ReadDirection.Forwards)
               .withResolveLinks(resolveLinkTos)
@@ -161,23 +162,23 @@ class StreamsMappingSpec extends mutable.Specification {
           )
 
       for {
-        ef <- List(Option.empty[EventNumber], Start.some, exact(1337L).some, End.some)
+        ef <- List(Option.empty[StreamPosition], Start.some, exact(1337L).some, End.some)
         rt <- List(true, false)
       } yield test(ef, rt)
     }
 
     "mkSubscribeToAllReq" >> {
 
-      import Position._
+      import LogPosition._
       import EventFilter._
 
-      def test(exclusiveFrom: Option[Position], resolveLinkTos: Boolean, filter: Option[SubscriptionFilterOptions]) =
+      def test(exclusiveFrom: Option[LogPosition], resolveLinkTos: Boolean, filter: Option[SubscriptionFilterOptions]) =
         mkSubscribeToAllReq(exclusiveFrom, resolveLinkTos, filter) shouldEqual s
           .ReadReq()
           .withOptions(
             s.ReadReq
               .Options()
-              .withAll(s.ReadReq.Options.AllOptions(mapPositionOpt(exclusiveFrom)))
+              .withAll(s.ReadReq.Options.AllOptions(mapLogPositionOpt(exclusiveFrom)))
               .withSubscription(s.ReadReq.Options.SubscriptionOptions())
               .withReadDirection(s.ReadReq.Options.ReadDirection.Forwards)
               .withResolveLinks(resolveLinkTos)
@@ -186,7 +187,7 @@ class StreamsMappingSpec extends mutable.Specification {
           )
 
       for {
-        ef <- List(Option.empty[Position], Start.some, exact(1337L, 1337L).some, End.some)
+        ef <- List(Option.empty[LogPosition], Start.some, exact(1337L, 1337L).some, End.some)
         rt <- List(true, false)
         fi <- List(
                 Option.empty[SubscriptionFilterOptions],
@@ -200,13 +201,13 @@ class StreamsMappingSpec extends mutable.Specification {
 
       val sid = sec.StreamId("abc").unsafe
 
-      def test(rd: Direction, from: EventNumber, count: Long, rlt: Boolean) =
+      def test(rd: Direction, from: StreamPosition, count: Long, rlt: Boolean) =
         mkReadStreamReq(sid, from, rd, count, rlt) shouldEqual s
           .ReadReq()
           .withOptions(
             s.ReadReq
               .Options()
-              .withStream(s.ReadReq.Options.StreamOptions(sid.esSid.some, mapEventNumber(from)))
+              .withStream(s.ReadReq.Options.StreamOptions(sid.esSid.some, mapStreamPosition(from)))
               .withCount(count)
               .withReadDirection(mapDirection(rd))
               .withResolveLinks(rlt)
@@ -216,7 +217,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
       for {
         rd <- List(Direction.Forwards, Direction.Backwards)
-        fr <- List(sec.EventNumber.Start, sec.EventNumber.exact(2200), sec.EventNumber.End)
+        fr <- List(sec.StreamPosition.Start, sec.StreamPosition.exact(2200), sec.StreamPosition.End)
         ct <- List(100L, 1000L, 10000L)
         rt <- List(true, false)
       } yield test(rd, fr, ct, rt)
@@ -224,13 +225,13 @@ class StreamsMappingSpec extends mutable.Specification {
 
     "mkReadAllReq" >> {
 
-      def test(from: Position, rd: Direction, maxCount: Long, rlt: Boolean) =
+      def test(from: LogPosition, rd: Direction, maxCount: Long, rlt: Boolean) =
         mkReadAllReq(from, rd, maxCount, rlt) shouldEqual s
           .ReadReq()
           .withOptions(
             s.ReadReq
               .Options()
-              .withAll(s.ReadReq.Options.AllOptions(mapPosition(from)))
+              .withAll(s.ReadReq.Options.AllOptions(mapLogPosition(from)))
               .withSubscription(s.ReadReq.Options.SubscriptionOptions())
               .withCount(maxCount)
               .withReadDirection(mapDirection(rd))
@@ -240,7 +241,7 @@ class StreamsMappingSpec extends mutable.Specification {
           )
 
       for {
-        fr <- List(sec.Position.Start, sec.Position.exact(1337L, 1337L), sec.Position.End)
+        fr <- List(sec.LogPosition.Start, sec.LogPosition.exact(1337L, 1337L), sec.LogPosition.End)
         rd <- List(Direction.Forwards, Direction.Backwards)
         mc <- List(100L, 1000L, 10000L)
         rt <- List(true, false)
@@ -256,7 +257,7 @@ class StreamsMappingSpec extends mutable.Specification {
         mkDeleteReq(sid, sr) shouldEqual
           s.DeleteReq().withOptions(s.DeleteReq.Options(sid.esSid.some, esr))
 
-      test(sec.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
+      test(sec.StreamPosition.exact(0L), ExpectedStreamRevision.Revision(0L))
       test(sec.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
       test(sec.StreamRevision.StreamExists, ExpectedStreamRevision.StreamExists(empty))
       test(sec.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
@@ -271,7 +272,7 @@ class StreamsMappingSpec extends mutable.Specification {
         mkTombstoneReq(sid, sr) shouldEqual
           s.TombstoneReq().withOptions(s.TombstoneReq.Options(sid.esSid.some, esr))
 
-      test(sec.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
+      test(sec.StreamPosition.exact(0L), ExpectedStreamRevision.Revision(0L))
       test(sec.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
       test(sec.StreamRevision.StreamExists, ExpectedStreamRevision.StreamExists(empty))
       test(sec.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
@@ -286,7 +287,7 @@ class StreamsMappingSpec extends mutable.Specification {
         mkAppendHeaderReq(sid, sr) shouldEqual
           s.AppendReq().withOptions(s.AppendReq.Options(sid.esSid.some, esr))
 
-      test(sec.EventNumber.exact(0L), ExpectedStreamRevision.Revision(0L))
+      test(sec.StreamPosition.exact(0L), ExpectedStreamRevision.Revision(0L))
       test(sec.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
       test(sec.StreamRevision.StreamExists, ExpectedStreamRevision.StreamExists(empty))
       test(sec.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
@@ -392,16 +393,16 @@ class StreamsMappingSpec extends mutable.Specification {
 
       val eventRecord = EventRecord(
         sec.StreamId(streamId).unsafe,
-        sec.EventNumber.exact(revision),
-        sec.Position.exact(commit, prepare),
+        sec.StreamPosition.exact(revision),
+        sec.LogPosition.exact(commit, prepare),
         sec.EventData(sec.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta, sec.ContentType.Json),
         created
       )
 
       val linkRecord = sec.EventRecord(
         sec.StreamId(linkStreamId).unsafe,
-        sec.EventNumber.exact(linkRevision),
-        sec.Position.exact(linkCommit, linkPrepare),
+        sec.StreamPosition.exact(linkRevision),
+        sec.LogPosition.exact(linkCommit, linkPrepare),
         sec.EventData(sec.EventType.LinkTo, JUUID.fromString(linkId), linkData, linkCustomMeta, sec.ContentType.Binary),
         linkCreated
       )
@@ -460,8 +461,8 @@ class StreamsMappingSpec extends mutable.Specification {
 
       val eventRecord = sec.EventRecord(
         sec.StreamId(streamId).unsafe,
-        sec.EventNumber.exact(revision),
-        sec.Position.exact(commit, prepare),
+        sec.StreamPosition.exact(revision),
+        sec.LogPosition.exact(commit, prepare),
         sec.EventData(sec.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta, sec.ContentType.Binary),
         created
       )
@@ -505,7 +506,7 @@ class StreamsMappingSpec extends mutable.Specification {
     "mkCheckpoint" >> {
 
       mkCheckpoint[ErrorOr](s.ReadResp.Checkpoint(1L, 1L)) shouldEqual
-        Checkpoint(sec.Position.exact(1L, 1L)).asRight
+        Checkpoint(sec.LogPosition.exact(1L, 1L)).asRight
 
       mkCheckpoint[ErrorOr](s.ReadResp.Checkpoint(-1L, 1L)) shouldEqual
         ProtoResultError("Invalid position for Checkpoint: commit must be >= 0, but is -1").asLeft
@@ -525,9 +526,9 @@ class StreamsMappingSpec extends mutable.Specification {
       val recordedEvent = s.ReadResp.ReadEvent
         .RecordedEvent()
         .withStreamIdentifier(event.streamId.stringValue.toStreamIdentifer)
-        .withStreamRevision(event.number.value)
-        .withCommitPosition(event.position.commit)
-        .withPreparePosition(event.position.prepare)
+        .withStreamRevision(event.streamPosition.value)
+        .withCommitPosition(event.logPosition.commit)
+        .withPreparePosition(event.logPosition.prepare)
         .withData(event.eventData.data.toByteString)
         .withCustomMetadata(event.eventData.metadata.toByteString)
         .withId(UUID().withString(event.eventData.eventId.toString))
@@ -539,7 +540,7 @@ class StreamsMappingSpec extends mutable.Specification {
         Some(event.asRight[Checkpoint]).asRight
 
       mkCheckpointOrEvent[ErrorOr](s.ReadResp().withCheckpoint(checkpoint)) shouldEqual
-        Some(Checkpoint(sec.Position.exact(1L, 1L)).asLeft[Event]).asRight
+        Some(Checkpoint(sec.LogPosition.exact(1L, 1L)).asLeft[Event]).asRight
 
       mkCheckpointOrEvent[ErrorOr](s.ReadResp()) shouldEqual
         None.asRight[Either[Checkpoint, Event]]
@@ -600,7 +601,7 @@ class StreamsMappingSpec extends mutable.Specification {
       val successNoStream = Success().withNoStream(empty)
 
       test(s.AppendResp().withSuccess(successRevOne)) shouldEqual
-        WriteResult(sec.EventNumber.exact(1L), sec.Position.exact(1L, 1L)).asRight
+        WriteResult(sec.StreamPosition.exact(1L), sec.LogPosition.exact(1L, 1L)).asRight
 
       test(s.AppendResp().withSuccess(successNoStream)) shouldEqual
         ProtoResultError("Did not expect NoStream when using NonEmptyList").asLeft
@@ -633,9 +634,9 @@ class StreamsMappingSpec extends mutable.Specification {
         )
 
       def testExpected(ero: ExpectedRevisionOption, expected: StreamRevision) =
-        test(mkExpected(ero)) shouldEqual WrongExpectedRevision(sid, expected, sec.EventNumber.exact(2L)).asLeft
+        test(mkExpected(ero)) shouldEqual WrongExpectedRevision(sid, expected, sec.StreamPosition.exact(2L)).asLeft
 
-      testExpected(wreExpectedOne, sec.EventNumber.exact(1L))
+      testExpected(wreExpectedOne, sec.StreamPosition.exact(1L))
       testExpected(wreExpectedNoStream, sec.StreamRevision.NoStream)
       testExpected(wreExpectedAny, sec.StreamRevision.Any)
       testExpected(wreExpectedStreamExists, sec.StreamRevision.StreamExists)
@@ -648,9 +649,9 @@ class StreamsMappingSpec extends mutable.Specification {
         )
 
       def testCurrent(cro: CurrentRevisionOption, actual: StreamRevision) =
-        test(mkCurrent(cro)) shouldEqual WrongExpectedRevision(sid, sec.EventNumber.exact(1L), actual).asLeft
+        test(mkCurrent(cro)) shouldEqual WrongExpectedRevision(sid, sec.StreamPosition.exact(1L), actual).asLeft
 
-      testCurrent(wreCurrentRevTwo, sec.EventNumber.exact(2L))
+      testCurrent(wreCurrentRevTwo, sec.StreamPosition.exact(2L))
       testCurrent(wreCurrentNoStream, sec.StreamRevision.NoStream)
       test(mkCurrent(wreCurrentEmpty)) shouldEqual ProtoResultError("CurrentRevisionOption is missing").asLeft
 
@@ -663,13 +664,13 @@ class StreamsMappingSpec extends mutable.Specification {
 
     "mkDeleteResult" >> {
       mkDeleteResult[ErrorOr](s.DeleteResp().withPosition(s.DeleteResp.Position(1L, 1L))) shouldEqual
-        DeleteResult(sec.Position.exact(1L, 1L)).asRight
+        DeleteResult(sec.LogPosition.exact(1L, 1L)).asRight
 
       mkDeleteResult[ErrorOr](s.DeleteResp().withNoPosition(empty)) shouldEqual
         ProtoResultError("Required value DeleteResp.PositionOptions.Position missing or invalid.").asLeft
 
       mkDeleteResult[ErrorOr](s.TombstoneResp().withPosition(s.TombstoneResp.Position(1L, 1L))) shouldEqual
-        DeleteResult(sec.Position.exact(1L, 1L)).asRight
+        DeleteResult(sec.LogPosition.exact(1L, 1L)).asRight
 
       mkDeleteResult[ErrorOr](s.TombstoneResp().withNoPosition(empty)) shouldEqual
         ProtoResultError("Required value TombstoneResp.PositionOptions.Position missing or invalid.").asLeft

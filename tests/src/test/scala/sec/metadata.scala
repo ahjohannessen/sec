@@ -34,23 +34,23 @@ class StreamMetadataSpec extends Specification {
 
     // roundtrips without custom
 
-    val sm1 = StreamMetadata(sampleOf[StreamState], None)
+    val sm1 = StreamMetadata(sampleOf[MetaState], None)
     Decoder[StreamMetadata].apply(Encoder[StreamMetadata].apply(sm1).hcursor) should beRight(sm1)
 
     // roundtrips with custom & no overlapping keys
 
-    val sm2 = StreamMetadata(sampleOf[StreamState], foo.asJsonObject.some)
+    val sm2 = StreamMetadata(sampleOf[MetaState], foo.asJsonObject.some)
     Decoder[StreamMetadata].apply(Encoder[StreamMetadata].apply(sm2).hcursor) should beRight(sm2)
 
     /// roundtrips with custom & overlapping keys favors system reserved keys
 
     val reserved = StreamMetadata.reservedKeys
 
-    val system = StreamState(
+    val system = MetaState(
       maxAge         = MaxAge(1000.seconds).unsafe.some,
       maxCount       = None,
       cacheControl   = CacheControl(12.hours).unsafe.some,
-      truncateBefore = EventNumber.exact(1000L).some,
+      truncateBefore = StreamPosition.exact(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
     )
 
@@ -81,33 +81,33 @@ class StreamMetadataSpec extends Specification {
 
 //======================================================================================================================
 
-class StreamStateSpec extends Specification {
+class MetaStateSpec extends Specification {
 
   "codec" >> {
 
-    val ss = sampleOf[StreamState]
+    val ms = sampleOf[MetaState]
 
     val expectedMap = Map(
-      "$maxAge"       -> ss.maxAge.map(_.value.toSeconds).asJson,
-      "$maxCount"     -> ss.maxCount.map(_.value).asJson,
-      "$tb"           -> ss.truncateBefore.map(_.value).asJson,
-      "$acl"          -> ss.acl.asJson,
-      "$cacheControl" -> ss.cacheControl.map(_.value.toSeconds).asJson
+      "$maxAge"       -> ms.maxAge.map(_.value.toSeconds).asJson,
+      "$maxCount"     -> ms.maxCount.map(_.value).asJson,
+      "$tb"           -> ms.truncateBefore.map(_.value).asJson,
+      "$acl"          -> ms.acl.asJson,
+      "$cacheControl" -> ms.cacheControl.map(_.value.toSeconds).asJson
     )
 
     val expectedJson = JsonObject.fromMap(expectedMap).mapValues(_.dropNullValues).asJson
 
-    Encoder[StreamState].apply(ss) shouldEqual expectedJson
-    Decoder[StreamState].apply(expectedJson.hcursor) should beRight(ss)
+    Encoder[MetaState].apply(ms) shouldEqual expectedJson
+    Decoder[MetaState].apply(expectedJson.hcursor) should beRight(ms)
 
   }
 
   "show" >> {
 
-    StreamState.empty
+    MetaState.empty
       .copy(maxAge = MaxAge(10.days).unsafe.some, maxCount = MaxCount(1).unsafe.some)
       .show shouldEqual s"""
-       |StreamState:
+       |MetaState:
        |  max-age         = 10 days
        |  max-count       = 1 event
        |  cache-control   = n/a
@@ -115,23 +115,23 @@ class StreamStateSpec extends Specification {
        |  access-list     = n/a
        |""".stripMargin
 
-    StreamState(
+    MetaState(
       maxAge         = None,
       maxCount       = MaxCount(50).unsafe.some,
       cacheControl   = CacheControl(12.hours).unsafe.some,
-      truncateBefore = EventNumber.exact(1000L).some,
+      truncateBefore = StreamPosition.exact(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
     ).show shouldEqual s"""
-       |StreamState:
+       |MetaState:
        |  max-age         = n/a
        |  max-count       = 50 events
        |  cache-control   = 12 hours
-       |  truncate-before = EventNumber(1000)
+       |  truncate-before = 1000L
        |  access-list     = read: [a, b], write: [], delete: [], meta-read: [], meta-write: []
        |""".stripMargin
 
-    StreamState.empty.show shouldEqual s"""
-       |StreamState:
+    MetaState.empty.show shouldEqual s"""
+       |MetaState:
        |  max-age         = n/a
        |  max-count       = n/a
        |  cache-control   = n/a

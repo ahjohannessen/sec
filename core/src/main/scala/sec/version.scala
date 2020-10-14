@@ -31,25 +31,25 @@ object StreamRevision {
 
   implicit val eq: Eq[StreamRevision] = Eq.fromUniversalEquals
   implicit val showForStreamRevision: Show[StreamRevision] = Show.show {
-    case NoStream             => "NoStream"
-    case Any                  => "Any"
-    case StreamExists         => "StreamExists"
-    case EventNumber.Exact(v) => s"Exact($v)"
+    case NoStream                => "NoStream"
+    case Any                     => "Any"
+    case StreamExists            => "StreamExists"
+    case StreamPosition.Exact(v) => s"${v}L"
   }
 
 }
 
 //======================================================================================================================
 
-sealed trait EventNumber
-object EventNumber {
+sealed trait StreamPosition
+object StreamPosition {
 
   val Start: Exact = exact(0L)
 
-  sealed abstract case class Exact(value: Long) extends EventNumber with StreamRevision
+  sealed abstract case class Exact(value: Long) extends StreamPosition with StreamRevision
   object Exact {
 
-    private[EventNumber] def create(value: Long): Exact = new Exact(value) {}
+    private[StreamPosition] def create(value: Long): Exact = new Exact(value) {}
 
     def apply(value: Long): Attempt[Exact] =
       Either.cond(value >= 0L, create(value), s"value must be >= 0, but is $value")
@@ -62,16 +62,16 @@ object EventNumber {
     final case class InvalidExact(msg: String) extends RuntimeException(msg) with NoStackTrace
   }
 
-  case object End extends EventNumber
+  case object End extends StreamPosition
 
   private[sec] def exact(value: Long): Exact = Exact.create(value)
 
   ///
 
-  private[sec] def apply(number: Long): EventNumber =
+  private[sec] def apply(number: Long): StreamPosition =
     if (number < 0) End else exact(number)
 
-  implicit val orderForEventNumber: Order[EventNumber] = Order.from {
+  implicit val orderForStreamPosition: Order[StreamPosition] = Order.from {
     case (x: Exact, y: Exact) => Order[Exact].compare(x, y)
     case (_: Exact, End)      => -1
     case (End, _: Exact)      => 1
@@ -80,11 +80,9 @@ object EventNumber {
 
   implicit val orderForExact: Order[Exact] = Order.by(_.value)
 
-  implicit val showForExact: Show[Exact] = Show.show[Exact] { case Exact(v) =>
-    s"EventNumber($v)"
-  }
+  implicit val showForExact: Show[Exact] = Show.show[Exact](e => s"${e.value}L")
 
-  implicit val showForEventNumber: Show[EventNumber] = Show.show[EventNumber] {
+  implicit val showForStreamPosition: Show[StreamPosition] = Show.show[StreamPosition] {
     case e: Exact => e.show
     case End      => "end"
   }
@@ -92,15 +90,15 @@ object EventNumber {
 
 //======================================================================================================================
 
-sealed trait Position
-object Position {
+sealed trait LogPosition
+object LogPosition {
 
   val Start: Exact = exact(0L, 0L)
 
-  sealed abstract case class Exact(commit: Long, prepare: Long) extends Position
+  sealed abstract case class Exact(commit: Long, prepare: Long) extends LogPosition
   object Exact {
 
-    private[Position] def create(commit: Long, prepare: Long): Exact =
+    private[LogPosition] def create(commit: Long, prepare: Long): Exact =
       new Exact(commit, prepare) {}
 
     def apply(commit: Long, prepare: Long): Attempt[Exact] =
@@ -112,16 +110,16 @@ object Position {
 
   }
 
-  case object End extends Position
+  case object End extends LogPosition
 
   private[sec] def exact(commit: Long, prepare: Long): Exact = Exact.create(commit, prepare)
 
   ///
 
-  def apply(commit: Long, prepare: Long): Attempt[Position] =
+  def apply(commit: Long, prepare: Long): Attempt[LogPosition] =
     if (commit < 0 || prepare < 0) End.asRight else Exact(commit, prepare)
 
-  implicit val orderForPosition: Order[Position] = Order.from {
+  implicit val orderForLogPosition: Order[LogPosition] = Order.from {
     case (x: Exact, y: Exact) => Order[Exact].compare(x, y)
     case (_: Exact, End)      => -1
     case (End, _: Exact)      => 1
@@ -137,10 +135,10 @@ object Position {
   }
 
   implicit val showForExact: Show[Exact] = Show.show[Exact] { case Exact(c, p) =>
-    s"Position(c = $c, p = $p)"
+    s"LogPosition(c = $c, p = $p)"
   }
 
-  implicit val showForEventNumber: Show[Position] = Show.show[Position] {
+  implicit val showForLogPosition: Show[LogPosition] = Show.show[LogPosition] {
     case e: Exact => e.show
     case End      => "end"
   }

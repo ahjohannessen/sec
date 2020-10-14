@@ -36,12 +36,12 @@ object Event {
       case re: ResolvedEvent => g(re)
     }
 
-    def streamId: StreamId        = e.fold(_.streamId, _.event.streamId)
-    def number: EventNumber.Exact = e.fold(_.number, _.event.number)
-    def position: Position.Exact  = e.fold(_.position, _.event.position)
-    def eventData: EventData      = e.fold(_.eventData, _.event.eventData)
-    def record: EventRecord       = e.fold(identity, _.link)
-    def created: ZonedDateTime    = e.fold(_.created, _.event.created)
+    def streamId: StreamId                   = e.fold(_.streamId, _.event.streamId)
+    def streamPosition: StreamPosition.Exact = e.fold(_.streamPosition, _.event.streamPosition)
+    def logPosition: LogPosition.Exact       = e.fold(_.logPosition, _.event.logPosition)
+    def eventData: EventData                 = e.fold(_.eventData, _.event.eventData)
+    def record: EventRecord                  = e.fold(identity, _.link)
+    def created: ZonedDateTime               = e.fold(_.created, _.event.created)
   }
 
   implicit val showForEvent: Show[Event] = Show.show[Event] {
@@ -53,8 +53,8 @@ object Event {
 
 final case class EventRecord(
   streamId: StreamId,
-  number: EventNumber.Exact,
-  position: Position.Exact,
+  streamPosition: StreamPosition.Exact,
+  logPosition: LogPosition.Exact,
   eventData: EventData,
   created: ZonedDateTime
 ) extends Event
@@ -64,14 +64,14 @@ object EventRecord {
   implicit val showForEventRecord: Show[EventRecord] = Show.show[EventRecord] { er =>
     s"""
        |EventRecord(
-       |  streamId = ${er.streamId.show},
-       |  eventId  = ${er.eventData.eventId},
-       |  type     = ${er.eventData.eventType.show},
-       |  number   = ${er.number.show},
-       |  position = ${er.position.show},
-       |  data     = ${er.eventData.showData}, 
-       |  metadata = ${er.eventData.showMetadata}, 
-       |  created  = ${er.created}
+       |  streamId       = ${er.streamId.show},
+       |  eventId        = ${er.eventData.eventId},
+       |  type           = ${er.eventData.eventType.show},
+       |  streamPosition = ${er.streamPosition.show},
+       |  logPosition    = ${er.logPosition.show},
+       |  data           = ${er.eventData.showData}, 
+       |  metadata       = ${er.eventData.showMetadata}, 
+       |  created        = ${er.created}
        |)
        |""".stripMargin
   }
