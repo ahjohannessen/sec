@@ -16,7 +16,7 @@ object Dependencies {
     val grpc             = org.lyranthe.fs2_grpc.buildinfo.BuildInfo.grpcVersion
     val tcnative         = "2.0.30.Final"
     val disciplineSpecs2 = "1.1.0"
-    val specs2           = "4.10.4"
+    val specs2           = "4.10.5"
     val catsEffectSpecs2 = "0.4.1"
 
   }
