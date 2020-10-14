@@ -27,41 +27,41 @@ import io.circe.syntax._
 //======================================================================================================================
 
 final private[sec] case class StreamMetadata(
-  state: StreamState,
+  state: MetaState,
   custom: Option[JsonObject]
 )
 
 private[sec] object StreamMetadata {
 
-  final val empty: StreamMetadata               = StreamMetadata(StreamState.empty)
-  def apply(state: StreamState): StreamMetadata = StreamMetadata(state, None)
+  final val empty: StreamMetadata             = StreamMetadata(MetaState.empty)
+  def apply(state: MetaState): StreamMetadata = StreamMetadata(state, None)
 
   implicit final class StreamMetadataOps(val sm: StreamMetadata) extends AnyVal {
 
-    def truncateBefore: Option[EventNumber.Exact] = sm.state.truncateBefore
-    def maxAge: Option[MaxAge]                    = sm.state.maxAge
-    def maxCount: Option[MaxCount]                = sm.state.maxCount
-    def cacheControl: Option[CacheControl]        = sm.state.cacheControl
-    def acl: Option[StreamAcl]                    = sm.state.acl
+    def truncateBefore: Option[StreamPosition.Exact] = sm.state.truncateBefore
+    def maxAge: Option[MaxAge]                       = sm.state.maxAge
+    def maxCount: Option[MaxCount]                   = sm.state.maxCount
+    def cacheControl: Option[CacheControl]           = sm.state.cacheControl
+    def acl: Option[StreamAcl]                       = sm.state.acl
 
     ///
 
-    private def modS(fn: StreamState => StreamState): StreamMetadata = sm.copy(state = fn(sm.state))
+    private def modS(fn: MetaState => MetaState): StreamMetadata = sm.copy(state = fn(sm.state))
 
-    def setTruncateBefore(value: Option[EventNumber.Exact]): StreamMetadata = modS(_.copy(truncateBefore = value))
-    def setMaxAge(value: Option[MaxAge]): StreamMetadata                    = modS(_.copy(maxAge = value))
-    def setMaxCount(value: Option[MaxCount]): StreamMetadata                = modS(_.copy(maxCount = value))
-    def setCacheControl(value: Option[CacheControl]): StreamMetadata        = modS(_.copy(cacheControl = value))
-    def setAcl(value: Option[StreamAcl]): StreamMetadata                    = modS(_.copy(acl = value))
-    def setCustom(value: Option[JsonObject]): StreamMetadata                = sm.copy(custom = value)
+    def setTruncateBefore(value: Option[StreamPosition.Exact]): StreamMetadata = modS(_.copy(truncateBefore = value))
+    def setMaxAge(value: Option[MaxAge]): StreamMetadata                       = modS(_.copy(maxAge = value))
+    def setMaxCount(value: Option[MaxCount]): StreamMetadata                   = modS(_.copy(maxCount = value))
+    def setCacheControl(value: Option[CacheControl]): StreamMetadata           = modS(_.copy(cacheControl = value))
+    def setAcl(value: Option[StreamAcl]): StreamMetadata                       = modS(_.copy(acl = value))
+    def setCustom(value: Option[JsonObject]): StreamMetadata                   = sm.copy(custom = value)
 
-    def withTruncateBefore(tb: EventNumber.Exact): StreamMetadata = sm.setTruncateBefore(tb.some)
-    def withMaxAge(value: MaxAge): StreamMetadata                 = sm.setMaxAge(value.some)
-    def withMaxCount(value: MaxCount): StreamMetadata             = sm.setMaxCount(value.some)
-    def withCacheControl(value: CacheControl): StreamMetadata     = sm.setCacheControl(value.some)
-    def withAcl(value: StreamAcl): StreamMetadata                 = sm.setAcl(value.some)
-    def withCustom(value: JsonObject): StreamMetadata             = sm.setCustom(value.some)
-    def withCustom(value: (String, Json)*): StreamMetadata        = sm.withCustom(JsonObject.fromMap(Map.from(value)))
+    def withTruncateBefore(tb: StreamPosition.Exact): StreamMetadata = sm.setTruncateBefore(tb.some)
+    def withMaxAge(value: MaxAge): StreamMetadata                    = sm.setMaxAge(value.some)
+    def withMaxCount(value: MaxCount): StreamMetadata                = sm.setMaxCount(value.some)
+    def withCacheControl(value: CacheControl): StreamMetadata        = sm.setCacheControl(value.some)
+    def withAcl(value: StreamAcl): StreamMetadata                    = sm.setAcl(value.some)
+    def withCustom(value: JsonObject): StreamMetadata                = sm.setCustom(value.some)
+    def withCustom(value: (String, Json)*): StreamMetadata           = sm.withCustom(JsonObject.fromMap(Map.from(value)))
 
     ///
 
@@ -78,7 +78,7 @@ private[sec] object StreamMetadata {
 
   ///
 
-  import StreamState.metadataKeys
+  import MetaState.metadataKeys
 
   final val reservedKeys: Set[String] = Set(
     metadataKeys.MaxAge,
@@ -90,8 +90,8 @@ private[sec] object StreamMetadata {
 
   implicit val codecForStreamMetadata: Codec.AsObject[StreamMetadata] = new Codec.AsObject[StreamMetadata] {
 
-    val encodeSS: StreamState => JsonObject         = Encoder.AsObject[StreamState].encodeObject(_)
-    val decodeSS: JsonObject => Result[StreamState] = jo => Decoder[StreamState].apply(jo.asJson.hcursor)
+    val encodeSS: MetaState => JsonObject         = Encoder.AsObject[MetaState].encodeObject(_)
+    val decodeSS: JsonObject => Result[MetaState] = jo => Decoder[MetaState].apply(jo.asJson.hcursor)
 
     def encodeObject(sm: StreamMetadata): JsonObject = sm.custom match {
       case Some(c) if c.nonEmpty => encodeSS(sm.state).toList.foldLeft(c) { case (i, (k, v)) => i.add(k, v) }
@@ -177,8 +177,8 @@ object CacheControl {
  * @param maxCount The maximum count of events in the stream.
  * When you have more than count the oldest will be removed.
  *
- * @param truncateBefore When set says that items prior to event 'E' can
- * be truncated and will be removed.
+ * @param truncateBefore When set says that events with a stream position
+ * less than the truncated before value should be removed.
  *
  * @param cacheControl The head of a feed in the atom api is not cacheable.
  * This allows you to specify a period of time you want it to be cacheable.
@@ -189,22 +189,22 @@ object CacheControl {
  *
  * @note More details are here https://eventstore.org/docs/server/deleting-streams-and-events/index.html
  */
-final private[sec] case class StreamState(
+final private[sec] case class MetaState(
   maxAge: Option[MaxAge],
   maxCount: Option[MaxCount],
-  truncateBefore: Option[EventNumber.Exact],
+  truncateBefore: Option[StreamPosition.Exact],
   cacheControl: Option[CacheControl],
   acl: Option[StreamAcl]
 )
 
-private[sec] object StreamState {
+private[sec] object MetaState {
 
-  val empty: StreamState = StreamState(None, None, None, None, None)
+  val empty: MetaState = MetaState(None, None, None, None, None)
 
   ///
 
-  implicit private[sec] val codecForStreamMetadata: Codec.AsObject[StreamState] =
-    new Codec.AsObject[StreamState] {
+  implicit private[sec] val codecForMetaState: Codec.AsObject[MetaState] =
+    new Codec.AsObject[MetaState] {
 
       import Decoder.{decodeInt => di, decodeLong => dl}
       import Encoder.{encodeInt => ei, encodeLong => el}
@@ -221,34 +221,34 @@ private[sec] object StreamState {
       implicit val codecForCacheControl: Codec[CacheControl] =
         Codec.from(cfd.emap(CacheControl(_)), cfd.contramap(_.value))
 
-      implicit val codecForEventNumber: Codec[EventNumber.Exact] =
-        Codec.from(dl.map(EventNumber.exact), el.contramap(_.value))
+      implicit val codecForStreamPositionExact: Codec[StreamPosition.Exact] =
+        Codec.from(dl.map(StreamPosition.exact), el.contramap(_.value))
 
       //
 
-      def encodeObject(a: StreamState): JsonObject = {
+      def encodeObject(ms: MetaState): JsonObject = {
 
         val data = Map(
-          metadataKeys.MaxAge         -> a.maxAge.asJson,
-          metadataKeys.TruncateBefore -> a.truncateBefore.asJson,
-          metadataKeys.MaxCount       -> a.maxCount.asJson,
-          metadataKeys.Acl            -> a.acl.asJson,
-          metadataKeys.CacheControl   -> a.cacheControl.asJson
+          metadataKeys.MaxAge         -> ms.maxAge.asJson,
+          metadataKeys.TruncateBefore -> ms.truncateBefore.asJson,
+          metadataKeys.MaxCount       -> ms.maxCount.asJson,
+          metadataKeys.Acl            -> ms.acl.asJson,
+          metadataKeys.CacheControl   -> ms.cacheControl.asJson
         )
 
         JsonObject.fromMap(data).mapValues(_.dropNullValues)
       }
 
-      def apply(c: HCursor): Result[StreamState] =
+      def apply(c: HCursor): Result[MetaState] =
         for {
 
           maxAge         <- c.get[Option[MaxAge]](metadataKeys.MaxAge)
-          truncateBefore <- c.get[Option[EventNumber.Exact]](metadataKeys.TruncateBefore)
+          truncateBefore <- c.get[Option[StreamPosition.Exact]](metadataKeys.TruncateBefore)
           maxCount       <- c.get[Option[MaxCount]](metadataKeys.MaxCount)
           acl            <- c.get[Option[StreamAcl]](metadataKeys.Acl)
           cacheControl   <- c.get[Option[CacheControl]](metadataKeys.CacheControl)
 
-        } yield StreamState(maxAge, maxCount, truncateBefore, cacheControl, acl)
+        } yield MetaState(maxAge, maxCount, truncateBefore, cacheControl, acl)
 
     }
 
@@ -262,9 +262,9 @@ private[sec] object StreamState {
 
   }
 
-  implicit val showForStreamState: Show[StreamState] = Show.show[StreamState] { ss =>
+  implicit val showForMetaState: Show[MetaState] = Show.show[MetaState] { ss =>
     s"""
-       |StreamState:
+       |MetaState:
        |  max-age         = ${ss.maxAge.map(_.show).getOrElse("n/a")}
        |  max-count       = ${ss.maxCount.map(_.show).getOrElse("n/a")}
        |  cache-control   = ${ss.cacheControl.map(_.show).getOrElse("n/a")}

@@ -36,16 +36,16 @@ class EventSpec extends Specification {
 
   val er: EventRecord = sec.EventRecord(
     StreamId("abc-1234").unsafe,
-    EventNumber.exact(5L),
-    sampleOf[Position.Exact],
+    StreamPosition.exact(5L),
+    sampleOf[LogPosition.Exact],
     EventData("et", sampleOf[ju.UUID], bv("abc"), ContentType.Binary).unsafe,
     sampleOf[ZonedDateTime]
   )
 
   val link: EventRecord = sec.EventRecord(
     StreamId.system("ce-abc").unsafe,
-    EventNumber.exact(10L),
-    Position.exact(1337L, 1337L),
+    StreamPosition.exact(10L),
+    LogPosition.exact(1337L, 1337L),
     EventData(EventType.LinkTo, sampleOf[ju.UUID], bv("5@abc-1234"), ContentType.Binary),
     sampleOf[ZonedDateTime]
   )
@@ -66,14 +66,14 @@ class EventSpec extends Specification {
       (re: Event).streamId shouldEqual er.streamId
     }
 
-    "number" >> {
-      (er: Event).number shouldEqual er.number
-      (re: Event).number shouldEqual er.number
+    "streamPosition" >> {
+      (er: Event).streamPosition shouldEqual er.streamPosition
+      (re: Event).streamPosition shouldEqual er.streamPosition
     }
 
-    "position" >> {
-      (er: Event).position shouldEqual er.position
-      (re: Event).position shouldEqual er.position
+    "logPosition" >> {
+      (er: Event).logPosition shouldEqual er.logPosition
+      (re: Event).logPosition shouldEqual er.logPosition
     }
 
     "eventData" >> {
@@ -97,14 +97,14 @@ class EventSpec extends Specification {
 
     er.show shouldEqual s"""
         |EventRecord(
-        |  streamId = ${er.streamId.show},
-        |  eventId  = ${er.eventData.eventId},
-        |  type     = ${er.eventData.eventType.show},
-        |  number   = ${er.number.show},
-        |  position = ${er.position.show},
-        |  data     = ${er.eventData.showData}, 
-        |  metadata = ${er.eventData.showMetadata}, 
-        |  created  = ${er.created}
+        |  streamId       = ${er.streamId.show},
+        |  eventId        = ${er.eventData.eventId},
+        |  type           = ${er.eventData.eventType.show},
+        |  streamPosition = ${er.streamPosition.show},
+        |  logPosition    = ${er.logPosition.show},
+        |  data           = ${er.eventData.showData}, 
+        |  metadata       = ${er.eventData.showMetadata}, 
+        |  created        = ${er.created}
         |)
         |""".stripMargin
 

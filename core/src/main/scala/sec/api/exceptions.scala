@@ -85,7 +85,7 @@ object exceptions {
 
       def mkException(actual: StreamRevision) = WrongExpectedRevision(sid, expected, actual)
       def noStream                            = mkException(StreamRevision.NoStream).some
-      def mkExact(a: Long)                    = EventNumber.Exact(a).toOption.map(mkException)
+      def mkExact(a: Long)                    = StreamPosition.Exact(a).toOption.map(mkException)
 
       e.actual.fold(noStream)(mkExact).getOrElse(e)
     }

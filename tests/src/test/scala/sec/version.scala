@@ -35,7 +35,7 @@ class VersionSpec extends Specification with Discipline {
       test(StreamRevision.NoStream, "NoStream")
       test(StreamRevision.Any, "Any")
       test(StreamRevision.StreamExists, "StreamExists")
-      test(EventNumber.Start, "Exact(0)")
+      test(StreamPosition.Start, "0L")
     }
 
     "Eq" >> {
@@ -44,68 +44,68 @@ class VersionSpec extends Specification with Discipline {
     }
   }
 
-  "EventNumber" >> {
+  "StreamPosition" >> {
 
-    import EventNumber.Exact
-    import EventNumber.Exact.InvalidExact
+    import StreamPosition.Exact
+    import StreamPosition.Exact.InvalidExact
 
     "apply" >> {
-      EventNumber(-1L) shouldEqual EventNumber.End
-      EventNumber(0L) shouldEqual EventNumber.exact(0L)
-      EventNumber(1L) shouldEqual EventNumber.exact(1L)
+      StreamPosition(-1L) shouldEqual StreamPosition.End
+      StreamPosition(0L) shouldEqual StreamPosition.exact(0L)
+      StreamPosition(1L) shouldEqual StreamPosition.exact(1L)
     }
 
     "Exact.apply" >> {
       Exact(-1L) should beLeft("value must be >= 0, but is -1")
-      Exact(0L) should beRight(EventNumber.exact(0L))
+      Exact(0L) should beRight(StreamPosition.exact(0L))
     }
 
     "Exact.of" >> {
       Exact.of[ErrorOr](-1L) should beLeft(InvalidExact("value must be >= 0, but is -1"))
-      Exact.of[ErrorOr](0L) should beRight(EventNumber.exact(0L))
+      Exact.of[ErrorOr](0L) should beRight(StreamPosition.exact(0L))
     }
 
     "Show" >> {
-      (EventNumber.Start: EventNumber).show shouldEqual "EventNumber(0)"
-      (EventNumber.End: EventNumber).show shouldEqual "end"
+      (StreamPosition.Start: StreamPosition).show shouldEqual "0L"
+      (StreamPosition.End: StreamPosition).show shouldEqual "end"
     }
 
     "Order" >> {
-      implicit val cogen: Cogen[EventNumber] = Cogen[String].contramap[EventNumber](_.show)
-      checkAll("EventNumber", OrderTests[EventNumber].order)
+      implicit val cogen: Cogen[StreamPosition] = Cogen[String].contramap[StreamPosition](_.show)
+      checkAll("StreamPosition", OrderTests[StreamPosition].order)
     }
   }
 
   "Position" >> {
 
-    import Position.Exact
+    import LogPosition.Exact
 
     "apply" >> {
-      Position(-1L, -1L) should beRight[Position](Position.End)
-      Position(-1L, 0L) should beRight[Position](Position.End)
-      Position(0L, -1L) should beRight[Position](Position.End)
-      Position(0L, 0L) should beRight(Position.exact(0L, 0L))
-      Position(1L, 0L) should beRight(Position.exact(1L, 0L))
-      Position(1L, 1L) should beRight(Position.exact(1L, 1L))
-      Position(0L, 1L) should beLeft("commit must be >= prepare, but 0 < 1")
+      LogPosition(-1L, -1L) should beRight[LogPosition](LogPosition.End)
+      LogPosition(-1L, 0L) should beRight[LogPosition](LogPosition.End)
+      LogPosition(0L, -1L) should beRight[LogPosition](LogPosition.End)
+      LogPosition(0L, 0L) should beRight(LogPosition.exact(0L, 0L))
+      LogPosition(1L, 0L) should beRight(LogPosition.exact(1L, 0L))
+      LogPosition(1L, 1L) should beRight(LogPosition.exact(1L, 1L))
+      LogPosition(0L, 1L) should beLeft("commit must be >= prepare, but 0 < 1")
     }
 
     "Exact.apply" >> {
       Exact(-1L, 0L) should beLeft("commit must be >= 0, but is -1")
       Exact(0L, -1L) should beLeft("prepare must be >= 0, but is -1")
       Exact(0L, 1L) should beLeft("commit must be >= prepare, but 0 < 1")
-      Exact(0L, 0L) should beRight(Position.exact(0L, 0L))
-      Exact(1L, 0L) should beRight(Position.exact(1L, 0L))
+      Exact(0L, 0L) should beRight(LogPosition.exact(0L, 0L))
+      Exact(1L, 0L) should beRight(LogPosition.exact(1L, 0L))
     }
 
     "Show" >> {
-      (Position.Start: Position).show shouldEqual "Position(c = 0, p = 0)"
-      (Position.End: Position).show shouldEqual "end"
+      (LogPosition.Start: LogPosition).show shouldEqual "LogPosition(c = 0, p = 0)"
+      (LogPosition.End: LogPosition).show shouldEqual "end"
     }
 
     "Order" >> {
-      implicit val cogen: Cogen[Position] = Cogen[String].contramap[Position](_.show)
-      checkAll("Position", OrderTests[Position].order)
+      implicit val cogen: Cogen[LogPosition] = Cogen[String].contramap[LogPosition](_.show)
+      checkAll("LogPosition", OrderTests[LogPosition].order)
     }
   }
 

@@ -50,26 +50,26 @@ object arbitraries {
   )
 
 //======================================================================================================================
-// EventNumber, Position & StreamRevision
+// StreamPosition, Position & StreamRevision
 //======================================================================================================================
 
-  implicit val arbEventNumberExact: Arbitrary[EventNumber.Exact] = Arbitrary[EventNumber.Exact](
-    Gen.chooseNum(0L, Long.MaxValue).map(EventNumber.Exact(_).leftMap(require(false, _)).toOption.get)
+  implicit val arbStreamPositionExact: Arbitrary[StreamPosition.Exact] = Arbitrary[StreamPosition.Exact](
+    Gen.chooseNum(0L, Long.MaxValue).map(StreamPosition.Exact(_).leftMap(require(false, _)).toOption.get)
   )
 
-  implicit val arbEventNumber: Arbitrary[EventNumber] =
-    Arbitrary[EventNumber](Gen.oneOf(List(EventNumber.End, sampleOf[EventNumber.Exact])))
+  implicit val arbStreamPosition: Arbitrary[StreamPosition] =
+    Arbitrary[StreamPosition](Gen.oneOf(List(StreamPosition.End, sampleOf[StreamPosition.Exact])))
 
-  implicit val arbPositionExact: Arbitrary[Position.Exact] = Arbitrary[Position.Exact](for {
+  implicit val arbPositionExact: Arbitrary[LogPosition.Exact] = Arbitrary[LogPosition.Exact](for {
     c <- Gen.chooseNum(0L, Long.MaxValue)
     p <- Gen.chooseNum(0L, 10L).map(c - _).suchThat(_ >= 0)
-  } yield Position.Exact(c, p).leftMap(require(false, _)).toOption.get)
+  } yield LogPosition.Exact(c, p).leftMap(require(false, _)).toOption.get)
 
-  implicit val arbPosition: Arbitrary[Position] =
-    Arbitrary[Position](Gen.oneOf(List(Position.End, sampleOf[Position.Exact])))
+  implicit val arbPosition: Arbitrary[LogPosition] =
+    Arbitrary[LogPosition](Gen.oneOf(List(LogPosition.End, sampleOf[LogPosition.Exact])))
 
   implicit val arbStreamRevision: Arbitrary[StreamRevision] =
-    Arbitrary[StreamRevision](Gen.oneOf(List(NoStream, Any, StreamExists, sampleOf[EventNumber.Exact])))
+    Arbitrary[StreamRevision](Gen.oneOf(List(NoStream, Any, StreamExists, sampleOf[StreamPosition.Exact])))
 
 //======================================================================================================================
 // StreamId
@@ -162,7 +162,7 @@ object arbitraries {
 
   }
 
-  implicit val arbStreamState: Arbitrary[StreamState] = Arbitrary[StreamState] {
+  implicit val arbMetaState: Arbitrary[MetaState] = Arbitrary[MetaState] {
 
     val oneYear = 31536000L
     val seconds = Gen.chooseNum(1L, oneYear).map(FiniteDuration(_, SECONDS))
@@ -170,10 +170,10 @@ object arbitraries {
     for {
       maxAge         <- Gen.option(seconds.map(MaxAge(_).unsafe))
       maxCount       <- Gen.option(Gen.chooseNum(1, Int.MaxValue).map(MaxCount(_).unsafe))
-      truncateBefore <- Gen.option(arbEventNumberExact.arbitrary.suchThat(_ > EventNumber.Start))
+      truncateBefore <- Gen.option(arbStreamPositionExact.arbitrary.suchThat(_ > StreamPosition.Start))
       cacheControl   <- Gen.option(seconds.map(CacheControl(_).unsafe))
       acl            <- Gen.option(arbStreamAcl.arbitrary)
-    } yield StreamState(maxAge, maxCount, truncateBefore, cacheControl, acl)
+    } yield MetaState(maxAge, maxCount, truncateBefore, cacheControl, acl)
 
   }
 
@@ -243,7 +243,7 @@ object arbitraries {
     val eventRecordOne: Gen[EventRecord] = for {
       sid <- arbStreamIdNormal.arbitrary
       p   <- arbPositionExact.arbitrary
-      n   <- arbEventNumberExact.arbitrary.suchThat(_.value < p.commit)
+      n   <- arbStreamPositionExact.arbitrary.suchThat(_.value < p.commit)
       ed  <- arbEventData.arbitrary
       c   <- arbZonedDateTime.arbitrary
     } yield sec.EventRecord(sid, n, p, ed, c)
@@ -260,8 +260,8 @@ object arbitraries {
 
       data.zipWithIndex.map { case (ed, i) =>
         val commit   = i + 1000L
-        val position = Position.exact(commit, commit)
-        val number   = EventNumber.exact(i.toLong)
+        val position = LogPosition.exact(commit, commit)
+        val number   = StreamPosition.exact(i.toLong)
         val created  = zdt.plusSeconds(i.toLong)
         sec.EventRecord(sid, number, position, ed, created)
       }

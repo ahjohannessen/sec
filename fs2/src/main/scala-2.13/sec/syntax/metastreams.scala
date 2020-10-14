@@ -21,7 +21,7 @@ import scala.concurrent.duration.FiniteDuration
 import cats.syntax.all._
 import sec.api._
 import sec.api.MetaStreams._
-import EventNumber.Exact
+import StreamPosition.Exact
 import StreamId.Id
 
 //====================================================================================================================
@@ -115,7 +115,7 @@ final class MetaStreamsOps[F[_]: ErrorM](val ms: MetaStreams[F]) {
     setTruncateBeforeF(id, expectedRevision, truncateBefore, uc.some)
 
   private def setTruncateBeforeF(id: Id, er: StreamRevision, tb: Long, uc: Option[UserCredentials]): F[WriteResult] =
-    EventNumber.Exact.of[F](tb) >>= (ms.setTruncateBefore(id, er, _, uc))
+    StreamPosition.Exact.of[F](tb) >>= (ms.setTruncateBefore(id, er, _, uc))
 
   def unsetTruncateBefore(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
     ms.unsetTruncateBefore(id, expectedRevision, None)

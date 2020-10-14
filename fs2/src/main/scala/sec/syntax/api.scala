@@ -36,14 +36,14 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
   /// Subscription
 
   def subscribeToAll(
-    exclusiveFrom: Option[Position],
+    exclusiveFrom: Option[LogPosition],
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
     s.subscribeToAll(exclusiveFrom, resolveLinkTos, credentials)
 
   def subscribeToAllFiltered(
-    exclusiveFrom: Option[Position],
+    exclusiveFrom: Option[LogPosition],
     filterOptions: SubscriptionFilterOptions,
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
@@ -52,7 +52,7 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
 
   def subscribeToStream(
     streamId: StreamId,
-    exclusiveFrom: Option[EventNumber],
+    exclusiveFrom: Option[StreamPosition],
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
@@ -62,7 +62,7 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
 
   def readStreamForwards(
     streamId: StreamId,
-    from: EventNumber = EventNumber.Start,
+    from: StreamPosition = StreamPosition.Start,
     maxCount: Long = Long.MaxValue,
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
@@ -71,7 +71,7 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
 
   def readStreamBackwards(
     streamId: StreamId,
-    from: EventNumber = EventNumber.End,
+    from: StreamPosition = StreamPosition.End,
     maxCount: Long = Long.MaxValue,
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
@@ -79,20 +79,20 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     s.readStream(streamId, from, Direction.Backwards, maxCount, resolveLinkTos, credentials)
 
   def readAllForwards(
-    position: Position = Position.Start,
+    from: LogPosition = LogPosition.Start,
     maxCount: Long = Long.MaxValue,
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.readAll(position, Direction.Forwards, maxCount, resolveLinkTos, credentials)
+    s.readAll(from, Direction.Forwards, maxCount, resolveLinkTos, credentials)
 
   def readAllBackwards(
-    position: Position = Position.End,
+    from: LogPosition = LogPosition.End,
     maxCount: Long = Long.MaxValue,
     resolveLinkTos: Boolean = false,
     credentials: Option[UserCredentials] = None
   ): Stream[F, Event] =
-    s.readAll(position, Direction.Backwards, maxCount, resolveLinkTos, credentials)
+    s.readAll(from, Direction.Backwards, maxCount, resolveLinkTos, credentials)
 
   /// Append
 
