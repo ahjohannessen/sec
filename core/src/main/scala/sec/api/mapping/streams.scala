@@ -173,37 +173,37 @@ private[sec] object streams {
       ReadReq().withOptions(options)
     }
 
-    def mkDeleteReq(streamId: StreamId, expectedRevision: StreamRevision): DeleteReq = {
+    def mkDeleteReq(streamId: StreamId, expectedState: StreamState): DeleteReq = {
 
-      val mapDeleteRevision: StreamRevision => DeleteReq.Options.ExpectedStreamRevision = {
-        case StreamPosition.Exact(v)     => DeleteReq.Options.ExpectedStreamRevision.Revision(v)
-        case StreamRevision.NoStream     => DeleteReq.Options.ExpectedStreamRevision.NoStream(empty)
-        case StreamRevision.StreamExists => DeleteReq.Options.ExpectedStreamRevision.StreamExists(empty)
-        case StreamRevision.Any          => DeleteReq.Options.ExpectedStreamRevision.Any(empty)
+      val mapDeleteExpected: StreamState => DeleteReq.Options.ExpectedStreamRevision = {
+        case StreamPosition.Exact(v)  => DeleteReq.Options.ExpectedStreamRevision.Revision(v)
+        case StreamState.NoStream     => DeleteReq.Options.ExpectedStreamRevision.NoStream(empty)
+        case StreamState.StreamExists => DeleteReq.Options.ExpectedStreamRevision.StreamExists(empty)
+        case StreamState.Any          => DeleteReq.Options.ExpectedStreamRevision.Any(empty)
       }
-      DeleteReq().withOptions(DeleteReq.Options(streamId.esSid.some, mapDeleteRevision(expectedRevision)))
+      DeleteReq().withOptions(DeleteReq.Options(streamId.esSid.some, mapDeleteExpected(expectedState)))
     }
 
-    def mkTombstoneReq(streamId: StreamId, expectedRevision: StreamRevision): TombstoneReq = {
+    def mkTombstoneReq(streamId: StreamId, expectedState: StreamState): TombstoneReq = {
 
-      val mapTombstoneRevision: StreamRevision => TombstoneReq.Options.ExpectedStreamRevision = {
-        case StreamPosition.Exact(v)     => TombstoneReq.Options.ExpectedStreamRevision.Revision(v)
-        case StreamRevision.NoStream     => TombstoneReq.Options.ExpectedStreamRevision.NoStream(empty)
-        case StreamRevision.StreamExists => TombstoneReq.Options.ExpectedStreamRevision.StreamExists(empty)
-        case StreamRevision.Any          => TombstoneReq.Options.ExpectedStreamRevision.Any(empty)
+      val mapTombstoneExpected: StreamState => TombstoneReq.Options.ExpectedStreamRevision = {
+        case StreamPosition.Exact(v)  => TombstoneReq.Options.ExpectedStreamRevision.Revision(v)
+        case StreamState.NoStream     => TombstoneReq.Options.ExpectedStreamRevision.NoStream(empty)
+        case StreamState.StreamExists => TombstoneReq.Options.ExpectedStreamRevision.StreamExists(empty)
+        case StreamState.Any          => TombstoneReq.Options.ExpectedStreamRevision.Any(empty)
       }
-      TombstoneReq().withOptions(TombstoneReq.Options(streamId.esSid.some, mapTombstoneRevision(expectedRevision)))
+      TombstoneReq().withOptions(TombstoneReq.Options(streamId.esSid.some, mapTombstoneExpected(expectedState)))
     }
 
-    def mkAppendHeaderReq(streamId: StreamId, expectedRevision: StreamRevision): AppendReq = {
+    def mkAppendHeaderReq(streamId: StreamId, expectedState: StreamState): AppendReq = {
 
-      val mapAppendRevision: StreamRevision => AppendReq.Options.ExpectedStreamRevision = {
-        case StreamPosition.Exact(v)     => AppendReq.Options.ExpectedStreamRevision.Revision(v)
-        case StreamRevision.NoStream     => AppendReq.Options.ExpectedStreamRevision.NoStream(empty)
-        case StreamRevision.StreamExists => AppendReq.Options.ExpectedStreamRevision.StreamExists(empty)
-        case StreamRevision.Any          => AppendReq.Options.ExpectedStreamRevision.Any(empty)
+      val mapAppendExpected: StreamState => AppendReq.Options.ExpectedStreamRevision = {
+        case StreamPosition.Exact(v)  => AppendReq.Options.ExpectedStreamRevision.Revision(v)
+        case StreamState.NoStream     => AppendReq.Options.ExpectedStreamRevision.NoStream(empty)
+        case StreamState.StreamExists => AppendReq.Options.ExpectedStreamRevision.StreamExists(empty)
+        case StreamState.Any          => AppendReq.Options.ExpectedStreamRevision.Any(empty)
       }
-      AppendReq().withOptions(AppendReq.Options(streamId.esSid.some, mapAppendRevision(expectedRevision)))
+      AppendReq().withOptions(AppendReq.Options(streamId.esSid.some, mapAppendExpected(expectedState)))
     }
 
     def mkAppendProposalsReq(events: NonEmptyList[EventData]): NonEmptyList[AppendReq] =
@@ -311,28 +311,28 @@ private[sec] object streams {
 
       }
 
-      def wrongExpectedVersion(w: Result.WrongExpectedVersion) = {
+      def wrongExpectedStreamState(w: Result.WrongExpectedVersion) = {
 
-        val expected: Either[Throwable, StreamRevision] = w.value.expectedRevisionOption match {
+        val expected: Either[Throwable, StreamState] = w.value.expectedRevisionOption match {
           case ExpectedRevisionOption.ExpectedRevision(v)     => StreamPosition.exact(v).asRight
-          case ExpectedRevisionOption.ExpectedNoStream(_)     => StreamRevision.NoStream.asRight
-          case ExpectedRevisionOption.ExpectedAny(_)          => StreamRevision.Any.asRight
-          case ExpectedRevisionOption.ExpectedStreamExists(_) => StreamRevision.StreamExists.asRight
+          case ExpectedRevisionOption.ExpectedNoStream(_)     => StreamState.NoStream.asRight
+          case ExpectedRevisionOption.ExpectedAny(_)          => StreamState.Any.asRight
+          case ExpectedRevisionOption.ExpectedStreamExists(_) => StreamState.StreamExists.asRight
           case ExpectedRevisionOption.Empty                   => error("ExpectedRevisionOption is missing")
         }
 
-        val actual: Either[Throwable, StreamRevision] = w.value.currentRevisionOption match {
+        val actual: Either[Throwable, StreamState] = w.value.currentRevisionOption match {
           case CurrentRevisionOption.CurrentRevision(v) => StreamPosition.exact(v).asRight
-          case CurrentRevisionOption.CurrentNoStream(_) => StreamRevision.NoStream.asRight
+          case CurrentRevisionOption.CurrentNoStream(_) => StreamState.NoStream.asRight
           case CurrentRevisionOption.Empty              => error("CurrentRevisionOption is missing")
         }
 
-        (expected, actual).mapN((e, a) => WrongExpectedRevision(sid, e, a))
+        (expected, actual).mapN((e, a) => WrongExpectedState(sid, e, a))
       }
 
       val result: Either[Throwable, WriteResult] = ar.result match {
         case s: Result.Success              => success(s)
-        case w: Result.WrongExpectedVersion => wrongExpectedVersion(w) >>= (_.asLeft[WriteResult])
+        case w: Result.WrongExpectedVersion => wrongExpectedStreamState(w) >>= (_.asLeft[WriteResult])
         case Result.Empty                   => error("Result is missing")
       }
 

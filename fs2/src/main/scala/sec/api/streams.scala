@@ -72,20 +72,20 @@ trait Streams[F[_]] {
 
   def appendToStream(
     streamId: StreamId,
-    expectedRevision: StreamRevision,
+    expectedState: StreamState,
     events: NonEmptyList[EventData],
     creds: Option[UserCredentials]
   ): F[WriteResult]
 
   def delete(
     streamId: StreamId,
-    expectedRevision: StreamRevision,
+    expectedState: StreamState,
     creds: Option[UserCredentials]
   ): F[DeleteResult]
 
   def tombstone(
     streamId: StreamId,
-    expectedRevision: StreamRevision,
+    expectedState: StreamState,
     creds: Option[UserCredentials]
   ): F[DeleteResult]
 
@@ -147,25 +147,25 @@ object Streams {
 
     def appendToStream(
       streamId: StreamId,
-      expectedRevision: StreamRevision,
+      expectedState: StreamState,
       events: NonEmptyList[EventData],
       creds: Option[UserCredentials]
     ): F[WriteResult] =
-      appendToStream0[F](streamId, expectedRevision, events, opts)(client.append(_, mkCtx(creds)))
+      appendToStream0[F](streamId, expectedState, events, opts)(client.append(_, mkCtx(creds)))
 
     def delete(
       streamId: StreamId,
-      expectedRevision: StreamRevision,
+      expectedState: StreamState,
       creds: Option[UserCredentials]
     ): F[DeleteResult] =
-      delete0[F](streamId, expectedRevision, opts)(client.delete(_, mkCtx(creds)))
+      delete0[F](streamId, expectedState, opts)(client.delete(_, mkCtx(creds)))
 
     def tombstone(
       streamId: StreamId,
-      expectedRevision: StreamRevision,
+      expectedState: StreamState,
       creds: Option[UserCredentials]
     ): F[DeleteResult] =
-      tombstone0[F](streamId, expectedRevision, opts)(client.tombstone(_, mkCtx(creds)))
+      tombstone0[F](streamId, expectedState, opts)(client.tombstone(_, mkCtx(creds)))
 
     private[sec] val metadata: MetaStreams[F] = MetaStreams[F](this)
   }
@@ -256,12 +256,12 @@ object Streams {
 
   private[sec] def appendToStream0[F[_]: Concurrent: Timer](
     streamId: StreamId,
-    expectedRevision: StreamRevision,
+    expectedState: StreamState,
     eventsNel: NonEmptyList[EventData],
     opts: Opts[F]
   )(f: Stream[F, AppendReq] => F[AppendResp]): F[WriteResult] = {
 
-    val header: AppendReq        = mkAppendHeaderReq(streamId, expectedRevision)
+    val header: AppendReq        = mkAppendHeaderReq(streamId, expectedState)
     val events: List[AppendReq]  = mkAppendProposalsReq(eventsNel).toList
     val operation: F[AppendResp] = f(Stream.emit(header) ++ Stream.emits(events))
 
@@ -270,20 +270,20 @@ object Streams {
 
   private[sec] def delete0[F[_]: Concurrent: Timer](
     streamId: StreamId,
-    expectedRevision: StreamRevision,
+    expectedState: StreamState,
     opts: Opts[F]
   )(f: DeleteReq => F[DeleteResp]): F[DeleteResult] =
-    (opts.run(f(mkDeleteReq(streamId, expectedRevision)), "delete") >>= mkDeleteResult[F]).adaptError {
-      case e: WrongExpectedVersion => e.adaptOrFallback(streamId, expectedRevision)
+    (opts.run(f(mkDeleteReq(streamId, expectedState)), "delete") >>= mkDeleteResult[F]).adaptError {
+      case e: WrongExpectedVersion => e.adaptOrFallback(streamId, expectedState)
     }
 
   private[sec] def tombstone0[F[_]: Concurrent: Timer](
     streamId: StreamId,
-    expectedRevision: StreamRevision,
+    expectedState: StreamState,
     opts: Opts[F]
   )(f: TombstoneReq => F[TombstoneResp]): F[DeleteResult] =
-    (opts.run(f(mkTombstoneReq(streamId, expectedRevision)), "tombstone") >>= mkDeleteResult[F]).adaptError {
-      case e: WrongExpectedVersion => e.adaptOrFallback(streamId, expectedRevision)
+    (opts.run(f(mkTombstoneReq(streamId, expectedState)), "tombstone") >>= mkDeleteResult[F]).adaptError {
+      case e: WrongExpectedVersion => e.adaptOrFallback(streamId, expectedState)
     }
 
 //======================================================================================================================

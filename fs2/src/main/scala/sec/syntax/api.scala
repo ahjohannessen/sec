@@ -98,27 +98,27 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
 
   def appendToStream(
     streamId: StreamId,
-    expectedRevision: StreamRevision,
+    expectedState: StreamState,
     events: NonEmptyList[EventData],
     credentials: Option[UserCredentials] = None
   ): F[WriteResult] =
-    s.appendToStream(streamId, expectedRevision, events, credentials)
+    s.appendToStream(streamId, expectedState, events, credentials)
 
   /// Delete
 
   def delete(
     streamId: StreamId,
-    expectedRevision: StreamRevision,
+    expectedState: StreamState,
     credentials: Option[UserCredentials] = None
   ): F[DeleteResult] =
-    s.delete(streamId, expectedRevision, credentials)
+    s.delete(streamId, expectedState, credentials)
 
   def tombstone(
     streamId: StreamId,
-    expectedRevision: StreamRevision,
+    expectedState: StreamState,
     credentials: Option[UserCredentials] = None
   ): F[DeleteResult] =
-    s.tombstone(streamId, expectedRevision, credentials)
+    s.tombstone(streamId, expectedState, credentials)
 
 }
 

@@ -21,7 +21,7 @@ import scala.concurrent.duration._
 import cats.effect.IO
 import cats.syntax.all._
 import sec.api.MetaStreams.Result
-import sec.api.exceptions.WrongExpectedRevision
+import sec.api.exceptions.WrongExpectedState
 import sec.syntax.all._
 
 class MetaStreamsSuite extends SnSpec {
@@ -30,7 +30,7 @@ class MetaStreamsSuite extends SnSpec {
 
   "MetaStreams" should {
 
-    import StreamRevision.NoStream
+    import StreamState.NoStream
     import StreamPosition.{exact, Start}
 
     val mkStreamId: String => StreamId.Id =
@@ -59,7 +59,7 @@ class MetaStreamsSuite extends SnSpec {
       }
     }
 
-    "getting metadata returns latest revision" >> {
+    "getting metadata returns latest stream position" >> {
 
       val meta1 = StreamMetadata.empty
         .withMaxCount(MaxCount(17).unsafe)
@@ -73,7 +73,7 @@ class MetaStreamsSuite extends SnSpec {
         .withTruncateBefore(exact(24))
         .withCacheControl(CacheControl(36.hours).unsafe)
 
-      "using expected revision no stream for first write and exact for second write" >> {
+      "using expected stream state no stream for first write and exact for second write" >> {
 
         val sid = mkStreamId("get_metadata_returns_latest_exact")
 
@@ -90,14 +90,14 @@ class MetaStreamsSuite extends SnSpec {
         }
       }
 
-      "using expected revision any for first and any for second write" >> {
+      "using expected stream state any for first and any for second write" >> {
 
         val sid = mkStreamId("get_metadata_returns_latest_any")
 
         for {
-          _   <- metaStreams.setMetadata(sid, StreamRevision.Any, meta1)
+          _   <- metaStreams.setMetadata(sid, StreamState.Any, meta1)
           mr1 <- metaStreams.getMetadata(sid)
-          _   <- metaStreams.setMetadata(sid, StreamRevision.Any, meta2)
+          _   <- metaStreams.setMetadata(sid, StreamState.Any, meta2)
           mr2 <- metaStreams.getMetadata(sid)
         } yield {
           mr1 should beSome(Result(Start, meta1))
@@ -107,12 +107,12 @@ class MetaStreamsSuite extends SnSpec {
       }
     }
 
-    "setting metadata with wrong expected revision raises" >> {
+    "setting metadata with wrong expected stream state raises" >> {
 
       val sid = mkStreamId("set_metadata_with_wrong_expected_revision_raises")
 
       metaStreams.setMetadata(sid, exact(2), StreamMetadata.empty).attempt.map {
-        _ should beLeft(WrongExpectedRevision(sid.metaId, exact(2), StreamRevision.NoStream))
+        _ should beLeft(WrongExpectedState(sid.metaId, exact(2), StreamState.NoStream))
       }
     }
 

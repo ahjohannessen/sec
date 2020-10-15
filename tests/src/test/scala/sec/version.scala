@@ -25,22 +25,22 @@ import sec.arbitraries._
 
 class VersionSpec extends Specification with Discipline {
 
-  "StreamRevision" >> {
+  "StreamState" >> {
 
     "Show" >> {
 
-      def test(sr: StreamRevision, expected: String) =
-        sr.show shouldEqual expected
+      def test(ss: StreamState, expected: String) =
+        ss.show shouldEqual expected
 
-      test(StreamRevision.NoStream, "NoStream")
-      test(StreamRevision.Any, "Any")
-      test(StreamRevision.StreamExists, "StreamExists")
-      test(StreamPosition.Start, "0L")
+      test(StreamState.NoStream, "NoStream")
+      test(StreamState.Any, "Any")
+      test(StreamState.StreamExists, "StreamExists")
+      test(StreamPosition.Start, "Exact(0L)")
     }
 
     "Eq" >> {
-      implicit val cogen: Cogen[StreamRevision] = Cogen[String].contramap[StreamRevision](_.show)
-      checkAll("StreamRevision", EqTests[StreamRevision].eqv)
+      implicit val cogen: Cogen[StreamState] = Cogen[String].contramap[StreamState](_.show)
+      checkAll("StreamState", EqTests[StreamState].eqv)
     }
   }
 
