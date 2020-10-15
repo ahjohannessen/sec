@@ -32,6 +32,7 @@ import sec.api.Direction._
 import sec.api.exceptions._
 import sec.syntax.all._
 import helpers.text.mkSnakeCase
+import helpers.implicits._
 
 class StreamsSuite extends SnSpec {
 
@@ -606,10 +607,9 @@ class StreamsSuite extends SnSpec {
 
         "max count deleted events are not resolved" >> {
 
-          val deletedId = genStreamId("streams_read_all_linkto_deleted_")
-          val linkId    = genStreamId("streams_read_all_linkto_link_")
-          def encode(content: String): ByteVector =
-            ByteVector.encodeUtf8(content).leftMap(_.getMessage).unsafe
+          val deletedId               = genStreamId("streams_read_all_linkto_deleted_")
+          val linkId                  = genStreamId("streams_read_all_linkto_link_")
+          def encode(content: String) = ByteVector.encodeUtf8(content).unsafe
 
           def linkData(number: Long) =
             Nel.one(

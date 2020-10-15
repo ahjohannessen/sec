@@ -16,7 +16,6 @@
 
 package sec
 
-import scala.util.control.NoStackTrace
 import cats.syntax.all._
 import cats.{Eq, Order, Show}
 
@@ -51,25 +50,18 @@ object StreamPosition {
 
     private[StreamPosition] def create(value: Long): Exact = new Exact(value) {}
 
-    def apply(value: Long): Attempt[Exact] =
-      Either.cond(value >= 0L, create(value), s"value must be >= 0, but is $value")
-
-    def of[F[_]: ErrorA](value: Long): F[Exact] =
-      Exact(value).leftMap(InvalidExact).liftTo[F]
-
-    ///
-
-    final case class InvalidExact(msg: String) extends RuntimeException(msg) with NoStackTrace
+    def apply(value: Long): Either[InvalidInput, Exact] =
+      Either.cond(value >= 0L, create(value), InvalidInput(s"value must be >= 0, but is $value"))
   }
 
   case object End extends StreamPosition
 
-  private[sec] def exact(value: Long): Exact = Exact.create(value)
-
   ///
 
-  private[sec] def apply(number: Long): StreamPosition =
-    if (number < 0) End else exact(number)
+  private[sec] def exact(value: Long): Exact          = Exact.create(value)
+  def apply(value: Long): Either[InvalidInput, Exact] = Exact(value)
+
+  ///
 
   implicit val orderForStreamPosition: Order[StreamPosition] = Order.from {
     case (x: Exact, y: Exact) => Order[Exact].compare(x, y)
@@ -101,23 +93,27 @@ object LogPosition {
     private[LogPosition] def create(commit: Long, prepare: Long): Exact =
       new Exact(commit, prepare) {}
 
-    def apply(commit: Long, prepare: Long): Attempt[Exact] =
-      for {
+    def apply(commit: Long, prepare: Long): Either[InvalidInput, Exact] = {
+
+      val result = for {
         c <- Either.cond(commit >= 0, commit, s"commit must be >= 0, but is $commit")
         p <- Either.cond(prepare >= 0, prepare, s"prepare must be >= 0, but is $prepare")
         e <- Either.cond(commit >= prepare, create(c, p), s"commit must be >= prepare, but $commit < $prepare")
       } yield e
 
+      result.leftMap(InvalidInput)
+    }
+
   }
 
   case object End extends LogPosition
 
-  private[sec] def exact(commit: Long, prepare: Long): Exact = Exact.create(commit, prepare)
-
   ///
 
-  def apply(commit: Long, prepare: Long): Attempt[LogPosition] =
-    if (commit < 0 || prepare < 0) End.asRight else Exact(commit, prepare)
+  private[sec] def exact(commit: Long, prepare: Long): Exact          = Exact.create(commit, prepare)
+  def apply(commit: Long, prepare: Long): Either[InvalidInput, Exact] = Exact(commit, prepare)
+
+  ///
 
   implicit val orderForLogPosition: Order[LogPosition] = Order.from {
     case (x: Exact, y: Exact) => Order[Exact].compare(x, y)

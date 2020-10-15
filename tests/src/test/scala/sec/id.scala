@@ -21,6 +21,7 @@ import org.scalacheck._
 import cats.kernel.laws.discipline._
 import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
+import sec.helpers.implicits._
 import sec.arbitraries._
 
 class StreamIdSpec extends Specification with Discipline {
@@ -31,8 +32,8 @@ class StreamIdSpec extends Specification with Discipline {
   val systemId: StreamId.System = StreamId.system("system").unsafe
 
   "apply" >> {
-    StreamId("") should beLeft("name cannot be empty")
-    StreamId("$$meta") should beLeft("value must not start with $$, but is $$meta")
+    StreamId("") should beLeft(InvalidInput("name cannot be empty"))
+    StreamId("$$meta") should beLeft(InvalidInput("value must not start with $$, but is $$meta"))
     StreamId("$users") shouldEqual StreamId.system("users")
     StreamId("users") shouldEqual StreamId.normal("users")
     StreamId(ss.All) shouldEqual StreamId.All.asRight
@@ -40,25 +41,6 @@ class StreamIdSpec extends Specification with Discipline {
     StreamId(ss.Stats) shouldEqual StreamId.Stats.asRight
     StreamId(ss.Scavenges) shouldEqual StreamId.Scavenges.asRight
     StreamId(ss.Streams) shouldEqual StreamId.Streams.asRight
-  }
-
-  "of" >> {
-
-    StreamId.of[ErrorOr]("") should beLike { case Left(StreamId.StreamIdError("name cannot be empty")) =>
-      ok
-    }
-
-    StreamId.of[ErrorOr]("$$m") should beLike {
-      case Left(StreamId.StreamIdError("value must not start with $$, but is $$m")) => ok
-    }
-
-    StreamId.of[ErrorOr]("$users") shouldEqual StreamId.system("users")
-    StreamId.of[ErrorOr]("users") shouldEqual StreamId.normal("users")
-    StreamId.of[ErrorOr](ss.All) shouldEqual StreamId.All.asRight
-    StreamId.of[ErrorOr](ss.Settings) shouldEqual StreamId.Settings.asRight
-    StreamId.of[ErrorOr](ss.Stats) shouldEqual StreamId.Stats.asRight
-    StreamId.of[ErrorOr](ss.Scavenges) shouldEqual StreamId.Scavenges.asRight
-    StreamId.of[ErrorOr](ss.Streams) shouldEqual StreamId.Streams.asRight
   }
 
   "streamIdToString" >> {

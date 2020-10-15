@@ -22,6 +22,7 @@ import org.specs2.mutable.Specification
 import io.circe._
 import io.circe.syntax._
 import sec.arbitraries._
+import sec.helpers.implicits._
 
 //======================================================================================================================
 
@@ -105,7 +106,7 @@ class MetaStateSpec extends Specification {
   "show" >> {
 
     MetaState.empty
-      .copy(maxAge = MaxAge(10.days).unsafe.some, maxCount = MaxCount(1).unsafe.some)
+      .copy(maxAge = MaxAge(10.days).toOption, maxCount = MaxCount(1).toOption)
       .show shouldEqual s"""
        |MetaState:
        |  max-age         = 10 days
@@ -117,8 +118,8 @@ class MetaStateSpec extends Specification {
 
     MetaState(
       maxAge         = None,
-      maxCount       = MaxCount(50).unsafe.some,
-      cacheControl   = CacheControl(12.hours).unsafe.some,
+      maxCount       = MaxCount(50).toOption,
+      cacheControl   = CacheControl(12.hours).toOption,
       truncateBefore = StreamPosition.exact(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
     ).show shouldEqual s"""

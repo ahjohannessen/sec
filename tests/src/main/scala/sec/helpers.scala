@@ -23,6 +23,26 @@ import sec.api.Endpoint
 
 object helpers {
 
+//======================================================================================================================
+
+  object implicits {
+
+    implicit final class AttemptOps[A](val inner: Attempt[A]) extends AnyVal {
+      def unsafe: A = inner.leftMap(require(false, _)).toOption.get
+    }
+
+    implicit final class ErrorOrOps[A](val inner: ErrorOr[A]) extends AnyVal {
+      def unsafe: A = inner.toOption.get
+    }
+
+    implicit final class BooleanOps(val b: Boolean) extends AnyVal {
+      def fold[A](t: => A, f: => A): A = if (b) t else f
+    }
+
+  }
+
+//======================================================================================================================
+
   object text {
 
     def encodeToBV(content: String): Attempt[ByteVector] =
@@ -38,6 +58,8 @@ object helpers {
     }
   }
 
+//======================================================================================================================
+
   object endpoint {
 
     def endpointFrom(envAddrName: String, envPortName: String, fallbackAddr: String, fallbackPort: Int): Endpoint = {
@@ -47,5 +69,7 @@ object helpers {
     }
 
   }
+
+//======================================================================================================================
 
 }

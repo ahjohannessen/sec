@@ -223,11 +223,11 @@ private[sec] object streams {
 
   object incoming {
 
-    def mkCheckpoint[F[_]: ErrorA](c: ReadResp.Checkpoint): F[Checkpoint] = LogPosition
-      .Exact(c.commitPosition, c.preparePosition)
-      .map(Checkpoint)
-      .leftMap(error => ProtoResultError(s"Invalid position for Checkpoint: $error"))
-      .liftTo[F]
+    def mkCheckpoint[F[_]: ErrorA](c: ReadResp.Checkpoint): F[Checkpoint] =
+      LogPosition(c.commitPosition, c.preparePosition)
+        .map(Checkpoint)
+        .leftMap(error => ProtoResultError(s"Invalid position for Checkpoint: ${error.msg}"))
+        .liftTo[F]
 
     def mkCheckpointOrEvent[F[_]: ErrorM](re: ReadResp): F[Option[Either[Checkpoint, Event]]] = {
 

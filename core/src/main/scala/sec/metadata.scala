@@ -17,7 +17,6 @@
 package sec
 
 import scala.concurrent.duration._
-import scala.util.control.NoStackTrace
 import cats.syntax.all._
 import cats.{Endo, Show}
 import io.circe.Decoder.Result
@@ -117,16 +116,11 @@ object MaxAge {
   /**
    * @param maxAge must be greater than or equal to 1 second.
    */
-  def apply(maxAge: FiniteDuration): Attempt[MaxAge] =
-    if (maxAge < 1.second) s"maxAge must be >= 1 second, it was $maxAge.".asLeft
+  def apply(maxAge: FiniteDuration): Either[InvalidInput, MaxAge] =
+    if (maxAge < 1.second) InvalidInput(s"maxAge must be >= 1 second, it was $maxAge.").asLeft
     else new MaxAge(maxAge) {}.asRight
 
-  def of[F[_]: ErrorA](maxAge: FiniteDuration): F[MaxAge] =
-    MaxAge(maxAge).orFail[F](InvalidMaxAge)
-
   implicit val showForMaxAge: Show[MaxAge] = Show.show(_.value.toString())
-
-  final case class InvalidMaxAge(msg: String) extends RuntimeException(msg) with NoStackTrace
 }
 
 sealed abstract case class MaxCount(value: Int)
@@ -135,18 +129,13 @@ object MaxCount {
   /**
    * @param maxCount must be greater than or equal to 1.
    */
-  def apply(maxCount: Int): Attempt[MaxCount] =
-    if (maxCount < 1) s"max count must be >= 1, it was $maxCount.".asLeft
+  def apply(maxCount: Int): Either[InvalidInput, MaxCount] =
+    if (maxCount < 1) InvalidInput(s"max count must be >= 1, it was $maxCount.").asLeft
     else new MaxCount(maxCount) {}.asRight
-
-  def of[F[_]: ErrorA](maxCount: Int): F[MaxCount] =
-    MaxCount(maxCount).orFail[F](InvalidMaxCount)
 
   implicit val showForMaxCount: Show[MaxCount] = Show.show { mc =>
     s"${mc.value} event${if (mc.value == 1) "" else "s"}"
   }
-
-  final case class InvalidMaxCount(msg: String) extends RuntimeException(msg) with NoStackTrace
 
 }
 
@@ -156,16 +145,11 @@ object CacheControl {
   /**
    * @param cacheControl must be greater than or equal to 1 second.
    */
-  def apply(cacheControl: FiniteDuration): Attempt[CacheControl] =
-    if (cacheControl < 1.second) s"cache control must be >= 1, it was $cacheControl.".asLeft
+  def apply(cacheControl: FiniteDuration): Either[InvalidInput, CacheControl] =
+    if (cacheControl < 1.second) InvalidInput(s"cache control must be >= 1, it was $cacheControl.").asLeft
     else new CacheControl(cacheControl) {}.asRight
 
-  def of[F[_]: ErrorA](cacheControl: FiniteDuration): F[CacheControl] =
-    CacheControl(cacheControl).orFail[F](InvalidCacheControl)
-
   implicit val showForCacheControl: Show[CacheControl] = Show.show(_.value.toString())
-
-  final case class InvalidCacheControl(msg: String) extends RuntimeException(msg) with NoStackTrace
 }
 
 //======================================================================================================================
@@ -213,13 +197,13 @@ private[sec] object MetaState {
         Codec.from(dl.map(FiniteDuration(_, SECONDS)), el.contramap(_.toSeconds))
 
       implicit val codecForMaxAge: Codec[MaxAge] =
-        Codec.from(cfd.emap(MaxAge(_)), cfd.contramap(_.value))
+        Codec.from(cfd.emap(MaxAge(_).leftMap(_.msg)), cfd.contramap(_.value))
 
       implicit val codecForMaxCount: Codec[MaxCount] =
-        Codec.from(di.emap(MaxCount(_)), ei.contramap(_.value))
+        Codec.from(di.emap(MaxCount(_).leftMap(_.msg)), ei.contramap(_.value))
 
       implicit val codecForCacheControl: Codec[CacheControl] =
-        Codec.from(cfd.emap(CacheControl(_)), cfd.contramap(_.value))
+        Codec.from(cfd.emap(CacheControl(_).leftMap(_.msg)), cfd.contramap(_.value))
 
       implicit val codecForStreamPositionExact: Codec[StreamPosition.Exact] =
         Codec.from(dl.map(StreamPosition.exact), el.contramap(_.value))

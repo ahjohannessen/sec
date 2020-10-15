@@ -18,7 +18,6 @@ package sec
 
 import java.time.ZonedDateTime
 import java.util.UUID
-import scala.util.control.NoStackTrace
 import cats.Show
 import cats.syntax.all._
 import scodec.bits.ByteVector
@@ -112,8 +111,7 @@ object EventType {
   sealed abstract case class SystemDefined(name: String) extends SystemType
   sealed abstract case class UserDefined(name: String)   extends EventType
 
-  def apply(name: String): Attempt[UserDefined]      = userDefined(name)
-  def of[F[_]: ErrorA](name: String): F[UserDefined] = EventType(name).leftMap(InvalidEventType).liftTo[F]
+  def apply(name: String): Either[InvalidInput, UserDefined] = userDefined(name).leftMap(InvalidInput)
 
   ///
 
@@ -161,11 +159,7 @@ object EventType {
     final val Settings: String        = "$settings"
   }
 
-  ///
-
   implicit val showForEventType: Show[EventType] = Show.show[EventType](eventTypeToString)
-
-  final case class InvalidEventType(msg: String) extends RuntimeException(msg) with NoStackTrace
 
 }
 
@@ -194,7 +188,7 @@ object EventData {
     eventId: UUID,
     data: ByteVector,
     contentType: ContentType
-  ): Attempt[EventData] =
+  ): Either[InvalidInput, EventData] =
     EventType(eventType).map(EventData(_, eventId, data, ByteVector.empty, contentType))
 
   def apply(
@@ -203,25 +197,8 @@ object EventData {
     data: ByteVector,
     metadata: ByteVector,
     contentType: ContentType
-  ): Attempt[EventData] =
+  ): Either[InvalidInput, EventData] =
     EventType(eventType).map(EventData(_, eventId, data, metadata, contentType))
-
-  def of[F[_]: ErrorA](
-    eventType: String,
-    eventId: UUID,
-    data: ByteVector,
-    contentType: ContentType
-  ): F[EventData] =
-    EventType.of[F](eventType).map(EventData(_, eventId, data, ByteVector.empty, contentType))
-
-  def of[F[_]: ErrorA](
-    eventType: String,
-    eventId: UUID,
-    data: ByteVector,
-    metadata: ByteVector,
-    contentType: ContentType
-  ): F[EventData] =
-    EventType.of[F](eventType).map(EventData(_, eventId, data, metadata, contentType))
 
   ///
 

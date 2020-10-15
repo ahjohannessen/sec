@@ -14,13 +14,9 @@
  * limitations under the License.
  */
 
-import cats.{ApplicativeError, MonadError}
+package sec
 
-package object sec {
+import scala.util.control.NoStackTrace
 
-  private[sec] type ErrorM[F[_]] = MonadError[F, Throwable]
-  private[sec] type ErrorA[F[_]] = ApplicativeError[F, Throwable]
-  private[sec] type Attempt[T]   = Either[String, T]
-  private[sec] type ErrorOr[T]   = Either[Throwable, T]
-
-}
+sealed abstract class ValidationError(msg: String) extends RuntimeException(msg) with NoStackTrace
+final case class InvalidInput(msg: String)         extends ValidationError(msg)

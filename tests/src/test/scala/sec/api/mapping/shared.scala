@@ -23,6 +23,7 @@ import cats.syntax.all._
 import org.specs2._
 import com.eventstore.dbclient.proto.shared._
 import sec.api.mapping.shared._
+import sec.helpers.implicits._
 
 class SharedMappingSpec extends mutable.Specification {
 
