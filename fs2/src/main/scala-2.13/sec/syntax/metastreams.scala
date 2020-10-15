@@ -39,97 +39,97 @@ final class MetaStreamsOps[F[_]: ErrorM](val ms: MetaStreams[F]) {
   def getMaxAge(id: Id): F[Option[ReadResult[MaxAge]]] =
     ms.getMaxAge(id, None)
 
-  def setMaxAge(id: Id, expectedRevision: StreamRevision, age: FiniteDuration): F[WriteResult] =
-    setMaxAgeF(id, expectedRevision, age, None)
+  def setMaxAge(id: Id, expectedState: StreamState, age: FiniteDuration): F[WriteResult] =
+    setMaxAgeF(id, expectedState, age, None)
 
-  def setMaxAge(id: Id, expectedRevision: StreamRevision, age: FiniteDuration, uc: UserCredentials): F[WriteResult] =
-    setMaxAgeF(id, expectedRevision, age, uc.some)
+  def setMaxAge(id: Id, expectedState: StreamState, age: FiniteDuration, uc: UserCredentials): F[WriteResult] =
+    setMaxAgeF(id, expectedState, age, uc.some)
 
-  private def setMaxAgeF(id: Id, er: StreamRevision, age: FiniteDuration, uc: Option[UserCredentials]): F[WriteResult] =
+  private def setMaxAgeF(id: Id, er: StreamState, age: FiniteDuration, uc: Option[UserCredentials]): F[WriteResult] =
     MaxAge.of[F](age) >>= (ms.setMaxAge(id, er, _, uc))
 
-  def unsetMaxAge(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
-    ms.unsetMaxAge(id, expectedRevision, None)
+  def unsetMaxAge(id: Id, expectedState: StreamState): F[WriteResult] =
+    ms.unsetMaxAge(id, expectedState, None)
 
   def getMaxCount(id: Id): F[Option[ReadResult[MaxCount]]] =
     ms.getMaxCount(id, None)
 
-  def setMaxCount(id: Id, expectedRevision: StreamRevision, count: Int): F[WriteResult] =
-    setMaxCountF(id, expectedRevision, count, None)
+  def setMaxCount(id: Id, expectedState: StreamState, count: Int): F[WriteResult] =
+    setMaxCountF(id, expectedState, count, None)
 
-  def setMaxCount(id: Id, expectedRevision: StreamRevision, count: Int, uc: UserCredentials): F[WriteResult] =
-    setMaxCountF(id, expectedRevision, count, uc.some)
+  def setMaxCount(id: Id, expectedState: StreamState, count: Int, uc: UserCredentials): F[WriteResult] =
+    setMaxCountF(id, expectedState, count, uc.some)
 
-  private def setMaxCountF(id: Id, er: StreamRevision, count: Int, uc: Option[UserCredentials]): F[WriteResult] =
+  private def setMaxCountF(id: Id, er: StreamState, count: Int, uc: Option[UserCredentials]): F[WriteResult] =
     MaxCount.of[F](count) >>= (ms.setMaxCount(id, er, _, uc))
 
-  def unsetMaxCount(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
-    ms.unsetMaxCount(id, expectedRevision, None)
+  def unsetMaxCount(id: Id, expectedState: StreamState): F[WriteResult] =
+    ms.unsetMaxCount(id, expectedState, None)
 
   def getCacheControl(id: Id): F[Option[ReadResult[CacheControl]]] =
     ms.getCacheControl(id, None)
 
-  def setCacheControl(id: Id, expectedRevision: StreamRevision, cacheControl: FiniteDuration): F[WriteResult] =
-    setCacheControlF(id, expectedRevision, cacheControl, None)
+  def setCacheControl(id: Id, expectedState: StreamState, cacheControl: FiniteDuration): F[WriteResult] =
+    setCacheControlF(id, expectedState, cacheControl, None)
 
   def setCacheControl(
     id: Id,
-    expectedRevision: StreamRevision,
+    expectedState: StreamState,
     cacheControl: FiniteDuration,
     uc: UserCredentials
   ): F[WriteResult] =
-    setCacheControlF(id, expectedRevision, cacheControl, uc.some)
+    setCacheControlF(id, expectedState, cacheControl, uc.some)
 
   private def setCacheControlF(
     id: Id,
-    er: StreamRevision,
+    er: StreamState,
     cc: FiniteDuration,
     uc: Option[UserCredentials]
   ): F[WriteResult] =
     CacheControl.of[F](cc) >>= (ms.setCacheControl(id, er, _, uc))
 
-  def unsetCacheControl(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
-    ms.unsetCacheControl(id, expectedRevision, None)
+  def unsetCacheControl(id: Id, expectedState: StreamState): F[WriteResult] =
+    ms.unsetCacheControl(id, expectedState, None)
 
   def getAcl(id: Id): F[Option[ReadResult[StreamAcl]]] =
     ms.getAcl(id, None)
 
-  def setAcl(id: Id, expectedRevision: StreamRevision, acl: StreamAcl): F[WriteResult] =
-    ms.setAcl(id, expectedRevision, acl, None)
+  def setAcl(id: Id, expectedState: StreamState, acl: StreamAcl): F[WriteResult] =
+    ms.setAcl(id, expectedState, acl, None)
 
-  def unsetAcl(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
-    ms.unsetAcl(id, expectedRevision, None)
+  def unsetAcl(id: Id, expectedState: StreamState): F[WriteResult] =
+    ms.unsetAcl(id, expectedState, None)
 
   def getTruncateBefore(id: Id): F[Option[ReadResult[Exact]]] =
     ms.getTruncateBefore(id, None)
 
-  def setTruncateBefore(id: Id, expectedRevision: StreamRevision, truncateBefore: Long): F[WriteResult] =
-    setTruncateBeforeF(id, expectedRevision, truncateBefore, None)
+  def setTruncateBefore(id: Id, expectedState: StreamState, truncateBefore: Long): F[WriteResult] =
+    setTruncateBeforeF(id, expectedState, truncateBefore, None)
 
   def setTruncateBefore(
     id: Id,
-    expectedRevision: StreamRevision,
+    expectedState: StreamState,
     truncateBefore: Long,
     uc: UserCredentials
   ): F[WriteResult] =
-    setTruncateBeforeF(id, expectedRevision, truncateBefore, uc.some)
+    setTruncateBeforeF(id, expectedState, truncateBefore, uc.some)
 
-  private def setTruncateBeforeF(id: Id, er: StreamRevision, tb: Long, uc: Option[UserCredentials]): F[WriteResult] =
+  private def setTruncateBeforeF(id: Id, er: StreamState, tb: Long, uc: Option[UserCredentials]): F[WriteResult] =
     StreamPosition.Exact.of[F](tb) >>= (ms.setTruncateBefore(id, er, _, uc))
 
-  def unsetTruncateBefore(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
-    ms.unsetTruncateBefore(id, expectedRevision, None)
+  def unsetTruncateBefore(id: Id, expectedState: StreamState): F[WriteResult] =
+    ms.unsetTruncateBefore(id, expectedState, None)
 
   ///
 
   private[sec] def getMetadata(id: Id): F[Option[MetaResult]] =
     ms.getMetadata(id, None)
 
-  private[sec] def setMetadata(id: Id, expectedRevision: StreamRevision, data: StreamMetadata): F[WriteResult] =
-    ms.setMetadata(id, expectedRevision, data, None)
+  private[sec] def setMetadata(id: Id, expectedState: StreamState, data: StreamMetadata): F[WriteResult] =
+    ms.setMetadata(id, expectedState, data, None)
 
-  private[sec] def unsetMetadata(id: Id, expectedRevision: StreamRevision): F[WriteResult] =
-    ms.unsetMetadata(id, expectedRevision, None)
+  private[sec] def unsetMetadata(id: Id, expectedState: StreamState): F[WriteResult] =
+    ms.unsetMetadata(id, expectedState, None)
 }
 
 //====================================================================================================================

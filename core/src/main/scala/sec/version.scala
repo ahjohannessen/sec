@@ -22,19 +22,19 @@ import cats.{Eq, Order, Show}
 
 //======================================================================================================================
 
-sealed trait StreamRevision
-object StreamRevision {
+sealed trait StreamState
+object StreamState {
 
-  case object NoStream     extends StreamRevision
-  case object Any          extends StreamRevision
-  case object StreamExists extends StreamRevision
+  case object NoStream     extends StreamState
+  case object Any          extends StreamState
+  case object StreamExists extends StreamState
 
-  implicit val eq: Eq[StreamRevision] = Eq.fromUniversalEquals
-  implicit val showForStreamRevision: Show[StreamRevision] = Show.show {
+  implicit val eq: Eq[StreamState] = Eq.fromUniversalEquals
+  implicit val showForStreamState: Show[StreamState] = Show.show {
     case NoStream                => "NoStream"
     case Any                     => "Any"
     case StreamExists            => "StreamExists"
-    case StreamPosition.Exact(v) => s"${v}L"
+    case StreamPosition.Exact(v) => s"Exact(${v}L)"
   }
 
 }
@@ -46,7 +46,7 @@ object StreamPosition {
 
   val Start: Exact = exact(0L)
 
-  sealed abstract case class Exact(value: Long) extends StreamPosition with StreamRevision
+  sealed abstract case class Exact(value: Long) extends StreamPosition with StreamState
   object Exact {
 
     private[StreamPosition] def create(value: Long): Exact = new Exact(value) {}

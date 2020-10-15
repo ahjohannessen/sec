@@ -53,16 +53,16 @@ object exceptions {
       s"Maximum append size ${maxSize.map(max => s"of $max bytes ").getOrElse("")}exceeded."
   }
 
-  final case class WrongExpectedRevision(
+  final case class WrongExpectedState(
     sid: StreamId,
-    expected: StreamRevision,
-    actual: StreamRevision
-  ) extends EsException(WrongExpectedRevision.msg(sid, expected, actual))
+    expected: StreamState,
+    actual: StreamState
+  ) extends EsException(WrongExpectedState.msg(sid, expected, actual))
 
-  object WrongExpectedRevision {
+  object WrongExpectedState {
 
-    def msg(sid: StreamId, expected: StreamRevision, actual: StreamRevision): String =
-      s"Wrong expected revision for stream: ${sid.show}, expected: ${expected.show}, actual: ${actual.show}"
+    def msg(sid: StreamId, expected: StreamState, actual: StreamState): String =
+      s"Wrong expected state for stream: ${sid.show}, expected: ${expected.show}, actual: ${actual.show}"
 
   }
 
@@ -81,17 +81,17 @@ object exceptions {
       s"WrongExpectedVersion for stream: $streamId, expected version: $exp, actual version: $act"
     }
 
-    def adaptOrFallback(e: WrongExpectedVersion, sid: StreamId, expected: StreamRevision): Throwable = {
+    def adaptOrFallback(e: WrongExpectedVersion, sid: StreamId, expected: StreamState): Throwable = {
 
-      def mkException(actual: StreamRevision) = WrongExpectedRevision(sid, expected, actual)
-      def noStream                            = mkException(StreamRevision.NoStream).some
-      def mkExact(a: Long)                    = StreamPosition.Exact(a).toOption.map(mkException)
+      def mkException(actual: StreamState) = WrongExpectedState(sid, expected, actual)
+      def noStream                         = mkException(StreamState.NoStream).some
+      def mkExact(a: Long)                 = StreamPosition.Exact(a).toOption.map(mkException)
 
       e.actual.fold(noStream)(mkExact).getOrElse(e)
     }
 
     implicit final class WrongExpectedVersionOps(val e: WrongExpectedVersion) extends AnyVal {
-      def adaptOrFallback(sid: StreamId, expected: StreamRevision): Throwable =
+      def adaptOrFallback(sid: StreamId, expected: StreamState): Throwable =
         WrongExpectedVersion.adaptOrFallback(e, sid, expected)
     }
 

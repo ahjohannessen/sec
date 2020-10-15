@@ -25,7 +25,7 @@ import scala.collection.immutable.Nil
 import cats.data.NonEmptyList
 import cats.implicits._
 import scodec.bits.ByteVector
-import StreamRevision.{Any, NoStream, StreamExists}
+import StreamState.{Any, NoStream, StreamExists}
 import org.scalacheck._
 import org.scalacheck.Arbitrary.arbitrary
 import sec.api._
@@ -50,7 +50,7 @@ object arbitraries {
   )
 
 //======================================================================================================================
-// StreamPosition, Position & StreamRevision
+// StreamPosition, Position & StreamState
 //======================================================================================================================
 
   implicit val arbStreamPositionExact: Arbitrary[StreamPosition.Exact] = Arbitrary[StreamPosition.Exact](
@@ -68,8 +68,8 @@ object arbitraries {
   implicit val arbPosition: Arbitrary[LogPosition] =
     Arbitrary[LogPosition](Gen.oneOf(List(LogPosition.End, sampleOf[LogPosition.Exact])))
 
-  implicit val arbStreamRevision: Arbitrary[StreamRevision] =
-    Arbitrary[StreamRevision](Gen.oneOf(List(NoStream, Any, StreamExists, sampleOf[StreamPosition.Exact])))
+  implicit val arbStreamState: Arbitrary[StreamState] =
+    Arbitrary[StreamState](Gen.oneOf(List(NoStream, Any, StreamExists, sampleOf[StreamPosition.Exact])))
 
 //======================================================================================================================
 // StreamId

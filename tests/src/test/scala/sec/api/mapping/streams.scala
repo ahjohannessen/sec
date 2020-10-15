@@ -26,7 +26,7 @@ import scodec.bits.ByteVector
 import org.specs2._
 import com.eventstore.dbclient.proto.shared.{Empty, UUID}
 import com.eventstore.dbclient.proto.{streams => s}
-import sec.api.exceptions.{StreamNotFound, WrongExpectedRevision}
+import sec.api.exceptions.{StreamNotFound, WrongExpectedState}
 import sec.api.mapping.shared._
 import sec.api.mapping.streams.outgoing
 import sec.api.mapping.streams.incoming
@@ -253,14 +253,13 @@ class StreamsMappingSpec extends mutable.Specification {
       import s.DeleteReq.Options.ExpectedStreamRevision
       val sid = sec.StreamId("abc").unsafe
 
-      def test(sr: StreamRevision, esr: ExpectedStreamRevision) =
-        mkDeleteReq(sid, sr) shouldEqual
-          s.DeleteReq().withOptions(s.DeleteReq.Options(sid.esSid.some, esr))
+      def test(ess: StreamState, esr: ExpectedStreamRevision) =
+        mkDeleteReq(sid, ess) shouldEqual s.DeleteReq().withOptions(s.DeleteReq.Options(sid.esSid.some, esr))
 
       test(sec.StreamPosition.exact(0L), ExpectedStreamRevision.Revision(0L))
-      test(sec.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
-      test(sec.StreamRevision.StreamExists, ExpectedStreamRevision.StreamExists(empty))
-      test(sec.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
+      test(sec.StreamState.NoStream, ExpectedStreamRevision.NoStream(empty))
+      test(sec.StreamState.StreamExists, ExpectedStreamRevision.StreamExists(empty))
+      test(sec.StreamState.Any, ExpectedStreamRevision.Any(empty))
     }
 
     "mkTombstoneReq" >> {
@@ -268,14 +267,13 @@ class StreamsMappingSpec extends mutable.Specification {
       import s.TombstoneReq.Options.ExpectedStreamRevision
       val sid = sec.StreamId("abc").unsafe
 
-      def test(sr: StreamRevision, esr: ExpectedStreamRevision) =
-        mkTombstoneReq(sid, sr) shouldEqual
-          s.TombstoneReq().withOptions(s.TombstoneReq.Options(sid.esSid.some, esr))
+      def test(ess: StreamState, esr: ExpectedStreamRevision) =
+        mkTombstoneReq(sid, ess) shouldEqual s.TombstoneReq().withOptions(s.TombstoneReq.Options(sid.esSid.some, esr))
 
       test(sec.StreamPosition.exact(0L), ExpectedStreamRevision.Revision(0L))
-      test(sec.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
-      test(sec.StreamRevision.StreamExists, ExpectedStreamRevision.StreamExists(empty))
-      test(sec.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
+      test(sec.StreamState.NoStream, ExpectedStreamRevision.NoStream(empty))
+      test(sec.StreamState.StreamExists, ExpectedStreamRevision.StreamExists(empty))
+      test(sec.StreamState.Any, ExpectedStreamRevision.Any(empty))
     }
 
     "mkAppendHeaderReq" >> {
@@ -283,14 +281,13 @@ class StreamsMappingSpec extends mutable.Specification {
       import s.AppendReq.Options.ExpectedStreamRevision
       val sid = sec.StreamId("abc").unsafe
 
-      def test(sr: StreamRevision, esr: ExpectedStreamRevision) =
-        mkAppendHeaderReq(sid, sr) shouldEqual
-          s.AppendReq().withOptions(s.AppendReq.Options(sid.esSid.some, esr))
+      def test(ess: StreamState, esr: ExpectedStreamRevision) =
+        mkAppendHeaderReq(sid, ess) shouldEqual s.AppendReq().withOptions(s.AppendReq.Options(sid.esSid.some, esr))
 
       test(sec.StreamPosition.exact(0L), ExpectedStreamRevision.Revision(0L))
-      test(sec.StreamRevision.NoStream, ExpectedStreamRevision.NoStream(empty))
-      test(sec.StreamRevision.StreamExists, ExpectedStreamRevision.StreamExists(empty))
-      test(sec.StreamRevision.Any, ExpectedStreamRevision.Any(empty))
+      test(sec.StreamState.NoStream, ExpectedStreamRevision.NoStream(empty))
+      test(sec.StreamState.StreamExists, ExpectedStreamRevision.StreamExists(empty))
+      test(sec.StreamState.Any, ExpectedStreamRevision.Any(empty))
     }
 
     "mkAppendProposalsReq" >> {
@@ -633,13 +630,13 @@ class StreamsMappingSpec extends mutable.Specification {
           s.AppendResp.WrongExpectedVersion(expectedRevisionOption = e, currentRevisionOption = wreCurrentRevTwo)
         )
 
-      def testExpected(ero: ExpectedRevisionOption, expected: StreamRevision) =
-        test(mkExpected(ero)) shouldEqual WrongExpectedRevision(sid, expected, sec.StreamPosition.exact(2L)).asLeft
+      def testExpected(ero: ExpectedRevisionOption, expected: StreamState) =
+        test(mkExpected(ero)) shouldEqual WrongExpectedState(sid, expected, sec.StreamPosition.exact(2L)).asLeft
 
       testExpected(wreExpectedOne, sec.StreamPosition.exact(1L))
-      testExpected(wreExpectedNoStream, sec.StreamRevision.NoStream)
-      testExpected(wreExpectedAny, sec.StreamRevision.Any)
-      testExpected(wreExpectedStreamExists, sec.StreamRevision.StreamExists)
+      testExpected(wreExpectedNoStream, sec.StreamState.NoStream)
+      testExpected(wreExpectedAny, sec.StreamState.Any)
+      testExpected(wreExpectedStreamExists, sec.StreamState.StreamExists)
       test(mkExpected(wreExpectedEmpty)) shouldEqual ProtoResultError("ExpectedRevisionOption is missing").asLeft
 
       def mkCurrent(c: CurrentRevisionOption) = s
@@ -648,11 +645,11 @@ class StreamsMappingSpec extends mutable.Specification {
           s.AppendResp.WrongExpectedVersion(expectedRevisionOption = wreExpectedOne, currentRevisionOption = c)
         )
 
-      def testCurrent(cro: CurrentRevisionOption, actual: StreamRevision) =
-        test(mkCurrent(cro)) shouldEqual WrongExpectedRevision(sid, sec.StreamPosition.exact(1L), actual).asLeft
+      def testCurrent(cro: CurrentRevisionOption, actual: StreamState) =
+        test(mkCurrent(cro)) shouldEqual WrongExpectedState(sid, sec.StreamPosition.exact(1L), actual).asLeft
 
       testCurrent(wreCurrentRevTwo, sec.StreamPosition.exact(2L))
-      testCurrent(wreCurrentNoStream, sec.StreamRevision.NoStream)
+      testCurrent(wreCurrentNoStream, sec.StreamState.NoStream)
       test(mkCurrent(wreCurrentEmpty)) shouldEqual ProtoResultError("CurrentRevisionOption is missing").asLeft
 
       ///
