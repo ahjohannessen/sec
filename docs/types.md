@@ -152,7 +152,7 @@ EventType.StreamReference // $@
 
 #### EventId
 
-The format of an event identifier is a *[uuid](java.util.https://en.wikipedia.org/wiki/Universally_unique_identifier)* and is 
+The format of an event identifier is a *[uuid](https://en.wikipedia.org/wiki/Universally_unique_identifier)* and is 
 used by @esdb@ to uniquely identify the event you are trying to append. If two events with the same uuid are appended to
 the same stream in quick succession @esdb@ only appends one copy of the event to the stream. More information about this 
 is in the @esdb@ [docs](https://eventstore.com/docs/dotnet-api/optimistic-concurrency-and-idempotence/index.html#idempotence) 

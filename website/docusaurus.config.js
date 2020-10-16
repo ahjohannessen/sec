@@ -1,8 +1,8 @@
 module.exports = {
   title: 'Scala EventStoreDB Client',
   tagline: 'A pure functional client for EventStoreDB',
-  url: 'https://github.com/ahjohannessen/sec',
-  baseUrl: '/',
+  url: 'https://ahjohannessen.github.com',
+  baseUrl: '/sec/',
   onBrokenLinks: 'throw',
   favicon: 'img/favicon.ico',
   organizationName: 'ahjohannessen',
