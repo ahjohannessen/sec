@@ -24,6 +24,7 @@ import com.eventstore.dbclient.proto.shared.Empty
 import sec.api.mapping.gossip.mkClusterInfo
 
 trait Gossip[F[_]] {
+  final def read: F[ClusterInfo] = read(None)
   def read(creds: Option[UserCredentials]): F[ClusterInfo]
 }
 

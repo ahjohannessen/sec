@@ -8,12 +8,3 @@
 # sec - Scala Eventstore Client
 
 **Nothing to see here yet. Come back later.**
-
-## Quick Start
-
-To use sec in an existing SBT project with Scala 2.13 or a later version, add the following dependencies to your
-`build.sbt` depending on your needs:
-
-```scala
-libraryDependencies ++= Seq("io.github.ahjohannessen" %% "sec" % "<version>")
-```

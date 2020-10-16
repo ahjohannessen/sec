@@ -83,6 +83,10 @@ jobs:
       - name: Check that workflows are up to date
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
+      - name: Compile docs
+        if: contains(matrix.scala, '2.13.3')
+        run: sbt ++${{ matrix.scala }} compileDocs
+
       - name: Regular tests
         run: sbt ++${{ matrix.scala }} compileTests tests/test
 
@@ -113,7 +117,7 @@ jobs:
         run: .docker/cluster.sh down
 
       - name: Compress target directories
-        run: tar cf targets.tar tests/target fs2-netty/target target fs2/target core/target project/target
+        run: tar cf targets.tar sec-docs/target tests/target fs2-netty/target target fs2/target core/target project/target
 
       - name: Upload target directories
         uses: actions/upload-artifact@v2

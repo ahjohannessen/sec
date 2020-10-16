@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xl="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" version="1.1" viewBox="187.01348 65.218176 207.97303 289.6" width="207.97303" height="289.6">
+  <defs>
+    <linearGradient x1="0" x2="1" id="Gradient" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2e74af"/>
+      <stop offset="1" stop-color="#84acd4"/>
+      <stop offset="1" stop-color="#cadff6"/>
+    </linearGradient>
+    <linearGradient id="Obj_Gradient" xl:href="#Gradient" gradientTransform="translate(291 354.8182) rotate(-90) scale(289.6)"/>
+  </defs>
+  <metadata> Produced by OmniGraffle 7.17.5\n2020-10-14 21:01:58 +0000</metadata>
+  <g id="icons_light" stroke-dasharray="none" stroke="none" stroke-opacity="1" fill="none" fill-opacity="1">
+    <title>icons light</title>
+    <g id="icons_light_Functional">
+      <title>Functional</title>
+      <g id="Graphic_14">
+        <title>λ</title>
+        <path d="M 217.8677 67.36625 C 223.20535 65.9342 229.84486 65.218176 237.78624 65.218176 C 251.32565 65.218176 261.4802 68.73321 268.2499 75.76329 C 274.8894 82.92355 281.13837 94.51015 286.99676 110.5231 L 367.64734 309.70854 C 369.60014 313.61414 371.8784 317.32445 374.48213 320.8395 C 377.21605 324.35453 380.7311 326.11205 385.02724 326.11205 L 394.9865 326.11205 L 394.9865 354.8182 L 374.48213 354.8182 C 355.3447 354.8182 342.19587 344.924 335.0356 325.13565 L 286.21564 196.44623 L 225.87417 354.8182 L 187.01348 354.8182 L 269.03102 153.67994 L 254.5803 115.20982 C 249.50303 102.19116 241.49656 95.9422 230.5609 96.46295 L 217.8677 96.46295 Z" fill="url(#Obj_Gradient)"/>
+      </g>
+    </g>
+  </g>
+</svg>
