@@ -225,8 +225,17 @@ inThisBuild(
           "PGP_PASSPHRASE"    -> "${{ secrets.PGP_PASSPHRASE }}",
           "PGP_SECRET"        -> "${{ secrets.PGP_SECRET }}",
           "SONATYPE_PASSWORD" -> "${{ secrets.SONATYPE_PASSWORD }}",
-          "SONATYPE_USERNAME" -> "${{ secrets.SONATYPE_USERNAME }}"
+          "SONATYPE_USERNAME" -> "${{ secrets.SONATYPE_USERNAME }}",
+          "GIT_DEPLOY_KEY"    -> "${{ secrets.GIT_DEPLOY_KEY }}"
         )
-      ))
+      ),
+      WorkflowStep.Sbt(
+        List("docs/docusaurusPublishGhpages"),
+        env = Map(
+          "GIT_DEPLOY_KEY" -> "${{ secrets.GIT_DEPLOY_KEY }}"
+        ),
+        cond = Some(scalaCondition(scalaVersion.value))
+      )
+    )
   )
 )
