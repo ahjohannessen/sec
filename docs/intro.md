@@ -17,12 +17,6 @@ add the following to your `build.sbt` file.
 libraryDependencies += "io.github.ahjohannessen" % "sec-fs2" % "@libVersion@"
 ```
 
-To use the latest published snapshot release, add the following lines to your `build.sbt` file.
-```scala
-resolvers           += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "io.github.ahjohannessen" % "sec-fs2" % "@libSnapshotVersion@"
-```
-
 ### How to learn
 
 In order to use @libName@ effectively you need some prerequisites:

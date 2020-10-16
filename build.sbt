@@ -97,12 +97,11 @@ lazy val docs = project
     moduleName := "sec-docs",
     mdocIn := file("docs"),
     mdocVariables := Map(
-      "libName"            -> "sec",
-      "libVersion"         -> version.value.takeWhile(_ != '+'), // strip off the SNAPSHOT business
-      "libSnapshotVersion" -> version.value,
-      "libGithubRepo"      -> "https://github.com/ahjohannessen/sec",
-      "grpcVersion"        -> versions.grpc,
-      "esdb"               -> "EventStoreDB"
+      "libName"       -> "sec",
+      "libVersion"    -> version.value.takeWhile(_ != '+'), // strip off the SNAPSHOT business
+      "libGithubRepo" -> "https://github.com/ahjohannessen/sec",
+      "grpcVersion"   -> versions.grpc,
+      "esdb"          -> "EventStoreDB"
     )
   )
 
