@@ -121,6 +121,8 @@ object StreamId {
 
   implicit val eqForStreamId: Eq[StreamId]     = Eq.fromUniversalEquals[StreamId]
   implicit val showForStreamId: Show[StreamId] = Show.show[StreamId](_.stringValue)
+  implicit val showForId: Show[Id]             = showForStreamId.narrow[Id]
+  implicit val showForMetaId: Show[MetaId]     = showForStreamId.narrow[MetaId]
 
 }
 

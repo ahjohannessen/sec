@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xl="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" version="1.1" viewBox="160.914 1114.1763 272.172 163.3032" width="272.172" height="163.3032">
+  <defs>
+    <linearGradient x1="0" x2="1" id="Gradient" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2e74af"/>
+      <stop offset="1" stop-color="#84acd4"/>
+      <stop offset="1" stop-color="#cadff6"/>
+    </linearGradient>
+    <linearGradient id="Obj_Gradient" xl:href="#Gradient" gradientTransform="translate(297 1277.4795) rotate(-90) scale(163.3032)"/>
+  </defs>
+  <metadata> Produced by OmniGraffle 7.17.5\n2020-10-14 21:11:58 +0000</metadata>
+  <g id="icons_light" stroke-dasharray="none" stroke="none" stroke-opacity="1" fill="none" fill-opacity="1">
+    <title>icons light</title>
+    <g id="icons_light_Streaming">
+      <title>Streaming</title>
+      <g id="Graphic_16">
+        <title>Dehaze</title>
+        <path d="M 160.914 1250.2623 L 160.914 1277.4795 L 433.086 1277.4795 L 433.086 1250.2623 L 160.914 1250.2623 Z M 160.914 1182.2193 L 160.914 1209.4365 L 433.086 1209.4365 L 433.086 1182.2193 L 160.914 1182.2193 Z M 160.914 1114.1763 L 160.914 1141.3935 L 433.086 1141.3935 L 433.086 1114.1763 L 160.914 1114.1763 Z" fill="url(#Obj_Gradient)"/>
+      </g>
+    </g>
+  </g>
+</svg>

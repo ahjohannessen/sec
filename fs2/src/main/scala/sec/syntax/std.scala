@@ -17,6 +17,13 @@
 package sec
 package syntax
 
-trait AllSyntax extends StringSyntax with ApiSyntax
+import cats.syntax.all._
+import scodec.bits.ByteVector
 
-object all extends AllSyntax
+trait StringSyntax {
+  implicit final def syntaxForString(s: String): StringOps = new StringOps(s)
+}
+
+final class StringOps(val s: String) extends AnyVal {
+  def utf8Bytes[F[_]: ErrorA]: F[ByteVector] = ByteVector.encodeUtf8(s).liftTo[F]
+}

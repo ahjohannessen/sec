@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xl="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" version="1.1" viewBox="147.5202 629.1818 289.61747 210.63089" width="289.61747" height="210.63089">
+  <defs>
+    <linearGradient x1="0" x2="1" id="Gradient" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2e74af"/>
+      <stop offset="1" stop-color="#84acd4"/>
+      <stop offset="1" stop-color="#cadff6"/>
+    </linearGradient>
+    <linearGradient id="Obj_Gradient" xl:href="#Gradient" gradientTransform="translate(147.5202 734.4973) scale(289.61747)"/>
+  </defs>
+  <metadata> Produced by OmniGraffle 7.17.5\n2020-10-14 21:10:26 +0000</metadata>
+  <g id="icons_light" stroke-dasharray="none" stroke="none" stroke-opacity="1" fill="none" fill-opacity="1">
+    <title>icons light</title>
+    <g id="icons_light_Asynchronious">
+      <title>Asynchronious</title>
+      <g id="Graphic_10">
+        <title>Sync</title>
+        <path d="M 397.64437 734.4973 L 437.13766 734.4973 L 384.47994 681.8395 L 331.8222 734.4973 L 371.3155 734.4973 C 371.3155 778.0715 335.9032 813.4838 292.32893 813.4838 C 279.03285 813.4838 266.395 810.1927 255.46852 804.2687 L 236.24845 823.4888 C 252.4407 833.7571 271.66077 839.8127 292.32893 839.8127 C 350.5157 839.8127 397.64437 792.684 397.64437 734.4973 Z M 213.34234 734.4973 C 213.34234 690.923 248.75466 655.5107 292.32893 655.5107 C 305.625 655.5107 318.26286 658.8018 329.18933 664.7258 L 348.4094 645.5057 C 332.21715 635.23746 312.9971 629.1818 292.32893 629.1818 C 234.14214 629.1818 187.01348 676.3105 187.01348 734.4973 L 147.5202 734.4973 L 200.17791 787.155 L 252.83564 734.4973 L 213.34234 734.4973 Z" fill="url(#Obj_Gradient)"/>
+      </g>
+    </g>
+  </g>
+</svg>

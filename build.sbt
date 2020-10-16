@@ -15,8 +15,8 @@ def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scala
 lazy val sec = project
   .in(file("."))
   .settings(skip in publish := true)
-  .dependsOn(core, `fs2-core`, `fs2-netty`, tests)
-  .aggregate(core, `fs2-core`, `fs2-netty`, tests)
+  .dependsOn(core, `fs2-core`, `fs2-netty`, tests, docs)
+  .aggregate(core, `fs2-core`, `fs2-netty`, tests, docs)
 
 //==== Core ============================================================================================================
 
@@ -85,6 +85,27 @@ lazy val tests = project
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
   .dependsOn(core, `fs2-netty`)
 
+//==== Docs ============================================================================================================
+
+lazy val docs = project
+  .in(file("sec-docs"))
+  .enablePlugins(MdocPlugin, DocusaurusPlugin)
+  .dependsOn(`fs2-netty`)
+  .settings(
+    crossScalaVersions := Seq("2.13.3"),
+    publish / skip := true,
+    moduleName := "sec-docs",
+    mdocIn := file("docs"),
+    mdocVariables := Map(
+      "libName"            -> "sec",
+      "libVersion"         -> version.value.takeWhile(_ != '+'), // strip off the SNAPSHOT business
+      "libSnapshotVersion" -> version.value,
+      "libGithubRepo"      -> "https://github.com/ahjohannessen/sec",
+      "grpcVersion"        -> versions.grpc,
+      "esdb"               -> "EventStoreDB"
+    )
+  )
+
 //==== Common ==========================================================================================================
 
 lazy val commonSettings = Seq(
@@ -131,6 +152,7 @@ inThisBuild(
 //==== Github Actions ==================================================================================================
 
 addCommandAlias("compileTests", "tests/test:compile; tests/sit:compile; tests/cit:compile;")
+addCommandAlias("compileDocs", "docs/mdoc")
 
 def scalaCondition(version: String) = s"contains(matrix.scala, '$version')"
 
@@ -145,6 +167,11 @@ inThisBuild(
       cond     = Some(scalaCondition(scalaVersion.value))
     ),
     githubWorkflowBuild := Seq(
+      WorkflowStep.Sbt(
+        name     = Some("Compile docs"),
+        commands = List("compileDocs"),
+        cond     = Some(scalaCondition(scalaVersion.value))
+      ),
       WorkflowStep.Sbt(
         name     = Some("Regular tests"),
         commands = List("compileTests", "tests/test")

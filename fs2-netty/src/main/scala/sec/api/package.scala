@@ -20,6 +20,12 @@ import cats.effect._
 
 package object api {
 
+//======================================================================================================================
+
+  def mkUuid[F[_]: Sync]: F[java.util.UUID] = Sync[F].delay(java.util.UUID.randomUUID())
+
+//======================================================================================================================
+
   import sec.api.netty._
 
   implicit def singleNodeBuilderSyntax[F[_]: ConcurrentEffect: Timer](
@@ -29,5 +35,7 @@ package object api {
   implicit def clusterBuilderSyntax[F[_]: ConcurrentEffect: Timer](
     cb: ClusterBuilder[F]
   ): ClusterBuilderOps[F] = new ClusterBuilderOps[F](cb)
+
+//======================================================================================================================
 
 }
