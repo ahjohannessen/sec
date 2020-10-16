@@ -40,13 +40,8 @@ object StreamId {
   sealed abstract case class System(name: String) extends SystemId
   sealed abstract case class Normal(name: String) extends NormalId
 
-  def apply(name: String): Attempt[Id] =
-    guardNonEmptyName(name) >>= guardNotStartsWith(metadataPrefix) >>= stringToId
-
-  def of[F[_]: ErrorA](name: String): F[Id] =
-    StreamId(name).leftMap(StreamIdError).liftTo[F]
-
-  final case class StreamIdError(msg: String) extends RuntimeException(msg)
+  def apply(name: String): Either[InvalidInput, Id] =
+    (guardNonEmptyName(name) >>= guardNotStartsWith(metadataPrefix) >>= stringToId).leftMap(InvalidInput)
 
   ///
 

@@ -32,6 +32,7 @@ import sec.api.mapping.streams.outgoing
 import sec.api.mapping.streams.incoming
 import sec.api.mapping.implicits._
 import sec.helpers.text.encodeToBV
+import sec.helpers.implicits._
 
 class StreamsMappingSpec extends mutable.Specification {
 
@@ -517,7 +518,7 @@ class StreamsMappingSpec extends mutable.Specification {
       val event       = sampleOfGen(eventGen.eventRecordOne).copy(created = created)
       val eventData   = event.eventData
       val eventType   = sec.EventType.eventTypeToString(event.eventData.eventType)
-      val contentType = eventData.contentType.isBinary.fold(Binary, Json)
+      val contentType = eventData.contentType.fold(Binary, Json)
       val metadata    = Map(ContentType -> contentType, Type -> eventType, Created -> created.getNano().toString)
 
       val recordedEvent = s.ReadResp.ReadEvent

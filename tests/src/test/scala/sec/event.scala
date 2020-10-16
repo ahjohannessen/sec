@@ -23,8 +23,8 @@ import java.util.UUID
 import cats.syntax.all._
 import scodec.bits.ByteVector
 import org.specs2.mutable.Specification
-import sec.EventType.InvalidEventType
 import sec.arbitraries._
+import sec.helpers.implicits._
 import sec.helpers.text.encodeToBV
 
 //======================================================================================================================
@@ -129,15 +129,9 @@ class EventTypeSpec extends Specification {
   val sys: EventType = EventType.systemDefined("system").unsafe
 
   "apply" >> {
-    EventType("") should beLeft("Event type name cannot be empty")
-    EventType("$users") should beLeft("value must not start with $, but is $users")
+    EventType("") should beLeft(InvalidInput("Event type name cannot be empty"))
+    EventType("$users") should beLeft(InvalidInput("value must not start with $, but is $users"))
     EventType("users") should beRight(EventType.userDefined("users").unsafe)
-  }
-
-  "of" >> {
-    EventType.of[ErrorOr]("") should beLeft(InvalidEventType("Event type name cannot be empty"))
-    EventType.of[ErrorOr]("$users") should beLeft(InvalidEventType("value must not start with $, but is $users"))
-    EventType.of[ErrorOr]("users") should beRight(EventType.userDefined("users").unsafe)
   }
 
   "eventTypeToString" >> {
@@ -189,8 +183,8 @@ class EventDataSpec extends Specification {
 
   "apply" >> {
 
-    val errEmpty = "Event type name cannot be empty"
-    val errStart = "value must not start with $, but is $system"
+    val errEmpty = InvalidInput("Event type name cannot be empty")
+    val errStart = InvalidInput("value must not start with $, but is $system")
 
     def testCommon(data: ByteVector, meta: ByteVector, ct: ContentType) = {
 

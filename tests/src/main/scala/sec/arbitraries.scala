@@ -29,6 +29,7 @@ import StreamState.{Any, NoStream, StreamExists}
 import org.scalacheck._
 import org.scalacheck.Arbitrary.arbitrary
 import sec.api._
+import sec.helpers.implicits._
 
 object arbitraries {
 

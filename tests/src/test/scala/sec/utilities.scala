@@ -17,32 +17,10 @@
 package sec
 
 import scala.concurrent.duration._
-import scala.util.control.NoStackTrace
-import cats.syntax.all._
 import org.specs2.mutable.Specification
 import sec.utilities._
 
 class UtilitiesSpec extends Specification {
-
-  import UtilitiesSpec._
-
-  "AttemptOps" >> {
-    "unsafe" >> {
-      "oops".asLeft[Int].unsafe should throwA[IllegalArgumentException]("oops")
-      1.asRight[String].unsafe shouldEqual 1
-    }
-
-    "orFail" >> {
-      "oops".asLeft[Int].orFail[ErrorOr](Oops) shouldEqual Oops("oops").asLeft
-    }
-  }
-
-  "BooleanOps" >> {
-    "fold" >> {
-      true.fold("t", "f") shouldEqual "t"
-      false.fold("t", "f") shouldEqual "f"
-    }
-  }
 
   "guardNonEmpty" >> {
     guardNonEmpty("x")(null) should beLeft("x cannot be empty")
@@ -61,8 +39,4 @@ class UtilitiesSpec extends Specification {
     format(4831.millis) shouldEqual "4.831s"
   }
 
-}
-
-object UtilitiesSpec {
-  final case class Oops(msg: String) extends RuntimeException(msg) with NoStackTrace
 }

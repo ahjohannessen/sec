@@ -53,7 +53,7 @@ object MemberInfo {
 
   private[sec] def mkShow(padTo: Int): Show[MemberInfo] = Show.show { mi =>
 
-    val alive    = s"${mi.isAlive.fold("✔", "✕")}"
+    val alive    = s"${if (mi.isAlive) "✔" else "✕"}"
     val state    = s"${mi.state.show.padTo(padTo, ' ')}"
     val endpoint = s"${mi.httpEndpoint.show}"
     val ts       = s"${mi.timestamp.truncatedTo(SECONDS)}"

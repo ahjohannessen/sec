@@ -23,6 +23,7 @@ import cats.syntax.all._
 import sec.api.MetaStreams.Result
 import sec.api.exceptions.WrongExpectedState
 import sec.syntax.all._
+import sec.helpers.implicits._
 
 class MetaStreamsSuite extends SnSpec {
 

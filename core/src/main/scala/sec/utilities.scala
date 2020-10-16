@@ -32,19 +32,6 @@ private[sec] object utilities {
 
 //======================================================================================================================
 
-  final class BooleanOps(val b: Boolean) extends AnyVal {
-    def fold[A](t: => A, f: => A): A = if (b) t else f
-  }
-
-//======================================================================================================================
-
-  final class AttemptOps[A](val inner: Attempt[A]) extends AnyVal {
-    def unsafe: A                                           = inner.leftMap(require(false, _)).toOption.get
-    def orFail[F[_]: ErrorA](fn: String => Throwable): F[A] = inner.leftMap(fn(_)).liftTo[F]
-  }
-
-//======================================================================================================================
-
   def format(duration: Duration): String = {
 
     def chooseUnit(fd: FiniteDuration): TimeUnit = {

@@ -46,7 +46,7 @@ final class MetaStreamsOps[F[_]: ErrorM](val ms: MetaStreams[F]) {
     setMaxAgeF(id, expectedState, age, uc.some)
 
   private def setMaxAgeF(id: Id, er: StreamState, age: FiniteDuration, uc: Option[UserCredentials]): F[WriteResult] =
-    MaxAge.of[F](age) >>= (ms.setMaxAge(id, er, _, uc))
+    MaxAge(age).liftTo[F] >>= (ms.setMaxAge(id, er, _, uc))
 
   def unsetMaxAge(id: Id, expectedState: StreamState): F[WriteResult] =
     ms.unsetMaxAge(id, expectedState, None)
@@ -61,7 +61,7 @@ final class MetaStreamsOps[F[_]: ErrorM](val ms: MetaStreams[F]) {
     setMaxCountF(id, expectedState, count, uc.some)
 
   private def setMaxCountF(id: Id, er: StreamState, count: Int, uc: Option[UserCredentials]): F[WriteResult] =
-    MaxCount.of[F](count) >>= (ms.setMaxCount(id, er, _, uc))
+    MaxCount(count).liftTo[F] >>= (ms.setMaxCount(id, er, _, uc))
 
   def unsetMaxCount(id: Id, expectedState: StreamState): F[WriteResult] =
     ms.unsetMaxCount(id, expectedState, None)
@@ -86,7 +86,7 @@ final class MetaStreamsOps[F[_]: ErrorM](val ms: MetaStreams[F]) {
     cc: FiniteDuration,
     uc: Option[UserCredentials]
   ): F[WriteResult] =
-    CacheControl.of[F](cc) >>= (ms.setCacheControl(id, er, _, uc))
+    CacheControl(cc).liftTo[F] >>= (ms.setCacheControl(id, er, _, uc))
 
   def unsetCacheControl(id: Id, expectedState: StreamState): F[WriteResult] =
     ms.unsetCacheControl(id, expectedState, None)
@@ -115,7 +115,7 @@ final class MetaStreamsOps[F[_]: ErrorM](val ms: MetaStreams[F]) {
     setTruncateBeforeF(id, expectedState, truncateBefore, uc.some)
 
   private def setTruncateBeforeF(id: Id, er: StreamState, tb: Long, uc: Option[UserCredentials]): F[WriteResult] =
-    StreamPosition.Exact.of[F](tb) >>= (ms.setTruncateBefore(id, er, _, uc))
+    StreamPosition(tb).liftTo[F] >>= (ms.setTruncateBefore(id, er, _, uc))
 
   def unsetTruncateBefore(id: Id, expectedState: StreamState): F[WriteResult] =
     ms.unsetTruncateBefore(id, expectedState, None)
