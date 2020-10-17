@@ -14,7 +14,7 @@ slug: /
 To use @libName@ in an existing [sbt](https://www.scala-sbt.org) project with Scala 2.13 or a later version, 
 add the following to your `build.sbt` file.
 ```scala
-libraryDependencies += "io.github.ahjohannessen" % "sec-fs2" % "@libVersion@"
+libraryDependencies += "io.github.ahjohannessen" %% "sec-fs2" % "@libVersion@"
 ```
 
 ### How to learn
