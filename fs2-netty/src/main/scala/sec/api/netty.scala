@@ -20,10 +20,10 @@ package api
 import java.nio.file.Path
 import cats.effect._
 import cats.syntax.all._
-import io.grpc.netty.NettyChannelBuilder
-import io.grpc.netty.NettyChannelBuilder.{forAddress, forTarget}
-import io.grpc.netty.GrpcSslContexts.forClient
-import io.netty.handler.ssl.SslContext
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder.{forAddress, forTarget}
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts.forClient
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext
 
 object netty {
 

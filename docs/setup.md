@@ -29,7 +29,7 @@ you configure ESDB for production usage.
 
 Create a new project with @libName@ as dependency:
 ```scala
-libraryDependencies += "io.github.ahjohannessen" % "sec-fs2" % "@libVersion@"
+libraryDependencies += "io.github.ahjohannessen" %% "sec-fs2" % "@libVersion@"
 ```
 
 ### Verify Your Setup

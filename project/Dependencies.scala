@@ -13,8 +13,7 @@ object Dependencies {
     val scodecBits       = "1.1.20"
     val circe            = "0.13.0"
     val scalaPb          = scalapb.compiler.Version.scalapbVersion
-    val grpc             = org.lyranthe.fs2_grpc.buildinfo.BuildInfo.grpcVersion
-    val tcnative         = "2.0.30.Final"
+    val grpc             = "1.32.2"
     val disciplineSpecs2 = "1.1.0"
     val specs2           = "4.10.5"
     val catsEffectSpecs2 = "0.4.1"
@@ -23,18 +22,20 @@ object Dependencies {
 
   // Compile
 
-  val cats         = "org.typelevel"        %% "cats-core"                       % versions.catsCore
-  val catsEffect   = "org.typelevel"        %% "cats-effect"                     % versions.catsEffect
-  val fs2          = "co.fs2"               %% "fs2-core"                        % versions.fs2
-  val log4cats     = "io.chrisdavenport"    %% "log4cats-core"                   % versions.log4cats
-  val log4catsNoop = "io.chrisdavenport"    %% "log4cats-noop"                   % versions.log4cats
-  val scodecBits   = "org.scodec"           %% "scodec-bits"                     % versions.scodecBits
-  val circe        = "io.circe"             %% "circe-core"                      % versions.circe
-  val circeParser  = "io.circe"             %% "circe-parser"                    % versions.circe
-  val scalaPb      = "com.thesamet.scalapb" %% "scalapb-runtime"                 % versions.scalaPb
-  val grpcApi      = "io.grpc"               % "grpc-api"                        % versions.grpc
-  val grpcNetty    = "io.grpc"               % "grpc-netty"                      % versions.grpc
-  val tcnative     = "io.netty"              % "netty-tcnative-boringssl-static" % versions.tcnative
+  val cats         = "org.typelevel"        %% "cats-core"         % versions.catsCore
+  val catsEffect   = "org.typelevel"        %% "cats-effect"       % versions.catsEffect
+  val fs2          = "co.fs2"               %% "fs2-core"          % versions.fs2
+  val log4cats     = "io.chrisdavenport"    %% "log4cats-core"     % versions.log4cats
+  val log4catsNoop = "io.chrisdavenport"    %% "log4cats-noop"     % versions.log4cats
+  val scodecBits   = "org.scodec"           %% "scodec-bits"       % versions.scodecBits
+  val circe        = "io.circe"             %% "circe-core"        % versions.circe
+  val circeParser  = "io.circe"             %% "circe-parser"      % versions.circe
+  val scalaPb      = "com.thesamet.scalapb" %% "scalapb-runtime"   % versions.scalaPb
+  val grpcApi      = "io.grpc"               % "grpc-api"          % versions.grpc
+  val grpcStub     = "io.grpc"               % "grpc-stub"         % versions.grpc
+  val grpcCore     = "io.grpc"               % "grpc-core"         % versions.grpc
+  val grpcProtobuf = "io.grpc"               % "grpc-protobuf"     % versions.grpc
+  val grpcNetty    = "io.grpc"               % "grpc-netty-shaded" % versions.grpc
 
   // Testing
 

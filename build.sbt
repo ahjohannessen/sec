@@ -26,7 +26,8 @@ lazy val core = project
   .settings(commonSettings)
   .settings(
     name := "sec-core",
-    libraryDependencies ++= compileM(cats, scodecBits, circe, scalaPb, grpcApi),
+    libraryDependencies ++=
+      compileM(cats, scodecBits, circe, scalaPb, grpcApi, grpcStub, grpcProtobuf, grpcCore),
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
     Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (sourceManaged in Compile).value)
   )
@@ -54,7 +55,7 @@ lazy val `fs2-netty` = project
   .in(file("fs2-netty"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
-  .settings(name := "sec-fs2-client", libraryDependencies ++= compileM(grpcNetty, tcnative))
+  .settings(name := "sec-fs2-client", libraryDependencies ++= compileM(grpcNetty))
   .dependsOn(`fs2-core`)
 
 //==== Tests ===========================================================================================================
