@@ -66,7 +66,7 @@ import sec.StreamPosition
 StreamPosition.Start // Exact(0L)
 StreamPosition(1L)   // Right(Exact(1L))
 StreamPosition.End   // End
-StreamPosition(-1L)  // Left(InvalidInput("value must be >= 0, but is -1""))
+StreamPosition(-1L)  // Left(InvalidInput("value must be >= 0, but is -1"))
 ```
 
 One use case where you need to construct a `StreamPosition` is when you to store a pointer of the last processed 

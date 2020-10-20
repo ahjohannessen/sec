@@ -22,8 +22,8 @@ eventstore/eventstore:20.6.1-bionic
 ```
 
 The above is enough to get something up and running for the purpose of exploration and learning. Consult the 
-[docs](https://developers.eventstore.com/server/20.6/server/installation/) for more details on how 
-you configure @esdb@ for production usage.
+@esdb@ [docs](https://developers.eventstore.com/server/20.6/server/installation/) for more details on
+configuration for production setup.
 
 ### Scala Setup
 
