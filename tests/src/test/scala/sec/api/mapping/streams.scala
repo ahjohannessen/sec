@@ -372,7 +372,7 @@ class StreamsMappingSpec extends mutable.Specification {
       val linkCommit     = 10L
       val linkPrepare    = 10L
       val linkId         = "b8f5ed88-5aa1-49a6-85d6-c173556436ae"
-      val linkEventType  = EventType.systemTypes.LinkTo
+      val linkEventType  = EventType.LinkTo.stringValue
       val linkData       = bv(s"$revision@$streamId")
       val linkCustomMeta = ByteVector.empty
       val linkCreated    = Instant.EPOCH.atZone(ZoneOffset.UTC)
@@ -580,8 +580,8 @@ class StreamsMappingSpec extends mutable.Specification {
     "mkEventType" >> {
       mkEventType[ErrorOr](null) shouldEqual ProtoResultError("Event type name cannot be empty").asLeft
       mkEventType[ErrorOr]("") shouldEqual ProtoResultError("Event type name cannot be empty").asLeft
-      mkEventType[ErrorOr]("sec.protos.A") shouldEqual sec.EventType.userDefined("sec.protos.A").unsafe.asRight
-      mkEventType[ErrorOr]("$system-type") shouldEqual sec.EventType.systemDefined("system-type").unsafe.asRight
+      mkEventType[ErrorOr]("sec.protos.A") shouldEqual sec.EventType.normal("sec.protos.A").unsafe.asRight
+      mkEventType[ErrorOr]("$system-type") shouldEqual sec.EventType.system("system-type").unsafe.asRight
       mkEventType[ErrorOr]("$>") shouldEqual sec.EventType.LinkTo.asRight
     }
 

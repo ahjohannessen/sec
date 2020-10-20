@@ -49,7 +49,9 @@ class SharedMappingSpec extends mutable.Specification {
       mkStreamId[ErrorOr]("abc".toStreamIdentifer) shouldEqual StreamId.normal("abc").unsafe.asRight
       mkStreamId[ErrorOr]("$abc".toStreamIdentifer) shouldEqual StreamId.system("abc").unsafe.asRight
       mkStreamId[ErrorOr]("$all".toStreamIdentifer) shouldEqual StreamId.All.asRight
-      mkStreamId[ErrorOr]("$$abc".toStreamIdentifer) shouldEqual StreamId.MetaId(StreamId.normal("abc").unsafe).asRight
+      mkStreamId[ErrorOr]("$$abc".toStreamIdentifer) shouldEqual StreamId
+        .MetaId(StreamId.normal("abc").unsafe)
+        .asRight
       mkStreamId[ErrorOr]("$$$streams".toStreamIdentifer) shouldEqual StreamId.MetaId(StreamId.Streams).asRight
     }
 

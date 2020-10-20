@@ -25,20 +25,26 @@ import sec.utilities.{guardNonEmpty, guardNotStartsWith}
 sealed trait StreamId
 object StreamId {
 
-  sealed trait Id       extends StreamId
-  sealed trait NormalId extends Id
-  sealed trait SystemId extends Id
-
+  sealed trait Id                 extends StreamId
   final case class MetaId(id: Id) extends StreamId
 
-  case object All       extends SystemId
-  case object Settings  extends SystemId
-  case object Stats     extends SystemId
-  case object Scavenges extends SystemId
-  case object Streams   extends SystemId
+  sealed abstract case class System(name: String) extends Id
+  private[sec] object System {
+    def unsafe(name: String): System = new System(name) {}
+  }
 
-  sealed abstract case class System(name: String) extends SystemId
-  sealed abstract case class Normal(name: String) extends NormalId
+  sealed abstract case class Normal(name: String) extends Id
+  private[sec] object Normal {
+    def unsafe(name: String): Normal = new Normal(name) {}
+  }
+
+  ///
+
+  final val All: System       = System.unsafe("all")
+  final val Settings: System  = System.unsafe("settings")
+  final val Stats: System     = System.unsafe("stats")
+  final val Scavenges: System = System.unsafe("scavenges")
+  final val Streams: System   = System.unsafe("streams")
 
   def apply(name: String): Either[InvalidInput, Id] =
     (guardNonEmptyName(name) >>= guardNotStartsWith(metadataPrefix) >>= stringToId).leftMap(InvalidInput)
@@ -48,12 +54,10 @@ object StreamId {
   private[sec] val guardNonEmptyName: String => Attempt[String] = guardNonEmpty("name")
 
   private[sec] def normal(name: String): Attempt[Normal] =
-    (guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix)).map(new Normal(_) {})
+    (guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix)).map(Normal.unsafe)
 
   private[sec] def system(name: String): Attempt[System] =
-    (guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix)).map(new System(_) {})
-
-  ///
+    (guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix)).map(System.unsafe)
 
   private[sec] val streamIdToString: StreamId => String = {
     case id: Id     => idToString(id)
@@ -66,21 +70,11 @@ object StreamId {
   }
 
   private[sec] val idToString: Id => String = {
-    case All       => systemStreams.All
-    case Settings  => systemStreams.Settings
-    case Stats     => systemStreams.Stats
-    case Scavenges => systemStreams.Scavenges
-    case Streams   => systemStreams.Streams
     case System(n) => s"$systemPrefix$n"
     case Normal(n) => n
   }
 
   private[sec] val stringToId: String => Attempt[Id] = {
-    case systemStreams.All                   => All.asRight
-    case systemStreams.Settings              => Settings.asRight
-    case systemStreams.Stats                 => Stats.asRight
-    case systemStreams.Scavenges             => Scavenges.asRight
-    case systemStreams.Streams               => Streams.asRight
     case sid if sid.startsWith(systemPrefix) => system(sid.substring(systemPrefixLength))
     case sid                                 => normal(sid)
   }
@@ -90,26 +84,19 @@ object StreamId {
   final private[sec] val metadataPrefix: String    = "$$"
   final private[sec] val metadataPrefixLength: Int = metadataPrefix.length
 
-  private[sec] object systemStreams {
-    final val All: String       = "$all"
-    final val Settings: String  = "$settings"
-    final val Stats: String     = "$stats"
-    final val Scavenges: String = "$scavenges"
-    final val Streams: String   = "$streams"
-  }
-
   ///
 
   implicit final class StreamIdOps(val sid: StreamId) extends AnyVal {
 
-    private[sec] def fold[A](nfn: NormalId => A, sfn: SystemId => A, mfn: MetaId => A): A =
+    private[sec] def fold[A](nfn: Normal => A, sfn: System => A, mfn: MetaId => A): A =
       sid match {
-        case n: NormalId => nfn(n)
-        case s: SystemId => sfn(s)
-        case m: MetaId   => mfn(m)
+        case n: Normal => nfn(n)
+        case s: System => sfn(s)
+        case m: MetaId => mfn(m)
       }
 
     def stringValue: String     = streamIdToString(sid)
+    def show: String            = stringValue
     def isNormal: Boolean       = fold(_ => true, _ => false, _ => false)
     def isSystemOrMeta: Boolean = fold(_ => false, _ => true, _ => true)
 
@@ -120,10 +107,7 @@ object StreamId {
   }
 
   implicit val eqForStreamId: Eq[StreamId]     = Eq.fromUniversalEquals[StreamId]
-  implicit val showForStreamId: Show[StreamId] = Show.show[StreamId](_.stringValue)
-  implicit val showForId: Show[Id]             = showForStreamId.narrow[Id]
-  implicit val showForMetaId: Show[MetaId]     = showForStreamId.narrow[MetaId]
-
+  implicit val showForStreamId: Show[StreamId] = Show.show[StreamId](_.show)
 }
 
 //======================================================================================================================

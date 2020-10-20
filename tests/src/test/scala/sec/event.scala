@@ -19,7 +19,6 @@ package sec
 import java.{util => ju}
 import java.time.ZonedDateTime
 import java.util.UUID
-
 import cats.syntax.all._
 import scodec.bits.ByteVector
 import org.specs2.mutable.Specification
@@ -123,42 +122,47 @@ class EventSpec extends Specification {
 
 class EventTypeSpec extends Specification {
 
-  import EventType.{systemTypes => st}
-
-  val usr: EventType = EventType.userDefined("user").unsafe
-  val sys: EventType = EventType.systemDefined("system").unsafe
+  val normal: EventType = EventType.Normal.unsafe("user")
+  val system: EventType = EventType.System.unsafe("system")
 
   "apply" >> {
     EventType("") should beLeft(InvalidInput("Event type name cannot be empty"))
     EventType("$users") should beLeft(InvalidInput("value must not start with $, but is $users"))
-    EventType("users") should beRight(EventType.userDefined("users").unsafe)
+    EventType("users") should beRight(EventType.normal("users").unsafe)
   }
 
   "eventTypeToString" >> {
-    EventType.eventTypeToString(EventType.StreamDeleted) shouldEqual st.StreamDeleted
-    EventType.eventTypeToString(EventType.StatsCollected) shouldEqual st.StatsCollected
-    EventType.eventTypeToString(EventType.LinkTo) shouldEqual st.LinkTo
-    EventType.eventTypeToString(EventType.StreamReference) shouldEqual st.StreamReference
-    EventType.eventTypeToString(EventType.StreamMetadata) shouldEqual st.StreamMetadata
-    EventType.eventTypeToString(EventType.Settings) shouldEqual st.Settings
-    EventType.eventTypeToString(usr) shouldEqual "user"
-    EventType.eventTypeToString(sys) shouldEqual "$system"
+    EventType.eventTypeToString(EventType.StreamDeleted) shouldEqual "$streamDeleted"
+    EventType.eventTypeToString(EventType.StatsCollected) shouldEqual "$statsCollected"
+    EventType.eventTypeToString(EventType.LinkTo) shouldEqual "$>"
+    EventType.eventTypeToString(EventType.StreamReference) shouldEqual "$@"
+    EventType.eventTypeToString(EventType.StreamMetadata) shouldEqual "$metadata"
+    EventType.eventTypeToString(EventType.Settings) shouldEqual "$settings"
+    EventType.eventTypeToString(normal) shouldEqual "user"
+    EventType.eventTypeToString(system) shouldEqual s"$$system"
   }
 
   "stringToEventType" >> {
-    EventType.stringToEventType(st.StreamDeleted) shouldEqual EventType.StreamDeleted.asRight
-    EventType.stringToEventType(st.StatsCollected) shouldEqual EventType.StatsCollected.asRight
-    EventType.stringToEventType(st.LinkTo) shouldEqual EventType.LinkTo.asRight
-    EventType.stringToEventType(st.StreamReference) shouldEqual EventType.StreamReference.asRight
-    EventType.stringToEventType(st.StreamMetadata) shouldEqual EventType.StreamMetadata.asRight
-    EventType.stringToEventType(st.Settings) shouldEqual EventType.Settings.asRight
-    EventType.stringToEventType(EventType.eventTypeToString(usr)) should beRight(usr)
-    EventType.stringToEventType(EventType.eventTypeToString(sys)) should beRight(sys)
+    EventType.stringToEventType("$streamDeleted") shouldEqual EventType.StreamDeleted.asRight
+    EventType.stringToEventType("$statsCollected") shouldEqual EventType.StatsCollected.asRight
+    EventType.stringToEventType("$>") shouldEqual EventType.LinkTo.asRight
+    EventType.stringToEventType("$@") shouldEqual EventType.StreamReference.asRight
+    EventType.stringToEventType("$metadata") shouldEqual EventType.StreamMetadata.asRight
+    EventType.stringToEventType("$settings") shouldEqual EventType.Settings.asRight
+    EventType.stringToEventType(normal.stringValue) should beRight(normal)
+    EventType.stringToEventType(system.stringValue) should beRight(system)
   }
 
   "show" >> {
     val et = sampleOf[EventType]
-    et.show shouldEqual EventType.eventTypeToString(et)
+    et.show shouldEqual et.stringValue
+  }
+
+  "EventTypeOps" >> {
+    "stringValue" >> {
+      val et = sampleOf[EventType]
+      et.stringValue shouldEqual EventType.eventTypeToString(et)
+    }
   }
 
 }
@@ -172,9 +176,9 @@ class EventDataSpec extends Specification {
   def encode(data: String): ByteVector =
     encodeToBV(data).unsafe
 
-  val bve: ByteVector           = ByteVector.empty
-  val et: EventType.UserDefined = EventType("eventType").unsafe
-  val id: UUID                  = sampleOf[ju.UUID]
+  val bve: ByteVector      = ByteVector.empty
+  val et: EventType.Normal = EventType("eventType").unsafe
+  val id: UUID             = sampleOf[ju.UUID]
 
   val dataJson: ByteVector   = encode("""{ "data": "1" }""")
   val metaJson: ByteVector   = encode("""{ "meta": "2" }""")
