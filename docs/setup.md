@@ -6,9 +6,9 @@ sidebar_label: Quick Start
 In order to learn about @libName@ in the following sections you will need a basic setup.
 Below are instructions to get you up and running. 
 
-### EventStoreDB Setup
+### @esdb@ Setup
 
-First we need to get an EventStoreDB node loaded up. One easy way to do this is to use docker and start up a single ESDB
+First we need to get an @esdb@ node loaded up. One easy way to do this is to use docker and start up a single 
 node in in-secure mode as follows:
 ```console
 docker run -it --rm --name es-node \
@@ -22,8 +22,8 @@ eventstore/eventstore:20.6.1-bionic
 ```
 
 The above is enough to get something up and running for the purpose of exploration and learning. Consult the 
-[ESDB 20.6.x docs](https://developers.eventstore.com/server/20.6/server/installation/) for more details on how 
-you configure ESDB for production usage.
+[docs](https://developers.eventstore.com/server/20.6/server/installation/) for more details on how 
+you configure @esdb@ for production usage.
 
 ### Scala Setup
 
