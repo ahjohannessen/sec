@@ -6,7 +6,7 @@
 <meta name="generator" content="Docusaurus v2.0.0-alpha.65">
 <title data-react-helmet="true">Writing Events | Scala EventStoreDB Client</title><meta data-react-helmet="true" name="docsearch:version" content="current,latest"><meta data-react-helmet="true" name="twitter:card" content="summary_large_image"><meta data-react-helmet="true" property="og:title" content="Writing Events | Scala EventStoreDB Client"><meta data-react-helmet="true" name="description" content="`scala"><meta data-react-helmet="true" property="og:description" content="`scala"><meta data-react-helmet="true" property="og:url" content="https://ahjohannessen.github.com/sec/docs/writing"><link data-react-helmet="true" rel="shortcut icon" href="/sec/img/favicon.ico"><link data-react-helmet="true" rel="canonical" href="https://ahjohannessen.github.com/sec/docs/writing"><link rel="stylesheet" href="/sec/styles.922ea611.css">
 <link rel="preload" href="/sec/styles.7a3ee7fe.js" as="script">
-<link rel="preload" href="/sec/runtime~main.6092f3f7.js" as="script">
+<link rel="preload" href="/sec/runtime~main.41897e64.js" as="script">
 <link rel="preload" href="/sec/main.02aafb7e.js" as="script">
 <link rel="preload" href="/sec/1.50701c46.js" as="script">
 <link rel="preload" href="/sec/2.f9688b52.js" as="script">
@@ -28,7 +28,7 @@
 </span></div><div class="token-line" style="color:#bfc7d5"><span class="token plain">    for {</span></div><div class="token-line" style="color:#bfc7d5"><span class="token plain">      streamId &lt;- mkStreamId</span></div><div class="token-line" style="color:#bfc7d5"><span class="token plain">      data     &lt;- NonEmptyList.of(eventData1, eventData2).sequence</span></div><div class="token-line" style="color:#bfc7d5"><span class="token plain">      _        &lt;- streams.appendToStream(streamId, StreamState.NoStream, data)</span></div><div class="token-line" style="color:#bfc7d5"><span class="token plain">      _        &lt;- streams.readStreamForwards(streamId).debug(_.show).compile.drain</span></div><div class="token-line" style="color:#bfc7d5"><span class="token plain">    } yield ()</span></div><div class="token-line" style="color:#bfc7d5"><span class="token plain">  }</span></div><div class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block">
 </span></div><div class="token-line" style="color:#bfc7d5"><span class="token plain">}</span></div></div></div></div></div></div></article><div class="margin-vert--lg"><nav class="pagination-nav" aria-label="Blog list page navigation"><div class="pagination-nav__item"><a class="pagination-nav__link" href="/sec/docs/config"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">« Configuration</div></a></div><div class="pagination-nav__item pagination-nav__item--next"><a class="pagination-nav__link" href="/sec/docs/reading"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Reading Events »</div></a></div></nav></div></div></div><div class="col col--3"><div class="tableOfContents_3SO_"></div></div></div></div></main></div></div><footer class="footer footer--dark"><div class="container"><div class="text--center"><div>Copyright © 2020, sec contributors.</div></div></div></footer></div>
 <script src="/sec/styles.7a3ee7fe.js"></script>
-<script src="/sec/runtime~main.6092f3f7.js"></script>
+<script src="/sec/runtime~main.41897e64.js"></script>
 <script src="/sec/main.02aafb7e.js"></script>
 <script src="/sec/1.50701c46.js"></script>
 <script src="/sec/2.f9688b52.js"></script>
