@@ -16,7 +16,7 @@ with `$$`, e.g. the corresponding metadata stream for `$settings` is `$$$setting
 streams are prefixed with a `$`, e.g. `user_stream` has a corresponding metadata stream named `$user_stream`.
 
 In @libName@ a stream identifier is an ADT called `StreamId` with variants `Id` and `MetaId` - `Id`
-has two variants, `NormalId` and `SystemId`. The stream identifiers that a user can create are `NormalId` and `SystemId`,
+has two variants, `Normal` and `System`. The stream identifiers that a user can create are `Normal` and `System`,
 this is done with `StreamId.apply` that returns an `Either[InvalidInput, Id]`. Some examples of `StreamId` construction 
 are:
 
@@ -40,14 +40,12 @@ StreamId("$$oops")  // Left(InvalidInput("value must not start with $$, but is $
 Moreover, a few common system stream identififiers are located in the `StreamId` companion object, for instance:
 
 ```scala mdoc:silent
-import cats.syntax.all._
 import sec.StreamId
 
-val all       = StreamId.All       // $all
-val scavanges = StreamId.Scavenges // $scavenges
-
-all.metaId.show                    // $$$all
-scavanges.metaId.show              // $$$scavenges
+StreamId.All.show               // $all
+StreamId.All.metaId.show        // $$$all
+StreamId.Scavenges.show         // $scavenges
+StreamId.Scavenges.metaId.show  // $$$scavenges
 ```
 
 
@@ -125,16 +123,16 @@ However, this is not recommended as it couples storage to your types. Instead, y
 types stored in @esdb@ and your concrete runtime types.
 
 The string that @esdb@ uses for the event type is modelled in @libName@ as an ADT with two main variants
-`UserDefined` and `SystemType`. The type that you can create is `UserDefined` and this is done with `EventType.apply` 
-that returns `Either[InvalidInput, UserDefined]`. Input is validated for emptiness and not starting with `$` that @esdb@ 
-uses for system reserved types such as `$>` and `$metadata`.
+`Normal` and `System`. The type that you can create is `Normal` and this is done with `EventType.apply` 
+that returns `Either[InvalidInput, Normal]`. Input is validated for emptiness and not starting with `$` that @esdb@ 
+uses for reserved system defined types such as `$>` and `$metadata`.
 
 Examples of `EventType` construction:
 
 ```scala mdoc:silent
 import sec.EventType
 
-EventType("foo.bar.baz") // Right(UserDefined("foo.bar.baz")
+EventType("foo.bar.baz") // Right(Normal("foo.bar.baz")
 EventType("")            // Left(InvalidInput("Event type name cannot be empty"))
 EventType("$@")          // Left(InvalidInput("value must not start with $, but is $@"))
 ```
@@ -144,10 +142,10 @@ Common system types are located in the companion of `EventType`, some examples a
 ```scala mdoc:silent
 import sec.EventType
 
-EventType.LinkTo          // $>
-EventType.StreamMetadata  // $metadata
-EventType.Settings        // $settings
-EventType.StreamReference // $@
+EventType.LinkTo.show          // $>
+EventType.StreamMetadata.show  // $metadata
+EventType.Settings.show        // $settings
+EventType.StreamReference.show // $@
 ```
 
 #### EventId

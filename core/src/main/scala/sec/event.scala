@@ -100,66 +100,59 @@ object ResolvedEvent {
 sealed trait EventType
 object EventType {
 
-  sealed trait SystemType     extends EventType
-  case object StreamDeleted   extends SystemType
-  case object StatsCollected  extends SystemType
-  case object LinkTo          extends SystemType
-  case object StreamReference extends SystemType
-  case object StreamMetadata  extends SystemType
-  case object Settings        extends SystemType
+  sealed abstract case class System(name: String) extends EventType
+  private[sec] object System {
+    def unsafe(name: String): System = new System(name) {}
+  }
 
-  sealed abstract case class SystemDefined(name: String) extends SystemType
-  sealed abstract case class UserDefined(name: String)   extends EventType
+  sealed abstract case class Normal(name: String) extends EventType
+  private[sec] object Normal {
+    def unsafe(name: String): Normal = new Normal(name) {}
+  }
 
-  def apply(name: String): Either[InvalidInput, UserDefined] = userDefined(name).leftMap(InvalidInput)
+  ///
+
+  final val StreamDeleted: System   = System.unsafe("streamDeleted")
+  final val StatsCollected: System  = System.unsafe("statsCollected")
+  final val LinkTo                  = System.unsafe(">")
+  final val StreamReference: System = System.unsafe("@")
+  final val StreamMetadata: System  = System.unsafe("metadata")
+  final val Settings: System        = System.unsafe("settings")
+
+  def apply(name: String): Either[InvalidInput, Normal] =
+    normal(name).leftMap(InvalidInput)
 
   ///
 
   private[sec] val guardNonEmptyName: String => Attempt[String] = guardNonEmpty("Event type name")
 
-  private[sec] def systemDefined(name: String): Attempt[SystemDefined] =
-    guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix) >>= (n => new SystemDefined(n) {}.asRight)
+  private[sec] def system(name: String): Attempt[System] =
+    guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix) >>= (System.unsafe(_).asRight)
 
-  private[sec] def userDefined(name: String): Attempt[UserDefined] =
-    guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix) >>= (n => new UserDefined(n) {}.asRight)
+  private[sec] def normal(name: String): Attempt[Normal] =
+    guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix) >>= (Normal.unsafe(_).asRight)
 
   ///
 
   private[sec] val eventTypeToString: EventType => String = {
-    case StreamDeleted    => systemTypes.StreamDeleted
-    case StatsCollected   => systemTypes.StatsCollected
-    case LinkTo           => systemTypes.LinkTo
-    case StreamReference  => systemTypes.StreamReference
-    case StreamMetadata   => systemTypes.StreamMetadata
-    case Settings         => systemTypes.Settings
-    case SystemDefined(n) => s"$systemPrefix$n"
-    case UserDefined(n)   => n
+    case System(n) => s"$systemPrefix$n"
+    case Normal(n) => n
   }
 
   private[sec] val stringToEventType: String => Attempt[EventType] = {
-    case systemTypes.StreamDeleted         => StreamDeleted.asRight
-    case systemTypes.StatsCollected        => StatsCollected.asRight
-    case systemTypes.LinkTo                => LinkTo.asRight
-    case systemTypes.StreamReference       => StreamReference.asRight
-    case systemTypes.StreamMetadata        => StreamMetadata.asRight
-    case systemTypes.Settings              => Settings.asRight
-    case sd if sd.startsWith(systemPrefix) => systemDefined(sd.substring(systemPrefixLength))
-    case ud                                => userDefined(ud)
+    case sd if sd.startsWith(systemPrefix) => system(sd.substring(systemPrefixLength))
+    case ud                                => normal(ud)
   }
 
   final private[sec] val systemPrefix: String    = "$"
   final private[sec] val systemPrefixLength: Int = systemPrefix.length
 
-  private[sec] object systemTypes {
-    final val StreamDeleted: String   = "$streamDeleted"
-    final val StatsCollected: String  = "$statsCollected"
-    final val LinkTo: String          = "$>"
-    final val StreamReference: String = "$@"
-    final val StreamMetadata: String  = "$metadata"
-    final val Settings: String        = "$settings"
+  implicit final class EventTypeOps(val et: EventType) extends AnyVal {
+    def stringValue: String = eventTypeToString(et)
+    def show: String        = stringValue
   }
 
-  implicit val showForEventType: Show[EventType] = Show.show[EventType](eventTypeToString)
+  implicit val showForEventType: Show[EventType] = Show.show[EventType](_.show)
 
 }
 

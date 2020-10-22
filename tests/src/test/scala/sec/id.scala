@@ -21,50 +21,47 @@ import org.scalacheck._
 import cats.kernel.laws.discipline._
 import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
-import sec.helpers.implicits._
 import sec.arbitraries._
 
 class StreamIdSpec extends Specification with Discipline {
 
-  import StreamId.{systemStreams => ss}
-
-  val normalId: StreamId.Normal = StreamId.normal("normal").unsafe
-  val systemId: StreamId.System = StreamId.system("system").unsafe
+  val normal: StreamId.Normal = StreamId.Normal.unsafe("normal")
+  val system: StreamId.System = StreamId.System.unsafe("system")
 
   "apply" >> {
     StreamId("") should beLeft(InvalidInput("name cannot be empty"))
     StreamId("$$meta") should beLeft(InvalidInput("value must not start with $$, but is $$meta"))
     StreamId("$users") shouldEqual StreamId.system("users")
     StreamId("users") shouldEqual StreamId.normal("users")
-    StreamId(ss.All) shouldEqual StreamId.All.asRight
-    StreamId(ss.Settings) shouldEqual StreamId.Settings.asRight
-    StreamId(ss.Stats) shouldEqual StreamId.Stats.asRight
-    StreamId(ss.Scavenges) shouldEqual StreamId.Scavenges.asRight
-    StreamId(ss.Streams) shouldEqual StreamId.Streams.asRight
+    StreamId("$all") shouldEqual StreamId.All.asRight
+    StreamId("$settings") shouldEqual StreamId.Settings.asRight
+    StreamId("$stats") shouldEqual StreamId.Stats.asRight
+    StreamId("$scavenges") shouldEqual StreamId.Scavenges.asRight
+    StreamId("$streams") shouldEqual StreamId.Streams.asRight
   }
 
   "streamIdToString" >> {
-    StreamId.streamIdToString(StreamId.All) shouldEqual ss.All
-    StreamId.streamIdToString(StreamId.Settings) shouldEqual ss.Settings
-    StreamId.streamIdToString(StreamId.Stats) shouldEqual ss.Stats
-    StreamId.streamIdToString(StreamId.Scavenges) shouldEqual ss.Scavenges
-    StreamId.streamIdToString(StreamId.Streams) shouldEqual ss.Streams
-    StreamId.streamIdToString(systemId) shouldEqual "$system"
-    StreamId.streamIdToString(normalId) shouldEqual "normal"
-    StreamId.streamIdToString(systemId.metaId) shouldEqual "$$$system"
-    StreamId.streamIdToString(normalId.metaId) shouldEqual "$$normal"
+    StreamId.streamIdToString(StreamId.All) shouldEqual "$all"
+    StreamId.streamIdToString(StreamId.Settings) shouldEqual "$settings"
+    StreamId.streamIdToString(StreamId.Stats) shouldEqual "$stats"
+    StreamId.streamIdToString(StreamId.Scavenges) shouldEqual "$scavenges"
+    StreamId.streamIdToString(StreamId.Streams) shouldEqual "$streams"
+    StreamId.streamIdToString(system) shouldEqual s"$$system"
+    StreamId.streamIdToString(normal) shouldEqual "normal"
+    StreamId.streamIdToString(system.metaId) shouldEqual "$$$system"
+    StreamId.streamIdToString(normal.metaId) shouldEqual "$$normal"
   }
 
   "stringToStreamId" >> {
-    StreamId.stringToStreamId("$$normal") shouldEqual normalId.metaId.asRight
-    StreamId.stringToStreamId("$$$system") shouldEqual systemId.metaId.asRight
-    StreamId.stringToStreamId(ss.All) shouldEqual StreamId.All.asRight
-    StreamId.stringToStreamId(ss.Settings) shouldEqual StreamId.Settings.asRight
-    StreamId.stringToStreamId(ss.Stats) shouldEqual StreamId.Stats.asRight
-    StreamId.stringToStreamId(ss.Scavenges) shouldEqual StreamId.Scavenges.asRight
-    StreamId.stringToStreamId(ss.Streams) shouldEqual StreamId.Streams.asRight
-    StreamId.stringToStreamId(systemId.stringValue) should beRight(systemId)
-    StreamId.stringToStreamId(normalId.stringValue) should beRight(normalId)
+    StreamId.stringToStreamId("$$normal") shouldEqual normal.metaId.asRight
+    StreamId.stringToStreamId("$$$system") shouldEqual system.metaId.asRight
+    StreamId.stringToStreamId("$all") shouldEqual StreamId.All.asRight
+    StreamId.stringToStreamId("$settings") shouldEqual StreamId.Settings.asRight
+    StreamId.stringToStreamId("$stats") shouldEqual StreamId.Stats.asRight
+    StreamId.stringToStreamId("$scavenges") shouldEqual StreamId.Scavenges.asRight
+    StreamId.stringToStreamId("$streams") shouldEqual StreamId.Streams.asRight
+    StreamId.stringToStreamId(system.stringValue) should beRight(system)
+    StreamId.stringToStreamId(normal.stringValue) should beRight(normal)
   }
 
   "show" >> {
@@ -75,9 +72,9 @@ class StreamIdSpec extends Specification with Discipline {
   "StreamIdOps" >> {
 
     "fold" >> {
-      normalId.fold(_ => true, _ => false, _ => false) should beTrue
-      systemId.fold(_ => false, _ => true, _ => false) should beTrue
-      List(normalId, systemId).map(_.metaId.fold(_ => false, _ => false, _ => true)).forall(identity) should beTrue
+      normal.fold(_ => true, _ => false, _ => false) should beTrue
+      system.fold(_ => false, _ => true, _ => false) should beTrue
+      List(normal, system).map(_.metaId.fold(_ => false, _ => false, _ => true)).forall(identity) should beTrue
     }
 
     "stringValue" >> {
@@ -86,15 +83,15 @@ class StreamIdSpec extends Specification with Discipline {
     }
 
     "isNormalStream" >> {
-      normalId.isNormal should beTrue
-      systemId.isNormal should beFalse
-      List(normalId, systemId).map(_.metaId.isNormal).forall(identity) should beFalse
+      normal.isNormal should beTrue
+      system.isNormal should beFalse
+      List(normal, system).map(_.metaId.isNormal).forall(identity) should beFalse
     }
 
     "isSystemOrMeta" >> {
-      normalId.isSystemOrMeta should beFalse
-      systemId.isSystemOrMeta should beTrue
-      List(normalId, systemId).map(_.metaId.isSystemOrMeta).forall(identity) should beTrue
+      normal.isSystemOrMeta should beFalse
+      system.isSystemOrMeta should beTrue
+      List(normal, system).map(_.metaId.isSystemOrMeta).forall(identity) should beTrue
     }
 
   }

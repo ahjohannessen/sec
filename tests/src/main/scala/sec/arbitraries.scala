@@ -88,22 +88,16 @@ object arbitraries {
   implicit val arbStreamIdNormal: Arbitrary[StreamId.Normal] =
     Arbitrary[StreamId.Normal](idGen.genStreamIdNormal(""))
 
-  implicit val arbStreamIdSystem: Arbitrary[StreamId.System] =
-    Arbitrary[StreamId.System](StreamId.system(sampleOf[StreamId.Normal].name).unsafe)
-
-  implicit val arbStreamIdNormalId: Arbitrary[StreamId.NormalId] =
-    Arbitrary[StreamId.NormalId](sampleOf[StreamId.Normal])
-
-  implicit val arbStreamIdSystemId: Arbitrary[StreamId.SystemId] = Arbitrary[StreamId.SystemId] {
+  implicit val arbStreamIdSystem: Arbitrary[StreamId.System] = Arbitrary[StreamId.System] {
     import StreamId._
-    Gen.oneOf(All, Settings, Stats, Scavenges, Streams, sampleOf[System])
+    Gen.oneOf(All, Settings, Stats, Scavenges, Streams, System.unsafe(sampleOf[StreamId.Normal].name))
   }
 
   implicit val arbStreamIdId: Arbitrary[StreamId.Id] =
-    Arbitrary[StreamId.Id](Gen.oneOf(sampleOf[StreamId.Normal], sampleOf[StreamId.SystemId]))
+    Arbitrary[StreamId.Id](Gen.oneOf(sampleOf[StreamId.Normal], sampleOf[StreamId.System]))
 
   implicit val arbStreamIdMetaId: Arbitrary[StreamId.MetaId] =
-    Arbitrary[StreamId.MetaId](Gen.oneOf(sampleOf[StreamId.SystemId], sampleOf[StreamId.Normal]).map(_.metaId))
+    Arbitrary[StreamId.MetaId](Gen.oneOf(sampleOf[StreamId.System], sampleOf[StreamId.Normal]).map(_.metaId))
 
   implicit val arbStreamId: Arbitrary[StreamId] =
     Arbitrary[StreamId](Gen.oneOf(sampleOf[StreamId.Id], sampleOf[StreamId.MetaId]))
@@ -116,33 +110,38 @@ object arbitraries {
 
     val defaultPrefix = "com.eventstore.client.Event"
 
-    def genEventTypeUserDefined(prefix: String): Gen[EventType.UserDefined] = {
+    def genEventTypeUserDefined(prefix: String): Gen[EventType.Normal] = {
 
       val gen: Gen[String] = for {
         c  <- Gen.alphaUpperChar
         cs <- Gen.listOfN(2, Gen.alphaLowerChar)
       } yield s"$prefix${(c :: cs).mkString}"
 
-      gen.map(et => EventType.userDefined(et).unsafe)
+      gen.map(et => EventType.normal(et).unsafe)
     }
 
   }
 
-  implicit val arbEventTypeUserDefined: Arbitrary[EventType.UserDefined] = {
+  implicit val arbEventTypeUserDefined: Arbitrary[EventType.Normal] = {
     import eventTypeGen._
-    Arbitrary[EventType.UserDefined](genEventTypeUserDefined(defaultPrefix))
+    Arbitrary[EventType.Normal](genEventTypeUserDefined(defaultPrefix))
   }
 
-  implicit val arbEventTypeSystemDefined: Arbitrary[EventType.SystemDefined] =
-    Arbitrary[EventType.SystemDefined](EventType.systemDefined(sampleOf[EventType.UserDefined].name).unsafe)
-
-  implicit val arbEventTypeSystemType: Arbitrary[EventType.SystemType] = Arbitrary[EventType.SystemType] {
+  implicit val arbEventTypeSysteDefined: Arbitrary[EventType.System] = Arbitrary[EventType.System] {
     import EventType._
-    Gen.oneOf(StreamDeleted, StatsCollected, LinkTo, StreamReference, StreamMetadata, Settings, sampleOf[SystemDefined])
+    Gen.oneOf(
+      StreamDeleted,
+      StatsCollected,
+      LinkTo,
+      StreamReference,
+      StreamMetadata,
+      Settings,
+      System.unsafe(sampleOf[Normal].name)
+    )
   }
 
   implicit val arbEventType: Arbitrary[EventType] =
-    Arbitrary[EventType](Gen.oneOf(sampleOf[EventType.SystemType], sampleOf[EventType.UserDefined]))
+    Arbitrary[EventType](Gen.oneOf(sampleOf[EventType.System], sampleOf[EventType.Normal]))
 
 //======================================================================================================================
 // Metadata
