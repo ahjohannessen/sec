@@ -2,7 +2,7 @@ version: '3.8'
 services:
 
   es:
-    image: quay.io/ahjohannessen/es-v6:channels
+    image: quay.io/ahjohannessen/es-v6:latest
     env_file:
       - shared.env
     environment:
