@@ -115,7 +115,9 @@ lazy val commonSettings = Seq(
   Compile / doc / sources := {
     val old = (Compile / doc / sources).value
     if (isDotty.value) Nil else old
-  }
+  },
+  Compile / doc / scalacOptions ~=
+    (_.filterNot(_ == "-Xfatal-warnings"))
 )
 
 inThisBuild(

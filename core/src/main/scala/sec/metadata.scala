@@ -110,10 +110,17 @@ private[sec] object StreamMetadata {
 
 //======================================================================================================================
 
+/**
+ * The maximum age of events in the stream. Events older than this
+ * will be automatically removed.
+ */
 sealed abstract case class MaxAge(value: FiniteDuration)
 object MaxAge {
 
   /**
+   * The maximum age of events in the stream. Events older than this
+   * will be automatically removed.
+   *
    * @param maxAge must be greater than or equal to 1 second.
    */
   def apply(maxAge: FiniteDuration): Either[InvalidInput, MaxAge] =
@@ -123,6 +130,10 @@ object MaxAge {
   implicit val showForMaxAge: Show[MaxAge] = Show.show(_.value.toString())
 }
 
+/**
+ * The maximum count of events in the stream. When the stream has more
+ * than max count then the oldest will be removed.
+ */
 sealed abstract case class MaxCount(value: Int)
 object MaxCount {
 
@@ -139,6 +150,12 @@ object MaxCount {
 
 }
 
+/**
+ * Used for the ATOM API of EventStoreDB. The head of a feed in the ATOM API is not cacheable.
+ * This value allows you to specify a period of time you want it to be cacheable.
+ * Low numbers are best here, e.g. 30-60 seconds, and introducing values
+ * here will introduce latency over the ATOM protocol if caching is occuring.
+ */
 sealed abstract case class CacheControl(value: FiniteDuration)
 object CacheControl {
 
@@ -262,6 +279,8 @@ private[sec] object MetaState {
 //======================================================================================================================
 
 /**
+ * Access Control List for a stream.
+ *
  * @param readRoles Roles and users permitted to read the stream.
  * @param writeRoles Roles and users permitted to write to the stream.
  * @param deleteRoles Roles and users permitted to delete the stream.

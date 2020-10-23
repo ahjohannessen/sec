@@ -21,6 +21,13 @@ import cats.Eq
 
 //======================================================================================================================
 
+/**
+ * Direction used when reading from a stream with variants:
+ *
+ *   - [[Direction.Forwards]] when you wish to read forwards.
+ *   - [[Direction.Backwards]] when you wish to read backwards. This is useful when reading the latest [[StreamPosition.Exact]]
+ *     value of a particular stream.
+ */
 sealed trait Direction
 object Direction {
 
