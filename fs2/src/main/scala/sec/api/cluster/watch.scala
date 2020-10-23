@@ -61,7 +61,7 @@ private[sec] object ClusterWatch {
       updates   = mkWatch(store.get, options.notificationInterval).subscribe
       provider <- mkProvider(updates)
       channel  <- mkChannel(provider)
-      watch    <- create[F](gossipFn(channel).read(None), options, store, logger)
+      watch    <- create[F](gossipFn(channel).read, options, store, logger)
     } yield watch
 
   }

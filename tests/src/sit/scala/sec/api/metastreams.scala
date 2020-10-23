@@ -215,11 +215,11 @@ class MetaStreamsSuite extends SnSpec {
         for {
           sid <- mkStreamId("custom_api").pure[IO]
           foo <- Foo(bars = (1 to 5).map(i => Bar(i.toString)).toList).pure[IO]
-          ma1 <- metaStreams.getCustom[Foo](sid, None)
-          wr1 <- metaStreams.setCustom(sid, NoStream, foo, None)
-          ma2 <- metaStreams.getCustom[Foo](sid, None)
-          wr2 <- metaStreams.unsetCustom(sid, wr1.streamPosition, None)
-          ma3 <- metaStreams.getCustom[Foo](sid, None)
+          ma1 <- metaStreams.getCustom[Foo](sid)
+          wr1 <- metaStreams.setCustom(sid, NoStream, foo)
+          ma2 <- metaStreams.getCustom[Foo](sid)
+          wr2 <- metaStreams.unsetCustom(sid, wr1.streamPosition)
+          ma3 <- metaStreams.getCustom[Foo](sid)
         } yield {
           ma1 should beNone
           wr1.streamPosition shouldEqual Start

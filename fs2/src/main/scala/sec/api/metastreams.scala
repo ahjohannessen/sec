@@ -35,133 +35,37 @@ import MetaStreams._
 
 trait MetaStreams[F[_]] {
 
-  def getMaxAge(
-    id: Id,
-    creds: Option[UserCredentials]
-  ): F[Option[ReadResult[MaxAge]]]
+  def getMaxAge(id: Id): F[Option[ReadResult[MaxAge]]]
+  def setMaxAge(id: Id, expectedState: StreamState, age: MaxAge): F[WriteResult]
+  def unsetMaxAge(id: Id, expectedState: StreamState): F[WriteResult]
 
-  def setMaxAge(
-    id: Id,
-    expectedState: StreamState,
-    age: MaxAge,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
+  def getMaxCount(id: Id): F[Option[ReadResult[MaxCount]]]
+  def setMaxCount(id: Id, expectedState: StreamState, count: MaxCount): F[WriteResult]
+  def unsetMaxCount(id: Id, expectedState: StreamState): F[WriteResult]
 
-  def unsetMaxAge(
-    id: Id,
-    expectedState: StreamState,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
+  def getCacheControl(id: Id): F[Option[ReadResult[CacheControl]]]
+  def setCacheControl(id: Id, expectedState: StreamState, cacheControl: CacheControl): F[WriteResult]
+  def unsetCacheControl(id: Id, expectedState: StreamState): F[WriteResult]
 
-  def getMaxCount(
-    id: Id,
-    creds: Option[UserCredentials]
-  ): F[Option[ReadResult[MaxCount]]]
+  def getAcl(id: Id): F[Option[ReadResult[StreamAcl]]]
+  def setAcl(id: Id, expectedState: StreamState, acl: StreamAcl): F[WriteResult]
+  def unsetAcl(id: Id, expectedState: StreamState): F[WriteResult]
 
-  def setMaxCount(
-    id: Id,
-    expectedState: StreamState,
-    count: MaxCount,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
+  def getTruncateBefore(id: Id): F[Option[ReadResult[Exact]]]
+  def setTruncateBefore(id: Id, expectedState: StreamState, truncateBefore: Exact): F[WriteResult]
+  def unsetTruncateBefore(id: Id, expectedState: StreamState): F[WriteResult]
 
-  def unsetMaxCount(
-    id: Id,
-    expectedState: StreamState,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
+  def getCustom[T: Decoder](id: Id): F[Option[ReadResult[T]]]
+  def setCustom[T: Encoder.AsObject](id: Id, expectedState: StreamState, custom: T): F[WriteResult]
+  def unsetCustom(id: Id, expectedState: StreamState): F[WriteResult]
 
-  def getCacheControl(
-    id: Id,
-    creds: Option[UserCredentials]
-  ): F[Option[ReadResult[CacheControl]]]
-
-  def setCacheControl(
-    id: Id,
-    expectedState: StreamState,
-    cacheControl: CacheControl,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
-
-  def unsetCacheControl(
-    id: Id,
-    expectedState: StreamState,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
-
-  def getAcl(
-    id: Id,
-    creds: Option[UserCredentials]
-  ): F[Option[ReadResult[StreamAcl]]]
-
-  def setAcl(
-    id: Id,
-    expectedState: StreamState,
-    acl: StreamAcl,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
-
-  def unsetAcl(
-    id: Id,
-    expectedState: StreamState,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
-
-  def getTruncateBefore(
-    id: Id,
-    creds: Option[UserCredentials]
-  ): F[Option[ReadResult[Exact]]]
-
-  def setTruncateBefore(
-    id: Id,
-    expectedState: StreamState,
-    truncateBefore: Exact,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
-
-  def unsetTruncateBefore(
-    id: Id,
-    expectedState: StreamState,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
-
-  def getCustom[T: Decoder](
-    id: Id,
-    creds: Option[UserCredentials]
-  ): F[Option[ReadResult[T]]]
-
-  def setCustom[T: Encoder.AsObject](
-    id: Id,
-    expectedState: StreamState,
-    custom: T,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
-
-  def unsetCustom(
-    id: Id,
-    expectedState: StreamState,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
+  def withCredentials(creds: UserCredentials): MetaStreams[F]
 
   ///
 
-  private[sec] def getMetadata(
-    id: Id,
-    creds: Option[UserCredentials]
-  ): F[Option[MetaResult]]
-
-  private[sec] def setMetadata(
-    id: Id,
-    expectedState: StreamState,
-    data: StreamMetadata,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
-
-  private[sec] def unsetMetadata(
-    id: Id,
-    expectedState: StreamState,
-    creds: Option[UserCredentials]
-  ): F[WriteResult]
+  private[sec] def getMetadata(id: Id): F[Option[MetaResult]]
+  private[sec] def setMetadata(id: Id, expectedState: StreamState, data: StreamMetadata): F[WriteResult]
+  private[sec] def unsetMetadata(id: Id, expectedState: StreamState): F[WriteResult]
 
 }
 
@@ -188,106 +92,74 @@ object MetaStreams {
 
   //====================================================================================================================
 
-  private[sec] def apply[F[_]: Sync](s: Streams[F]): MetaStreams[F] = create[F](MetaRW[F](s))
-  private[sec] def create[F[_]](meta: MetaRW[F])(implicit F: Sync[F]): MetaStreams[F] = new MetaStreams[F] {
+  private[sec] def apply[F[_]: Sync](s: Streams[F]): MetaStreams[F] = MetaStreams[F](MetaRW[F](s))
+  private[sec] def apply[F[_]](meta: MetaRW[F])(implicit F: Sync[F]): MetaStreams[F] = new MetaStreams[F] {
 
     //==================================================================================================================
 
-    def getMaxAge(id: Id, uc: Option[UserCredentials]): F[Option[ReadResult[MaxAge]]] =
-      getResult(id, _.maxAge, uc)
+    def getMaxAge(id: Id): F[Option[ReadResult[MaxAge]]]               = getResult(id, _.maxAge)
+    def setMaxAge(id: Id, es: StreamState, ma: MaxAge): F[WriteResult] = setMaxAge(id, es, ma.some)
+    def unsetMaxAge(id: Id, es: StreamState): F[WriteResult]           = setMaxAge(id, es, None)
 
-    def setMaxAge(id: Id, es: StreamState, ma: MaxAge, uc: Option[UserCredentials]): F[WriteResult] =
-      setMaxAge(id, es, ma.some, uc)
-
-    def unsetMaxAge(id: Id, es: StreamState, uc: Option[UserCredentials]): F[WriteResult] =
-      setMaxAge(id, es, None, uc)
-
-    def setMaxAge(id: Id, es: StreamState, ma: Option[MaxAge], uc: Option[UserCredentials]): F[WriteResult] =
-      modify(id, es, _.setMaxAge(ma), uc)
+    def setMaxAge(id: Id, es: StreamState, ma: Option[MaxAge]): F[WriteResult] =
+      modify(id, es, _.setMaxAge(ma))
 
     //==================================================================================================================
 
-    def getMaxCount(id: Id, uc: Option[UserCredentials]): F[Option[ReadResult[MaxCount]]] =
-      getResult(id, _.maxCount, uc)
+    def getMaxCount(id: Id): F[Option[ReadResult[MaxCount]]]               = getResult(id, _.maxCount)
+    def setMaxCount(id: Id, es: StreamState, mc: MaxCount): F[WriteResult] = setMaxCount(id, es, mc.some)
+    def unsetMaxCount(id: Id, expectedState: StreamState): F[WriteResult]  = setMaxCount(id, expectedState, None)
 
-    def setMaxCount(id: Id, es: StreamState, mc: MaxCount, uc: Option[UserCredentials]): F[WriteResult] =
-      setMaxCount(id, es, mc.some, uc)
-
-    def unsetMaxCount(id: Id, expectedState: StreamState, uc: Option[UserCredentials]): F[WriteResult] =
-      setMaxCount(id, expectedState, None, uc)
-
-    def setMaxCount(id: Id, es: StreamState, mc: Option[MaxCount], uc: Option[UserCredentials]): F[WriteResult] =
-      modify(id, es, _.setMaxCount(mc), uc)
+    def setMaxCount(id: Id, es: StreamState, mc: Option[MaxCount]): F[WriteResult] =
+      modify(id, es, _.setMaxCount(mc))
 
     //==================================================================================================================
 
-    def getCacheControl(id: Id, creds: Option[UserCredentials]): F[Option[ReadResult[CacheControl]]] =
-      getResult(id, _.cacheControl, creds)
+    def getCacheControl(id: Id): F[Option[ReadResult[CacheControl]]]               = getResult(id, _.cacheControl)
+    def setCacheControl(id: Id, es: StreamState, cc: CacheControl): F[WriteResult] = setCControl(id, es, cc.some)
+    def unsetCacheControl(id: Id, es: StreamState): F[WriteResult]                 = setCControl(id, es, None)
 
-    def setCacheControl(id: Id,
-                        expectedState: StreamState,
-                        cc: CacheControl,
-                        uc: Option[UserCredentials]): F[WriteResult] =
-      setCControl(id, expectedState, cc.some, uc)
-
-    def unsetCacheControl(id: Id, expectedState: StreamState, uc: Option[UserCredentials]): F[WriteResult] =
-      setCControl(id, expectedState, None, uc)
-
-    def setCControl(id: Id, es: StreamState, cc: Option[CacheControl], uc: Option[UserCredentials]): F[WriteResult] =
-      modify(id, es, _.setCacheControl(cc), uc)
+    def setCControl(id: Id, es: StreamState, cc: Option[CacheControl]): F[WriteResult] =
+      modify(id, es, _.setCacheControl(cc))
 
     //==================================================================================================================
 
-    def getAcl(id: Id, uc: Option[UserCredentials]): F[Option[ReadResult[StreamAcl]]] =
-      getResult(id, _.acl, uc)
-
-    def setAcl(id: Id, expectedState: StreamState, acl: StreamAcl, uc: Option[UserCredentials]): F[WriteResult] =
-      setAcl(id, expectedState, acl.some, uc)
-
-    def unsetAcl(id: Id, expectedState: StreamState, uc: Option[UserCredentials]): F[WriteResult] =
-      setAcl(id, expectedState, None, uc)
-
-    def setAcl(id: Id, es: StreamState, acl: Option[StreamAcl], uc: Option[UserCredentials]): F[WriteResult] =
-      modify(id, es, _.setAcl(acl), uc)
+    def getAcl(id: Id): F[Option[ReadResult[StreamAcl]]]                        = getResult(id, _.acl)
+    def setAcl(id: Id, es: StreamState, acl: StreamAcl): F[WriteResult]         = setAcl(id, es, acl.some)
+    def unsetAcl(id: Id, es: StreamState): F[WriteResult]                       = setAcl(id, es, None)
+    def setAcl(id: Id, es: StreamState, acl: Option[StreamAcl]): F[WriteResult] = modify(id, es, _.setAcl(acl))
 
     //==================================================================================================================
 
-    def getTruncateBefore(id: Id, uc: Option[UserCredentials]): F[Option[ReadResult[Exact]]] =
-      getResult(id, _.truncateBefore, uc)
+    def getTruncateBefore(id: Id): F[Option[ReadResult[Exact]]]               = getResult(id, _.truncateBefore)
+    def setTruncateBefore(id: Id, es: StreamState, tb: Exact): F[WriteResult] = setTruncateBefore(id, es, tb.some)
+    def unsetTruncateBefore(id: Id, es: StreamState): F[WriteResult]          = setTruncateBefore(id, es, None)
 
-    def setTruncateBefore(id: Id, expectedState: StreamState, tb: Exact, uc: Option[UserCredentials]): F[WriteResult] =
-      setTruncateBefore(id, expectedState, tb.some, uc)
-
-    def unsetTruncateBefore(id: Id, expectedState: StreamState, uc: Option[UserCredentials]): F[WriteResult] =
-      setTruncateBefore(id, expectedState, None, uc)
-
-    def setTruncateBefore(id: Id, es: StreamState, tb: Option[Exact], uc: Option[UserCredentials]): F[WriteResult] =
-      modify(id, es, _.setTruncateBefore(tb), uc)
+    def setTruncateBefore(id: Id, es: StreamState, tb: Option[Exact]): F[WriteResult] =
+      modify(id, es, _.setTruncateBefore(tb))
 
     //==================================================================================================================
 
-    def getCustom[T: Decoder](id: Id, uc: Option[UserCredentials]): F[Option[ReadResult[T]]] =
-      getMetadata(id, uc) >>= { _.traverse(r => r.data.getCustom[F, T].map(r.withData)) }
+    def getCustom[T: Decoder](id: Id): F[Option[ReadResult[T]]] =
+      getMetadata(id) >>= { _.traverse(r => r.data.getCustom[F, T].map(r.withData)) }
 
-    def setCustom[T: Encoder.AsObject](id: Id,
-                                       expectedState: StreamState,
-                                       c: T,
-                                       uc: Option[UserCredentials]): F[WriteResult] =
-      modify(id, expectedState, _.setCustom[T](c), uc)
+    def setCustom[T: Encoder.AsObject](id: Id, es: StreamState, c: T): F[WriteResult] =
+      modify(id, es, _.setCustom[T](c))
 
-    def unsetCustom(id: Id, expectedState: StreamState, uc: Option[UserCredentials]): F[WriteResult] =
-      modify(id, expectedState, _.copy(custom = None), uc)
+    def unsetCustom(id: Id, es: StreamState): F[WriteResult] =
+      modify(id, es, _.copy(custom = None))
 
     //==================================================================================================================
 
-    private[sec] def getResult[A](
-      id: Id,
-      fn: StreamMetadata => Option[A],
-      uc: Option[UserCredentials]
-    ): F[Option[ReadResult[A]]] =
-      getMetadata(id, uc).nested.map(_.zoom(fn)).value
+    def withCredentials(creds: UserCredentials): MetaStreams[F] =
+      MetaStreams[F](meta.withCredentials(creds))
 
-    private[sec] def getMetadata(id: Id, uc: Option[UserCredentials]): F[Option[MetaResult]] = {
+    //==================================================================================================================
+
+    private[sec] def getResult[A](id: Id, fn: StreamMetadata => Option[A]): F[Option[ReadResult[A]]] =
+      getMetadata(id).nested.map(_.zoom(fn)).value
+
+    private[sec] def getMetadata(id: Id): F[Option[MetaResult]] = {
 
       val decodeJson: EventRecord => F[StreamMetadata] =
         _.eventData.data.decodeUtf8.leftMap(DecodingError(_)).liftTo[F] >>= { utf8 =>
@@ -298,45 +170,30 @@ object MetaStreams {
         none[EventRecord]
       }
 
-      meta.read(id.metaId, uc).recover(recoverRead) >>= {
+      meta.read(id.metaId).recover(recoverRead) >>= {
         _.traverse(es => decodeJson(es).map(Result(es.streamPosition, _)))
       }
 
     }
 
-    private[sec] def setMetadata(
-      id: Id,
-      expectedState: StreamState,
-      sm: StreamMetadata,
-      uc: Option[UserCredentials]
-    ): F[WriteResult] =
-      modify(id, expectedState, _ => sm, uc)
+    private[sec] def setMetadata(id: Id, expectedState: StreamState, sm: StreamMetadata): F[WriteResult] =
+      modify(id, expectedState, _ => sm)
 
-    private[sec] def unsetMetadata(id: Id, expectedState: StreamState, uc: Option[UserCredentials]): F[WriteResult] =
-      modify(id, expectedState, _ => StreamMetadata.empty, uc)
+    private[sec] def unsetMetadata(id: Id, expectedState: StreamState): F[WriteResult] =
+      modify(id, expectedState, _ => StreamMetadata.empty)
 
     ///
 
-    private[sec] def modify[A](
-      id: Id,
-      es: StreamState,
-      mod: Endo[StreamMetadata],
-      uc: Option[UserCredentials]
-    ): F[WriteResult] =
-      modifyF(id, es, mod(_).pure[F], uc)
+    private[sec] def modify[A](id: Id, es: StreamState, mod: Endo[StreamMetadata]): F[WriteResult] =
+      modifyF(id, es, mod(_).pure[F])
 
-    private[sec] def modifyF[A](
-      id: Id,
-      es: StreamState,
-      mod: EndoF[F, StreamMetadata],
-      uc: Option[UserCredentials]
-    ): F[WriteResult] = {
+    private[sec] def modifyF[A](id: Id, es: StreamState, mod: EndoF[F, StreamMetadata]): F[WriteResult] = {
       for {
-        smr         <- getMetadata(id, uc)
+        smr         <- getMetadata(id)
         modified    <- mod(smr.fold(StreamMetadata.empty)(_.data))
         eid         <- uuid[F]
         eventData   <- mkEventData[F](eid, modified)
-        writeResult <- meta.write(id.metaId, es, eventData, uc)
+        writeResult <- meta.write(id.metaId, es, eventData)
       } yield writeResult
     }
 
@@ -356,19 +213,23 @@ object MetaStreams {
   ///
 
   private[sec] trait MetaRW[F[_]] {
-    def read(mid: MetaId, uc: Option[UserCredentials]): F[Option[EventRecord]]
-    def write(mid: MetaId, es: StreamState, data: EventData, uc: Option[UserCredentials]): F[WriteResult]
+    def read(mid: MetaId): F[Option[EventRecord]]
+    def write(mid: MetaId, es: StreamState, data: EventData): F[WriteResult]
+    def withCredentials(creds: UserCredentials): MetaRW[F]
   }
 
   private[sec] object MetaRW {
 
     def apply[F[_]](s: Streams[F])(implicit F: Sync[F]): MetaRW[F] = new MetaRW[F] {
 
-      def read(mid: MetaId, uc: Option[UserCredentials]): F[Option[EventRecord]] =
-        s.readStreamBackwards(mid, maxCount = 1, credentials = uc).collect { case er: EventRecord => er }.compile.last
+      def withCredentials(creds: UserCredentials): MetaRW[F] =
+        MetaRW[F](s.withCredentials(creds))
 
-      def write(mid: MetaId, es: StreamState, data: EventData, uc: Option[UserCredentials]): F[WriteResult] =
-        s.appendToStream(mid, es, NonEmptyList.one(data), uc)
+      def read(mid: MetaId): F[Option[EventRecord]] =
+        s.readStreamBackwards(mid, maxCount = 1).collect { case er: EventRecord => er }.compile.last
+
+      def write(mid: MetaId, es: StreamState, data: EventData): F[WriteResult] =
+        s.appendToStream(mid, es, NonEmptyList.one(data))
 
     }
   }

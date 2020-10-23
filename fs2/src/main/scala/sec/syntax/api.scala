@@ -17,7 +17,6 @@
 package sec
 package syntax
 
-import cats.data.NonEmptyList
 import fs2.Stream
 import sec.api._
 
@@ -36,27 +35,21 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
   /// Subscription
 
   def subscribeToAll(
-    exclusiveFrom: Option[LogPosition],
-    resolveLinkTos: Boolean = false,
-    credentials: Option[UserCredentials] = None
+    exclusiveFrom: Option[LogPosition]
   ): Stream[F, Event] =
-    s.subscribeToAll(exclusiveFrom, resolveLinkTos, credentials)
+    s.subscribeToAll(exclusiveFrom, resolveLinkTos = false)
 
   def subscribeToAllFiltered(
     exclusiveFrom: Option[LogPosition],
-    filterOptions: SubscriptionFilterOptions,
-    resolveLinkTos: Boolean = false,
-    credentials: Option[UserCredentials] = None
+    filterOptions: SubscriptionFilterOptions
   ): Stream[F, Either[Checkpoint, Event]] =
-    s.subscribeToAll(exclusiveFrom, filterOptions, resolveLinkTos, credentials)
+    s.subscribeToAll(exclusiveFrom, filterOptions, resolveLinkTos = false)
 
   def subscribeToStream(
     streamId: StreamId,
-    exclusiveFrom: Option[StreamPosition],
-    resolveLinkTos: Boolean = false,
-    credentials: Option[UserCredentials] = None
+    exclusiveFrom: Option[StreamPosition]
   ): Stream[F, Event] =
-    s.subscribeToStream(streamId, exclusiveFrom, resolveLinkTos, credentials)
+    s.subscribeToStream(streamId, exclusiveFrom, resolveLinkTos = false)
 
   /// Read
 
@@ -64,61 +57,31 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     streamId: StreamId,
     from: StreamPosition = StreamPosition.Start,
     maxCount: Long = Long.MaxValue,
-    resolveLinkTos: Boolean = false,
-    credentials: Option[UserCredentials] = None
+    resolveLinkTos: Boolean = false
   ): Stream[F, Event] =
-    s.readStream(streamId, from, Direction.Forwards, maxCount, resolveLinkTos, credentials)
+    s.readStream(streamId, from, Direction.Forwards, maxCount, resolveLinkTos)
 
   def readStreamBackwards(
     streamId: StreamId,
     from: StreamPosition = StreamPosition.End,
     maxCount: Long = Long.MaxValue,
-    resolveLinkTos: Boolean = false,
-    credentials: Option[UserCredentials] = None
+    resolveLinkTos: Boolean = false
   ): Stream[F, Event] =
-    s.readStream(streamId, from, Direction.Backwards, maxCount, resolveLinkTos, credentials)
+    s.readStream(streamId, from, Direction.Backwards, maxCount, resolveLinkTos)
 
   def readAllForwards(
     from: LogPosition = LogPosition.Start,
     maxCount: Long = Long.MaxValue,
-    resolveLinkTos: Boolean = false,
-    credentials: Option[UserCredentials] = None
+    resolveLinkTos: Boolean = false
   ): Stream[F, Event] =
-    s.readAll(from, Direction.Forwards, maxCount, resolveLinkTos, credentials)
+    s.readAll(from, Direction.Forwards, maxCount, resolveLinkTos)
 
   def readAllBackwards(
     from: LogPosition = LogPosition.End,
     maxCount: Long = Long.MaxValue,
-    resolveLinkTos: Boolean = false,
-    credentials: Option[UserCredentials] = None
+    resolveLinkTos: Boolean = false
   ): Stream[F, Event] =
-    s.readAll(from, Direction.Backwards, maxCount, resolveLinkTos, credentials)
-
-  /// Append
-
-  def appendToStream(
-    streamId: StreamId,
-    expectedState: StreamState,
-    events: NonEmptyList[EventData],
-    credentials: Option[UserCredentials] = None
-  ): F[WriteResult] =
-    s.appendToStream(streamId, expectedState, events, credentials)
-
-  /// Delete
-
-  def delete(
-    streamId: StreamId,
-    expectedState: StreamState,
-    credentials: Option[UserCredentials] = None
-  ): F[DeleteResult] =
-    s.delete(streamId, expectedState, credentials)
-
-  def tombstone(
-    streamId: StreamId,
-    expectedState: StreamState,
-    credentials: Option[UserCredentials] = None
-  ): F[DeleteResult] =
-    s.tombstone(streamId, expectedState, credentials)
+    s.readAll(from, Direction.Backwards, maxCount, resolveLinkTos)
 
 }
 

@@ -27,7 +27,7 @@ class ClusterSuite extends CSpec {
     "be reachable" >> {
 
       fs2.Stream
-        .eval(gossip.read(None))
+        .eval(gossip.read)
         .evalTap(x => log.info(s"Gossip.read: ${x.show}"))
         .metered(150.millis)
         .repeat

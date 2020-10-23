@@ -395,7 +395,7 @@ class StreamsSuite extends SnSpec {
         def test(exclusivFrom: Option[StreamPosition], takeCount: Int) = {
 
           val id    = genStreamId(s"${streamPrefix}multiple_subscriptions_to_same_stream_")
-          val write = Stream.eval(streams.appendToStream(id, StreamState.NoStream, events, None)).delayBy(500.millis)
+          val write = Stream.eval(streams.appendToStream(id, StreamState.NoStream, events)).delayBy(500.millis)
 
           def mkSubscribers(onEvent: IO[Unit]): Stream[IO, Event] = Stream
             .emit(streams.subscribeToStream(id, exclusivFrom).evalTap(_ => onEvent).take(takeCount.toLong))
@@ -435,10 +435,10 @@ class StreamsSuite extends SnSpec {
           val id = genStreamId(s"${streamPrefix}existing_and_new_")
 
           val beforeWrite =
-            Stream.eval(streams.appendToStream(id, StreamState.NoStream, beforeEvents, None))
+            Stream.eval(streams.appendToStream(id, StreamState.NoStream, beforeEvents))
 
           def afterWrite(st: StreamState): Stream[IO, WriteResult] =
-            Stream.eval(streams.appendToStream(id, st, afterEvents, None)).delayBy(500.millis)
+            Stream.eval(streams.appendToStream(id, st, afterEvents)).delayBy(500.millis)
 
           def subscribe(onEvent: Event => IO[Unit]): Stream[IO, Event] =
             streams.subscribeToStream(id, exclusiveFrom).evalTap(onEvent).take(takeCount.toLong)
@@ -513,11 +513,11 @@ class StreamsSuite extends SnSpec {
       val written = events1 ::: events2
 
       val writeEvents =
-        streams.appendToStream(id1, StreamState.NoStream, events1, None) *>
-          streams.appendToStream(id2, StreamState.NoStream, events2, None)
+        streams.appendToStream(id1, StreamState.NoStream, events1) *>
+          streams.appendToStream(id2, StreamState.NoStream, events2)
 
       def read(from: LogPosition, direction: Direction, maxCount: Long = 1) =
-        streams.readAll(from, direction, maxCount, resolveLinkTos = false, None).compile.toList
+        streams.readAll(from, direction, maxCount, resolveLinkTos = false).compile.toList
 
       //
 
@@ -547,7 +547,7 @@ class StreamsSuite extends SnSpec {
 
         "max count is respected" >> {
           streams
-            .readAll(Start, Forwards, events1.length / 2L, resolveLinkTos = false, None)
+            .readAll(Start, Forwards, events1.length / 2L, resolveLinkTos = false)
             .take(events1.length.toLong)
             .compile
             .toList
@@ -559,10 +559,10 @@ class StreamsSuite extends SnSpec {
           val suffix = if (normalDelete) "" else "tombstoned"
           val id     = genStreamId(s"streams_read_all_deleted_${suffix}_")
           val events = genEvents(10)
-          val write  = streams.appendToStream(id, StreamState.NoStream, events, None)
+          val write  = streams.appendToStream(id, StreamState.NoStream, events)
 
           def delete(er: StreamPosition.Exact) =
-            if (normalDelete) streams.delete(id, er, None) else streams.tombstone(id, er, None)
+            if (normalDelete) streams.delete(id, er) else streams.tombstone(id, er)
 
           val decodeJson: EventRecord => IO[StreamMetadata] =
             _.eventData.data.decodeUtf8.liftTo[IO] >>= {
@@ -622,7 +622,7 @@ class StreamsSuite extends SnSpec {
               ))
 
           def append(id: StreamId, data: Nel[EventData]) =
-            streams.appendToStream(id, StreamState.Any, data, None)
+            streams.appendToStream(id, StreamState.Any, data)
 
           def readLink(resolve: Boolean) =
             streams.readStreamForwards(linkId, maxCount = 3, resolveLinkTos = resolve).map(_.eventData).compile.toList
@@ -670,7 +670,7 @@ class StreamsSuite extends SnSpec {
 
         "max count is respected" >> {
           streams
-            .readAll(End, Backwards, events1.length / 2L, resolveLinkTos = false, None)
+            .readAll(End, Backwards, events1.length / 2L, resolveLinkTos = false)
             .take(events1.length.toLong)
             .compile
             .toList
@@ -690,10 +690,10 @@ class StreamsSuite extends SnSpec {
       val streamPrefix = s"streams_read_stream_${genIdentifier}_"
       val id           = genStreamId(streamPrefix)
       val events       = genEvents(25)
-      val writeEvents  = streams.appendToStream(id, StreamState.NoStream, events, None)
+      val writeEvents  = streams.appendToStream(id, StreamState.NoStream, events)
 
       def read(id: StreamId, from: StreamPosition, direction: Direction, count: Long = 50) =
-        streams.readStream(id, from, direction, count, resolveLinkTos = false, None).compile.toList
+        streams.readStream(id, from, direction, count, resolveLinkTos = false).compile.toList
 
       def readData(id: StreamId, from: StreamPosition, direction: Direction, count: Long = 50) =
         read(id, from, direction, count).map(_.map(_.eventData))
@@ -736,8 +736,8 @@ class StreamsSuite extends SnSpec {
           val id = genStreamId(s"${streamPrefix}stream_deleted_forwards_")
           val ex = StreamNotFound(id.stringValue)
 
-          streams.appendToStream(id, StreamState.NoStream, genEvents(5), None) *>
-            streams.delete(id, StreamState.Any, None) *>
+          streams.appendToStream(id, StreamState.NoStream, genEvents(5)) *>
+            streams.delete(id, StreamState.Any) *>
             read(id, Start, Forwards, 5).attempt.map(_ should beLeft(ex))
         }
 
@@ -746,8 +746,8 @@ class StreamsSuite extends SnSpec {
           val id = genStreamId(s"${streamPrefix}stream_tombstoned_forwards_")
           val ex = StreamDeleted(id.stringValue)
 
-          streams.appendToStream(id, StreamState.NoStream, genEvents(5), None) *>
-            streams.tombstone(id, StreamState.Any, None) *>
+          streams.appendToStream(id, StreamState.NoStream, genEvents(5)) *>
+            streams.tombstone(id, StreamState.Any) *>
             read(id, Start, Forwards, 5).attempt.map(_ should beLeft(ex))
         }
 
@@ -761,7 +761,7 @@ class StreamsSuite extends SnSpec {
 
         "max count is respected" >> {
           streams
-            .readStream(id, Start, Forwards, events.length / 2L, resolveLinkTos = false, None)
+            .readStream(id, Start, Forwards, events.length / 2L, resolveLinkTos = false)
             .take(events.length.toLong)
             .compile
             .toList
@@ -806,8 +806,8 @@ class StreamsSuite extends SnSpec {
           val id = genStreamId(s"${streamPrefix}stream_deleted_backwards_")
           val ex = StreamNotFound(id.stringValue)
 
-          streams.appendToStream(id, StreamState.NoStream, genEvents(5), None) *>
-            streams.delete(id, StreamState.Any, None) *>
+          streams.appendToStream(id, StreamState.NoStream, genEvents(5)) *>
+            streams.delete(id, StreamState.Any) *>
             read(id, End, Backwards, 5).attempt.map(_ should beLeft(ex))
         }
 
@@ -816,8 +816,8 @@ class StreamsSuite extends SnSpec {
           val id = genStreamId(s"${streamPrefix}stream_tombstoned_backwards_")
           val ex = StreamDeleted(id.stringValue)
 
-          streams.appendToStream(id, StreamState.NoStream, genEvents(5), None) *>
-            streams.tombstone(id, StreamState.Any, None) *>
+          streams.appendToStream(id, StreamState.NoStream, genEvents(5)) *>
+            streams.tombstone(id, StreamState.Any) *>
             read(id, End, Backwards, 5).attempt.map(_ should beLeft(ex))
         }
 
@@ -831,7 +831,7 @@ class StreamsSuite extends SnSpec {
 
         "max count is respected" >> {
           streams
-            .readStream(id, End, Backwards, events.length / 2L, resolveLinkTos = false, None)
+            .readStream(id, End, Backwards, events.length / 2L, resolveLinkTos = false)
             .take(events.length.toLong)
             .compile
             .toList
@@ -1468,7 +1468,7 @@ class StreamsSuite extends SnSpec {
 
         for {
           wr1 <- streams.appendToStream(id, StreamState.NoStream, genEvents(2))
-          _   <- streams.delete(id, wr1.streamPosition, None)
+          _   <- streams.delete(id, wr1.streamPosition)
           wr2 <- streams.appendToStream(id, StreamState.NoStream, genEvents(3))
           wr3 <- streams.appendToStream(id, StreamState.NoStream, genEvents(1)).attempt
         } yield {

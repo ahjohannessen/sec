@@ -24,8 +24,8 @@ import com.eventstore.dbclient.proto.shared.Empty
 import sec.api.mapping.gossip.mkClusterInfo
 
 trait Gossip[F[_]] {
-  final def read: F[ClusterInfo] = read(None)
-  def read(creds: Option[UserCredentials]): F[ClusterInfo]
+  def read: F[ClusterInfo]
+  def withCredentials(creds: UserCredentials): Gossip[F]
 }
 
 object Gossip {
@@ -35,7 +35,8 @@ object Gossip {
     mkCtx: Option[UserCredentials] => C,
     opts: Opts[F]
   ): Gossip[F] = new Gossip[F] {
-    def read(creds: Option[UserCredentials]): F[ClusterInfo] = read0(opts)(client.read(Empty(), mkCtx(creds)))
+    val read: F[ClusterInfo]                               = read0(opts)(client.read(Empty(), mkCtx(None)))
+    def withCredentials(creds: UserCredentials): Gossip[F] = Gossip[F, C](client, _ => mkCtx(creds.some), opts)
   }
 
   private[sec] def read0[F[_]: Concurrent: Timer](o: Opts[F])(f: F[PClusterInfo]): F[ClusterInfo] =
