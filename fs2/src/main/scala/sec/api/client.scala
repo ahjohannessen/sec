@@ -34,6 +34,7 @@ import scala.concurrent.duration._
 
 trait EsClient[F[_]] {
   def streams: Streams[F]
+  def metaStreams: MetaStreams[F]
   def gossip: Gossip[F]
 }
 
@@ -62,6 +63,8 @@ object EsClient {
       mkContext(options, requiresLeader),
       mkOpts[F](options.operationOptions, logger, "Streams")
     )
+
+    val metaStreams: MetaStreams[F] = MetaStreams[F](streams)
 
     val gossip: Gossip[F] = Gossip(
       mkGossipFs2Grpc[F](mc),

@@ -43,6 +43,6 @@ trait ClientSpec extends ResourceSpec[EsClient[IO]] {
 
   final def client: EsClient[IO]         = resource
   final def streams: Streams[IO]         = client.streams
-  final def metaStreams: MetaStreams[IO] = client.streams.metadata
+  final def metaStreams: MetaStreams[IO] = client.metaStreams
   final def gossip: Gossip[IO]           = client.gossip
 }

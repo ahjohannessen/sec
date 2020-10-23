@@ -161,6 +161,12 @@ inThisBuild(
     githubWorkflowJavaVersions := Seq("adopt@1.11"),
     githubWorkflowTargetTags += "v*",
     githubWorkflowTargetBranches := Seq("master"),
+    githubWorkflowJobSetup := {
+      githubWorkflowJobSetup.value.map {
+        case use @ WorkflowStep.Use("olafurpg", "setup-scala", _, _, _, _, _, _) => use.copy(ref = "v10")
+        case ws                                                                  => ws
+      }
+    },
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List(".docker/single-node.sh up -d"),

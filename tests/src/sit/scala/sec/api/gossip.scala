@@ -25,11 +25,9 @@ class GossipSuite extends SnSpec {
 
     "read" >> {
 
-      gossip
-        .read(None)
-        .map(_.members.headOption should beLike {
-          case Some(MemberInfo(_, _, VNodeState.Leader, true, Endpoint("127.0.0.1", 2113))) => ok
-        })
+      gossip.read.map(_.members.headOption should beLike {
+        case Some(MemberInfo(_, _, VNodeState.Leader, true, Endpoint("127.0.0.1", 2113))) => ok
+      })
     }
   }
 

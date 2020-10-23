@@ -35,30 +35,26 @@ trait Streams[F[_]] {
 
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
-    resolveLinkTos: Boolean,
-    creds: Option[UserCredentials]
+    resolveLinkTos: Boolean
   ): Stream[F, Event]
 
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
     filterOptions: SubscriptionFilterOptions,
-    resolveLinkTos: Boolean,
-    creds: Option[UserCredentials]
+    resolveLinkTos: Boolean
   ): Stream[F, Either[Checkpoint, Event]]
 
   def subscribeToStream(
     streamId: StreamId,
     exclusiveFrom: Option[StreamPosition],
-    resolveLinkTos: Boolean,
-    creds: Option[UserCredentials]
+    resolveLinkTos: Boolean
   ): Stream[F, Event]
 
   def readAll(
     from: LogPosition,
     direction: Direction,
     maxCount: Long,
-    resolveLinkTos: Boolean,
-    creds: Option[UserCredentials]
+    resolveLinkTos: Boolean
   ): Stream[F, Event]
 
   def readStream(
@@ -66,30 +62,28 @@ trait Streams[F[_]] {
     from: StreamPosition,
     direction: Direction,
     maxCount: Long,
-    resolveLinkTos: Boolean,
-    creds: Option[UserCredentials]
+    resolveLinkTos: Boolean
   ): Stream[F, Event]
 
   def appendToStream(
     streamId: StreamId,
     expectedState: StreamState,
-    events: NonEmptyList[EventData],
-    creds: Option[UserCredentials]
+    events: NonEmptyList[EventData]
   ): F[WriteResult]
 
   def delete(
     streamId: StreamId,
-    expectedState: StreamState,
-    creds: Option[UserCredentials]
+    expectedState: StreamState
   ): F[DeleteResult]
 
   def tombstone(
     streamId: StreamId,
-    expectedState: StreamState,
-    creds: Option[UserCredentials]
+    expectedState: StreamState
   ): F[DeleteResult]
 
-  private[sec] def metadata: MetaStreams[F]
+  def withCredentials(
+    creds: UserCredentials
+  ): Streams[F]
 
 }
 
@@ -103,71 +97,68 @@ object Streams {
     opts: Opts[F]
   ): Streams[F] = new Streams[F] {
 
+    private val ctx = mkCtx(None)
+
     def subscribeToAll(
       exclusiveFrom: Option[LogPosition],
-      resolveLinkTos: Boolean,
-      creds: Option[UserCredentials]
+      resolveLinkTos: Boolean
     ): Stream[F, Event] =
-      subscribeToAll0[F](exclusiveFrom, resolveLinkTos, opts)(client.read(_, mkCtx(creds)))
+      subscribeToAll0[F](exclusiveFrom, resolveLinkTos, opts)(client.read(_, ctx))
 
     def subscribeToAll(
       exclusiveFrom: Option[LogPosition],
       filterOptions: SubscriptionFilterOptions,
-      resolveLinkTos: Boolean,
-      creds: Option[UserCredentials]
+      resolveLinkTos: Boolean
     ): Stream[F, Either[Checkpoint, Event]] =
-      subscribeToAll0[F](exclusiveFrom, filterOptions, resolveLinkTos, opts)(client.read(_, mkCtx(creds)))
+      subscribeToAll0[F](exclusiveFrom, filterOptions, resolveLinkTos, opts)(client.read(_, ctx))
 
     def subscribeToStream(
       streamId: StreamId,
       exclusiveFrom: Option[StreamPosition],
-      resolveLinkTos: Boolean,
-      creds: Option[UserCredentials]
+      resolveLinkTos: Boolean
     ): Stream[F, Event] =
-      subscribeToStream0[F](streamId, exclusiveFrom, resolveLinkTos, opts)(client.read(_, mkCtx(creds)))
+      subscribeToStream0[F](streamId, exclusiveFrom, resolveLinkTos, opts)(client.read(_, ctx))
 
     def readAll(
       from: LogPosition,
       direction: Direction,
       maxCount: Long,
-      resolveLinkTos: Boolean,
-      creds: Option[UserCredentials]
+      resolveLinkTos: Boolean
     ): Stream[F, Event] =
-      readAll0[F](from, direction, maxCount, resolveLinkTos, opts)(client.read(_, mkCtx(creds)))
+      readAll0[F](from, direction, maxCount, resolveLinkTos, opts)(client.read(_, ctx))
 
     def readStream(
       streamId: StreamId,
       from: StreamPosition,
       direction: Direction,
       maxCount: Long,
-      resolveLinkTos: Boolean,
-      creds: Option[UserCredentials]
+      resolveLinkTos: Boolean
     ): Stream[F, Event] =
-      readStream0[F](streamId, from, direction, maxCount, resolveLinkTos, opts)(client.read(_, mkCtx(creds)))
+      readStream0[F](streamId, from, direction, maxCount, resolveLinkTos, opts)(client.read(_, ctx))
 
     def appendToStream(
       streamId: StreamId,
       expectedState: StreamState,
-      events: NonEmptyList[EventData],
-      creds: Option[UserCredentials]
+      events: NonEmptyList[EventData]
     ): F[WriteResult] =
-      appendToStream0[F](streamId, expectedState, events, opts)(client.append(_, mkCtx(creds)))
+      appendToStream0[F](streamId, expectedState, events, opts)(client.append(_, ctx))
 
     def delete(
       streamId: StreamId,
-      expectedState: StreamState,
-      creds: Option[UserCredentials]
+      expectedState: StreamState
     ): F[DeleteResult] =
-      delete0[F](streamId, expectedState, opts)(client.delete(_, mkCtx(creds)))
+      delete0[F](streamId, expectedState, opts)(client.delete(_, ctx))
 
     def tombstone(
       streamId: StreamId,
-      expectedState: StreamState,
-      creds: Option[UserCredentials]
+      expectedState: StreamState
     ): F[DeleteResult] =
-      tombstone0[F](streamId, expectedState, opts)(client.tombstone(_, mkCtx(creds)))
+      tombstone0[F](streamId, expectedState, opts)(client.tombstone(_, ctx))
 
-    private[sec] val metadata: MetaStreams[F] = MetaStreams[F](this)
+    def withCredentials(
+      creds: UserCredentials
+    ): Streams[F] =
+      Streams[F, C](client, _ => mkCtx(creds.some), opts)
   }
 
 //======================================================================================================================
