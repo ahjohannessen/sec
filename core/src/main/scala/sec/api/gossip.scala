@@ -23,6 +23,9 @@ import java.time.temporal.ChronoUnit.SECONDS
 import cats._
 import cats.implicits._
 
+/**
+ * Used for information about the nodes in an EventStoreDB cluster.
+ */
 final case class ClusterInfo(
   members: Set[MemberInfo]
 )

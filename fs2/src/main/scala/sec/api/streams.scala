@@ -31,25 +31,70 @@ import sec.api.exceptions.WrongExpectedVersion
 import sec.api.mapping.streams.outgoing._
 import sec.api.mapping.streams.incoming._
 
+/**
+ * API for interacting with streams in EventStoreDB.
+ *
+ * ==Main operations==
+ *
+ *    - subscribing to the global stream or an individual stream.
+ *    - reading from the global stream or an individual stream.
+ *    - appending event data to an existing stream or creating a new stream.
+ *    - deleting events from a stream.
+ *
+ * @tparam F the effect type in which [[Streams]] operates.
+ */
 trait Streams[F[_]] {
 
+  /**
+   * Subscribes to the global stream, [[StreamId.All]].
+   *
+   * @param exclusiveFrom position to start from. Use [[None]] to subscribe from the beginning.
+   * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
+   * @return a [[Stream]] that emits [[Event]] values.
+   */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
     resolveLinkTos: Boolean
   ): Stream[F, Event]
 
+  /**
+   * Subscribes to the global stream, [[StreamId.All]] using a subscription filter.
+   *
+   * @param exclusiveFrom log position to start from. Use [[None]] to subscribe from the beginning.
+   * @param filterOptions to use when subscribing - See [[sec.api.SubscriptionFilterOptions]].
+   * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
+   * @return a [[Stream]] that emits either [[Checkpoint]] or [[Event]] values.
+   *         How frequent [[Checkpoint]] is emitted depends on [[filterOptions]].
+   */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
     filterOptions: SubscriptionFilterOptions,
     resolveLinkTos: Boolean
   ): Stream[F, Either[Checkpoint, Event]]
 
+  /**
+   * Subscribes to an individual stream.
+   *
+   * @param streamId the id of the stream to subscribe to.
+   * @param exclusiveFrom stream position to start from. Use [[None]] to subscribe from the beginning.
+   * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
+   * @return a [[Stream]] that emits [[Event]] values.
+   */
   def subscribeToStream(
     streamId: StreamId,
     exclusiveFrom: Option[StreamPosition],
     resolveLinkTos: Boolean
   ): Stream[F, Event]
 
+  /**
+   * Read events from the global stream, [[sec.StreamId.All]].
+   *
+   * @param from log position to read from.
+   * @param direction whether to read forwards or backwards.
+   * @param maxCount limits maximum events returned.
+   * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
+   * @return a [[Stream]] that emits [[Event]] values.
+   */
   def readAll(
     from: LogPosition,
     direction: Direction,
@@ -57,6 +102,17 @@ trait Streams[F[_]] {
     resolveLinkTos: Boolean
   ): Stream[F, Event]
 
+  /**
+   * Read events from an individual stream. A [[sec.api.exceptions.StreamNotFound]] is raised
+   * when the stream does not exist.
+   *
+   * @param streamId the id of the stream to subscribe to.
+   * @param from stream position to read from.
+   * @param direction whether to read forwards or backwards.
+   * @param maxCount limits maximum events returned.
+   * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
+   * @return a [[Stream]] that emits [[Event]] values.
+   */
   def readStream(
     streamId: StreamId,
     from: StreamPosition,
@@ -65,22 +121,67 @@ trait Streams[F[_]] {
     resolveLinkTos: Boolean
   ): Stream[F, Event]
 
+  /**
+   * Appends [[EventData]] to a stream and returns [[WriteResult]] with current positions of the stream
+   * after a successful operation. Failure to fulfill the expected state is manifested by raising
+   * [[sec.api.exceptions.WrongExpectedState]].
+   *
+   * @see [[https://ahjohannessen.github.io/sec/docs/writing]] for details about appending to a stream.
+   *
+   * @param streamId the id of the stream to append to.
+   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
+   * @param data event data to be appended to the stream. See [[EventData]].
+   */
   def appendToStream(
     streamId: StreamId,
     expectedState: StreamState,
-    events: NonEmptyList[EventData]
+    data: NonEmptyList[EventData]
   ): F[WriteResult]
 
+  /**
+   * Deletes a stream and returns [[DeleteResult]] with current log position after a successful operation.
+   * Failure to fulfill the expected stated is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
+   *
+   * @see [[https://ahjohannessen.github.io/sec/docs/deleting]] for details about what it means to delete a stream.
+   *
+   * @param streamId the id of the stream to delete.
+   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
+   */
   def delete(
     streamId: StreamId,
     expectedState: StreamState
   ): F[DeleteResult]
 
+  /**
+   * Tombstones a stream and returns [[DeleteResult]] with current log position after a successful operation.
+   * Failure to fulfill the expected stated is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
+   *
+   * @see [[https://ahjohannessen.github.io/sec/docs/deleting]] for details about what it means to tombstone a stream.
+   *
+   * @param streamId the id of the stream to delete.
+   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
+   */
   def tombstone(
     streamId: StreamId,
     expectedState: StreamState
   ): F[DeleteResult]
 
+  /**
+   * Returns an instance that uses provided [[UserCredentials]]. This is useful when an operation
+   * requires different credentials from what is provided through configuration.
+   *
+   * == Example using custom credentials ==
+   *
+   * {{{
+   *  val subscribtion: Stream[F, Event] =
+   *    streams.withCredentials(customCreds).subscribeToAll(None, false)
+   * }}}
+   *
+   * If the need for custom credentials is frequent you can define extension methods
+   * for those opererations on [[Streams]] with an extra [[UserCredentials]] parameter.
+   *
+   * @param creds Custom user credentials to use.
+   */
   def withCredentials(
     creds: UserCredentials
   ): Streams[F]
@@ -139,9 +240,9 @@ object Streams {
     def appendToStream(
       streamId: StreamId,
       expectedState: StreamState,
-      events: NonEmptyList[EventData]
+      data: NonEmptyList[EventData]
     ): F[WriteResult] =
-      appendToStream0[F](streamId, expectedState, events, opts)(client.append(_, ctx))
+      appendToStream0[F](streamId, expectedState, data, opts)(client.append(_, ctx))
 
     def delete(
       streamId: StreamId,

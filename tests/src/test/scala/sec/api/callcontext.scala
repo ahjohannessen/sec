@@ -24,11 +24,11 @@ class UserCredentialsSpec extends Specification {
   "UserCredentials.apply" >> {
     UserCredentials("hello", "world") should beRight(UserCredentials.unsafe("hello", "world"))
 
-    UserCredentials("", "world") should beLeft("username is empty")
-    UserCredentials("hello", "") should beLeft("password is empty")
+    UserCredentials("", "world") should beLeft(InvalidInput("username is empty"))
+    UserCredentials("hello", "") should beLeft(InvalidInput("password is empty"))
 
-    UserCredentials("hell:o", "world") should beLeft("username cannot contain characters [':']")
-    UserCredentials("hello", "worl:d") should beLeft("password cannot contain characters [':']")
+    UserCredentials("hell:o", "world") should beLeft(InvalidInput("username cannot contain characters [':']"))
+    UserCredentials("hello", "worl:d") should beLeft(InvalidInput("password cannot contain characters [':']"))
 
     UserCredentials("hello", "world").map(_.toString) should beRight("UserCredentials(username = hello, password = 🤐)")
   }

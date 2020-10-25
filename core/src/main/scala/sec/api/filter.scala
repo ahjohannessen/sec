@@ -24,6 +24,21 @@ import EventFilter._
 
 //======================================================================================================================
 
+/**
+ * Used for server-side event stream filtering. There are two *kinds* of filters:
+ *
+ *   - [[EventFilter.ByStreamId]] when you wish to filter by stream identifier.
+ *   - [[EventFilter.ByEventType]] when you wish to filter by event type.
+ *
+ * In combination with [[EventFilter.Kind]] you can choose between two types of filter expressions:
+ *
+ *   - [[EventFilter.PrefixFilter]] when you wish to filter for prefixes. An example of this is
+ *     `PrefixFilter("user_stream")` for streams starting with the string value `"user_stream"`
+ *      like `"user_stream-a"` and `"user_stream-b"`.
+ *
+ *   - [[EventFilter.RegexFilter]] when you wish to filter with a regular expression. An example of this is
+ *     `RegexFilter("^[^$].*")` when you for do not wish to retrieve events starting with `$`.
+ */
 final case class EventFilter(
   kind: Kind,
   option: Either[NonEmptyList[PrefixFilter], RegexFilter]
