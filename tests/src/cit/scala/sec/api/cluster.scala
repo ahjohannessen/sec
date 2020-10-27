@@ -18,6 +18,7 @@ package sec
 package api
 
 import scala.concurrent.duration._
+
 import cats.implicits._
 
 class ClusterSuite extends CSpec {

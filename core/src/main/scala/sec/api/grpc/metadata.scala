@@ -19,6 +19,7 @@ package api
 package grpc
 
 import io.grpc.Metadata
+
 import grpc.constants.Headers.{Authorization, ConnectionName, RequiresLeader}
 
 private[sec] object metadata {

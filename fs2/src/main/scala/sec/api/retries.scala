@@ -18,11 +18,13 @@ package sec
 package api
 
 import java.util.concurrent.TimeoutException
-import scala.util.control.NonFatal
+
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import cats.syntax.all._
-import cats.effect.{Concurrent, Timer}
+import scala.util.control.NonFatal
+
 import cats.effect.implicits._
+import cats.effect.{Concurrent, Timer}
+import cats.syntax.all._
 import io.chrisdavenport.log4cats.Logger
 import sec.utilities._
 

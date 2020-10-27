@@ -20,6 +20,7 @@ package cluster
 
 import cats.data.NonEmptyList
 import cats.implicits._
+
 import VNodeState._
 
 private[sec] object NodePrioritizer {

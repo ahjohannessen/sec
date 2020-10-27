@@ -18,11 +18,13 @@ package sec
 package api
 
 import scala.util.matching.Regex
+
 import cats.data.NonEmptyList
 import cats.syntax.all._
 import org.scalacheck._
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
+
 import EventFilter._
 
 class EventFilterSpec extends Specification with ScalaCheck {

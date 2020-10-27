@@ -17,9 +17,10 @@
 package sec
 package api
 
-import java.{util => ju}
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit.SECONDS
+import java.{util => ju}
+
 import cats._
 import cats.implicits._
 

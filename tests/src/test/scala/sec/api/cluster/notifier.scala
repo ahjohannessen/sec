@@ -18,22 +18,24 @@ package sec
 package api
 package cluster
 
-import java.{util => ju}
 import java.time.ZonedDateTime
 import java.util.UUID
+import java.{util => ju}
+
 import cats.Applicative
-import org.specs2.mutable.Specification
-import cats.effect.testing.specs2.CatsIO
 import cats.data.{NonEmptyList => Nel, NonEmptySet => Nes}
-import cats.syntax.all._
 import cats.effect._
 import cats.effect.concurrent.Ref
+import cats.effect.testing.specs2.CatsIO
+import cats.syntax.all._
 import fs2.Stream
 import fs2.concurrent.SignallingRef
+import io.chrisdavenport.log4cats.testing.TestingLogger
+import org.specs2.mutable.Specification
+import sec.arbitraries._
+
 import VNodeState._
 import Notifier._
-import io.chrisdavenport.log4cats.testing.TestingLogger
-import sec.arbitraries._
 
 class NotifierSpec extends Specification with CatsIO {
 

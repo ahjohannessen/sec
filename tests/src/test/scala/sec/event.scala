@@ -16,12 +16,13 @@
 
 package sec
 
-import java.{util => ju}
 import java.time.ZonedDateTime
 import java.util.UUID
+import java.{util => ju}
+
 import cats.syntax.all._
-import scodec.bits.ByteVector
 import org.specs2.mutable.Specification
+import scodec.bits.ByteVector
 import sec.arbitraries._
 import sec.helpers.implicits._
 import sec.helpers.text.encodeToBV

@@ -20,19 +20,19 @@ package mapping
 
 import java.time.{Instant, ZoneOffset}
 import java.util.{UUID => JUUID}
-import cats.syntax.all._
+
 import cats.data.NonEmptyList
-import scodec.bits.ByteVector
-import org.specs2._
+import cats.syntax.all._
 import com.eventstore.dbclient.proto.shared.{Empty, UUID}
 import com.eventstore.dbclient.proto.{streams => s}
+import org.specs2._
+import scodec.bits.ByteVector
 import sec.api.exceptions.{StreamNotFound, WrongExpectedState}
-import sec.api.mapping.shared._
-import sec.api.mapping.streams.outgoing
-import sec.api.mapping.streams.incoming
 import sec.api.mapping.implicits._
-import sec.helpers.text.encodeToBV
+import sec.api.mapping.shared._
+import sec.api.mapping.streams.{incoming, outgoing}
 import sec.helpers.implicits._
+import sec.helpers.text.encodeToBV
 
 class StreamsMappingSpec extends mutable.Specification {
 

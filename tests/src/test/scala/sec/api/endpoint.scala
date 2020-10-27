@@ -17,10 +17,10 @@
 package sec
 package api
 
-import cats.syntax.all._
 import cats.kernel.laws.discipline._
-import org.specs2.mutable.Specification
+import cats.syntax.all._
 import org.scalacheck._
+import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
 import sec.arbitraries._
 

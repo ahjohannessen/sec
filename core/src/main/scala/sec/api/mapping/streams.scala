@@ -23,10 +23,10 @@ import cats.syntax.all._
 import com.eventstore.dbclient.proto.shared._
 import com.eventstore.dbclient.proto.streams._
 import sec.api.exceptions._
-import sec.api.mapping.implicits._
-import sec.api.mapping.time._
-import sec.api.mapping.shared._
 import sec.api.grpc.constants.Metadata.{ContentType, ContentTypes, Created, Type}
+import sec.api.mapping.implicits._
+import sec.api.mapping.shared._
+import sec.api.mapping.time._
 
 private[sec] object streams {
 

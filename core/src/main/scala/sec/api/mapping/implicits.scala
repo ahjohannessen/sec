@@ -19,8 +19,8 @@ package api
 package mapping
 
 import cats.syntax.all._
-import scodec.bits.ByteVector
 import com.google.protobuf.ByteString
+import scodec.bits.ByteVector
 
 private[sec] object implicits {
 

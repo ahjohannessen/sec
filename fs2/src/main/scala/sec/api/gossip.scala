@@ -17,9 +17,9 @@
 package sec
 package api
 
-import cats.implicits._
 import cats.effect.{Concurrent, Timer}
-import com.eventstore.dbclient.proto.gossip.{GossipFs2Grpc, ClusterInfo => PClusterInfo}
+import cats.implicits._
+import com.eventstore.dbclient.proto.gossip.{ClusterInfo => PClusterInfo, GossipFs2Grpc}
 import com.eventstore.dbclient.proto.shared.Empty
 import sec.api.mapping.gossip.mkClusterInfo
 

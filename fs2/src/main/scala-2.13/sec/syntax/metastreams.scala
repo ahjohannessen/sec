@@ -18,8 +18,10 @@ package sec
 package syntax
 
 import scala.concurrent.duration.FiniteDuration
+
 import cats.syntax.all._
 import sec.api._
+
 import StreamId.Id
 
 trait MetaStreamsSyntax {

@@ -17,6 +17,7 @@
 package sec
 
 import scala.concurrent.duration._
+
 import org.specs2.mutable.Specification
 import sec.utilities._
 

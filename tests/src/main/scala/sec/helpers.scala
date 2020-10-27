@@ -17,6 +17,7 @@
 package sec
 
 import java.util.regex.Pattern
+
 import cats.syntax.all._
 import scodec.bits.ByteVector
 import sec.api.Endpoint

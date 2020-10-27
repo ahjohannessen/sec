@@ -19,18 +19,21 @@ package api
 
 import java.util.UUID
 import java.{util => ju}
+
 import scala.concurrent.duration._
-import scodec.bits.ByteVector
-import io.circe.Json
+
 import cats.Endo
 import cats.data.{NonEmptyList => Nel}
-import cats.syntax.all._
 import cats.effect.IO
 import cats.effect.concurrent.Ref
+import cats.syntax.all._
 import fs2._
+import io.circe.Json
+import scodec.bits.ByteVector
 import sec.api.Direction._
 import sec.api.exceptions._
 import sec.syntax.all._
+
 import helpers.text.mkSnakeCase
 import helpers.implicits._
 

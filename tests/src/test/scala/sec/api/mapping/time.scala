@@ -19,6 +19,7 @@ package api
 package mapping
 
 import java.time.{Instant, ZoneOffset, ZonedDateTime}
+
 import cats.syntax.all._
 import org.specs2._
 import sec.api.mapping.time.fromTicksSinceEpoch

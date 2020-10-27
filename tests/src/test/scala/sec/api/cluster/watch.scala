@@ -18,23 +18,25 @@ package sec
 package api
 package cluster
 
-import java.{util => ju}
 import java.time.ZonedDateTime
-import scala.concurrent.duration._
+import java.{util => ju}
+
 import scala.concurrent.TimeoutException
-import org.specs2.mutable.Specification
+import scala.concurrent.duration._
+
 import cats.data.{NonEmptyList => Nel}
-import cats.syntax.all._
 import cats.effect._
 import cats.effect.concurrent.Ref
-import cats.effect.testing.specs2.CatsIO
 import cats.effect.laws.util.TestContext
-import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import io.chrisdavenport.log4cats.Logger
+import cats.effect.testing.specs2.CatsIO
+import cats.syntax.all._
 import fs2.Stream
+import io.chrisdavenport.log4cats.Logger
+import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import org.scalacheck.Gen
+import org.specs2.mutable.Specification
 import sec.api.exceptions.ServerUnavailable
 import sec.arbitraries._
-import org.scalacheck.Gen
 
 class ClusterWatchSpec extends Specification with CatsIO {
 

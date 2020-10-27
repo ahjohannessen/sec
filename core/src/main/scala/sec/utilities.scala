@@ -17,7 +17,9 @@
 package sec
 
 import java.util.Locale
+
 import scala.concurrent.duration._
+
 import cats.syntax.all._
 
 private[sec] object utilities {

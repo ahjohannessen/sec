@@ -17,14 +17,16 @@
 package sec
 
 import scala.concurrent.duration._
+
 import cats.effect._
 import cats.effect.testing.specs2._
-import org.specs2.mutable.Specification
-import org.specs2.specification.AfterAll
-import helpers.text.mkSnakeCase
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import org.specs2.mutable.Specification
+import org.specs2.specification.AfterAll
 import sec.api.{EsClient, Gossip, MetaStreams, Streams}
+
+import helpers.text.mkSnakeCase
 
 trait ResourceSpec[A] extends Specification with AfterAll with CatsIO {
   final val testName                        = mkSnakeCase(getClass.getSimpleName)
