@@ -18,6 +18,7 @@ package sec
 package api
 
 import java.{util => ju}
+
 import cats.Endo
 import cats.data.NonEmptyList
 import cats.effect.Sync
@@ -25,12 +26,13 @@ import cats.syntax.all._
 import io.circe._
 import io.circe.parser.decode
 import scodec.bits.ByteVector
-import StreamId.Id
-import StreamPosition.Exact
-import StreamId.MetaId
 import sec.api.exceptions.StreamNotFound
 import sec.api.mapping._
 import sec.syntax.all._
+
+import StreamId.Id
+import StreamPosition.Exact
+import StreamId.MetaId
 import MetaStreams._
 
 /**

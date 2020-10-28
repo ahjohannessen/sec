@@ -17,6 +17,8 @@
 package sec
 package api
 
+import scala.concurrent.duration._
+
 import cats.Endo
 import cats.data.NonEmptySet
 import cats.effect.{ConcurrentEffect, Timer}
@@ -29,8 +31,6 @@ import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.grpc.convert.convertToEs
 import sec.api.grpc.metadata._
 import sec.api.retries.RetryConfig
-
-import scala.concurrent.duration._
 
 trait EsClient[F[_]] {
   def streams: Streams[F]

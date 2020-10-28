@@ -19,16 +19,18 @@ package api
 package cluster
 
 import scala.concurrent.duration._
+
 import cats.data._
-import cats.syntax.all._
 import cats.effect._
 import cats.effect.concurrent.Ref
+import cats.syntax.all._
 import fs2.Stream
 import io.chrisdavenport.log4cats.Logger
 import io.grpc._
 import sec.api.exceptions.{NotLeader, ServerUnavailable}
-import channel._
 import sec.api.retries._
+
+import channel._
 
 private[sec] trait ClusterWatch[F[_]] {
   def subscribe: Stream[F, ClusterInfo]

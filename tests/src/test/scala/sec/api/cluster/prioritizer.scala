@@ -18,15 +18,17 @@ package sec
 package api
 package cluster
 
-import java.{util => ju}
 import java.time.ZonedDateTime
-import org.specs2.mutable.Specification
-import org.scalacheck.{Arbitrary, Gen}
+import java.{util => ju}
+
 import cats.data.{NonEmptyList => Nel}
-import cats.syntax.all._
 import cats.effect.testing.specs2.CatsIO
-import VNodeState._
+import cats.syntax.all._
+import org.scalacheck.{Arbitrary, Gen}
+import org.specs2.mutable.Specification
 import sec.arbitraries._
+
+import VNodeState._
 
 class NodePrioritizerSpec extends Specification with CatsIO {
 

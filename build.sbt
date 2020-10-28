@@ -72,8 +72,8 @@ lazy val tests = project
   .enablePlugins(BuildInfoPlugin, AutomateHeaderPlugin)
   .configs(SingleNodeITest, ClusterITest)
   .settings(commonSettings)
-  .settings(inConfig(SingleNodeITest)(integrationSettings))
-  .settings(inConfig(ClusterITest)(integrationSettings))
+  .settings(inConfig(SingleNodeITest)(integrationSettings ++ scalafixConfigSettings(SingleNodeITest)))
+  .settings(inConfig(ClusterITest)(integrationSettings ++ scalafixConfigSettings(ClusterITest)))
   .settings(
     skip in publish := true,
     buildInfoPackage := "sec",
@@ -140,14 +140,17 @@ inThisBuild(
         url("https://github.com/ahjohannessen")
       )),
     shellPrompt := Prompt.enrichedShellPrompt,
-    pomIncludeRepository := { _ => false },
     scalacOptions in (Compile, doc) ++= Seq(
       "-groups",
       "-sourcepath",
       (baseDirectory in LocalRootProject).value.getAbsolutePath,
       "-doc-source-url",
       "https://github.com/ahjohannessen/sec/blob/v" + version.value + "€{FILE_PATH}.scala"
-    )
+    ),
+    scalafixDependencies += scalafixOrganizeImports,
+    semanticdbEnabled := true,
+    semanticdbVersion := scalafixSemanticdb.revision,
+    scalafixOnCompile := sys.env.get("CI").fold(true)(_ => false)
   )
 )
 

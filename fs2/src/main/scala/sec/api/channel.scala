@@ -18,6 +18,7 @@ package sec.api
 
 import scala.concurrent.blocking
 import scala.concurrent.duration._
+
 import cats.effect.{Resource, Sync}
 import io.grpc.{ManagedChannel, ManagedChannelBuilder}
 

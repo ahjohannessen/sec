@@ -19,17 +19,18 @@ package api
 
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
+
 import cats._
 import cats.data._
-import cats.syntax.all._
 import cats.effect._
 import cats.effect.concurrent.Ref
-import fs2.{Pipe, Pull, Stream}
+import cats.syntax.all._
 import com.eventstore.dbclient.proto.streams._
+import fs2.{Pipe, Pull, Stream}
 import io.chrisdavenport.log4cats.Logger
 import sec.api.exceptions.WrongExpectedVersion
-import sec.api.mapping.streams.outgoing._
 import sec.api.mapping.streams.incoming._
+import sec.api.mapping.streams.outgoing._
 
 /**
  * API for interacting with streams in EventStoreDB.

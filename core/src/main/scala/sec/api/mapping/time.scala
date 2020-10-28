@@ -19,6 +19,7 @@ package api
 package mapping
 
 import java.time.{Instant, ZoneOffset, ZonedDateTime}
+
 import cats.syntax.all._
 
 private[sec] object time {

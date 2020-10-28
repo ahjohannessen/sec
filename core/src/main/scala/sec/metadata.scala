@@ -17,6 +17,7 @@
 package sec
 
 import scala.concurrent.duration._
+
 import cats.syntax.all._
 import cats.{Endo, Show}
 import io.circe.Decoder.Result

@@ -18,12 +18,13 @@ package sec
 package api
 
 import scala.concurrent.duration._
+
 import cats.effect.IO
 import cats.syntax.all._
 import sec.api.MetaStreams.Result
 import sec.api.exceptions.WrongExpectedState
-import sec.syntax.all._
 import sec.helpers.implicits._
+import sec.syntax.all._
 
 class MetaStreamsSuite extends SnSpec {
 

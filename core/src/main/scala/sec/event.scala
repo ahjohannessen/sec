@@ -18,6 +18,7 @@ package sec
 
 import java.time.ZonedDateTime
 import java.util.UUID
+
 import cats.Show
 import cats.syntax.all._
 import scodec.bits.ByteVector

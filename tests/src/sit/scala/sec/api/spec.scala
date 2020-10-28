@@ -19,10 +19,12 @@ package api
 
 import java.io.File
 import java.util.UUID
+
 import scala.concurrent.duration._
-import cats.syntax.all._
+
 import cats.data.{NonEmptyList => Nel}
 import cats.effect._
+import cats.syntax.all._
 import io.chrisdavenport.log4cats.Logger
 import org.scalacheck.Gen
 import sec.arbitraries._

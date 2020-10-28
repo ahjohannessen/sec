@@ -20,8 +20,8 @@ package grpc
 
 import cats.syntax.all._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
-import sec.api.grpc.constants.{Exceptions => ce}
 import sec.api.exceptions._
+import sec.api.grpc.constants.{Exceptions => ce}
 
 private[sec] object convert {
 

@@ -19,13 +19,16 @@ package api
 package cluster
 
 import java.net.URI
+
 import scala.jdk.CollectionConverters._
+
 import cats.data.{NonEmptyList, NonEmptySet}
 import cats.effect._
 import fs2.Stream
 import io.chrisdavenport.log4cats.Logger
-import io.grpc.{NameResolver, NameResolverProvider}
 import io.grpc.NameResolver.{Args, Listener2, ResolutionResult}
+import io.grpc.{NameResolver, NameResolverProvider}
+
 import Notifier.Listener
 import Resolver.mkListener
 

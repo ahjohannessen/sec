@@ -18,8 +18,10 @@ package sec
 package api
 
 import scala.util.matching.Regex
-import cats.syntax.all._
+
 import cats.data.NonEmptyList
+import cats.syntax.all._
+
 import EventFilter._
 
 //======================================================================================================================

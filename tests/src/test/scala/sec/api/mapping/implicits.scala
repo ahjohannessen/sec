@@ -18,10 +18,10 @@ package sec
 package api
 package mapping
 
-import com.google.protobuf.ByteString
-import scodec.bits.ByteVector
-import org.specs2._
 import cats.syntax.all._
+import com.google.protobuf.ByteString
+import org.specs2._
+import scodec.bits.ByteVector
 import sec.api.mapping.implicits._
 
 class ImplicitsSpec extends mutable.Specification {

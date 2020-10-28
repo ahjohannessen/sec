@@ -17,10 +17,11 @@
 package sec
 
 import scala.concurrent.duration._
+
 import cats.syntax.all._
-import org.specs2.mutable.Specification
 import io.circe._
 import io.circe.syntax._
+import org.specs2.mutable.Specification
 import sec.arbitraries._
 import sec.helpers.implicits._
 

@@ -50,6 +50,10 @@ object Dependencies {
   val log4catsTesting  = "io.chrisdavenport" %% "log4cats-testing"           % versions.log4cats
   val log4catsSlf4j    = "io.chrisdavenport" %% "log4cats-slf4j"             % versions.log4cats
 
+  // Scalafix
+
+  val scalafixOrganizeImports = "com.github.liancheng" %% "organize-imports" % "0.4.3"
+
   // Misc
 
   def protobufM(mids: ModuleID*): Seq[ModuleID] = mids.map(_ % "protobuf")

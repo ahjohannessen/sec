@@ -18,6 +18,7 @@ package sec
 package api
 
 import scala.util.control.NoStackTrace
+
 import cats.syntax.all._
 
 object exceptions {

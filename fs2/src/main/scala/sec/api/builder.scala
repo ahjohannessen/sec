@@ -18,6 +18,7 @@ package sec
 package api
 
 import scala.concurrent.duration._
+
 import cats.Endo
 import cats.data._
 import cats.effect._

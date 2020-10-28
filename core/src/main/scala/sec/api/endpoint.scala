@@ -18,8 +18,9 @@ package sec
 package api
 
 import java.net.InetSocketAddress
-import io.grpc.{Attributes, EquivalentAddressGroup}
+
 import cats.{Order, Show}
+import io.grpc.{Attributes, EquivalentAddressGroup}
 
 /**
  * Endpoint can be an IP Socket Address consisting of an IP address and port number. It

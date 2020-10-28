@@ -19,14 +19,16 @@ package api
 package cluster
 
 import scala.util.Random
+
 import cats.data.{NonEmptyList => Nel, NonEmptySet => Nes}
-import cats.syntax.all._
 import cats.effect._
 import cats.effect.concurrent._
 import cats.effect.implicits._
+import cats.syntax.all._
 import fs2.Stream
 import fs2.concurrent.SignallingRef
 import io.chrisdavenport.log4cats.Logger
+
 import Notifier.Listener
 import NodePrioritizer.prioritizeNodes
 

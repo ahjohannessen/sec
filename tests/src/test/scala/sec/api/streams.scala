@@ -35,13 +35,14 @@ package api
 
 import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
-import cats.effect._
+
 import cats.Order
-import fs2.Stream
-import org.specs2.mutable.Specification
+import cats.effect._
 import cats.effect.testing.specs2.CatsIO
+import fs2.Stream
 import io.chrisdavenport.log4cats.noop.NoOpLogger
 import io.chrisdavenport.log4cats.testing.TestingLogger
+import org.specs2.mutable.Specification
 import sec.api.Direction.Forwards
 import sec.api.Streams._
 import sec.api.retries.RetryConfig

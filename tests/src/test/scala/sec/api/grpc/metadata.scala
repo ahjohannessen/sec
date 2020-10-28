@@ -18,9 +18,10 @@ package sec
 package api
 package grpc
 
+import cats.syntax.all._
 import io.grpc.Metadata
 import org.specs2._
-import cats.syntax.all._
+
 import grpc.metadata._
 import grpc.metadata.keys._
 import grpc.constants.Headers._
