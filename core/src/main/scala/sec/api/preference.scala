@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Alex Henning Johannessen
+ * Copyright 2020 Scala EventStoreDB Client
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

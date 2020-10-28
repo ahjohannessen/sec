@@ -127,7 +127,7 @@ inThisBuild(
     scalacOptions ++= Seq("-target:jvm-1.8"),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
-    organizationName := "Alex Henning Johannessen",
+    organizationName := "Scala EventStoreDB Client",
     homepage := Some(url("https://github.com/ahjohannessen/sec")),
     scmInfo := Some(ScmInfo(url("https://github.com/ahjohannessen/sec"), "git@github.com:ahjohannessen/sec.git")),
     startYear := Some(2020),
