@@ -344,9 +344,9 @@ private[sec] object streams {
         .map(p => DeleteResult(LogPosition.exact(p.commitPosition, p.preparePosition)))
         .require[F]("DeleteResp.PositionOptions.Position")
 
-    def mkDeleteResult[F[_]: ErrorA](tr: TombstoneResp): F[DeleteResult] =
+    def mkTombstoneResult[F[_]: ErrorA](tr: TombstoneResp): F[TombstoneResult] =
       tr.positionOption.position
-        .map(p => DeleteResult(LogPosition.exact(p.commitPosition, p.preparePosition)))
+        .map(p => TombstoneResult(LogPosition.exact(p.commitPosition, p.preparePosition)))
         .require[F]("TombstoneResp.PositionOptions.Position")
 
   }

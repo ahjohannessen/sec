@@ -666,11 +666,13 @@ class StreamsMappingSpec extends mutable.Specification {
 
       mkDeleteResult[ErrorOr](s.DeleteResp().withNoPosition(empty)) shouldEqual
         ProtoResultError("Required value DeleteResp.PositionOptions.Position missing or invalid.").asLeft
+    }
 
-      mkDeleteResult[ErrorOr](s.TombstoneResp().withPosition(s.TombstoneResp.Position(1L, 1L))) shouldEqual
-        DeleteResult(sec.LogPosition.exact(1L, 1L)).asRight
+    "mkTombstoneResult" >> {
+      mkTombstoneResult[ErrorOr](s.TombstoneResp().withPosition(s.TombstoneResp.Position(1L, 1L))) shouldEqual
+        TombstoneResult(sec.LogPosition.exact(1L, 1L)).asRight
 
-      mkDeleteResult[ErrorOr](s.TombstoneResp().withNoPosition(empty)) shouldEqual
+      mkTombstoneResult[ErrorOr](s.TombstoneResp().withNoPosition(empty)) shouldEqual
         ProtoResultError("Required value TombstoneResp.PositionOptions.Position missing or invalid.").asLeft
     }
 

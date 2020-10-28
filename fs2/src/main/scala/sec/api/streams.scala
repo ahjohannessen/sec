@@ -143,6 +143,7 @@ trait Streams[F[_]] {
    * Deletes a stream and returns [[DeleteResult]] with current log position after a successful operation.
    * Failure to fulfill the expected stated is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
    *
+   * @note Deleted streams can be recreated.
    * @see [[https://ahjohannessen.github.io/sec/docs/deleting]] for details about what it means to delete a stream.
    *
    * @param streamId the id of the stream to delete.
@@ -154,9 +155,10 @@ trait Streams[F[_]] {
   ): F[DeleteResult]
 
   /**
-   * Tombstones a stream and returns [[DeleteResult]] with current log position after a successful operation.
+   * Tombstones a stream and returns [[TombstoneResult]] with current log position after a successful operation.
    * Failure to fulfill the expected stated is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
    *
+   * @note Tombstoned streams can *never* be recreated.
    * @see [[https://ahjohannessen.github.io/sec/docs/deleting]] for details about what it means to tombstone a stream.
    *
    * @param streamId the id of the stream to delete.
@@ -165,21 +167,11 @@ trait Streams[F[_]] {
   def tombstone(
     streamId: StreamId,
     expectedState: StreamState
-  ): F[DeleteResult]
+  ): F[TombstoneResult]
 
   /**
    * Returns an instance that uses provided [[UserCredentials]]. This is useful when an operation
    * requires different credentials from what is provided through configuration.
-   *
-   * == Example using custom credentials ==
-   *
-   * {{{
-   *  val subscribtion: Stream[F, Event] =
-   *    streams.withCredentials(customCreds).subscribeToAll(None, false)
-   * }}}
-   *
-   * If the need for custom credentials is frequent you can define extension methods
-   * for those opererations on [[Streams]] with an extra [[UserCredentials]] parameter.
    *
    * @param creds Custom user credentials to use.
    */
@@ -254,7 +246,7 @@ object Streams {
     def tombstone(
       streamId: StreamId,
       expectedState: StreamState
-    ): F[DeleteResult] =
+    ): F[TombstoneResult] =
       tombstone0[F](streamId, expectedState, opts)(client.tombstone(_, ctx))
 
     def withCredentials(
@@ -374,8 +366,8 @@ object Streams {
     streamId: StreamId,
     expectedState: StreamState,
     opts: Opts[F]
-  )(f: TombstoneReq => F[TombstoneResp]): F[DeleteResult] =
-    (opts.run(f(mkTombstoneReq(streamId, expectedState)), "tombstone") >>= mkDeleteResult[F]).adaptError {
+  )(f: TombstoneReq => F[TombstoneResp]): F[TombstoneResult] =
+    (opts.run(f(mkTombstoneReq(streamId, expectedState)), "tombstone") >>= mkTombstoneResult[F]).adaptError {
       case e: WrongExpectedVersion => e.adaptOrFallback(streamId, expectedState)
     }
 
