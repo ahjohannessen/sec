@@ -238,16 +238,6 @@ trait MetaStreams[F[_]] {
    * Returns an instance that uses provided [[UserCredentials]]. This is useful when an operation
    * requires different credentials from what is provided through configuration.
    *
-   * ==Example using custom credentials==
-   *
-   * {{{
-   *  val maxCount: F[Option[ReadResult[MaxCount]]] =
-   *    metaStreams.withCredentials(customCreds).getMaxCount(id)
-   * }}}
-   *
-   * If the need for custom credentials is frequent you can define extension methods
-   * for those opererations on [[MetaStreams]] with an extra [[UserCredentials]] parameter.
-   *
    * @param creds Custom user credentials to use.
    */
   def withCredentials(creds: UserCredentials): MetaStreams[F]

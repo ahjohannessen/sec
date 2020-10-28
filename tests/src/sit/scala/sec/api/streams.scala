@@ -205,8 +205,7 @@ class StreamsSuite extends SnSpec {
         def write(eds: Nel[EventData]) =
           eds.traverse(e => streams.appendToStream(mkStreamId, NoStream, Nel.one(e)))
 
-        val subscribe =
-          streams.subscribeToAllFiltered(from, options).takeThrough(_.fold(_ => true, _.eventData != after.last))
+        val subscribe = streams.subscribeToAll(from, options).takeThrough(_.fold(_ => true, _.eventData != after.last))
 
         val writeBefore = write(before).whenA(includeBefore).void
         val writeAfter  = write(after).void
@@ -248,7 +247,7 @@ class StreamsSuite extends SnSpec {
           eds.traverse(e => streams.appendToStream(mkStreamId, NoStream, Nel.one(e)))
 
         def subscribe(from: LogPosition) =
-          streams.subscribeToAllFiltered(from.some, options).takeThrough(_.fold(_ => true, _.eventData != after.last))
+          streams.subscribeToAll(from.some, options).takeThrough(_.fold(_ => true, _.eventData != after.last))
 
         val writeBefore = write(before).whenA(includeBefore).void
         val writeAfter  = write(after).void
@@ -1618,9 +1617,9 @@ class StreamsSuite extends SnSpec {
         for {
           wr  <- streams.appendToStream(id, StreamState.NoStream, events)
           pos <- streams.readStreamForwards(id, maxCount = 1).compile.lastOrError.map(_.logPosition)
-          dr  <- streams.tombstone(id, wr.streamPosition)
+          tr  <- streams.tombstone(id, wr.streamPosition)
 
-        } yield dr.logPosition > pos
+        } yield tr.logPosition > pos
 
       }
 

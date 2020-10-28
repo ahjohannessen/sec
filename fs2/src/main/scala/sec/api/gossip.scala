@@ -40,16 +40,6 @@ trait Gossip[F[_]] {
    * cluster information that requires different credentials from what is provided through
    * configuration.
    *
-   * ==Example using custom credentials==
-   *
-   * {{{
-   *  val clusterInfo: F[ClusterInfo] =
-   *    metaStreams.withCredentials(customCreds).read(id)
-   * }}}
-   *
-   * If the need for custom credentials is frequent you can define an extension method
-   * for [[read]] with an extra [[UserCredentials]] parameter.
-   *
    * @param creds Custom user credentials to use.
    */
   def withCredentials(creds: UserCredentials): Gossip[F]
