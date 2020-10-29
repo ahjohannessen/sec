@@ -21,16 +21,16 @@ this is done with `StreamId.apply` that returns an `Either[InvalidInput, Id]`. S
 are:
 
 ```scala mdoc:silent
-import cats.syntax.all._
 import sec.StreamId
 
 val user   = StreamId("user_stream")    // Right(Normal("user_stream")
 val system = StreamId("$system_stream") // Right(System("system_stream"))
 
-// MetaId for above you get from the metaId method:
+// MetaId for above you get from the metaId method.
+// The render method displays the stream identifier as @esdb@ sees it.
 
-user.map(_.metaId.show)   // Right("$$user_stream")
-system.map(_.metaId.show) // Right("$$$system_stream")
+user.map(_.metaId.render)   // Right("$$user_stream")
+system.map(_.metaId.render) // Right("$$$system_stream")
 
 // Invalid stream identifiers
 
@@ -42,10 +42,10 @@ Moreover, a few common system stream identififiers are located in the `StreamId`
 ```scala mdoc:silent
 import sec.StreamId
 
-StreamId.All.show               // $all
-StreamId.All.metaId.show        // $$$all
-StreamId.Scavenges.show         // $scavenges
-StreamId.Scavenges.metaId.show  // $$$scavenges
+StreamId.All.render               // $all
+StreamId.Scavenges.render         // $scavenges
+StreamId.All.metaId.render        // $$$all
+StreamId.Scavenges.metaId.render  // $$$scavenges
 ```
 
 
@@ -142,10 +142,10 @@ Common system types are located in the companion of `EventType`, some examples a
 ```scala mdoc:silent
 import sec.EventType
 
-EventType.LinkTo.show          // $>
-EventType.StreamMetadata.show  // $metadata
-EventType.Settings.show        // $settings
-EventType.StreamReference.show // $@
+EventType.LinkTo.render          // $>
+EventType.StreamMetadata.render  // $metadata
+EventType.Settings.render        // $settings
+EventType.StreamReference.render // $@
 ```
 
 #### EventId
@@ -181,14 +181,26 @@ When `EventType` is translated to the protocol of @esdb@ it becomes `application
 
 ### Event
 
-Data arriving from @esdb@ is modelled as an `Event`, which is an *ADT* that has two variants, `EventRecord` and 
-`ResolvedEvent`. 
+Event data arriving from @esdb@ either comes from an individual stream or from the global log. Data retrieved 
+from the global log contains positions `LogPosition.Exact` and `StreamPosition.Exact`, whereas data from an individual 
+stream only contains `StreamPosition.Exact`. 
+
+The difference in position information is encoded in the *ADT* that models an event, `Event[P <: Position]` where `P` 
+is either `Position.All` containing both position types or `Position.Stream` that is an alias for `StreamPosition.Exact`. 
+
+```scala mdoc
+import sec.{Position, LogPosition, StreamPosition}
+
+val all: Position.All       = Position.All(StreamPosition.Start, LogPosition.Start)
+val stream: Position.Stream = StreamPosition.Start
+```
+
+`Event` has the variants `EventRecord` and `ResolvedEvent`.
 
 An `EventRecord` consists of the following data types:
 
   - `streamId: StreamId` - The stream the event belongs to.
-  - `streamPosition: StreamPosition.Exact` - The position of the event in the stream.
-  - `logPosition: LogPosition.Exact` - The position of the event in the global log.
+  - `position: P` - The `Position` information `P` about the event.
   - `eventData: EventData` - The data of the event.
   - `created: ZonedDateTime` - The time the event was created.
   

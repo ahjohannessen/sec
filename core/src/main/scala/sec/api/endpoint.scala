@@ -19,7 +19,7 @@ package api
 
 import java.net.InetSocketAddress
 
-import cats.{Order, Show}
+import cats.Order
 import io.grpc.{Attributes, EquivalentAddressGroup}
 
 /**
@@ -34,13 +34,16 @@ final case class Endpoint(
 
 object Endpoint {
 
+  final private val ae: Attributes = Attributes.EMPTY
+
   implicit val orderForEndpoint: Order[Endpoint]       = Order.by(ep => (ep.address, ep.port))
   implicit val orderingForEndpoint: Ordering[Endpoint] = orderForEndpoint.toOrdering
-  implicit val showForEndpoint: Show[Endpoint]         = Show.show(ep => s"${ep.address}:${ep.port}")
+
+  def render(ep: Endpoint): String = s"${ep.address}:${ep.port}"
 
   implicit final private[sec] class EndpointOps(val ep: Endpoint) extends AnyVal {
-    def toInetSocketAddress: InetSocketAddress = new InetSocketAddress(ep.address, ep.port)
-    def toEquivalentAddressGroup: EquivalentAddressGroup =
-      new EquivalentAddressGroup(ep.toInetSocketAddress, Attributes.EMPTY)
+    def render: String                                   = Endpoint.render(ep)
+    def toInetSocketAddress: InetSocketAddress           = new InetSocketAddress(ep.address, ep.port)
+    def toEquivalentAddressGroup: EquivalentAddressGroup = new EquivalentAddressGroup(ep.toInetSocketAddress, ae)
   }
 }

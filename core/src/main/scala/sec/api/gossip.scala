@@ -21,7 +21,7 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit.SECONDS
 import java.{util => ju}
 
-import cats._
+import cats.Order
 import cats.implicits._
 
 /**
@@ -32,12 +32,19 @@ final case class ClusterInfo(
 )
 
 object ClusterInfo {
+
   implicit val orderForClusterInfo: Order[ClusterInfo] = Order.by(_.members.toList.sorted)
-  implicit val showForClusterInfo: Show[ClusterInfo] = Show.show { ci =>
-    val padTo   = ci.members.map(_.state.show).map(_.length).maxOption.getOrElse(0)
+
+  def render(ci: ClusterInfo): String = {
+    val padTo   = ci.members.map(_.state.render).map(_.length).maxOption.getOrElse(0)
     val members = ci.members.toList.sorted
-    s"ClusterInfo:\n${members.map(mi => s" ${MemberInfo.mkShow(padTo).show(mi)}").mkString("\n")}"
+    s"ClusterInfo:\n${members.map(mi => s" ${MemberInfo.render(mi, padTo)}").mkString("\n")}"
   }
+
+  implicit final class ClusterInfoOps(val ci: ClusterInfo) extends AnyVal {
+    def render: String = ClusterInfo.render(ci)
+  }
+
 }
 
 final case class MemberInfo(
@@ -53,17 +60,21 @@ object MemberInfo {
   implicit val orderForMemberInfo: Order[MemberInfo] =
     Order.by(mi => (mi.httpEndpoint, mi.state, mi.isAlive, mi.instanceId))
 
-  implicit val showForMemberInfo: Show[MemberInfo] = mkShow(0)
+  def render(mi: MemberInfo): String = render(mi, 0)
 
-  private[sec] def mkShow(padTo: Int): Show[MemberInfo] = Show.show { mi =>
+  private[sec] def render(mi: MemberInfo, padTo: Int): String = {
 
     val alive    = s"${if (mi.isAlive) "✔" else "✕"}"
-    val state    = s"${mi.state.show.padTo(padTo, ' ')}"
-    val endpoint = s"${mi.httpEndpoint.show}"
+    val state    = s"${mi.state.render.padTo(padTo, ' ')}"
+    val endpoint = s"${mi.httpEndpoint.render}"
     val ts       = s"${mi.timestamp.truncatedTo(SECONDS)}"
     val id       = s"${mi.instanceId}"
 
     s"$alive $state $endpoint $ts $id"
+  }
+
+  implicit final class MemberInfoOps(val mi: MemberInfo) extends AnyVal {
+    def render: String = MemberInfo.render(mi)
   }
 
 }
@@ -127,6 +138,8 @@ object VNodeState {
       case ResigningLeader    => 15
     }
 
-  implicit val showForVNodeState: Show[VNodeState] = Show.fromToString[VNodeState]
+  implicit final class VNodeStateOps(val vns: VNodeState) extends AnyVal {
+    def render: String = vns.toString
+  }
 
 }

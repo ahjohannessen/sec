@@ -40,7 +40,7 @@ object WritingEvents extends IOApp {
       streamId <- mkStreamId
       data     <- NonEmptyList.of(eventData1, eventData2).sequence
       _        <- streams.appendToStream(streamId, StreamState.NoStream, data)
-      _        <- streams.readStreamForwards(streamId).debug(_.show).compile.drain
+      _        <- streams.readStreamForwards(streamId).debug(_.render).compile.drain
     } yield ()
   }
 

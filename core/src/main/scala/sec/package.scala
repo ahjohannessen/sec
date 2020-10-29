@@ -18,6 +18,11 @@ import cats.{ApplicativeError, MonadError}
 
 package object sec {
 
+  type AllEvent    = sec.Event[Position.All]
+  type StreamEvent = sec.Event[Position.Stream]
+
+  ///
+
   private[sec] type ErrorM[F[_]] = MonadError[F, Throwable]
   private[sec] type ErrorA[F[_]] = ApplicativeError[F, Throwable]
   private[sec] type Attempt[T]   = Either[String, T]

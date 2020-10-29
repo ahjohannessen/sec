@@ -18,8 +18,8 @@ package sec
 
 import scala.concurrent.duration._
 
+import cats.Endo
 import cats.syntax.all._
-import cats.{Endo, Show}
 import io.circe.Decoder.Result
 import io.circe._
 import io.circe.syntax._
@@ -128,7 +128,7 @@ object MaxAge {
     if (maxAge < 1.second) InvalidInput(s"maxAge must be >= 1 second, it was $maxAge.").asLeft
     else new MaxAge(maxAge) {}.asRight
 
-  implicit val showForMaxAge: Show[MaxAge] = Show.show(_.value.toString())
+  private[sec] def render(ma: MaxAge): String = ma.value.toString()
 }
 
 /**
@@ -145,9 +145,8 @@ object MaxCount {
     if (maxCount < 1) InvalidInput(s"max count must be >= 1, it was $maxCount.").asLeft
     else new MaxCount(maxCount) {}.asRight
 
-  implicit val showForMaxCount: Show[MaxCount] = Show.show { mc =>
+  private[sec] def render(mc: MaxCount): String =
     s"${mc.value} event${if (mc.value == 1) "" else "s"}"
-  }
 
 }
 
@@ -167,7 +166,7 @@ object CacheControl {
     if (cacheControl < 1.second) InvalidInput(s"cache control must be >= 1, it was $cacheControl.").asLeft
     else new CacheControl(cacheControl) {}.asRight
 
-  implicit val showForCacheControl: Show[CacheControl] = Show.show(_.value.toString())
+  private[sec] def render(cc: CacheControl): String = cc.value.toString()
 }
 
 //======================================================================================================================
@@ -264,15 +263,19 @@ private[sec] object MetaState {
 
   }
 
-  implicit val showForMetaState: Show[MetaState] = Show.show[MetaState] { ss =>
+  def render(ms: MetaState): String = {
     s"""
        |MetaState:
-       |  max-age         = ${ss.maxAge.map(_.show).getOrElse("n/a")}
-       |  max-count       = ${ss.maxCount.map(_.show).getOrElse("n/a")}
-       |  cache-control   = ${ss.cacheControl.map(_.show).getOrElse("n/a")}
-       |  truncate-before = ${ss.truncateBefore.map(_.show).getOrElse("n/a")}
-       |  access-list     = ${ss.acl.map(_.show).getOrElse("n/a")}
+       |  max-age         = ${ms.maxAge.map(MaxAge.render).getOrElse("n/a")}
+       |  max-count       = ${ms.maxCount.map(MaxCount.render).getOrElse("n/a")}
+       |  cache-control   = ${ms.cacheControl.map(CacheControl.render).getOrElse("n/a")}
+       |  truncate-before = ${ms.truncateBefore.map(e => s"${e.value}L").getOrElse("n/a")}
+       |  access-list     = ${ms.acl.map(StreamAcl.render).getOrElse("n/a")}
        |""".stripMargin
+  }
+
+  implicit final class MetaStateOps(val ms: MetaState) extends AnyVal {
+    def render: String = MetaState.render(ms)
   }
 
 }
@@ -307,6 +310,7 @@ object StreamAcl {
     def withMetaReadRoles(value: Set[String]): StreamAcl  = sa.copy(metaReadRoles = value)
     def withMetaWriteRoles(value: Set[String]): StreamAcl = sa.copy(metaWriteRoles = value)
     def withDeleteRoles(value: Set[String]): StreamAcl    = sa.copy(deleteRoles = value)
+    def render: String                                    = StreamAcl.render(sa)
 
   }
 
@@ -353,15 +357,16 @@ object StreamAcl {
 
   }
 
-  implicit val showForStreamAcl: Show[StreamAcl] = Show.show[StreamAcl] { ss =>
+  def render(sa: StreamAcl): String = {
+
     def show(label: String, roles: Set[String]): String =
       s"$label: ${roles.mkString("[", ", ", "]")}"
 
-    val r  = show("read", ss.readRoles)
-    val w  = show("write", ss.writeRoles)
-    val d  = show("delete", ss.deleteRoles)
-    val mr = show("meta-read", ss.metaReadRoles)
-    val mw = show("meta-write", ss.metaWriteRoles)
+    val r  = show("read", sa.readRoles)
+    val w  = show("write", sa.writeRoles)
+    val d  = show("delete", sa.deleteRoles)
+    val mr = show("meta-read", sa.metaReadRoles)
+    val mw = show("meta-write", sa.metaWriteRoles)
 
     s"$r, $w, $d, $mr, $mw"
   }

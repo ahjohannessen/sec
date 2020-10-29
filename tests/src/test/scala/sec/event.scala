@@ -34,23 +34,21 @@ class EventSpec extends Specification {
   private def bv(data: String): ByteVector =
     ByteVector.encodeUtf8(data).leftMap(_.getMessage).unsafe
 
-  val er: EventRecord = sec.EventRecord(
+  val er: EventRecord[Position.Stream] = sec.EventRecord[Position.Stream](
     StreamId("abc-1234").unsafe,
     StreamPosition.exact(5L),
-    sampleOf[LogPosition.Exact],
     EventData("et", sampleOf[ju.UUID], bv("abc"), ContentType.Binary).unsafe,
     sampleOf[ZonedDateTime]
   )
 
-  val link: EventRecord = sec.EventRecord(
+  val link: EventRecord[Position.Stream] = sec.EventRecord[Position.Stream](
     StreamId.system("ce-abc").unsafe,
     StreamPosition.exact(10L),
-    LogPosition.exact(1337L, 1337L),
     EventData(EventType.LinkTo, sampleOf[ju.UUID], bv("5@abc-1234"), ContentType.Binary),
     sampleOf[ZonedDateTime]
   )
 
-  val re: ResolvedEvent = ResolvedEvent(er, link)
+  val re: ResolvedEvent[Position.Stream] = ResolvedEvent(er, link)
 
   ///
 
@@ -62,56 +60,79 @@ class EventSpec extends Specification {
     }
 
     "streamId" >> {
-      (er: Event).streamId shouldEqual er.streamId
-      (re: Event).streamId shouldEqual er.streamId
+      (er: Event[Position.Stream]).streamId shouldEqual er.streamId
+      (re: Event[Position.Stream]).streamId shouldEqual er.streamId
     }
 
     "streamPosition" >> {
-      (er: Event).streamPosition shouldEqual er.streamPosition
-      (re: Event).streamPosition shouldEqual er.streamPosition
-    }
-
-    "logPosition" >> {
-      (er: Event).logPosition shouldEqual er.logPosition
-      (re: Event).logPosition shouldEqual er.logPosition
+      (er: Event[Position.Stream]).streamPosition shouldEqual er.streamPosition
+      (re: Event[Position.Stream]).streamPosition shouldEqual er.streamPosition
     }
 
     "eventData" >> {
-      (er: Event).eventData shouldEqual er.eventData
-      (re: Event).eventData shouldEqual er.eventData
+      (er: Event[Position.Stream]).eventData shouldEqual er.eventData
+      (re: Event[Position.Stream]).eventData shouldEqual er.eventData
     }
 
     "record" >> {
-      (er: Event).record shouldEqual er
-      (re: Event).record shouldEqual link
+      (er: Event[Position.Stream]).record shouldEqual er
+      (re: Event[Position.Stream]).record shouldEqual link
     }
 
     "created" >> {
-      (er: Event).created shouldEqual er.created
-      (re: Event).created shouldEqual er.created
+      (er: Event[Position.Stream]).created shouldEqual er.created
+      (re: Event[Position.Stream]).created shouldEqual er.created
     }
 
   }
 
-  "show" >> {
+  "AllEventOps" >> {
 
-    er.show shouldEqual s"""
+    val er: EventRecord[Position.All] = sec.EventRecord[Position.All](
+      StreamId("abc-1234").unsafe,
+      Position.All(StreamPosition.exact(5L), LogPosition.exact(42L, 42L)),
+      EventData("et", sampleOf[ju.UUID], bv("abc"), ContentType.Binary).unsafe,
+      sampleOf[ZonedDateTime]
+    )
+
+    val link: EventRecord[Position.All] = sec.EventRecord[Position.All](
+      StreamId.system("ce-abc").unsafe,
+      Position.All(StreamPosition.exact(10L), LogPosition.exact(1337L, 1337L)),
+      EventData(EventType.LinkTo, sampleOf[ju.UUID], bv("5@abc-1234"), ContentType.Binary),
+      sampleOf[ZonedDateTime]
+    )
+
+    val re: ResolvedEvent[Position.All] = ResolvedEvent(er, link)
+
+    "logPosition" >> {
+      (er: Event[Position.All]).logPosition shouldEqual er.logPosition
+      (re: Event[Position.All]).logPosition shouldEqual er.logPosition
+    }
+
+    "streamPosition" >> {
+      (er: Event[Position.All]).streamPosition shouldEqual er.streamPosition
+      (re: Event[Position.All]).streamPosition shouldEqual er.streamPosition
+    }
+  }
+
+  "render" >> {
+
+    er.render shouldEqual s"""
         |EventRecord(
-        |  streamId       = ${er.streamId.show},
-        |  eventId        = ${er.eventData.eventId},
-        |  type           = ${er.eventData.eventType.show},
-        |  streamPosition = ${er.streamPosition.show},
-        |  logPosition    = ${er.logPosition.show},
-        |  data           = ${er.eventData.showData}, 
-        |  metadata       = ${er.eventData.showMetadata}, 
-        |  created        = ${er.created}
+        |  streamId = ${er.streamId.render},
+        |  eventId  = ${er.eventData.eventId},
+        |  type     = ${er.eventData.eventType.render},
+        |  position = ${er.position.renderPosition},
+        |  data     = ${er.eventData.renderData},
+        |  metadata = ${er.eventData.renderMetadata},
+        |  created  = ${er.created}
         |)
         |""".stripMargin
 
-    re.show shouldEqual s"""
+    re.render shouldEqual s"""
         |ResolvedEvent(
-        |  event = ${re.event.show},
-        |  link  = ${re.link.show}
+        |  event = ${re.event.render},
+        |  link  = ${re.link.render}
         |)
         |""".stripMargin
 
@@ -154,9 +175,9 @@ class EventTypeSpec extends Specification {
     EventType.stringToEventType(system.stringValue) should beRight(system)
   }
 
-  "show" >> {
+  "render" >> {
     val et = sampleOf[EventType]
-    et.show shouldEqual et.stringValue
+    et.render shouldEqual et.stringValue
   }
 
   "EventTypeOps" >> {
@@ -228,9 +249,9 @@ class ContentTypeSpec extends Specification {
 
   import ContentType._
 
-  "show" >> {
-    (Binary: ContentType).show shouldEqual "Binary"
-    (Json: ContentType).show shouldEqual "Json"
+  "render" >> {
+    (Binary: ContentType).render shouldEqual "Binary"
+    (Json: ContentType).render shouldEqual "Json"
   }
 
   "ContentTypeOps" >> {

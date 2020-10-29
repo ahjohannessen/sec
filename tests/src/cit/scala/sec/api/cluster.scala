@@ -19,8 +19,6 @@ package api
 
 import scala.concurrent.duration._
 
-import cats.implicits._
-
 class ClusterSuite extends CSpec {
 
   "Cluster" should {
@@ -29,7 +27,7 @@ class ClusterSuite extends CSpec {
 
       fs2.Stream
         .eval(gossip.read)
-        .evalTap(x => log.info(s"Gossip.read: ${x.show}"))
+        .evalTap(x => log.info(s"Gossip.read: ${x.render}"))
         .metered(150.millis)
         .repeat
         .take(5)

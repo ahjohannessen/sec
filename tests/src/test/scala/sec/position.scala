@@ -17,7 +17,6 @@
 package sec
 
 import cats.kernel.laws.discipline._
-import cats.syntax.all._
 import org.scalacheck._
 import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -27,10 +26,10 @@ class VersionSpec extends Specification with Discipline {
 
   "StreamState" >> {
 
-    "Show" >> {
+    "render" >> {
 
       def test(ss: StreamState, expected: String) =
-        ss.show shouldEqual expected
+        ss.render shouldEqual expected
 
       test(StreamState.NoStream, "NoStream")
       test(StreamState.Any, "Any")
@@ -39,7 +38,7 @@ class VersionSpec extends Specification with Discipline {
     }
 
     "Eq" >> {
-      implicit val cogen: Cogen[StreamState] = Cogen[String].contramap[StreamState](_.show)
+      implicit val cogen: Cogen[StreamState] = Cogen[String].contramap[StreamState](_.render)
       checkAll("StreamState", EqTests[StreamState].eqv)
     }
   }
@@ -52,13 +51,13 @@ class VersionSpec extends Specification with Discipline {
       StreamPosition(-1L) should beLeft(InvalidInput("value must be >= 0, but is -1"))
     }
 
-    "Show" >> {
-      (StreamPosition.Start: StreamPosition).show shouldEqual "0L"
-      (StreamPosition.End: StreamPosition).show shouldEqual "end"
+    "render" >> {
+      (StreamPosition.Start: StreamPosition).render shouldEqual "0L"
+      (StreamPosition.End: StreamPosition).render shouldEqual "end"
     }
 
     "Order" >> {
-      implicit val cogen: Cogen[StreamPosition] = Cogen[String].contramap[StreamPosition](_.show)
+      implicit val cogen: Cogen[StreamPosition] = Cogen[String].contramap[StreamPosition](_.render)
       checkAll("StreamPosition", OrderTests[StreamPosition].order)
     }
   }
@@ -74,15 +73,38 @@ class VersionSpec extends Specification with Discipline {
       LogPosition(0L, 1L) should beLeft(InvalidInput("commit must be >= prepare, but 0 < 1"))
     }
 
-    "Show" >> {
-      (LogPosition.Start: LogPosition).show shouldEqual "LogPosition(c = 0, p = 0)"
-      (LogPosition.End: LogPosition).show shouldEqual "end"
+    "render" >> {
+      (LogPosition.Start: LogPosition).render shouldEqual "(c = 0L, p = 0L)"
+      (LogPosition.End: LogPosition).render shouldEqual "end"
     }
 
     "Order" >> {
-      implicit val cogen: Cogen[LogPosition] = Cogen[String].contramap[LogPosition](_.show)
+      implicit val cogen: Cogen[LogPosition] = Cogen[String].contramap[LogPosition](_.render)
       checkAll("LogPosition", OrderTests[LogPosition].order)
     }
+  }
+
+  "Position" >> {
+
+    "renderPosition" >> {
+
+      val stream = StreamPosition.exact(1L)
+      val all    = Position.All(stream, LogPosition.exact(2L, 3L))
+
+      (stream: Position).renderPosition shouldEqual "stream: 1L"
+      (all: Position).renderPosition shouldEqual "log: (c = 2L, p = 3L), stream: 1L"
+    }
+
+    "streamPosition" >> {
+
+      val stream = StreamPosition.exact(1L)
+      val all    = Position.All(stream, LogPosition.exact(2L, 3L))
+
+      (stream: Position).streamPosition shouldEqual StreamPosition.exact(1L)
+      (all: Position).streamPosition shouldEqual StreamPosition.exact(1L)
+
+    }
+
   }
 
 }

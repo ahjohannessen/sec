@@ -39,11 +39,11 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
    * resolving [[EventType.LinkTo]] events.
    *
    * @param exclusiveFrom position to start from. Use [[None]] to subscribe from the beginning.
-   * @return a [[Stream]] that emits [[Event]] values.
+   * @return a [[Stream]] that emits [[AllEvent]] values.
    */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition]
-  ): Stream[F, Event] =
+  ): Stream[F, AllEvent] =
     s.subscribeToAll(exclusiveFrom, resolveLinkTos = false)
 
   /**
@@ -52,13 +52,13 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
    *
    * @param exclusiveFrom log position to start from. Use [[None]] to subscribe from the beginning.
    * @param filterOptions to use when subscribing - See [[sec.api.SubscriptionFilterOptions]].
-   * @return a [[Stream]] that emits either [[Checkpoint]] or [[Event]] values.
+   * @return a [[Stream]] that emits either [[Checkpoint]] or [[AllEvent]] values.
    *         How frequent [[Checkpoint]] is emitted depends on [[filterOptions]].
    */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
     filterOptions: SubscriptionFilterOptions
-  ): Stream[F, Either[Checkpoint, Event]] =
+  ): Stream[F, Either[Checkpoint, AllEvent]] =
     s.subscribeToAll(exclusiveFrom, filterOptions, resolveLinkTos = false)
 
   /**
@@ -66,12 +66,12 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
    *
    * @param streamId the id of the stream to subscribe to.
    * @param exclusiveFrom stream position to start from. Use [[None]] to subscribe from the beginning.
-   * @return a [[Stream]] that emits [[Event]] values.
+   * @return a [[Stream]] that emits [[StreamEvent]] values.
    */
   def subscribeToStream(
     streamId: StreamId,
     exclusiveFrom: Option[StreamPosition]
-  ): Stream[F, Event] =
+  ): Stream[F, StreamEvent] =
     s.subscribeToStream(streamId, exclusiveFrom, resolveLinkTos = false)
 
   /// Read
@@ -82,13 +82,13 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
    * @param from log position to read from.
    * @param maxCount limits maximum events returned.
    * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits [[Event]] values.
+   * @return a [[Stream]] that emits [[AllEvent]] values.
    */
   def readAllForwards(
     from: LogPosition = LogPosition.Start,
     maxCount: Long = Long.MaxValue,
     resolveLinkTos: Boolean = false
-  ): Stream[F, Event] =
+  ): Stream[F, AllEvent] =
     s.readAll(from, Direction.Forwards, maxCount, resolveLinkTos)
 
   /**
@@ -97,13 +97,13 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
    * @param from log position to read from.
    * @param maxCount limits maximum events returned.
    * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits [[Event]] values.
+   * @return a [[Stream]] that emits [[AllEvent]] values.
    */
   def readAllBackwards(
     from: LogPosition = LogPosition.End,
     maxCount: Long = Long.MaxValue,
     resolveLinkTos: Boolean = false
-  ): Stream[F, Event] =
+  ): Stream[F, AllEvent] =
     s.readAll(from, Direction.Backwards, maxCount, resolveLinkTos)
 
   /**
@@ -114,14 +114,14 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
    * @param from stream position to read from.
    * @param maxCount limits maximum events returned.
    * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits [[Event]] values.
+   * @return a [[Stream]] that emits [[StreamEvent]] values.
    */
   def readStreamForwards(
     streamId: StreamId,
     from: StreamPosition = StreamPosition.Start,
     maxCount: Long = Long.MaxValue,
     resolveLinkTos: Boolean = false
-  ): Stream[F, Event] =
+  ): Stream[F, StreamEvent] =
     s.readStream(streamId, from, Direction.Forwards, maxCount, resolveLinkTos)
 
   /**
@@ -132,14 +132,14 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
    * @param from stream position to read from.
    * @param maxCount limits maximum events returned.
    * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits [[Event]] values.
+   * @return a [[Stream]] that emits [[StreamEvent]] values.
    */
   def readStreamBackwards(
     streamId: StreamId,
     from: StreamPosition = StreamPosition.End,
     maxCount: Long = Long.MaxValue,
     resolveLinkTos: Boolean = false
-  ): Stream[F, Event] =
+  ): Stream[F, StreamEvent] =
     s.readStream(streamId, from, Direction.Backwards, maxCount, resolveLinkTos)
 
 }

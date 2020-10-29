@@ -21,7 +21,6 @@ import java.time.ZonedDateTime
 import java.util.UUID
 
 import cats.kernel.laws.discipline._
-import cats.syntax.all._
 import org.scalacheck._
 import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -38,7 +37,7 @@ class GossipSpec extends Specification with Discipline {
         checkAll("ClusterInfo", OrderTests[ClusterInfo].eqv)
       }
 
-      "show" >> {
+      "render" >> {
 
         val m1 = MemberInfo(
           UUID.fromString("a781aa1f-0b48-47dd-84e1-519bdd1dcc6c"),
@@ -66,7 +65,7 @@ class GossipSpec extends Specification with Discipline {
 
         val ci = ClusterInfo(Set(m1, m2, m3))
 
-        ci.show shouldEqual
+        ci.render shouldEqual
           """ClusterInfo:
             | ✔ Leader   127.0.0.1:2113 2020-07-27T16:20:34Z a781aa1f-0b48-47dd-84e1-519bdd1dcc6c
             | ✕ Follower 127.0.0.2:2113 2020-07-27T16:20:34Z 7342793a-25cc-48b2-97fe-cd0779c043f3
@@ -83,7 +82,7 @@ class GossipSpec extends Specification with Discipline {
         checkAll("MemberInfo", OrderTests[MemberInfo].order)
       }
 
-      "show" >> {
+      "render" >> {
 
         val m1 = MemberInfo(
           UUID.fromString("a781aa1f-0b48-47dd-84e1-519bdd1dcc6c"),
@@ -101,8 +100,8 @@ class GossipSpec extends Specification with Discipline {
           Endpoint("127.0.0.2", 2113)
         )
 
-        m1.show shouldEqual s"✔ Follower 127.0.0.1:2113 2020-07-27T16:20:34Z a781aa1f-0b48-47dd-84e1-519bdd1dcc6c"
-        m2.show shouldEqual s"✕ Leader 127.0.0.2:2113 2020-07-27T16:20:34Z 7f1ae876-d9d0-4441-b6c0-c5962e330dc6"
+        m1.render shouldEqual s"✔ Follower 127.0.0.1:2113 2020-07-27T16:20:34Z a781aa1f-0b48-47dd-84e1-519bdd1dcc6c"
+        m2.render shouldEqual s"✕ Leader 127.0.0.2:2113 2020-07-27T16:20:34Z 7f1ae876-d9d0-4441-b6c0-c5962e330dc6"
       }
     }
 
@@ -113,8 +112,8 @@ class GossipSpec extends Specification with Discipline {
         checkAll("VNodeState", OrderTests[VNodeState].order)
       }
 
-      "show" >> {
-        VNodeState.values.map(_.toString) shouldEqual VNodeState.values.map(_.show)
+      "render" >> {
+        VNodeState.values.map(_.toString) shouldEqual VNodeState.values.map(_.render)
       }
     }
 

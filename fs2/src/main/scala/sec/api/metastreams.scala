@@ -324,17 +324,17 @@ object MetaStreams {
 
     private[sec] def getMetadata(id: Id): F[Option[MetaResult]] = {
 
-      val decodeJson: EventRecord => F[StreamMetadata] =
-        _.eventData.data.decodeUtf8.leftMap(DecodingError(_)).liftTo[F] >>= { utf8 =>
+      val decodeJson: EventData => F[StreamMetadata] =
+        _.data.decodeUtf8.leftMap(DecodingError(_)).liftTo[F] >>= { utf8 =>
           decode[StreamMetadata](utf8).leftMap(DecodingError(_)).liftTo[F]
         }
 
-      val recoverRead: PartialFunction[Throwable, Option[EventRecord]] = { case _: StreamNotFound =>
-        none[EventRecord]
+      val recoverRead: PartialFunction[Throwable, Option[EventRecord[Position.Stream]]] = { case _: StreamNotFound =>
+        none[EventRecord[Position.Stream]]
       }
 
       meta.read(id.metaId).recover(recoverRead) >>= {
-        _.traverse(es => decodeJson(es).map(Result(es.streamPosition, _)))
+        _.traverse(es => decodeJson(es.eventData).map(Result(es.streamPosition, _)))
       }
 
     }
@@ -370,7 +370,7 @@ object MetaStreams {
       .liftTo[F]
 
   private[sec] trait MetaRW[F[_]] {
-    def read(mid: MetaId): F[Option[EventRecord]]
+    def read(mid: MetaId): F[Option[EventRecord[Position.Stream]]]
     def write(mid: MetaId, es: StreamState, data: EventData): F[WriteResult]
     def withCredentials(creds: UserCredentials): MetaRW[F]
   }
@@ -382,8 +382,11 @@ object MetaStreams {
       def withCredentials(creds: UserCredentials): MetaRW[F] =
         MetaRW[F](s.withCredentials(creds))
 
-      def read(mid: MetaId): F[Option[EventRecord]] =
-        s.readStreamBackwards(mid, maxCount = 1).collect { case er: EventRecord => er }.compile.last
+      def read(mid: MetaId): F[Option[EventRecord[Position.Stream]]] =
+        s.readStreamBackwards(mid, maxCount = 1)
+          .collect { case er: EventRecord[Position.Stream] => er }
+          .compile
+          .last
 
       def write(mid: MetaId, es: StreamState, data: EventData): F[WriteResult] =
         s.appendToStream(mid, es, NonEmptyList.one(data))
