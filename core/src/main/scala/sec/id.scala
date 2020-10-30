@@ -16,8 +16,8 @@
 
 package sec
 
+import cats.Eq
 import cats.syntax.all._
-import cats.{Eq, Show}
 import sec.utilities.{guardNonEmpty, guardNotStartsWith}
 
 //======================================================================================================================
@@ -107,7 +107,7 @@ object StreamId {
       }
 
     def stringValue: String     = streamIdToString(sid)
-    def show: String            = stringValue
+    def render: String          = stringValue
     def isNormal: Boolean       = fold(_ => true, _ => false, _ => false)
     def isSystemOrMeta: Boolean = fold(_ => false, _ => true, _ => true)
 
@@ -117,8 +117,8 @@ object StreamId {
     def metaId: MetaId = MetaId(id)
   }
 
-  implicit val eqForStreamId: Eq[StreamId]     = Eq.fromUniversalEquals[StreamId]
-  implicit val showForStreamId: Show[StreamId] = Show.show[StreamId](_.show)
+  implicit val eqForStreamId: Eq[StreamId] = Eq.fromUniversalEquals[StreamId]
+
 }
 
 //======================================================================================================================

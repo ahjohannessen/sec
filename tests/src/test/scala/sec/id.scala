@@ -64,9 +64,9 @@ class StreamIdSpec extends Specification with Discipline {
     StreamId.stringToStreamId(normal.stringValue) should beRight(normal)
   }
 
-  "show" >> {
+  "render" >> {
     val sid = sampleOf[StreamId]
-    sid.show shouldEqual sid.stringValue
+    sid.render shouldEqual sid.stringValue
   }
 
   "StreamIdOps" >> {
@@ -104,7 +104,7 @@ class StreamIdSpec extends Specification with Discipline {
   }
 
   "Eq" >> {
-    implicit val cogen: Cogen[StreamId] = Cogen[String].contramap[StreamId](_.show)
+    implicit val cogen: Cogen[StreamId] = Cogen[String].contramap[StreamId](_.stringValue)
     checkAll("StreamId", EqTests[StreamId].eqv)
   }
 

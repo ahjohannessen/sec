@@ -18,7 +18,6 @@ package sec
 package api
 
 import cats.kernel.laws.discipline._
-import cats.syntax.all._
 import org.scalacheck._
 import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -33,8 +32,8 @@ class EndpointSpec extends Specification with Discipline {
       checkAll("Endpoint", OrderTests[Endpoint].order)
     }
 
-    "show" >> {
-      Endpoint("127.0.0.1", 2113).show shouldEqual "127.0.0.1:2113"
+    "render" >> {
+      Endpoint("127.0.0.1", 2113).render shouldEqual "127.0.0.1:2113"
     }
   }
 

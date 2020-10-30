@@ -342,6 +342,39 @@ class StreamsMappingSpec extends mutable.Specification {
 
     val empty = Empty()
 
+    "mkPositionAll" >> {
+
+      val re    = s.ReadResp.ReadEvent.RecordedEvent()
+      val valid = re.withStreamRevision(1L).withCommitPosition(2L).withPreparePosition(2L)
+
+      // Happy Path
+      mkPositionAll[ErrorOr](valid) shouldEqual
+        Position.All(StreamPosition.exact(1L), LogPosition.exact(2L, 2L)).asRight
+
+      // Bad StreamPosition
+      mkPositionAll[ErrorOr](valid.withStreamRevision(-1L)) shouldEqual
+        InvalidInput("value must be >= 0, but is -1").asLeft
+
+      // Bad LogPosition
+      mkPositionAll[ErrorOr](valid.withCommitPosition(-1L).withPreparePosition(-1L)) shouldEqual
+        InvalidInput("commit must be >= 0, but is -1").asLeft
+
+    }
+
+    "mkStreamPosition" >> {
+
+      val re    = s.ReadResp.ReadEvent.RecordedEvent()
+      val valid = re.withStreamRevision(1L)
+
+      // Happy Path
+      mkStreamPosition[ErrorOr](valid) shouldEqual
+        StreamPosition.exact(1L).asRight
+
+      // Invalid
+      mkStreamPosition[ErrorOr](valid.withStreamRevision(-2L)) shouldEqual
+        InvalidInput("value must be >= 0, but is -2").asLeft
+    }
+
     "mkEvent" >> {
 
       val streamId   = "abc-3"
@@ -389,45 +422,66 @@ class StreamsMappingSpec extends mutable.Specification {
         .withId(UUID().withString(linkId))
         .withMetadata(linkMetadata)
 
-      val eventRecord = EventRecord(
-        sec.StreamId(streamId).unsafe,
-        sec.StreamPosition.exact(revision),
-        sec.LogPosition.exact(commit, prepare),
-        sec.EventData(sec.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta, sec.ContentType.Json),
-        created
-      )
+      def test[P <: Position](
+        er: EventRecord[P],
+        lr: EventRecord[P],
+        mkPos: s.ReadResp.ReadEvent.RecordedEvent => ErrorOr[P]
+      ) = {
 
-      val linkRecord = sec.EventRecord(
-        sec.StreamId(linkStreamId).unsafe,
-        sec.StreamPosition.exact(linkRevision),
-        sec.LogPosition.exact(linkCommit, linkPrepare),
-        sec.EventData(sec.EventType.LinkTo, JUUID.fromString(linkId), linkData, linkCustomMeta, sec.ContentType.Binary),
-        linkCreated
-      )
+        ///
 
-      ///
+        val readEvent = s.ReadResp.ReadEvent()
 
-      val readEvent = s.ReadResp.ReadEvent()
+        // Event & No Link => EventRecord
+        mkEvent[ErrorOr, P](readEvent.withEvent(eventProto), mkPos) shouldEqual er.some.asRight
 
-      // Event & No Link => EventRecord
-      mkEvent[ErrorOr](readEvent.withEvent(eventProto)) shouldEqual eventRecord.some.asRight
+        // Event & Link => ResolvedEvent
+        mkEvent[ErrorOr, P](readEvent.withEvent(eventProto).withLink(linkProto), mkPos) shouldEqual
+          ResolvedEvent(er, lr).some.asRight
 
-      // Event & Link => ResolvedEvent
-      mkEvent[ErrorOr](readEvent.withEvent(eventProto).withLink(linkProto)) shouldEqual
-        ResolvedEvent(eventRecord, linkRecord).some.asRight
+        // No Event & No Link => None
+        mkEvent[ErrorOr, P](readEvent, mkPos) shouldEqual Option.empty[Event[P]].asRight
 
-      // No Event & No Link => None
-      mkEvent[ErrorOr](readEvent) shouldEqual Option.empty[Event].asRight
+        // No Event & Link, i.e. link to deleted event => None
+        mkEvent[ErrorOr, P](readEvent.withLink(linkProto), mkPos) shouldEqual Option.empty[Event[P]].asRight
 
-      // No Event & Link, i.e. link to deleted event => None
-      mkEvent[ErrorOr](readEvent.withLink(linkProto)) shouldEqual Option.empty[Event].asRight
+        // Require read event
+        reqReadEvent[ErrorOr, P](s.ReadResp().withEvent(readEvent.withEvent(eventProto)), mkPos) shouldEqual
+          er.some.asRight
 
-      // Require read event
-      reqReadEvent[ErrorOr](s.ReadResp().withEvent(readEvent.withEvent(eventProto))) shouldEqual
-        eventRecord.some.asRight
+        reqReadEvent[ErrorOr, P](s.ReadResp(), mkPos) shouldEqual
+          ProtoResultError("Required value ReadEvent missing or invalid.").asLeft
 
-      reqReadEvent[ErrorOr](s.ReadResp()) shouldEqual
-        ProtoResultError("Required value ReadEvent missing or invalid.").asLeft
+      }
+
+      val sid = sec.StreamId(streamId).unsafe
+      val sp  = sec.StreamPosition.exact(revision)
+      val et  = sec.EventType(eventType).unsafe
+      val ed  = sec.EventData(et, JUUID.fromString(id), data, customMeta, sec.ContentType.Json)
+
+      val lsid = sec.StreamId(linkStreamId).unsafe
+      val lsp  = sec.StreamPosition.exact(linkRevision)
+      val let  = sec.EventType.LinkTo
+      val led  = sec.EventData(let, JUUID.fromString(linkId), linkData, linkCustomMeta, sec.ContentType.Binary)
+
+      //
+
+      val streamEventRecord =
+        EventRecord(sid, sp, ed, created)
+
+      val linkStreamEventRecord =
+        sec.EventRecord(lsid, lsp, led, linkCreated)
+
+      test(streamEventRecord, linkStreamEventRecord, mkStreamPosition[ErrorOr])
+
+      val allEventRecord =
+        EventRecord(sid, sec.Position.All(sp, sec.LogPosition.exact(commit, prepare)), ed, created)
+
+      val linkAllEventRecord =
+        sec.EventRecord(lsid, sec.Position.All(lsp, sec.LogPosition.exact(linkCommit, linkPrepare)), led, linkCreated)
+
+      test(allEventRecord, linkAllEventRecord, mkPositionAll[ErrorOr])
+
     }
 
     "mkEventRecord" >> {
@@ -445,60 +499,86 @@ class StreamsMappingSpec extends mutable.Specification {
       val created         = Instant.EPOCH.atZone(ZoneOffset.UTC)
       val metadata        = Map(ContentType -> Binary, Type -> eventType, Created -> created.getNano().toString)
 
-      val recordedEvent =
+      def test[P <: Position](
+        eventRecord: EventRecord[P],
+        recordedEvent: s.ReadResp.ReadEvent.RecordedEvent,
+        mkPos: s.ReadResp.ReadEvent.RecordedEvent => ErrorOr[P]
+      ) = {
+
+        // Happy Path
+        mkEventRecord[ErrorOr, P](recordedEvent, mkPos) shouldEqual eventRecord.asRight
+
+        // Bad StreamId
+        mkEventRecord[ErrorOr, P](recordedEvent.withStreamIdentifier("".toStreamIdentifer), mkPos) shouldEqual
+          ProtoResultError("name cannot be empty").asLeft
+
+        // Missing UUID
+        mkEventRecord[ErrorOr, P](recordedEvent.withId(UUID().withValue(UUID.Value.Empty)), mkPos) shouldEqual
+          ProtoResultError("UUID is missing").asLeft
+
+        // Bad UUID
+        mkEventRecord[ErrorOr, P](recordedEvent.withId(UUID().withString("invalid")), mkPos) shouldEqual
+          ProtoResultError("Invalid UUID string: invalid").asLeft
+
+        // Missing EventType
+        mkEventRecord[ErrorOr, P](
+          recordedEvent.withMetadata(metadata.view.filterKeys(_ != Type).toMap),
+          mkPos
+        ) shouldEqual ProtoResultError(s"Required value $Type missing or invalid.").asLeft
+
+        // Missing ContentType
+        mkEventRecord[ErrorOr, P](
+          recordedEvent.withMetadata(metadata.view.filterKeys(_ != ContentType).toMap),
+          mkPos
+        ) shouldEqual ProtoResultError(s"Required value $ContentType missing or invalid.").asLeft
+
+        // Bad ContentType
+        mkEventRecord[ErrorOr, P](recordedEvent.withMetadata(metadata.updated(ContentType, "no")), mkPos) shouldEqual
+          ProtoResultError(s"Required value $ContentType missing or invalid: no").asLeft
+
+        // Missing Created
+        mkEventRecord[ErrorOr, P](
+          recordedEvent.withMetadata(metadata.view.filterKeys(_ != Created).toMap),
+          mkPos
+        ) shouldEqual ProtoResultError(s"Required value $Created missing or invalid.").asLeft
+
+        // Bad Created
+        mkEventRecord[ErrorOr, P](
+          recordedEvent.withMetadata(metadata.updated(Created, "chuck norris")),
+          mkPos
+        ) shouldEqual ProtoResultError(s"Required value $Created missing or invalid.").asLeft
+      }
+
+      ///
+
+      val sid = sec.StreamId(streamId).unsafe
+      val et  = sec.EventType(eventType).unsafe
+      val sp  = sec.StreamPosition.exact(revision)
+      val ed  = sec.EventData(et, JUUID.fromString(id), data, customMeta, sec.ContentType.Binary)
+
+      val streamRecordedEvent =
         s.ReadResp.ReadEvent
           .RecordedEvent()
           .withStreamIdentifier(streamId.toStreamIdentifer)
           .withStreamRevision(revision)
-          .withCommitPosition(commit)
-          .withPreparePosition(prepare)
           .withData(data.toByteString)
           .withCustomMetadata(customMeta.toByteString)
           .withId(UUID().withString(id))
           .withMetadata(metadata)
 
-      val eventRecord = sec.EventRecord(
-        sec.StreamId(streamId).unsafe,
-        sec.StreamPosition.exact(revision),
-        sec.LogPosition.exact(commit, prepare),
-        sec.EventData(sec.EventType(eventType).unsafe, JUUID.fromString(id), data, customMeta, sec.ContentType.Binary),
-        created
-      )
+      val streamEventRecord =
+        sec.EventRecord(sid, sp, ed, created)
 
-      // Happy Path
-      mkEventRecord[ErrorOr](recordedEvent) shouldEqual eventRecord.asRight
+      test(streamEventRecord, streamRecordedEvent, mkStreamPosition[ErrorOr])
 
-      // Bad StreamId
-      mkEventRecord[ErrorOr](recordedEvent.withStreamIdentifier("".toStreamIdentifer)) shouldEqual
-        ProtoResultError("name cannot be empty").asLeft
+      val allRecordedEvent =
+        streamRecordedEvent.withCommitPosition(commit).withPreparePosition(prepare)
 
-      // Missing UUID
-      mkEventRecord[ErrorOr](recordedEvent.withId(UUID().withValue(UUID.Value.Empty))) shouldEqual
-        ProtoResultError("UUID is missing").asLeft
+      val allEventRecord =
+        sec.EventRecord(sid, sec.Position.All(sp, sec.LogPosition.exact(commit, prepare)), ed, created)
 
-      // Bad UUID
-      mkEventRecord[ErrorOr](recordedEvent.withId(UUID().withString("invalid"))) shouldEqual
-        ProtoResultError("Invalid UUID string: invalid").asLeft
+      test(allEventRecord, allRecordedEvent, mkPositionAll[ErrorOr])
 
-      // Missing EventType
-      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.view.filterKeys(_ != Type).toMap)) shouldEqual
-        ProtoResultError(s"Required value $Type missing or invalid.").asLeft
-
-      // Missing ContentType
-      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.view.filterKeys(_ != ContentType).toMap)) shouldEqual
-        ProtoResultError(s"Required value $ContentType missing or invalid.").asLeft
-
-      // Bad ContentType
-      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.updated(ContentType, "no"))) shouldEqual
-        ProtoResultError(s"Required value $ContentType missing or invalid: no").asLeft
-
-      // Missing Created
-      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.view.filterKeys(_ != Created).toMap)) shouldEqual
-        ProtoResultError(s"Required value $Created missing or invalid.").asLeft
-
-      // Bad Created
-      mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.updated(Created, "chuck norris"))) shouldEqual
-        ProtoResultError(s"Required value $Created missing or invalid.").asLeft
     }
 
     "mkCheckpoint" >> {
@@ -515,7 +595,7 @@ class StreamsMappingSpec extends mutable.Specification {
       import arbitraries._
 
       val created     = Instant.EPOCH.atZone(ZoneOffset.UTC)
-      val event       = sampleOfGen(eventGen.eventRecordOne).copy(created = created)
+      val event       = sampleOfGen(eventGen.allEventRecordOne).copy(created = created)
       val eventData   = event.eventData
       val eventType   = sec.EventType.eventTypeToString(event.eventData.eventType)
       val contentType = eventData.contentType.fold(Binary, Json)
@@ -538,10 +618,10 @@ class StreamsMappingSpec extends mutable.Specification {
         Some(event.asRight[Checkpoint]).asRight
 
       mkCheckpointOrEvent[ErrorOr](s.ReadResp().withCheckpoint(checkpoint)) shouldEqual
-        Some(Checkpoint(sec.LogPosition.exact(1L, 1L)).asLeft[Event]).asRight
+        Some(Checkpoint(sec.LogPosition.exact(1L, 1L)).asLeft[AllEvent]).asRight
 
       mkCheckpointOrEvent[ErrorOr](s.ReadResp()) shouldEqual
-        None.asRight[Either[Checkpoint, Event]]
+        None.asRight[Either[Checkpoint, AllEvent]]
     }
 
     "mkStreamNotFound" >> {

@@ -104,11 +104,11 @@ class MetaStateSpec extends Specification {
 
   }
 
-  "show" >> {
+  "render" >> {
 
     MetaState.empty
       .copy(maxAge = MaxAge(10.days).toOption, maxCount = MaxCount(1).toOption)
-      .show shouldEqual s"""
+      .render shouldEqual s"""
        |MetaState:
        |  max-age         = 10 days
        |  max-count       = 1 event
@@ -123,7 +123,7 @@ class MetaStateSpec extends Specification {
       cacheControl   = CacheControl(12.hours).toOption,
       truncateBefore = StreamPosition.exact(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
-    ).show shouldEqual s"""
+    ).render shouldEqual s"""
        |MetaState:
        |  max-age         = n/a
        |  max-count       = 50 events
@@ -132,7 +132,7 @@ class MetaStateSpec extends Specification {
        |  access-list     = read: [a, b], write: [], delete: [], meta-read: [], meta-write: []
        |""".stripMargin
 
-    MetaState.empty.show shouldEqual s"""
+    MetaState.empty.render shouldEqual s"""
        |MetaState:
        |  max-age         = n/a
        |  max-count       = n/a
@@ -185,10 +185,10 @@ class StreamAclSpec extends Specification {
 
   }
 
-  "show" >> {
+  "render" >> {
     StreamAcl.empty
       .copy(readRoles = Set("a", "b"), Set("b"))
-      .show shouldEqual "read: [a, b], write: [b], delete: [], meta-read: [], meta-write: []"
+      .render shouldEqual "read: [a, b], write: [b], delete: [], meta-read: [], meta-write: []"
   }
 
 }

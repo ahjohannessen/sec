@@ -223,16 +223,26 @@ private[sec] object streams {
 
   object incoming {
 
+    def mkPositionAll[F[_]: ErrorA](e: ReadResp.ReadEvent.RecordedEvent): F[Position.All] =
+      (mkStreamPosition[F](e), mkLogPosition[F](e)).mapN(Position.All)
+
+    def mkLogPosition[F[_]: ErrorA](e: ReadResp.ReadEvent.RecordedEvent): F[LogPosition.Exact] =
+      LogPosition(e.commitPosition, e.preparePosition).liftTo[F]
+
+    def mkStreamPosition[F[_]: ErrorA](e: ReadResp.ReadEvent.RecordedEvent): F[StreamPosition.Exact] =
+      StreamPosition(e.streamRevision).liftTo[F]
+
     def mkCheckpoint[F[_]: ErrorA](c: ReadResp.Checkpoint): F[Checkpoint] =
       LogPosition(c.commitPosition, c.preparePosition)
         .map(Checkpoint)
         .leftMap(error => ProtoResultError(s"Invalid position for Checkpoint: ${error.msg}"))
         .liftTo[F]
 
-    def mkCheckpointOrEvent[F[_]: ErrorM](re: ReadResp): F[Option[Either[Checkpoint, Event]]] = {
+    def mkCheckpointOrEvent[F[_]: ErrorM](re: ReadResp): F[Option[Either[Checkpoint, AllEvent]]] = {
 
-      val event      = OptionT(re.content.event.flatTraverse(mkEvent[F]).nested.map(_.asRight[Checkpoint]).value)
-      val checkpoint = OptionT(re.content.checkpoint.traverse(mkCheckpoint[F]).nested.map(_.asLeft[Event]).value)
+      val mkEvt      = mkEvent[F, Position.All](_, mkPositionAll[F])
+      val event      = OptionT(re.content.event.flatTraverse(mkEvt).nested.map(_.asRight[Checkpoint]).value)
+      val checkpoint = OptionT(re.content.checkpoint.traverse(mkCheckpoint[F]).nested.map(_.asLeft[AllEvent]).value)
 
       (event <+> checkpoint).value
     }
@@ -243,8 +253,16 @@ private[sec] object streams {
     def failStreamNotFound[F[_]: ErrorM](rr: ReadResp): F[ReadResp] =
       rr.content.streamNotFound.fold(rr.pure[F])(mkStreamNotFound[F](_) >>= (_.raiseError[F, ReadResp]))
 
-    def reqReadEvent[F[_]: ErrorM](rr: ReadResp): F[Option[Event]] =
-      rr.content.event.require[F]("ReadEvent") >>= mkEvent[F]
+    def reqReadAll[F[_]: ErrorM](rr: ReadResp): F[Option[AllEvent]] =
+      reqReadEvent(rr, mkPositionAll[F])
+
+    def reqReadStream[F[_]: ErrorM](rr: ReadResp): F[Option[StreamEvent]] =
+      reqReadEvent(rr, mkStreamPosition[F])
+
+    def reqReadEvent[F[_]: ErrorM, P <: Position](
+      rr: ReadResp,
+      mkPos: ReadResp.ReadEvent.RecordedEvent => F[P]): F[Option[Event[P]]] =
+      rr.content.event.require[F]("ReadEvent") >>= (mkEvent[F, P](_, mkPos))
 
     def reqConfirmation[F[_]: ErrorA](rr: ReadResp): F[SubscriptionConfirmation] =
       rr.content.confirmation
@@ -252,25 +270,31 @@ private[sec] object streams {
         .require[F]("SubscriptionConfirmation", details = s"Got ${rr.content} instead".some)
         .map(SubscriptionConfirmation)
 
-    def mkEvent[F[_]: ErrorM](re: ReadResp.ReadEvent): F[Option[Event]] =
-      re.event.traverse(mkEventRecord[F]) >>= { eOpt =>
-        re.link.traverse(mkEventRecord[F]).map(lOpt => eOpt.map(er => lOpt.fold[Event](er)(ResolvedEvent(er, _))))
+    def mkEvent[F[_]: ErrorM, P <: Position](
+      re: ReadResp.ReadEvent,
+      mkPos: ReadResp.ReadEvent.RecordedEvent => F[P]
+    ): F[Option[Event[P]]] =
+      re.event.traverse(e => mkEventRecord[F, P](e, mkPos)) >>= { eOpt =>
+        re.link
+          .traverse(e => mkEventRecord[F, P](e, mkPos))
+          .map(lOpt => eOpt.map(er => lOpt.fold[Event[P]](er)(ResolvedEvent[P](er, _))))
       }
 
-    def mkEventRecord[F[_]: ErrorM](e: ReadResp.ReadEvent.RecordedEvent): F[EventRecord] = {
+    def mkEventRecord[F[_]: ErrorM, P <: Position](
+      e: ReadResp.ReadEvent.RecordedEvent,
+      mkPos: ReadResp.ReadEvent.RecordedEvent => F[P]): F[EventRecord[P]] = {
 
-      val streamId       = mkStreamId[F](e.streamIdentifier)
-      val streamPosition = StreamPosition.exact(e.streamRevision)
-      val logPosition    = LogPosition.exact(e.commitPosition, e.preparePosition)
-      val data           = e.data.toByteVector
-      val customMeta     = e.customMetadata.toByteVector
-      val eventId        = e.id.require[F]("UUID") >>= mkJuuid[F]
-      val eventType      = e.metadata.get(Type).require[F](Type) >>= mkEventType[F]
-      val contentType    = e.metadata.get(ContentType).require[F](ContentType) >>= mkContentType[F]
-      val created        = e.metadata.get(Created).flatMap(_.toLongOption).require[F](Created) >>= fromTicksSinceEpoch[F]
-      val eventData      = (eventType, eventId, contentType).mapN((t, i, ct) => EventData(t, i, data, customMeta, ct))
+      val streamId    = mkStreamId[F](e.streamIdentifier)
+      val position    = mkPos(e)
+      val data        = e.data.toByteVector
+      val customMeta  = e.customMetadata.toByteVector
+      val eventId     = e.id.require[F]("UUID") >>= mkJuuid[F]
+      val eventType   = e.metadata.get(Type).require[F](Type) >>= mkEventType[F]
+      val contentType = e.metadata.get(ContentType).require[F](ContentType) >>= mkContentType[F]
+      val created     = e.metadata.get(Created).flatMap(_.toLongOption).require[F](Created) >>= fromTicksSinceEpoch[F]
+      val eventData   = (eventType, eventId, contentType).mapN((t, i, ct) => EventData(t, i, data, customMeta, ct))
 
-      (streamId, eventData, created).mapN((id, ed, c) => sec.EventRecord(id, streamPosition, logPosition, ed, c))
+      (streamId, position, eventData, created).mapN((id, p, ed, c) => sec.EventRecord(id, p, ed, c))
 
     }
 

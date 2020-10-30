@@ -17,7 +17,7 @@
 package sec
 
 import cats.syntax.all._
-import cats.{Eq, Order, Show}
+import cats.{Eq, Order}
 
 //======================================================================================================================
 
@@ -27,7 +27,7 @@ import cats.{Eq, Order, Show}
  *   - [[StreamState.NoStream]] the stream does not exist yet.
  *   - [[StreamState.Any]] No expectation of the current stream state.
  *   - [[StreamState.StreamExists]] The stream, or its metadata stream, exists.
- *   - [[StreamPosition.Exaxt]] The stream exists and its last written stream position
+ *   - [[StreamPosition.Exact]] The stream exists and its last written stream position
  *                              is expected to be an exact value.
  *
  * ==Use Cases==
@@ -41,8 +41,8 @@ import cats.{Eq, Order, Show}
  *
  * When you require that a stream, or its metadata stream, is present you should use [[StreamState.StreamExists]].
  *
- * When you need to implement optimistic concurrency you use [[StreamPosition.Exact]] and [[StreamPosition.NoStream]] as your
- * exected stream state. You use [[StreamPosition.NoStream]] as expected stream state when you append to a stream for the first time,
+ * When you need to implement optimistic concurrency you use [[StreamPosition.Exact]] and [[StreamState.NoStream]] as your
+ * exected stream state. You use [[StreamState.NoStream]] as expected stream state when you append to a stream for the first time,
  * otherwise you use an [[StreamPosition.Exact]] value. A [[sec.api.exceptions.WrongExpectedState]] exception is rasised when the stream
  * exists and has changed in the meantime.
  */
@@ -54,11 +54,16 @@ object StreamState {
   case object StreamExists extends StreamState
 
   implicit val eq: Eq[StreamState] = Eq.fromUniversalEquals
-  implicit val showForStreamState: Show[StreamState] = Show.show {
+
+  def render(ss: StreamState): String = ss match {
     case NoStream                => "NoStream"
     case Any                     => "Any"
     case StreamExists            => "StreamExists"
     case StreamPosition.Exact(v) => s"Exact(${v}L)"
+  }
+
+  implicit final class StreamStateOps(val ss: StreamState) extends AnyVal {
+    def render: String = StreamState.render(ss)
   }
 
 }
@@ -76,7 +81,7 @@ object StreamPosition {
 
   val Start: Exact = exact(0L)
 
-  sealed abstract case class Exact(value: Long) extends StreamPosition with StreamState
+  sealed abstract case class Exact(value: Long) extends StreamPosition with StreamState with Position
   object Exact {
 
     private[StreamPosition] def create(value: Long): Exact = new Exact(value) {}
@@ -98,6 +103,15 @@ object StreamPosition {
 
   ///
 
+  implicit final class StreamPositionOps(val sp: StreamPosition) extends AnyVal {
+    def render: String = sp match {
+      case e: Exact => s"${e.value}L"
+      case End      => "end"
+    }
+  }
+
+  ///
+
   implicit val orderForStreamPosition: Order[StreamPosition] = Order.from {
     case (x: Exact, y: Exact) => Order[Exact].compare(x, y)
     case (_: Exact, End)      => -1
@@ -107,12 +121,6 @@ object StreamPosition {
 
   implicit val orderForExact: Order[Exact] = Order.by(_.value)
 
-  implicit val showForExact: Show[Exact] = Show.show[Exact](e => s"${e.value}L")
-
-  implicit val showForStreamPosition: Show[StreamPosition] = Show.show[StreamPosition] {
-    case e: Exact => e.show
-    case End      => "end"
-  }
 }
 
 //======================================================================================================================
@@ -161,6 +169,15 @@ object LogPosition {
 
   ///
 
+  implicit final class LogPositionOps(val lp: LogPosition) extends AnyVal {
+    def render: String = lp match {
+      case Exact(c, p) => s"(c = ${c}L, p = ${p}L)"
+      case End         => "end"
+    }
+  }
+
+  ///
+
   implicit val orderForLogPosition: Order[LogPosition] = Order.from {
     case (x: Exact, y: Exact) => Order[Exact].compare(x, y)
     case (_: Exact, End)      => -1
@@ -176,13 +193,35 @@ object LogPosition {
     }
   }
 
-  implicit val showForExact: Show[Exact] = Show.show[Exact] { case Exact(c, p) =>
-    s"LogPosition(c = $c, p = $p)"
-  }
+}
 
-  implicit val showForLogPosition: Show[LogPosition] = Show.show[LogPosition] {
-    case e: Exact => e.show
-    case End      => "end"
+//======================================================================================================================
+
+sealed trait Position
+object Position {
+
+  final case class All(
+    stream: StreamPosition.Exact,
+    log: LogPosition.Exact
+  ) extends Position
+
+  type Stream = StreamPosition.Exact
+
+  implicit final class PositionOps(val p: Position) extends AnyVal {
+
+    def fold[A](all: All => A, stream: Stream => A): A = p match {
+      case a: All                  => all(a)
+      case e: StreamPosition.Exact => stream(e)
+    }
+
+    def streamPosition: StreamPosition.Exact =
+      fold(_.stream, identity)
+
+    private[sec] def renderPosition: String = fold(
+      a => s"log: (c = ${a.log.commit}L, p = ${a.log.prepare}L), stream: ${a.stream.value}L",
+      e => s"stream: ${e.value}L"
+    )
+
   }
 
 }

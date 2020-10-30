@@ -19,7 +19,6 @@ package sec
 import java.time.ZonedDateTime
 import java.util.UUID
 
-import cats.Show
 import cats.syntax.all._
 import scodec.bits.ByteVector
 import sec.utilities.{guardNonEmpty, guardNotStartsWith}
@@ -29,39 +28,58 @@ import sec.utilities.{guardNonEmpty, guardNotStartsWith}
 /**
  * A persisted event in EventStoreDB. There are two variants:
  *
- *   - [[Event.EventRecord]] An event in an event stream.
- *   - [[Event.ResolvedEvent]] A special event that contains a link and a linked event record.
+ *   - [[EventRecord]] An event in an event stream.
+ *   - [[ResolvedEvent]] A special event that contains a link and a linked event record.
+ *
+ * @tparam P Tells whether the event is retrieved from the global stream [[Position.All]]
+ *           or from an individual stream [[Position.Stream]].
  */
-sealed trait Event
+sealed trait Event[P <: Position]
 object Event {
 
-  implicit final class EventOps(val e: Event) extends AnyVal {
+  implicit final class EventOps[P <: Position](val e: Event[P]) extends AnyVal {
 
-    def fold[A](f: EventRecord => A, g: ResolvedEvent => A): A = e match {
-      case er: EventRecord   => f(er)
-      case re: ResolvedEvent => g(re)
+    def fold[A](f: EventRecord[P] => A, g: ResolvedEvent[P] => A): A = e match {
+      case er: EventRecord[P]   => f(er)
+      case re: ResolvedEvent[P] => g(re)
     }
 
     /**
-     * @param streamId  the stream identifier of the stream the event belongs to.
-     * @param streamPosition the position of the event in its stream.
-     * @param logPosition the position of the event in the global stream.
-     * @param eventData the payload of the event.
-     * @param record The actual event record of this event. There are two options.
-     *               Either the record points to a normal event or a resolved event.
-     * @param created the creation date of the event in [[java.time.ZonedDateTime]].
+     * The stream identifier of the stream the event belongs to.
      */
-    def streamId: StreamId                   = e.fold(_.streamId, _.event.streamId)
-    def streamPosition: StreamPosition.Exact = e.fold(_.streamPosition, _.event.streamPosition)
-    def logPosition: LogPosition.Exact       = e.fold(_.logPosition, _.event.logPosition)
-    def eventData: EventData                 = e.fold(_.eventData, _.event.eventData)
-    def record: EventRecord                  = e.fold(identity, _.link)
-    def created: ZonedDateTime               = e.fold(_.created, _.event.created)
+    def streamId: StreamId = e.fold(_.streamId, _.event.streamId)
+
+    /**
+     * The stream position of the event in its stream.
+     */
+    def streamPosition: StreamPosition.Exact =
+      e.fold(_.position.streamPosition, _.event.position.streamPosition)
+
+    /**
+     * The payload of the event.
+     */
+    def eventData: EventData = e.fold(_.eventData, _.event.eventData)
+
+    /**
+     * The actual event record of this event. There are two options.
+     * Either the record points to a normal event or a resolved event.
+     */
+    def record: EventRecord[P] = e.fold(identity, _.link)
+
+    /**
+     * The creation date of the event in [[java.time.ZonedDateTime]].
+     */
+    def created: ZonedDateTime = e.fold(_.created, _.event.created)
+
+    def render: String = fold(EventRecord.render, ResolvedEvent.render)
   }
 
-  implicit val showForEvent: Show[Event] = Show.show[Event] {
-    case er: EventRecord   => er.show
-    case re: ResolvedEvent => re.show
+  implicit final class AllEventOps(val e: AllEvent) extends AnyVal {
+
+    /**
+     * The position of the event in the global stream.
+     */
+    def logPosition: LogPosition.Exact = e.fold(_.position.log, _.event.position.log)
   }
 
 }
@@ -70,35 +88,31 @@ object Event {
  * An event persisted in an event stream.
  *
  * @param streamId the stream identifier of the stream the event belongs to.
- * @param streamPosition the position of the event in its stream.
- * @param logPosition the position of the event in the global stream.
+ * @param position the position information about of the event.
  * @param eventData the payload of the event.
  * @param created the creation date of the event in [[java.time.ZonedDateTime]].
  */
-final case class EventRecord(
+final case class EventRecord[P <: Position](
   streamId: StreamId,
-  streamPosition: StreamPosition.Exact,
-  logPosition: LogPosition.Exact,
+  position: P,
   eventData: EventData,
   created: ZonedDateTime
-) extends Event
+) extends Event[P]
 
 object EventRecord {
 
-  implicit val showForEventRecord: Show[EventRecord] = Show.show[EventRecord] { er =>
+  def render[P <: Position](er: EventRecord[P]): String =
     s"""
        |EventRecord(
-       |  streamId       = ${er.streamId.show},
-       |  eventId        = ${er.eventData.eventId},
-       |  type           = ${er.eventData.eventType.show},
-       |  streamPosition = ${er.streamPosition.show},
-       |  logPosition    = ${er.logPosition.show},
-       |  data           = ${er.eventData.showData}, 
-       |  metadata       = ${er.eventData.showMetadata}, 
-       |  created        = ${er.created}
+       |  streamId = ${er.streamId.render},
+       |  eventId  = ${er.eventData.eventId},
+       |  type     = ${er.eventData.eventType.render},
+       |  position = ${er.position.renderPosition},
+       |  data     = ${er.eventData.renderData},
+       |  metadata = ${er.eventData.renderMetadata},
+       |  created  = ${er.created}
        |)
        |""".stripMargin
-  }
 
 }
 
@@ -107,24 +121,23 @@ object EventRecord {
  * Resolved events are common when reading or subscribing to system prefixed
  * streams, for instance category streams like `$ce-` or `$et-`.
  *
- * @param event the original and linked to [[EventRecord]].
+ * @param event the original and linked to event record.
  * @param link the link event to the resolved event.
  */
-final case class ResolvedEvent(
-  event: EventRecord,
-  link: EventRecord
-) extends Event
+final case class ResolvedEvent[P <: Position](
+  event: EventRecord[P],
+  link: EventRecord[P]
+) extends Event[P]
 
 object ResolvedEvent {
 
-  implicit val showForResolvedEvent: Show[ResolvedEvent] = Show.show[ResolvedEvent] { re =>
+  def render[P <: Position](re: ResolvedEvent[P]): String =
     s"""
        |ResolvedEvent(
-       |  event = ${re.event.show},
-       |  link  = ${re.link.show}
+       |  event = ${EventRecord.render(re.event)},
+       |  link  = ${EventRecord.render(re.link)}
        |)
        |""".stripMargin
-  }
 
 }
 
@@ -194,10 +207,8 @@ object EventType {
 
   implicit final class EventTypeOps(val et: EventType) extends AnyVal {
     def stringValue: String = eventTypeToString(et)
-    def show: String        = stringValue
+    def render: String      = stringValue
   }
-
-  implicit val showForEventType: Show[EventType] = Show.show[EventType](_.show)
 
 }
 
@@ -276,12 +287,12 @@ object EventData {
   ///
 
   implicit final private[sec] class EventDataOps(val ed: EventData) extends AnyVal {
-    def showData: String     = render(ed.data, ed.contentType)
-    def showMetadata: String = render(ed.metadata, ed.contentType)
+    def renderData: String     = render(ed.data, ed.contentType)
+    def renderMetadata: String = render(ed.metadata, ed.contentType)
   }
 
   private[sec] def render(bv: ByteVector, ct: ContentType): String =
-    if (bv.isEmpty || ct.isBinary) s"${ct.show}(${renderByteVector(bv)})"
+    if (bv.isEmpty || ct.isBinary) s"${ct.render}(${renderByteVector(bv)})"
     else s"${bv.decodeUtf8.getOrElse("Failed decoding utf8")}"
 
   private[sec] def renderByteVector(bv: ByteVector): String = {
@@ -318,11 +329,8 @@ object ContentType {
 
     def isJson: Boolean   = ct.fold(false, true)
     def isBinary: Boolean = !isJson
-  }
+    def render: String    = fold("Binary", "Json")
 
-  implicit val showForType: Show[ContentType] = Show.show[ContentType] {
-    case Binary => "Binary"
-    case Json   => "Json"
   }
 
 }

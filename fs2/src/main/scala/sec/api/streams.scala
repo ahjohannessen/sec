@@ -51,12 +51,12 @@ trait Streams[F[_]] {
    *
    * @param exclusiveFrom position to start from. Use [[None]] to subscribe from the beginning.
    * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits [[Event]] values.
+   * @return a [[Stream]] that emits [[AllEvent]] values.
    */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
     resolveLinkTos: Boolean
-  ): Stream[F, Event]
+  ): Stream[F, AllEvent]
 
   /**
    * Subscribes to the global stream, [[StreamId.All]] using a subscription filter.
@@ -64,14 +64,14 @@ trait Streams[F[_]] {
    * @param exclusiveFrom log position to start from. Use [[None]] to subscribe from the beginning.
    * @param filterOptions to use when subscribing - See [[sec.api.SubscriptionFilterOptions]].
    * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits either [[Checkpoint]] or [[Event]] values.
-   *         How frequent [[Checkpoint]] is emitted depends on [[filterOptions]].
+   * @return a [[Stream]] that emits either [[Checkpoint]] or [[AllEvent]] values.
+   *         How frequent [[Checkpoint]] is emitted depends on `filterOptions`.
    */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
     filterOptions: SubscriptionFilterOptions,
     resolveLinkTos: Boolean
-  ): Stream[F, Either[Checkpoint, Event]]
+  ): Stream[F, Either[Checkpoint, AllEvent]]
 
   /**
    * Subscribes to an individual stream.
@@ -79,13 +79,13 @@ trait Streams[F[_]] {
    * @param streamId the id of the stream to subscribe to.
    * @param exclusiveFrom stream position to start from. Use [[None]] to subscribe from the beginning.
    * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits [[Event]] values.
+   * @return a [[Stream]] that emits [[StreamEvent]] values.
    */
   def subscribeToStream(
     streamId: StreamId,
     exclusiveFrom: Option[StreamPosition],
     resolveLinkTos: Boolean
-  ): Stream[F, Event]
+  ): Stream[F, StreamEvent]
 
   /**
    * Read events from the global stream, [[sec.StreamId.All]].
@@ -94,14 +94,14 @@ trait Streams[F[_]] {
    * @param direction whether to read forwards or backwards.
    * @param maxCount limits maximum events returned.
    * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits [[Event]] values.
+   * @return a [[Stream]] that emits [[AllEvent]] values.
    */
   def readAll(
     from: LogPosition,
     direction: Direction,
     maxCount: Long,
     resolveLinkTos: Boolean
-  ): Stream[F, Event]
+  ): Stream[F, AllEvent]
 
   /**
    * Read events from an individual stream. A [[sec.api.exceptions.StreamNotFound]] is raised
@@ -112,7 +112,7 @@ trait Streams[F[_]] {
    * @param direction whether to read forwards or backwards.
    * @param maxCount limits maximum events returned.
    * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits [[Event]] values.
+   * @return a [[Stream]] that emits [[StreamEvent]] values.
    */
   def readStream(
     streamId: StreamId,
@@ -120,7 +120,7 @@ trait Streams[F[_]] {
     direction: Direction,
     maxCount: Long,
     resolveLinkTos: Boolean
-  ): Stream[F, Event]
+  ): Stream[F, StreamEvent]
 
   /**
    * Appends [[EventData]] to a stream and returns [[WriteResult]] with current positions of the stream
@@ -196,21 +196,21 @@ object Streams {
     def subscribeToAll(
       exclusiveFrom: Option[LogPosition],
       resolveLinkTos: Boolean
-    ): Stream[F, Event] =
+    ): Stream[F, AllEvent] =
       subscribeToAll0[F](exclusiveFrom, resolveLinkTos, opts)(client.read(_, ctx))
 
     def subscribeToAll(
       exclusiveFrom: Option[LogPosition],
       filterOptions: SubscriptionFilterOptions,
       resolveLinkTos: Boolean
-    ): Stream[F, Either[Checkpoint, Event]] =
+    ): Stream[F, Either[Checkpoint, AllEvent]] =
       subscribeToAll0[F](exclusiveFrom, filterOptions, resolveLinkTos, opts)(client.read(_, ctx))
 
     def subscribeToStream(
       streamId: StreamId,
       exclusiveFrom: Option[StreamPosition],
       resolveLinkTos: Boolean
-    ): Stream[F, Event] =
+    ): Stream[F, StreamEvent] =
       subscribeToStream0[F](streamId, exclusiveFrom, resolveLinkTos, opts)(client.read(_, ctx))
 
     def readAll(
@@ -218,7 +218,7 @@ object Streams {
       direction: Direction,
       maxCount: Long,
       resolveLinkTos: Boolean
-    ): Stream[F, Event] =
+    ): Stream[F, AllEvent] =
       readAll0[F](from, direction, maxCount, resolveLinkTos, opts)(client.read(_, ctx))
 
     def readStream(
@@ -227,7 +227,7 @@ object Streams {
       direction: Direction,
       maxCount: Long,
       resolveLinkTos: Boolean
-    ): Stream[F, Event] =
+    ): Stream[F, StreamEvent] =
       readStream0[F](streamId, from, direction, maxCount, resolveLinkTos, opts)(client.read(_, ctx))
 
     def appendToStream(
@@ -261,13 +261,13 @@ object Streams {
     exclusiveFrom: Option[LogPosition],
     resolveLinkTos: Boolean,
     opts: Opts[F]
-  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Event] = {
+  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, AllEvent] = {
 
-    val opName: String                               = "subscribeToAll"
-    val pipeLog: Logger[F]                           = opts.log.withModifiedString(m => s"$opName: $m")
-    val mkReq: Option[LogPosition] => ReadReq        = mkSubscribeToAllReq(_, resolveLinkTos, None)
-    val sub: Option[LogPosition] => Stream[F, Event] = ef => f(mkReq(ef)).through(subscriptionPipe(pipeLog))
-    val fn: Event => Option[LogPosition]             = _.record.logPosition.some
+    val opName: String                                  = "subscribeToAll"
+    val pipeLog: Logger[F]                              = opts.log.withModifiedString(m => s"$opName: $m")
+    val mkReq: Option[LogPosition] => ReadReq           = mkSubscribeToAllReq(_, resolveLinkTos, None)
+    val sub: Option[LogPosition] => Stream[F, AllEvent] = ef => f(mkReq(ef)).through(subscriptionAllPipe(pipeLog))
+    val fn: AllEvent => Option[LogPosition]             = _.record.logPosition.some
 
     withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
 
@@ -278,9 +278,9 @@ object Streams {
     filterOptions: SubscriptionFilterOptions,
     resolveLinkTos: Boolean,
     opts: Opts[F]
-  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Either[Checkpoint, Event]] = {
+  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Either[Checkpoint, AllEvent]] = {
 
-    type O = Either[Checkpoint, Event]
+    type O = Either[Checkpoint, AllEvent]
 
     val opName: String                           = "subscribeToAllWithFilter"
     val pipeLog: Logger[F]                       = opts.log.withModifiedString(m => s"$opName: $m")
@@ -296,13 +296,16 @@ object Streams {
     exclusiveFrom: Option[StreamPosition],
     resolveLinkTos: Boolean,
     opts: Opts[F]
-  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Event] = {
+  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, StreamEvent] = {
 
-    val opName: String                                  = "subscribeToStream"
-    val pipeLog: Logger[F]                              = opts.log.withModifiedString(m => s"$opName[${streamId.show}]: $m")
-    val mkReq: Option[StreamPosition] => ReadReq        = mkSubscribeToStreamReq(streamId, _, resolveLinkTos)
-    val sub: Option[StreamPosition] => Stream[F, Event] = ef => f(mkReq(ef)).through(subscriptionPipe(pipeLog))
-    val fn: Event => Option[StreamPosition]             = _.record.streamPosition.some
+    val opName: String                           = "subscribeToStream"
+    val pipeLog: Logger[F]                       = opts.log.withModifiedString(m => s"$opName[${streamId.render}]: $m")
+    val mkReq: Option[StreamPosition] => ReadReq = mkSubscribeToStreamReq(streamId, _, resolveLinkTos)
+
+    val sub: Option[StreamPosition] => Stream[F, StreamEvent] = ef =>
+      f(mkReq(ef)).through(subscriptionStreamPipe(pipeLog))
+
+    val fn: StreamEvent => Option[StreamPosition] = _.record.streamPosition.some
 
     withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
   }
@@ -313,11 +316,11 @@ object Streams {
     maxCount: Long,
     resolveLinkTos: Boolean,
     opts: Opts[F]
-  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Event] = {
+  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, AllEvent] = {
 
-    val mkReq: LogPosition => ReadReq         = mkReadAllReq(_, direction, maxCount, resolveLinkTos)
-    val read: LogPosition => Stream[F, Event] = p => f(mkReq(p)).through(readEventPipe).take(maxCount)
-    val fn: Event => LogPosition              = _.record.logPosition
+    val mkReq: LogPosition => ReadReq            = mkReadAllReq(_, direction, maxCount, resolveLinkTos)
+    val read: LogPosition => Stream[F, AllEvent] = p => f(mkReq(p)).through(readAllEventPipe).take(maxCount)
+    val fn: AllEvent => LogPosition              = _.record.logPosition
 
     if (maxCount > 0) withRetry(from, read, fn, opts, "readAll", direction) else Stream.empty
   }
@@ -329,12 +332,17 @@ object Streams {
     maxCount: Long,
     resolveLinkTos: Boolean,
     opts: Opts[F]
-  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Event] = {
+  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, StreamEvent] = {
 
-    val valid: Boolean                           = direction.fold(from =!= StreamPosition.End, true)
-    val mkReq: StreamPosition => ReadReq         = mkReadStreamReq(streamId, _, direction, maxCount, resolveLinkTos)
-    val read: StreamPosition => Stream[F, Event] = e => f(mkReq(e)).through(streamNotFoundPipe).through(readEventPipe)
-    val fn: Event => StreamPosition              = _.record.streamPosition
+    val valid: Boolean = direction.fold(from =!= StreamPosition.End, true)
+
+    val mkReq: StreamPosition => ReadReq =
+      mkReadStreamReq(streamId, _, direction, maxCount, resolveLinkTos)
+
+    val read: StreamPosition => Stream[F, StreamEvent] = e =>
+      f(mkReq(e)).through(streamNotFoundPipe).through(readStreamEventPipe)
+
+    val fn: StreamEvent => StreamPosition = _.record.streamPosition
 
     if (valid && maxCount > 0) withRetry(from, read, fn, opts, "readStream", direction) else Stream.empty
   }
@@ -373,8 +381,11 @@ object Streams {
 
 //======================================================================================================================
 
-  private[sec] def readEventPipe[F[_]: ErrorM]: Pipe[F, ReadResp, Event] =
-    _.evalMap(reqReadEvent[F]).unNone
+  private[sec] def readAllEventPipe[F[_]: ErrorM]: Pipe[F, ReadResp, AllEvent] =
+    _.evalMap(reqReadAll[F]).unNone
+
+  private[sec] def readStreamEventPipe[F[_]: ErrorM]: Pipe[F, ReadResp, StreamEvent] =
+    _.evalMap(reqReadStream[F]).unNone
 
   private[sec] def streamNotFoundPipe[F[_]: ErrorM]: Pipe[F, ReadResp, ReadResp] =
     _.evalMap(failStreamNotFound[F])
@@ -392,10 +403,13 @@ object Streams {
     initialPull.stream
   }
 
-  private[sec] def subscriptionPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, Event] =
-    _.through(subConfirmationPipe(log)).through(readEventPipe)
+  private[sec] def subscriptionAllPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, AllEvent] =
+    _.through(subConfirmationPipe(log)).through(readAllEventPipe)
 
-  private[sec] def subAllFilteredPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, Either[Checkpoint, Event]] =
+  private[sec] def subscriptionStreamPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, StreamEvent] =
+    _.through(subConfirmationPipe(log)).through(readStreamEventPipe)
+
+  private[sec] def subAllFilteredPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, Either[Checkpoint, AllEvent]] =
     _.through(subConfirmationPipe(log)).through(_.evalMap(mkCheckpointOrEvent[F]).unNone)
 
   private[sec] def withRetry[F[_]: Sync: Timer, T: Order, O](

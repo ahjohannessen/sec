@@ -10,7 +10,7 @@ module.exports = {
   themeConfig: {
     sidebarCollapsible: false,
     colorMode: {
-      defaultMode: 'light',
+      defaultMode: 'dark',
       respectPrefersColorScheme: true
     },
     navbar: {

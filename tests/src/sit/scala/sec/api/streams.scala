@@ -399,7 +399,7 @@ class StreamsSuite extends SnSpec {
           val id    = genStreamId(s"${streamPrefix}multiple_subscriptions_to_same_stream_")
           val write = Stream.eval(streams.appendToStream(id, StreamState.NoStream, events)).delayBy(500.millis)
 
-          def mkSubscribers(onEvent: IO[Unit]): Stream[IO, Event] = Stream
+          def mkSubscribers(onEvent: IO[Unit]): Stream[IO, StreamEvent] = Stream
             .emit(streams.subscribeToStream(id, exclusivFrom).evalTap(_ => onEvent).take(takeCount.toLong))
             .repeat
             .take(subscriberCount.toLong)
@@ -442,7 +442,7 @@ class StreamsSuite extends SnSpec {
           def afterWrite(st: StreamState): Stream[IO, WriteResult] =
             Stream.eval(streams.appendToStream(id, st, afterEvents)).delayBy(500.millis)
 
-          def subscribe(onEvent: Event => IO[Unit]): Stream[IO, Event] =
+          def subscribe(onEvent: StreamEvent => IO[Unit]): Stream[IO, StreamEvent] =
             streams.subscribeToStream(id, exclusiveFrom).evalTap(onEvent).take(takeCount.toLong)
 
           val result: Stream[IO, List[EventData]] = for {
@@ -566,8 +566,8 @@ class StreamsSuite extends SnSpec {
           def delete(er: StreamPosition.Exact) =
             if (normalDelete) streams.delete(id, er) else streams.tombstone(id, er)
 
-          val decodeJson: EventRecord => IO[StreamMetadata] =
-            _.eventData.data.decodeUtf8.liftTo[IO] >>= {
+          val decodeJson: EventData => IO[StreamMetadata] =
+            _.data.decodeUtf8.liftTo[IO] >>= {
               io.circe.parser.decode[StreamMetadata](_).liftTo[IO]
             }
 
@@ -585,13 +585,13 @@ class StreamsSuite extends SnSpec {
 
           val setup = write >>= { wr => delete(wr.streamPosition).void >> verifyDeleted >> read }
 
-          def verify(es: List[Event]) =
+          def verify(es: List[AllEvent]) =
             es.lastOption.toRight(new RuntimeException("expected metadata")).liftTo[IO] >>= { ts =>
               if (normalDelete) {
                 es.dropRight(1).map(_.eventData) shouldEqual events.toList
                 ts.streamId shouldEqual id.metaId
                 ts.eventData.eventType shouldEqual EventType.StreamMetadata
-                decodeJson(ts.record).map(_.state.truncateBefore.map(_.value) should beSome(Long.MaxValue))
+                decodeJson(ts.record.eventData).map(_.state.truncateBefore.map(_.value) should beSome(Long.MaxValue))
               } else {
                 es.dropRight(1).map(_.eventData) shouldEqual events.toList
                 ts.streamId shouldEqual id
@@ -856,7 +856,7 @@ class StreamsSuite extends SnSpec {
 
         def test(expectedState: StreamState) = {
 
-          val id = genStreamId(s"${streamPrefix}non_existing_${mkSnakeCase(expectedState.show)}_")
+          val id = genStreamId(s"${streamPrefix}non_existing_${mkSnakeCase(expectedState.render)}_")
 
           streams.appendToStream(id, expectedState, events) >>= { wr =>
             streams.readStreamForwards(id, maxCount = 2).compile.toList.map { el =>
@@ -923,7 +923,7 @@ class StreamsSuite extends SnSpec {
 
         def test(expectedState: StreamState, secondExpectedState: StreamState) = {
 
-          val st     = mkSnakeCase(expectedState.show)
+          val st     = mkSnakeCase(expectedState.render)
           val id     = genStreamId(s"${streamPrefix}multiple_writes_multiple_events_same_uuid_${st}_")
           val event  = genEvents(1).head
           val events = Nel.of(event, List.fill(5)(event): _*)
@@ -951,7 +951,7 @@ class StreamsSuite extends SnSpec {
       "append to tombstoned stream raises" >> {
 
         def test(expectedState: StreamState) = {
-          val st     = mkSnakeCase(expectedState.show)
+          val st     = mkSnakeCase(expectedState.render)
           val id     = genStreamId(s"${streamPrefix}tombstoned_stream_${st}_")
           val events = genEvents(1)
           val delete = streams.tombstone(id, StreamState.NoStream)
@@ -982,7 +982,7 @@ class StreamsSuite extends SnSpec {
 
         def test(sndExpectedState: StreamState) = {
 
-          val st                      = mkSnakeCase(sndExpectedState.show)
+          val st                      = mkSnakeCase(sndExpectedState.render)
           val id                      = genStreamId(s"${streamPrefix}existing_stream_with_${st}_")
           def write(esr: StreamState) = streams.appendToStream(id, esr, genEvents(1))
 
@@ -1042,7 +1042,7 @@ class StreamsSuite extends SnSpec {
 
         def test(expectedState: StreamState) = {
 
-          val st = mkSnakeCase(expectedState.show)
+          val st = mkSnakeCase(expectedState.render)
           val id = genStreamId(s"${streamPrefix}stream_exists_and_deleted_${st}_")
 
           streams.delete(id, StreamState.NoStream) >>
@@ -1307,7 +1307,7 @@ class StreamsSuite extends SnSpec {
 
         def run(expectedState: StreamState) = {
 
-          val st = mkSnakeCase(expectedState.show)
+          val st = mkSnakeCase(expectedState.render)
           val id = genStreamId(s"${streamPrefix}non_existing_stream_with_expected_state${st}_")
 
           streams.delete(id, expectedState).void
@@ -1336,7 +1336,7 @@ class StreamsSuite extends SnSpec {
 
         for {
           wr  <- streams.appendToStream(id, StreamState.NoStream, events)
-          pos <- streams.readStreamForwards(id, maxCount = 1).compile.lastOrError.map(_.logPosition)
+          pos <- streams.readAllBackwards(maxCount = 1).compile.lastOrError.map(_.logPosition)
           dr  <- streams.delete(id, wr.streamPosition)
 
         } yield dr.logPosition > pos
@@ -1382,7 +1382,7 @@ class StreamsSuite extends SnSpec {
 
         def run(expectedState: StreamState) = {
 
-          val st           = mkSnakeCase(expectedState.show)
+          val st           = mkSnakeCase(expectedState.render)
           val id           = genStreamId(s"${streamPrefix}and_recreate_with_expected_state_${st}_")
           val beforeEvents = genEvents(1)
           val afterEvents  = genEvents(3)
@@ -1587,7 +1587,7 @@ class StreamsSuite extends SnSpec {
 
         def run(expectedState: StreamState) = {
 
-          val st = mkSnakeCase(expectedState.show)
+          val st = mkSnakeCase(expectedState.render)
           val id = genStreamId(s"${streamPrefix}non_existing_stream_with_expected_state_${st}_")
 
           streams.tombstone(id, expectedState).void
@@ -1616,7 +1616,7 @@ class StreamsSuite extends SnSpec {
 
         for {
           wr  <- streams.appendToStream(id, StreamState.NoStream, events)
-          pos <- streams.readStreamForwards(id, maxCount = 1).compile.lastOrError.map(_.logPosition)
+          pos <- streams.readAllBackwards(maxCount = 1).compile.lastOrError.map(_.logPosition)
           tr  <- streams.tombstone(id, wr.streamPosition)
 
         } yield tr.logPosition > pos

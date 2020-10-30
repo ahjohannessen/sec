@@ -53,7 +53,7 @@ object arbitraries {
   )
 
 //======================================================================================================================
-// StreamPosition, Position & StreamState
+// StreamPosition, LogPosition, Position.All & StreamState
 //======================================================================================================================
 
   implicit val arbStreamPositionExact: Arbitrary[StreamPosition.Exact] = Arbitrary[StreamPosition.Exact](
@@ -63,13 +63,18 @@ object arbitraries {
   implicit val arbStreamPosition: Arbitrary[StreamPosition] =
     Arbitrary[StreamPosition](Gen.oneOf(List(StreamPosition.End, sampleOf[StreamPosition.Exact])))
 
-  implicit val arbPositionExact: Arbitrary[LogPosition.Exact] = Arbitrary[LogPosition.Exact](for {
+  implicit val arbLogPositionExact: Arbitrary[LogPosition.Exact] = Arbitrary[LogPosition.Exact](for {
     c <- Gen.chooseNum(0L, Long.MaxValue)
     p <- Gen.chooseNum(0L, 10L).map(c - _).suchThat(_ >= 0)
   } yield LogPosition.Exact(c, p).leftMap(require(false, _)).toOption.get)
 
-  implicit val arbPosition: Arbitrary[LogPosition] =
+  implicit val arbLogPosition: Arbitrary[LogPosition] =
     Arbitrary[LogPosition](Gen.oneOf(List(LogPosition.End, sampleOf[LogPosition.Exact])))
+
+  implicit val arbPositionAll: Arbitrary[Position.All] = Arbitrary[Position.All](
+    arbLogPositionExact.arbitrary.flatMap(lpe =>
+      arbStreamPositionExact.arbitrary.suchThat(_.value <= lpe.commit).map(Position.All(_, lpe)))
+  )
 
   implicit val arbStreamState: Arbitrary[StreamState] =
     Arbitrary[StreamState](Gen.oneOf(List(NoStream, Any, StreamExists, sampleOf[StreamPosition.Exact])))
@@ -240,40 +245,55 @@ object arbitraries {
 // Event
 //======================================================================================================================
 
+  type AllEventRecord    = EventRecord[Position.All]
+  type StreamEventRecord = EventRecord[Position.Stream]
+
   private[sec] object eventGen {
 
-    val eventRecordOne: Gen[EventRecord] = for {
+    val streamEventRecordOne: Gen[StreamEventRecord] = for {
       sid <- arbStreamIdNormal.arbitrary
-      p   <- arbPositionExact.arbitrary
-      n   <- arbStreamPositionExact.arbitrary.suchThat(_.value < p.commit)
+      sp  <- arbStreamPositionExact.arbitrary
       ed  <- arbEventData.arbitrary
       c   <- arbZonedDateTime.arbitrary
-    } yield sec.EventRecord(sid, n, p, ed, c)
+    } yield sec.EventRecord(sid, sp, ed, c)
 
-    def eventRecordNelN(
+    val allEventRecordOne: Gen[AllEventRecord] = for {
+      sid <- arbStreamIdNormal.arbitrary
+      pa  <- arbPositionAll.arbitrary
+      ed  <- arbEventData.arbitrary
+      c   <- arbZonedDateTime.arbitrary
+    } yield sec.EventRecord(sid, pa, ed, c)
+
+    def streamEventRecordNelN(
       n: Int,
       streamPrefix: Option[String] = "sec-".some,
       etPrefix: Option[String] = eventTypeGen.defaultPrefix.some
-    ): Gen[NonEmptyList[EventRecord]] = {
+    ): Gen[NonEmptyList[StreamEventRecord]] = {
 
       val sid  = sampleOfGen(idGen.genStreamIdNormal(streamPrefix.getOrElse("")))
       val data = sampleOfGen(eventdataGen.eventDataNelN(n, etPrefix.getOrElse("")))
       val zdt  = sampleOf[ZonedDateTime]
 
       data.zipWithIndex.map { case (ed, i) =>
-        val commit   = i + 1000L
-        val position = LogPosition.exact(commit, commit)
-        val number   = StreamPosition.exact(i.toLong)
+        val position = StreamPosition.exact(i.toLong)
         val created  = zdt.plusSeconds(i.toLong)
-        sec.EventRecord(sid, number, position, ed, created)
+        sec.EventRecord[Position.Stream](sid, position, ed, created)
       }
     }
 
   }
 
-  def arbEventRecordNelOfN(n: Int): Arbitrary[NonEmptyList[EventRecord]] = Arbitrary(eventGen.eventRecordNelN(n))
-  implicit val arbEventRecord: Arbitrary[EventRecord]                    = Arbitrary[EventRecord](eventGen.eventRecordOne)
-  implicit val arbEventRecordN: Arbitrary[NonEmptyList[EventRecord]]     = arbEventRecordNelOfN(25)
+  def arbStreamEventRecordNelOfN(n: Int): Arbitrary[NonEmptyList[StreamEventRecord]] = Arbitrary(
+    eventGen.streamEventRecordNelN(n))
+
+  implicit val arbAllEventRecord: Arbitrary[AllEventRecord] =
+    Arbitrary[AllEventRecord](eventGen.allEventRecordOne)
+
+  implicit val arbStreamEventRecord: Arbitrary[StreamEventRecord] =
+    Arbitrary[StreamEventRecord](eventGen.streamEventRecordOne)
+
+  implicit val arbStreamEventRecordN: Arbitrary[NonEmptyList[StreamEventRecord]] =
+    arbStreamEventRecordNelOfN(25)
 
 //======================================================================================================================
 // Endpoint

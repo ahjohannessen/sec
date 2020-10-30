@@ -63,7 +63,7 @@ object exceptions {
   object WrongExpectedState {
 
     def msg(sid: StreamId, expected: StreamState, actual: StreamState): String =
-      s"Wrong expected state for stream: ${sid.show}, expected: ${expected.show}, actual: ${actual.show}"
+      s"Wrong expected state for stream: ${sid.render}, expected: ${expected.render}, actual: ${actual.render}"
 
   }
 

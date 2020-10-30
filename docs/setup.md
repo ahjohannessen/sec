@@ -38,7 +38,6 @@ In order to verify that you can reach the database try out the
 following [IOApp](https://typelevel.org/cats-effect/datatypes/ioapp.html):
 
 ```scala mdoc:compile-only
-import cats.syntax.all._
 import cats.effect._
 import sec.api._
 
@@ -47,7 +46,7 @@ object HelloWorld extends IOApp {
   def run(args: List[String]): IO[ExitCode] = EsClient
     .singleNode[IO]("127.0.0.1", 2113)
     .resource.use(client => 
-      client.gossip.read.flatMap(ci => IO(println(ci.show)))
+      client.gossip.read.map(_.render).flatMap(str => IO(println(str)))
     )
     .as(ExitCode.Success)
 
