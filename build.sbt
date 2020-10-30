@@ -7,7 +7,7 @@ def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scala
 
   CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, 13)) => extraDirs("scala-2.13")
-    case Some((0, _))  => extraDirs("scala-3")
+    case Some((3, _))  => extraDirs("scala-3")
     case _             => Nil
   }
 }
@@ -123,7 +123,7 @@ lazy val commonSettings = Seq(
 inThisBuild(
   List(
     scalaVersion := crossScalaVersions.value.last,
-    crossScalaVersions := Seq("0.27.0-RC1", "2.13.3"),
+    crossScalaVersions := Seq("3.0.0-M1", "2.13.3"),
     scalacOptions ++= Seq("-target:jvm-1.8"),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
