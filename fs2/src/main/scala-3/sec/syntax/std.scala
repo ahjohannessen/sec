@@ -17,6 +17,15 @@
 package sec
 package syntax
 
-trait ApiSyntax extends StreamsSyntax with MetaStreamsSyntax
+import cats.syntax.all._
+import scodec.bits.ByteVector
 
-object api extends ApiSyntax
+trait StringSyntax {
+
+  extension[F[_]: ErrorA] (s: String) {
+
+    def utf8Bytes: F[ByteVector] = ByteVector.encodeUtf8(s).liftTo[F]
+
+  }
+
+}

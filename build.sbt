@@ -1,16 +1,10 @@
 import Dependencies._
+import Helpers._
 
-def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scalaVersion: String) = {
+Global / onChangedBuildSource := ReloadOnSourceChanges
 
-  def extraDirs(suffix: String): List[File] =
-    List(srcBaseDir / srcName / suffix)
-
-  CrossVersion.partialVersion(scalaVersion) match {
-    case Some((2, 13)) => extraDirs("scala-2.13")
-    case Some((0, _))  => extraDirs("scala-3")
-    case _             => Nil
-  }
-}
+lazy val Scala2 = "2.13.3"
+lazy val Scala3 = "3.0.0-M1"
 
 lazy val sec = project
   .in(file("."))
@@ -31,7 +25,7 @@ lazy val core = project
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
     Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (sourceManaged in Compile).value)
   )
-  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
+  .settings(libraryDependencies := libraryDependencies.value.map(_.withScala3Compat(scalaVersion.value)))
 
 //==== FS2 =============================================================================================================
 
@@ -43,12 +37,10 @@ lazy val `fs2-core` = project
     name := "sec-fs2",
     libraryDependencies ++=
       compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser),
-    Compile / unmanagedSourceDirectories ++=
-      scalaVersionSpecificFolders("main", sourceDirectory.value, scalaVersion.value),
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf")
   )
-  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
+  .settings(libraryDependencies := libraryDependencies.value.map(_.withScala3Compat(scalaVersion.value)))
   .dependsOn(core)
 
 lazy val `fs2-netty` = project
@@ -83,7 +75,7 @@ lazy val tests = project
       compileM(catsLaws, catsEffectLaws, disciplineSpecs2, specs2ScalaCheck, specs2Cats) ++
         compileM(specs2, catsEffectSpecs2, log4catsSlf4j, log4catsTesting, logback)
   )
-  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
+  .settings(libraryDependencies := libraryDependencies.value.map(_.withScala3Compat(scalaVersion.value)))
   .dependsOn(core, `fs2-netty`)
 
 //==== Docs ============================================================================================================
@@ -93,7 +85,7 @@ lazy val docs = project
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
   .dependsOn(`fs2-netty`)
   .settings(
-    crossScalaVersions := Seq("2.13.3"),
+    crossScalaVersions := Seq(Scala2),
     publish / skip := true,
     moduleName := "sec-docs",
     mdocIn := file("docs"),
@@ -123,7 +115,7 @@ lazy val commonSettings = Seq(
 inThisBuild(
   List(
     scalaVersion := crossScalaVersions.value.last,
-    crossScalaVersions := Seq("0.27.0-RC1", "2.13.3"),
+    crossScalaVersions := Seq(Scala3, Scala2),
     scalacOptions ++= Seq("-target:jvm-1.8"),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
@@ -146,11 +138,13 @@ inThisBuild(
       (baseDirectory in LocalRootProject).value.getAbsolutePath,
       "-doc-source-url",
       "https://github.com/ahjohannessen/sec/blob/v" + version.value + "€{FILE_PATH}.scala"
-    ),
-    scalafixDependencies += scalafixOrganizeImports,
-    semanticdbEnabled := true,
-    semanticdbVersion := scalafixSemanticdb.revision,
-    scalafixOnCompile := sys.env.get("CI").fold(true)(_ => false)
+    )
+// TODO: Include when Scala 3.0 is supported
+//,
+//    scalafixDependencies += scalafixOrganizeImports,
+//    semanticdbEnabled := true,
+//    semanticdbVersion := scalafixSemanticdb.revision,
+//    scalafixOnCompile := sys.env.get("CI").fold(true)(_ => false)
   )
 )
 
@@ -166,12 +160,6 @@ inThisBuild(
     githubWorkflowJavaVersions := Seq("adopt@1.11"),
     githubWorkflowTargetTags += "v*",
     githubWorkflowTargetBranches := Seq("master"),
-    githubWorkflowJobSetup := {
-      githubWorkflowJobSetup.value.map {
-        case use @ WorkflowStep.Use("olafurpg", "setup-scala", _, _, _, _, _, _) => use.copy(ref = "v10")
-        case ws                                                                  => ws
-      }
-    },
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List(".docker/single-node.sh up -d"),

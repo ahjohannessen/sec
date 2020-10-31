@@ -15,8 +15,18 @@
  */
 
 package sec
-package syntax
+package api
 
-trait ApiSyntax extends StreamsSyntax with MetaStreamsSyntax
+import cats.effect.{ConcurrentEffect, Resource, Timer}
 
-object api extends ApiSyntax
+trait BuilderSyntax {
+
+  extension [F[_]: ConcurrentEffect: Timer](b: SingleNodeBuilder[F]) {
+    def resource: Resource[F, EsClient[F]] = b.build(netty.mkBuilder[F])
+  }
+
+  extension [F[_]: ConcurrentEffect: Timer](b: ClusterBuilder[F]) {
+    def resource: Resource[F, EsClient[F]] = b.build(netty.mkBuilder[F])
+  }
+
+}
