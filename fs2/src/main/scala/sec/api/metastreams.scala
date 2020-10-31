@@ -329,8 +329,8 @@ object MetaStreams {
           decode[StreamMetadata](utf8).leftMap(DecodingError(_)).liftTo[F]
         }
 
-      val recoverRead: PartialFunction[Throwable, Option[EventRecord[Position.Stream]]] = { case _: StreamNotFound =>
-        none[EventRecord[Position.Stream]]
+      val recoverRead: PartialFunction[Throwable, Option[EventRecord[PositionInfo.Local]]] = { case _: StreamNotFound =>
+        none[EventRecord[PositionInfo.Local]]
       }
 
       meta.read(id.metaId).recover(recoverRead) >>= {
@@ -370,7 +370,7 @@ object MetaStreams {
       .liftTo[F]
 
   private[sec] trait MetaRW[F[_]] {
-    def read(mid: MetaId): F[Option[EventRecord[Position.Stream]]]
+    def read(mid: MetaId): F[Option[EventRecord[PositionInfo.Local]]]
     def write(mid: MetaId, es: StreamState, data: EventData): F[WriteResult]
     def withCredentials(creds: UserCredentials): MetaRW[F]
   }
@@ -382,9 +382,9 @@ object MetaStreams {
       def withCredentials(creds: UserCredentials): MetaRW[F] =
         MetaRW[F](s.withCredentials(creds))
 
-      def read(mid: MetaId): F[Option[EventRecord[Position.Stream]]] =
+      def read(mid: MetaId): F[Option[EventRecord[PositionInfo.Local]]] =
         s.readStreamBackwards(mid, maxCount = 1)
-          .collect { case er: EventRecord[Position.Stream] => er }
+          .collect { case er: EventRecord[PositionInfo.Local] => er }
           .compile
           .last
 

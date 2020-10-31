@@ -53,7 +53,7 @@ object arbitraries {
   )
 
 //======================================================================================================================
-// StreamPosition, LogPosition, Position.All & StreamState
+// StreamPosition, LogPosition, PositionInfo.Global & StreamState
 //======================================================================================================================
 
   implicit val arbStreamPositionExact: Arbitrary[StreamPosition.Exact] = Arbitrary[StreamPosition.Exact](
@@ -71,9 +71,9 @@ object arbitraries {
   implicit val arbLogPosition: Arbitrary[LogPosition] =
     Arbitrary[LogPosition](Gen.oneOf(List(LogPosition.End, sampleOf[LogPosition.Exact])))
 
-  implicit val arbPositionAll: Arbitrary[Position.All] = Arbitrary[Position.All](
+  implicit val arbPositionInfoGlobal: Arbitrary[PositionInfo.Global] = Arbitrary[PositionInfo.Global](
     arbLogPositionExact.arbitrary.flatMap(lpe =>
-      arbStreamPositionExact.arbitrary.suchThat(_.value <= lpe.commit).map(Position.All(_, lpe)))
+      arbStreamPositionExact.arbitrary.suchThat(_.value <= lpe.commit).map(PositionInfo.Global(_, lpe)))
   )
 
   implicit val arbStreamState: Arbitrary[StreamState] =
@@ -245,8 +245,8 @@ object arbitraries {
 // Event
 //======================================================================================================================
 
-  type AllEventRecord    = EventRecord[Position.All]
-  type StreamEventRecord = EventRecord[Position.Stream]
+  type AllEventRecord    = EventRecord[PositionInfo.Global]
+  type StreamEventRecord = EventRecord[PositionInfo.Local]
 
   private[sec] object eventGen {
 
@@ -259,7 +259,7 @@ object arbitraries {
 
     val allEventRecordOne: Gen[AllEventRecord] = for {
       sid <- arbStreamIdNormal.arbitrary
-      pa  <- arbPositionAll.arbitrary
+      pa  <- arbPositionInfoGlobal.arbitrary
       ed  <- arbEventData.arbitrary
       c   <- arbZonedDateTime.arbitrary
     } yield sec.EventRecord(sid, pa, ed, c)
@@ -277,7 +277,7 @@ object arbitraries {
       data.zipWithIndex.map { case (ed, i) =>
         val position = StreamPosition.exact(i.toLong)
         val created  = zdt.plusSeconds(i.toLong)
-        sec.EventRecord[Position.Stream](sid, position, ed, created)
+        sec.EventRecord[PositionInfo.Local](sid, position, ed, created)
       }
     }
 

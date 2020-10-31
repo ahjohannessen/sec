@@ -348,15 +348,15 @@ class StreamsMappingSpec extends mutable.Specification {
       val valid = re.withStreamRevision(1L).withCommitPosition(2L).withPreparePosition(2L)
 
       // Happy Path
-      mkPositionAll[ErrorOr](valid) shouldEqual
-        Position.All(StreamPosition.exact(1L), LogPosition.exact(2L, 2L)).asRight
+      mkPositionGlobal[ErrorOr](valid) shouldEqual
+        PositionInfo.Global(StreamPosition.exact(1L), LogPosition.exact(2L, 2L)).asRight
 
       // Bad StreamPosition
-      mkPositionAll[ErrorOr](valid.withStreamRevision(-1L)) shouldEqual
+      mkPositionGlobal[ErrorOr](valid.withStreamRevision(-1L)) shouldEqual
         InvalidInput("value must be >= 0, but is -1").asLeft
 
       // Bad LogPosition
-      mkPositionAll[ErrorOr](valid.withCommitPosition(-1L).withPreparePosition(-1L)) shouldEqual
+      mkPositionGlobal[ErrorOr](valid.withCommitPosition(-1L).withPreparePosition(-1L)) shouldEqual
         InvalidInput("commit must be >= 0, but is -1").asLeft
 
     }
@@ -422,7 +422,7 @@ class StreamsMappingSpec extends mutable.Specification {
         .withId(UUID().withString(linkId))
         .withMetadata(linkMetadata)
 
-      def test[P <: Position](
+      def test[P <: PositionInfo](
         er: EventRecord[P],
         lr: EventRecord[P],
         mkPos: s.ReadResp.ReadEvent.RecordedEvent => ErrorOr[P]
@@ -475,12 +475,15 @@ class StreamsMappingSpec extends mutable.Specification {
       test(streamEventRecord, linkStreamEventRecord, mkStreamPosition[ErrorOr])
 
       val allEventRecord =
-        EventRecord(sid, sec.Position.All(sp, sec.LogPosition.exact(commit, prepare)), ed, created)
+        EventRecord(sid, sec.PositionInfo.Global(sp, sec.LogPosition.exact(commit, prepare)), ed, created)
 
       val linkAllEventRecord =
-        sec.EventRecord(lsid, sec.Position.All(lsp, sec.LogPosition.exact(linkCommit, linkPrepare)), led, linkCreated)
+        sec.EventRecord(lsid,
+                        sec.PositionInfo.Global(lsp, sec.LogPosition.exact(linkCommit, linkPrepare)),
+                        led,
+                        linkCreated)
 
-      test(allEventRecord, linkAllEventRecord, mkPositionAll[ErrorOr])
+      test(allEventRecord, linkAllEventRecord, mkPositionGlobal[ErrorOr])
 
     }
 
@@ -499,7 +502,7 @@ class StreamsMappingSpec extends mutable.Specification {
       val created         = Instant.EPOCH.atZone(ZoneOffset.UTC)
       val metadata        = Map(ContentType -> Binary, Type -> eventType, Created -> created.getNano().toString)
 
-      def test[P <: Position](
+      def test[P <: PositionInfo](
         eventRecord: EventRecord[P],
         recordedEvent: s.ReadResp.ReadEvent.RecordedEvent,
         mkPos: s.ReadResp.ReadEvent.RecordedEvent => ErrorOr[P]
@@ -575,9 +578,9 @@ class StreamsMappingSpec extends mutable.Specification {
         streamRecordedEvent.withCommitPosition(commit).withPreparePosition(prepare)
 
       val allEventRecord =
-        sec.EventRecord(sid, sec.Position.All(sp, sec.LogPosition.exact(commit, prepare)), ed, created)
+        sec.EventRecord(sid, sec.PositionInfo.Global(sp, sec.LogPosition.exact(commit, prepare)), ed, created)
 
-      test(allEventRecord, allRecordedEvent, mkPositionAll[ErrorOr])
+      test(allEventRecord, allRecordedEvent, mkPositionGlobal[ErrorOr])
 
     }
 

@@ -31,15 +31,15 @@ import sec.utilities.{guardNonEmpty, guardNotStartsWith}
  *   - [[EventRecord]] An event in an event stream.
  *   - [[ResolvedEvent]] A special event that contains a link and a linked event record.
  *
- * @tparam P Tells whether the event is retrieved from the global stream [[Position.All]]
- *           or from an individual stream [[Position.Stream]].
+ * @tparam P Tells whether the event is retrieved from the global stream [[PositionInfo.Global]]
+ *           or from an individual stream [[PositionInfo.Local]].
  */
-sealed trait Event[P <: Position]
+sealed trait Event[P <: PositionInfo]
 object Event {
 
-  implicit final class EventOps[P <: Position](val e: Event[P]) extends AnyVal {
+  implicit final class EventOps[P <: PositionInfo](val e: Event[P]) extends AnyVal {
 
-    def fold[A](f: EventRecord[P] => A, g: ResolvedEvent[P] => A): A = e match {
+    private[sec] def fold[A](f: EventRecord[P] => A, g: ResolvedEvent[P] => A): A = e match {
       case er: EventRecord[P]   => f(er)
       case re: ResolvedEvent[P] => g(re)
     }
@@ -92,7 +92,7 @@ object Event {
  * @param eventData the payload of the event.
  * @param created the creation date of the event in [[java.time.ZonedDateTime]].
  */
-final case class EventRecord[P <: Position](
+final case class EventRecord[P <: PositionInfo](
   streamId: StreamId,
   position: P,
   eventData: EventData,
@@ -101,7 +101,7 @@ final case class EventRecord[P <: Position](
 
 object EventRecord {
 
-  def render[P <: Position](er: EventRecord[P]): String =
+  def render[P <: PositionInfo](er: EventRecord[P]): String =
     s"""
        |EventRecord(
        |  streamId = ${er.streamId.render},
@@ -124,14 +124,14 @@ object EventRecord {
  * @param event the original and linked to event record.
  * @param link the link event to the resolved event.
  */
-final case class ResolvedEvent[P <: Position](
+final case class ResolvedEvent[P <: PositionInfo](
   event: EventRecord[P],
   link: EventRecord[P]
 ) extends Event[P]
 
 object ResolvedEvent {
 
-  def render[P <: Position](re: ResolvedEvent[P]): String =
+  def render[P <: PositionInfo](re: ResolvedEvent[P]): String =
     s"""
        |ResolvedEvent(
        |  event = ${EventRecord.render(re.event)},

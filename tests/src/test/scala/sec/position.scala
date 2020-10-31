@@ -84,24 +84,24 @@ class VersionSpec extends Specification with Discipline {
     }
   }
 
-  "Position" >> {
+  "PositionInfo" >> {
 
     "renderPosition" >> {
 
       val stream = StreamPosition.exact(1L)
-      val all    = Position.All(stream, LogPosition.exact(2L, 3L))
+      val all    = PositionInfo.Global(stream, LogPosition.exact(2L, 3L))
 
-      (stream: Position).renderPosition shouldEqual "stream: 1L"
-      (all: Position).renderPosition shouldEqual "log: (c = 2L, p = 3L), stream: 1L"
+      (stream: PositionInfo).renderPosition shouldEqual "stream: 1L"
+      (all: PositionInfo).renderPosition shouldEqual "log: (c = 2L, p = 3L), stream: 1L"
     }
 
     "streamPosition" >> {
 
       val stream = StreamPosition.exact(1L)
-      val all    = Position.All(stream, LogPosition.exact(2L, 3L))
+      val all    = PositionInfo.Global(stream, LogPosition.exact(2L, 3L))
 
-      (stream: Position).streamPosition shouldEqual StreamPosition.exact(1L)
-      (all: Position).streamPosition shouldEqual StreamPosition.exact(1L)
+      (stream: PositionInfo).streamPosition shouldEqual StreamPosition.exact(1L)
+      (all: PositionInfo).streamPosition shouldEqual StreamPosition.exact(1L)
 
     }
 

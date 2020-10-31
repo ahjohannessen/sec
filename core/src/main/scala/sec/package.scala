@@ -18,8 +18,8 @@ import cats.{ApplicativeError, MonadError}
 
 package object sec {
 
-  type AllEvent    = sec.Event[Position.All]
-  type StreamEvent = sec.Event[Position.Stream]
+  type AllEvent    = sec.Event[PositionInfo.Global]
+  type StreamEvent = sec.Event[PositionInfo.Local]
 
   ///
 
