@@ -34,21 +34,21 @@ class EventSpec extends Specification {
   private def bv(data: String): ByteVector =
     ByteVector.encodeUtf8(data).leftMap(_.getMessage).unsafe
 
-  val er: EventRecord[Position.Stream] = sec.EventRecord[Position.Stream](
+  val er: EventRecord[PositionInfo.Global] = sec.EventRecord[PositionInfo.Global](
     StreamId("abc-1234").unsafe,
-    StreamPosition.exact(5L),
+    PositionInfo.Global(StreamPosition.exact(5L), LogPosition.exact(42L, 42L)),
     EventData("et", sampleOf[ju.UUID], bv("abc"), ContentType.Binary).unsafe,
     sampleOf[ZonedDateTime]
   )
 
-  val link: EventRecord[Position.Stream] = sec.EventRecord[Position.Stream](
+  val link: EventRecord[PositionInfo.Global] = sec.EventRecord[PositionInfo.Global](
     StreamId.system("ce-abc").unsafe,
-    StreamPosition.exact(10L),
+    PositionInfo.Global(StreamPosition.exact(10L), LogPosition.exact(1337L, 1337L)),
     EventData(EventType.LinkTo, sampleOf[ju.UUID], bv("5@abc-1234"), ContentType.Binary),
     sampleOf[ZonedDateTime]
   )
 
-  val re: ResolvedEvent[Position.Stream] = ResolvedEvent(er, link)
+  val re: ResolvedEvent[PositionInfo.Global] = ResolvedEvent(er, link)
 
   ///
 
@@ -59,60 +59,46 @@ class EventSpec extends Specification {
       re.fold(_ => ko, _ => ok)
     }
 
-    "streamId" >> {
-      (er: Event[Position.Stream]).streamId shouldEqual er.streamId
-      (re: Event[Position.Stream]).streamId shouldEqual er.streamId
+    def testCommon[P <: PositionInfo](er: EventRecord[P], re: ResolvedEvent[P]) = {
+
+      "streamId" >> {
+        (er: Event[P]).streamId shouldEqual er.streamId
+        (re: Event[P]).streamId shouldEqual er.streamId
+      }
+
+      "streamPosition" >> {
+        (er: Event[P]).streamPosition shouldEqual er.streamPosition
+        (re: Event[P]).streamPosition shouldEqual er.streamPosition
+      }
+
+      "eventData" >> {
+        (er: Event[P]).eventData shouldEqual er.eventData
+        (re: Event[P]).eventData shouldEqual er.eventData
+      }
+
+      "record" >> {
+        (er: Event[P]).record shouldEqual er
+        (re: Event[P]).record shouldEqual re.link
+      }
+
+      "created" >> {
+        (er: Event[P]).created shouldEqual er.created
+        (re: Event[P]).created shouldEqual er.created
+      }
     }
 
-    "streamPosition" >> {
-      (er: Event[Position.Stream]).streamPosition shouldEqual er.streamPosition
-      (re: Event[Position.Stream]).streamPosition shouldEqual er.streamPosition
-    }
-
-    "eventData" >> {
-      (er: Event[Position.Stream]).eventData shouldEqual er.eventData
-      (re: Event[Position.Stream]).eventData shouldEqual er.eventData
-    }
-
-    "record" >> {
-      (er: Event[Position.Stream]).record shouldEqual er
-      (re: Event[Position.Stream]).record shouldEqual link
-    }
-
-    "created" >> {
-      (er: Event[Position.Stream]).created shouldEqual er.created
-      (re: Event[Position.Stream]).created shouldEqual er.created
-    }
-
-  }
-
-  "AllEventOps" >> {
-
-    val er: EventRecord[Position.All] = sec.EventRecord[Position.All](
-      StreamId("abc-1234").unsafe,
-      Position.All(StreamPosition.exact(5L), LogPosition.exact(42L, 42L)),
-      EventData("et", sampleOf[ju.UUID], bv("abc"), ContentType.Binary).unsafe,
-      sampleOf[ZonedDateTime]
+    testCommon(er, re)
+    testCommon(
+      er.copy(position = er.position.streamPosition),
+      re.copy(event    = re.event.copy(position = re.event.position.streamPosition),
+              link     = re.link.copy(position = re.link.position.streamPosition))
     )
-
-    val link: EventRecord[Position.All] = sec.EventRecord[Position.All](
-      StreamId.system("ce-abc").unsafe,
-      Position.All(StreamPosition.exact(10L), LogPosition.exact(1337L, 1337L)),
-      EventData(EventType.LinkTo, sampleOf[ju.UUID], bv("5@abc-1234"), ContentType.Binary),
-      sampleOf[ZonedDateTime]
-    )
-
-    val re: ResolvedEvent[Position.All] = ResolvedEvent(er, link)
 
     "logPosition" >> {
-      (er: Event[Position.All]).logPosition shouldEqual er.logPosition
-      (re: Event[Position.All]).logPosition shouldEqual er.logPosition
+      (er: Event[PositionInfo.Global]).logPosition shouldEqual er.logPosition
+      (re: Event[PositionInfo.Global]).logPosition shouldEqual er.logPosition
     }
 
-    "streamPosition" >> {
-      (er: Event[Position.All]).streamPosition shouldEqual er.streamPosition
-      (re: Event[Position.All]).streamPosition shouldEqual er.streamPosition
-    }
   }
 
   "render" >> {

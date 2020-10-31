@@ -223,8 +223,8 @@ private[sec] object streams {
 
   object incoming {
 
-    def mkPositionAll[F[_]: ErrorA](e: ReadResp.ReadEvent.RecordedEvent): F[Position.All] =
-      (mkStreamPosition[F](e), mkLogPosition[F](e)).mapN(Position.All)
+    def mkPositionGlobal[F[_]: ErrorA](e: ReadResp.ReadEvent.RecordedEvent): F[PositionInfo.Global] =
+      (mkStreamPosition[F](e), mkLogPosition[F](e)).mapN(PositionInfo.Global)
 
     def mkLogPosition[F[_]: ErrorA](e: ReadResp.ReadEvent.RecordedEvent): F[LogPosition.Exact] =
       LogPosition(e.commitPosition, e.preparePosition).liftTo[F]
@@ -240,7 +240,7 @@ private[sec] object streams {
 
     def mkCheckpointOrEvent[F[_]: ErrorM](re: ReadResp): F[Option[Either[Checkpoint, AllEvent]]] = {
 
-      val mkEvt      = mkEvent[F, Position.All](_, mkPositionAll[F])
+      val mkEvt      = mkEvent[F, PositionInfo.Global](_, mkPositionGlobal[F])
       val event      = OptionT(re.content.event.flatTraverse(mkEvt).nested.map(_.asRight[Checkpoint]).value)
       val checkpoint = OptionT(re.content.checkpoint.traverse(mkCheckpoint[F]).nested.map(_.asLeft[AllEvent]).value)
 
@@ -254,12 +254,12 @@ private[sec] object streams {
       rr.content.streamNotFound.fold(rr.pure[F])(mkStreamNotFound[F](_) >>= (_.raiseError[F, ReadResp]))
 
     def reqReadAll[F[_]: ErrorM](rr: ReadResp): F[Option[AllEvent]] =
-      reqReadEvent(rr, mkPositionAll[F])
+      reqReadEvent(rr, mkPositionGlobal[F])
 
     def reqReadStream[F[_]: ErrorM](rr: ReadResp): F[Option[StreamEvent]] =
       reqReadEvent(rr, mkStreamPosition[F])
 
-    def reqReadEvent[F[_]: ErrorM, P <: Position](
+    def reqReadEvent[F[_]: ErrorM, P <: PositionInfo](
       rr: ReadResp,
       mkPos: ReadResp.ReadEvent.RecordedEvent => F[P]): F[Option[Event[P]]] =
       rr.content.event.require[F]("ReadEvent") >>= (mkEvent[F, P](_, mkPos))
@@ -270,7 +270,7 @@ private[sec] object streams {
         .require[F]("SubscriptionConfirmation", details = s"Got ${rr.content} instead".some)
         .map(SubscriptionConfirmation)
 
-    def mkEvent[F[_]: ErrorM, P <: Position](
+    def mkEvent[F[_]: ErrorM, P <: PositionInfo](
       re: ReadResp.ReadEvent,
       mkPos: ReadResp.ReadEvent.RecordedEvent => F[P]
     ): F[Option[Event[P]]] =
@@ -280,7 +280,7 @@ private[sec] object streams {
           .map(lOpt => eOpt.map(er => lOpt.fold[Event[P]](er)(ResolvedEvent[P](er, _))))
       }
 
-    def mkEventRecord[F[_]: ErrorM, P <: Position](
+    def mkEventRecord[F[_]: ErrorM, P <: PositionInfo](
       e: ReadResp.ReadEvent.RecordedEvent,
       mkPos: ReadResp.ReadEvent.RecordedEvent => F[P]): F[EventRecord[P]] = {
 

@@ -182,25 +182,18 @@ When `EventType` is translated to the protocol of @esdb@ it becomes `application
 ### Event
 
 Event data arriving from @esdb@ either comes from an individual stream or from the global log. Data retrieved 
-from the global log contains positions `LogPosition.Exact` and `StreamPosition.Exact`, whereas data from an individual 
-stream only contains `StreamPosition.Exact`. 
+from the global log contains positions `LogPosition.Exact` and `StreamPosition.Exact`, whereas data retrieved 
+from an individual stream contains only `StreamPosition.Exact`. 
 
-The difference in position information is encoded in the *ADT* that models an event, `Event[P <: Position]` where `P` 
-is either `Position.All` containing both position types or `Position.Stream` that is an alias for `StreamPosition.Exact`. 
-
-```scala mdoc
-import sec.{Position, LogPosition, StreamPosition}
-
-val all: Position.All       = Position.All(StreamPosition.Start, LogPosition.Start)
-val stream: Position.Stream = StreamPosition.Start
-```
+The difference in position information is encoded in the *ADT* that models an event, `Event[P <: PositionInfo]` where `P` 
+is either `PositionInfo.Global` containing both position types or `PositionInfo.Local` that is an alias for `StreamPosition.Exact`.
 
 `Event` has the variants `EventRecord` and `ResolvedEvent`.
 
 An `EventRecord` consists of the following data types:
 
   - `streamId: StreamId` - The stream the event belongs to.
-  - `position: P` - The `Position` information `P` about the event.
+  - `position: P` - The `PositionInfo` information `P` about the event.
   - `eventData: EventData` - The data of the event.
   - `created: ZonedDateTime` - The time the event was created.
   
@@ -208,6 +201,8 @@ A `ResolvedEvent` is used when consuming streams that link to other streams. It 
 
  - `event: EventRecord` - The linked event.
  - `link: EventRecord` - The linking event record.
+ 
+See the API docs for various methods defined for `Event`.
 
 Later on when using the [EsClient API](client-api.md), you will learn about reading from streams and instruct @esdb@ to 
 resolve links such that you get events of type `ResolvedEvent` back.

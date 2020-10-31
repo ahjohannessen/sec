@@ -81,7 +81,7 @@ object StreamPosition {
 
   val Start: Exact = exact(0L)
 
-  sealed abstract case class Exact(value: Long) extends StreamPosition with StreamState with Position
+  sealed abstract case class Exact(value: Long) extends StreamPosition with StreamState with PositionInfo
   object Exact {
 
     private[StreamPosition] def create(value: Long): Exact = new Exact(value) {}
@@ -197,25 +197,24 @@ object LogPosition {
 
 //======================================================================================================================
 
-sealed trait Position
-object Position {
+sealed trait PositionInfo
+object PositionInfo {
 
-  final case class All(
+  final case class Global(
     stream: StreamPosition.Exact,
     log: LogPosition.Exact
-  ) extends Position
+  ) extends PositionInfo
 
-  type Stream = StreamPosition.Exact
+  type Local = StreamPosition.Exact
 
-  implicit final class PositionOps(val p: Position) extends AnyVal {
+  implicit final class PositionOps(val p: PositionInfo) extends AnyVal {
 
-    def fold[A](all: All => A, stream: Stream => A): A = p match {
-      case a: All                  => all(a)
-      case e: StreamPosition.Exact => stream(e)
+    def fold[A](global: Global => A, local: Local => A): A = p match {
+      case a: Global => global(a)
+      case l: Local  => local(l)
     }
 
-    def streamPosition: StreamPosition.Exact =
-      fold(_.stream, identity)
+    def streamPosition: StreamPosition.Exact = fold(_.stream, identity)
 
     private[sec] def renderPosition: String = fold(
       a => s"log: (c = ${a.log.commit}L, p = ${a.log.prepare}L), stream: ${a.stream.value}L",
