@@ -16,26 +16,12 @@
 
 package sec
 
+import java.util.UUID
+
 import cats.effect._
 
-package object api {
+package object api extends BuilderSyntax {
 
-//======================================================================================================================
-
-  def mkUuid[F[_]: Sync]: F[java.util.UUID] = Sync[F].delay(java.util.UUID.randomUUID())
-
-//======================================================================================================================
-
-  import sec.api.netty._
-
-  implicit def singleNodeBuilderSyntax[F[_]: ConcurrentEffect: Timer](
-    snb: SingleNodeBuilder[F]
-  ): SingleNodeBuilderOps[F] = new SingleNodeBuilderOps[F](snb)
-
-  implicit def clusterBuilderSyntax[F[_]: ConcurrentEffect: Timer](
-    cb: ClusterBuilder[F]
-  ): ClusterBuilderOps[F] = new ClusterBuilderOps[F](cb)
-
-//======================================================================================================================
+  def mkUuid[F[_]: Sync]: F[UUID] = Sync[F].delay(UUID.randomUUID())
 
 }
