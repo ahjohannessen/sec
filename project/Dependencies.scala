@@ -16,7 +16,7 @@ object Dependencies {
     val grpc             = "1.33.1"
     val disciplineSpecs2 = "1.1.1"
     val specs2           = "4.10.5"
-    val catsEffectSpecs2 = "0.4.1"
+    val catsEffectSpecs2 = "0.4.2"
 
   }
 
