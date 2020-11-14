@@ -1,5 +1,4 @@
 import Dependencies._
-import Helpers._
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
@@ -25,7 +24,7 @@ lazy val core = project
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
     Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (sourceManaged in Compile).value)
   )
-  .settings(libraryDependencies := libraryDependencies.value.map(_.withScala3Compat(scalaVersion.value)))
+  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
 
 //==== FS2 =============================================================================================================
 
@@ -40,7 +39,7 @@ lazy val `fs2-core` = project
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf")
   )
-  .settings(libraryDependencies := libraryDependencies.value.map(_.withScala3Compat(scalaVersion.value)))
+  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
   .dependsOn(core)
 
 lazy val `fs2-netty` = project
@@ -75,7 +74,7 @@ lazy val tests = project
       compileM(catsLaws, catsEffectLaws, disciplineSpecs2, specs2ScalaCheck, specs2Cats) ++
         compileM(specs2, catsEffectSpecs2, log4catsSlf4j, log4catsTesting, logback)
   )
-  .settings(libraryDependencies := libraryDependencies.value.map(_.withScala3Compat(scalaVersion.value)))
+  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
   .dependsOn(core, `fs2-netty`)
 
 //==== Docs ============================================================================================================
