@@ -215,7 +215,7 @@ inThisBuild(
       RefPredicate.StartsWith(Ref.Tag("v"))
     ),
     githubWorkflowPublishPreamble +=
-      WorkflowStep.Use("olafurpg", "setup-gpg", "v2"),
+      WorkflowStep.Use("olafurpg", "setup-gpg", "v3"),
     githubWorkflowPublish := Seq(
       WorkflowStep.Sbt(
         List("ci-release"),
