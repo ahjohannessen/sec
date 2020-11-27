@@ -216,7 +216,7 @@ object PositionInfo {
 
     def streamPosition: StreamPosition.Exact = fold(_.stream, identity)
 
-    private[sec] def renderPosition: String = fold(
+    def renderPosition: String = fold(
       a => s"log: (c = ${a.log.commit}L, p = ${a.log.prepare}L), stream: ${a.stream.value}L",
       e => s"stream: ${e.value}L"
     )
