@@ -39,7 +39,7 @@ object Event {
 
   implicit final class EventOps[P <: PositionInfo](val e: Event[P]) extends AnyVal {
 
-    private[sec] def fold[A](f: EventRecord[P] => A, g: ResolvedEvent[P] => A): A = e match {
+    def fold[A](f: EventRecord[P] => A, g: ResolvedEvent[P] => A): A = e match {
       case er: EventRecord[P]   => f(er)
       case re: ResolvedEvent[P] => g(re)
     }
@@ -322,7 +322,7 @@ object ContentType {
 
   implicit final class ContentTypeOps(val ct: ContentType) extends AnyVal {
 
-    private[sec] def fold[A](binary: => A, json: => A): A = ct match {
+    def fold[A](binary: => A, json: => A): A = ct match {
       case Binary => binary
       case Json   => json
     }

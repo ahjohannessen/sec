@@ -99,7 +99,7 @@ object StreamId {
 
   implicit final class StreamIdOps(val sid: StreamId) extends AnyVal {
 
-    private[sec] def fold[A](nfn: Normal => A, sfn: System => A, mfn: MetaId => A): A =
+    def fold[A](nfn: Normal => A, sfn: System => A, mfn: MetaId => A): A =
       sid match {
         case n: Normal => nfn(n)
         case s: System => sfn(s)
