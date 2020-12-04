@@ -1,5 +1,5 @@
 addSbtPlugin("ch.epfl.lamp"              % "sbt-dotty"          % "0.4.6")
-addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat"       % "0.1.15")
+addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat"       % "0.1.16")
 addSbtPlugin("com.codecommit"            % "sbt-github-actions" % "0.9.5")
 addSbtPlugin("de.heikoseeberger"         % "sbt-header"         % "5.6.0")
 addSbtPlugin("com.geirsson"              % "sbt-ci-release"     % "1.5.4")
