@@ -58,7 +58,7 @@ object StreamId {
    *             and not starting with the system reserved metadata prefix `$$`.
    */
   def apply(name: String): Either[InvalidInput, Id] =
-    (guardNonEmptyName(name) >>= guardNotStartsWith(metadataPrefix) >>= stringToId).leftMap(InvalidInput)
+    (guardNonEmptyName(name) >>= guardNotStartsWith(metadataPrefix) >>= stringToId).leftMap(InvalidInput(_))
 
   ///
 
@@ -76,7 +76,7 @@ object StreamId {
   }
 
   private[sec] val stringToStreamId: String => Attempt[StreamId] = {
-    case id if id.startsWith(metadataPrefix) => stringToId(id.substring(metadataPrefixLength)).map(MetaId)
+    case id if id.startsWith(metadataPrefix) => stringToId(id.substring(metadataPrefixLength)).map(MetaId(_))
     case id                                  => stringToId(id)
   }
 

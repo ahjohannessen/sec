@@ -77,7 +77,7 @@ private[sec] object streams {
         )
 
         val window = options.maxSearchWindow
-          .map(ReadReq.Options.FilterOptions.Window.Max)
+          .map(ReadReq.Options.FilterOptions.Window.Max(_))
           .getOrElse(ReadReq.Options.FilterOptions.Window.Count(empty))
 
         val filterOptions = ReadReq.Options
@@ -224,7 +224,7 @@ private[sec] object streams {
   object incoming {
 
     def mkPositionGlobal[F[_]: ErrorA](e: ReadResp.ReadEvent.RecordedEvent): F[PositionInfo.Global] =
-      (mkStreamPosition[F](e), mkLogPosition[F](e)).mapN(PositionInfo.Global)
+      (mkStreamPosition[F](e), mkLogPosition[F](e)).mapN(PositionInfo.Global.apply)
 
     def mkLogPosition[F[_]: ErrorA](e: ReadResp.ReadEvent.RecordedEvent): F[LogPosition.Exact] =
       LogPosition(e.commitPosition, e.preparePosition).liftTo[F]
@@ -234,7 +234,7 @@ private[sec] object streams {
 
     def mkCheckpoint[F[_]: ErrorA](c: ReadResp.Checkpoint): F[Checkpoint] =
       LogPosition(c.commitPosition, c.preparePosition)
-        .map(Checkpoint)
+        .map(Checkpoint(_))
         .leftMap(error => ProtoResultError(s"Invalid position for Checkpoint: ${error.msg}"))
         .liftTo[F]
 
@@ -248,7 +248,7 @@ private[sec] object streams {
     }
 
     def mkStreamNotFound[F[_]: ErrorM](snf: ReadResp.StreamNotFound): F[StreamNotFound] =
-      snf.streamIdentifier.require[F]("StreamIdentifer") >>= (_.utf8[F].map(StreamNotFound))
+      snf.streamIdentifier.require[F]("StreamIdentifer") >>= (_.utf8[F].map(StreamNotFound(_)))
 
     def failStreamNotFound[F[_]: ErrorM](rr: ReadResp): F[ReadResp] =
       rr.content.streamNotFound.fold(rr.pure[F])(mkStreamNotFound[F](_) >>= (_.raiseError[F, ReadResp]))
@@ -268,7 +268,7 @@ private[sec] object streams {
       rr.content.confirmation
         .map(_.subscriptionId)
         .require[F]("SubscriptionConfirmation", details = s"Got ${rr.content} instead".some)
-        .map(SubscriptionConfirmation)
+        .map(SubscriptionConfirmation(_))
 
     def mkEvent[F[_]: ErrorM, P <: PositionInfo](
       re: ReadResp.ReadEvent,
@@ -306,7 +306,7 @@ private[sec] object streams {
       }
 
     def mkEventType[F[_]: ErrorA](name: String): F[EventType] =
-      EventType.stringToEventType(Option(name).getOrElse("")).leftMap(ProtoResultError).liftTo[F]
+      EventType.stringToEventType(Option(name).getOrElse("")).leftMap(ProtoResultError(_)).liftTo[F]
 
     def mkWriteResult[F[_]: ErrorA](sid: StreamId, ar: AppendResp): F[WriteResult] = {
 

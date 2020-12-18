@@ -58,7 +58,7 @@ object EventFilter {
   def eventTypeRegex(filter: String): EventFilter              = regex(ByEventType, filter)
 
   def prefix(kind: Kind, fst: String, rest: String*): EventFilter =
-    EventFilter(kind, NonEmptyList(PrefixFilter(fst), rest.toList.map(PrefixFilter)).asLeft)
+    EventFilter(kind, NonEmptyList(PrefixFilter(fst), rest.toList.map(PrefixFilter(_))).asLeft)
 
   def regex(kind: Kind, filter: String): EventFilter =
     EventFilter(kind, RegexFilter(filter).asRight)

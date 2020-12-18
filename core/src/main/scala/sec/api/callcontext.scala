@@ -61,7 +61,7 @@ object UserCredentials {
 
     (validate(username, "username"), validate(password, "password"))
       .mapN(UserCredentials.unsafe)
-      .leftMap(InvalidInput)
+      .leftMap(InvalidInput(_))
   }
 }
 

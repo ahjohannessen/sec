@@ -55,7 +55,7 @@ private[sec] object gossip {
 
     val instanceId = mi.instanceId.require[F]("instanceId") >>= mkJuuid[F]
     val timestamp  = fromTicksSinceEpoch[F](mi.timeStamp)
-    val state      = mkVNodeState(mi.state).leftMap(ProtoResultError).liftTo[F]
+    val state      = mkVNodeState(mi.state).leftMap(ProtoResultError(_)).liftTo[F]
     val isAlive    = mi.isAlive.pure[F]
     val endpoint   = mi.httpEndPoint.require[F]("httpEndpoint").map(e => Endpoint(e.address, e.port))
 

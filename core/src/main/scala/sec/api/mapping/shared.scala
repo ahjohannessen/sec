@@ -38,7 +38,7 @@ private[sec] object shared {
       case UUID.Value.Empty         => "UUID is missing".asLeft
     }
 
-    juuid.leftMap(ProtoResultError).liftTo[F]
+    juuid.leftMap(ProtoResultError(_)).liftTo[F]
   }
 
   //
@@ -48,7 +48,7 @@ private[sec] object shared {
 
   def mkStreamId[F[_]: ErrorM](sid: StreamIdentifier): F[StreamId] =
     sid.utf8[F] >>= { sidStr =>
-      StreamId.stringToStreamId(sidStr).leftMap(ProtoResultError).liftTo[F]
+      StreamId.stringToStreamId(sidStr).leftMap(ProtoResultError(_)).liftTo[F]
     }
 
   implicit final class StreamIdOps(val v: StreamId) extends AnyVal {

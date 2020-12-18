@@ -178,7 +178,7 @@ object EventType {
    *             and not starting with the system reserved prefix `$`.
    */
   def apply(name: String): Either[InvalidInput, Normal] =
-    normal(name).leftMap(InvalidInput)
+    normal(name).leftMap(InvalidInput(_))
 
   ///
 

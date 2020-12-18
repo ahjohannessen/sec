@@ -150,7 +150,7 @@ object LogPosition {
         e <- Either.cond(commit >= prepare, create(c, p), s"commit must be >= prepare, but $commit < $prepare")
       } yield e
 
-      result.leftMap(InvalidInput)
+      result.leftMap(InvalidInput(_))
     }
 
   }
