@@ -36,7 +36,7 @@ class EventFilterSpec extends Specification with ScalaCheck {
 
     "prefix" >> prop { (k: Kind, fst: String, rest: List[String]) =>
       prefix(k, fst, rest: _*) shouldEqual
-        EventFilter(k, NonEmptyList(PrefixFilter(fst), rest.map(PrefixFilter)).asLeft)
+        EventFilter(k, NonEmptyList(PrefixFilter(fst), rest.map(x => PrefixFilter(x))).asLeft)
     }
 
     "regex" >> prop { (k: Kind, filter: Regex) =>
