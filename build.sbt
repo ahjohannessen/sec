@@ -3,7 +3,7 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 lazy val Scala2 = "2.13.4"
-lazy val Scala3 = "3.0.0-M2"
+lazy val Scala3 = "3.0.0-M3"
 
 lazy val sec = project
   .in(file("."))
@@ -103,6 +103,11 @@ lazy val commonSettings = Seq(
   scalacOptions ++= {
     if (isDotty.value) Seq("-source:3.0-migration") else Nil
   },
+  scalacOptions := {
+    if (isDotty.value)
+      scalacOptions.value.filterNot(_ == "-Xfatal-warnings") // TODO: Remove when ScalaPB avoids auto insertion of apply
+    else scalacOptions.value
+  },
   Compile / doc / sources := {
     val old = (Compile / doc / sources).value
     if (isDotty.value) Nil else old
@@ -115,7 +120,7 @@ inThisBuild(
   List(
     scalaVersion := crossScalaVersions.value.last,
     crossScalaVersions := Seq(Scala3, Scala2),
-    scalacOptions ++= Seq("-target:jvm-1.8"),
+    scalacOptions ++= Seq("target:8"),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
     organizationName := "Scala EventStoreDB Client",
