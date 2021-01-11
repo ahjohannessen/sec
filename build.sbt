@@ -115,7 +115,7 @@ inThisBuild(
   List(
     scalaVersion := crossScalaVersions.value.last,
     crossScalaVersions := Seq(Scala3, Scala2),
-    scalacOptions ++= Seq("target:8"),
+    scalacOptions ++= Seq("--target:8"),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
     organizationName := "Scala EventStoreDB Client",
