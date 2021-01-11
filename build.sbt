@@ -103,11 +103,6 @@ lazy val commonSettings = Seq(
   scalacOptions ++= {
     if (isDotty.value) Seq("-source:3.0-migration") else Nil
   },
-  scalacOptions := {
-    if (isDotty.value)
-      scalacOptions.value.filterNot(_ == "-Xfatal-warnings") // TODO: Remove when ScalaPB avoids auto insertion of apply
-    else scalacOptions.value
-  },
   Compile / doc / sources := {
     val old = (Compile / doc / sources).value
     if (isDotty.value) Nil else old
