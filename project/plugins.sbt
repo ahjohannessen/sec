@@ -1,6 +1,6 @@
 addSbtPlugin("ch.epfl.lamp"              % "sbt-dotty"          % "0.5.1")
 addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat"       % "0.1.16")
-addSbtPlugin("com.codecommit"            % "sbt-github-actions" % "0.10.0")
+addSbtPlugin("com.codecommit"            % "sbt-github-actions" % "0.10.1")
 addSbtPlugin("de.heikoseeberger"         % "sbt-header"         % "5.6.0")
 addSbtPlugin("com.geirsson"              % "sbt-ci-release"     % "1.5.5")
 addSbtPlugin("org.lyranthe.fs2-grpc"     % "sbt-java-gen"       % "0.9.0-M1")
