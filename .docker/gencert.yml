@@ -3,7 +3,7 @@ services:
   volumes-provisioner:
      image: hasnat/volumes-provisioner
      env_file:
-       - shared.env
+       - ./shared.env
      environment:
        PROVISION_DIRECTORIES: "1000:1000:0755:/tmp/certs"
      volumes:
@@ -12,7 +12,7 @@ services:
   cert-gen:
      image: eventstore/es-gencert-cli:1.0.2
      env_file:
-       - shared.env
+       - ./shared.env
      entrypoint: bash
      command: >
        -c "[ -d /tmp/certs/ca ] || es-gencert-cli create-ca -out /tmp/certs/ca &&

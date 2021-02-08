@@ -51,7 +51,12 @@ jobs:
 
       - name: Start Single Node
         if: contains(matrix.scala, '2.13.4')
-        run: .docker/single-node.sh up -d
+        env:
+          SEC_GENCERT_CERTS_ROOT: ${{ github.workspace }}
+        run: |
+          pushd .docker
+          ./single-node.sh up -d
+          popd
 
       - name: Check that workflows are up to date
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
@@ -72,11 +77,19 @@ jobs:
 
       - name: Stop Single Node
         if: always() && contains(matrix.scala, '2.13.4')
-        run: .docker/single-node.sh down
+        run: |
+          pushd .docker
+          ./single-node.sh down
+          popd
 
       - name: Start Cluster Nodes
         if: contains(matrix.scala, '2.13.4')
-        run: .docker/cluster.sh up -d
+        env:
+          SEC_GENCERT_CERTS_ROOT: ${{ github.workspace }}
+        run: |
+          pushd .docker
+          ./cluster.sh up -d
+          popd
 
       - name: Cluster integration tests
         if: contains(matrix.scala, '2.13.4')
@@ -87,7 +100,10 @@ jobs:
 
       - name: Stop Cluster Nodes
         if: always() && contains(matrix.scala, '2.13.4')
-        run: .docker/cluster.sh down
+        run: |
+          pushd .docker
+          ./cluster.sh down
+          popd
 
       - name: Compress target directories
         run: tar cf targets.tar sec-docs/target tests/target fs2-netty/target target fs2/target core/target project/target

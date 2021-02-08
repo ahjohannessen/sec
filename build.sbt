@@ -163,8 +163,11 @@ inThisBuild(
     githubWorkflowTargetBranches := Seq("master"),
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
-      commands = List(".docker/single-node.sh up -d"),
-      cond     = Some(scalaCondition(scalaVersion.value))
+      commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
+      cond     = Some(scalaCondition(scalaVersion.value)),
+      env = Map(
+        "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
+      )
     ),
     githubWorkflowBuild := Seq(
       WorkflowStep.Sbt(
@@ -188,14 +191,17 @@ inThisBuild(
     ),
     githubWorkflowBuildPostamble += WorkflowStep.Run(
       name     = Some("Stop Single Node"),
-      commands = List(".docker/single-node.sh down"),
+      commands = List("pushd .docker", "./single-node.sh down", "popd"),
       cond     = Some(s"always() && ${scalaCondition(scalaVersion.value)}")
     ),
     githubWorkflowBuildPostamble ++= Seq(
       WorkflowStep.Run(
         name     = Some("Start Cluster Nodes"),
-        commands = List(".docker/cluster.sh up -d"),
-        cond     = Some(scalaCondition(scalaVersion.value))
+        commands = List("pushd .docker", "./cluster.sh up -d", "popd"),
+        cond     = Some(scalaCondition(scalaVersion.value)),
+        env = Map(
+          "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
+        )
       ),
       WorkflowStep.Sbt(
         name     = Some("Cluster integration tests"),
@@ -208,7 +214,7 @@ inThisBuild(
       ),
       WorkflowStep.Run(
         name     = Some("Stop Cluster Nodes"),
-        commands = List(".docker/cluster.sh down"),
+        commands = List("pushd .docker", "./cluster.sh down", "popd"),
         cond     = Some(s"always() && ${scalaCondition(scalaVersion.value)}")
       )
     ),

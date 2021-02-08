@@ -4,7 +4,7 @@ services:
   es:
     image: eventstore/eventstore:20.10.0-bionic
     env_file:
-      - shared.env
+      - ./shared.env
     environment:
       - EVENTSTORE_MEM_DB=True
       - EVENTSTORE_GOSSIP_ON_SINGLE_NODE=True
