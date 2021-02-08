@@ -8,7 +8,7 @@ services:
   es1:
     image: eventstore/eventstore:20.10.0-bionic
     env_file:
-      - shared.env
+      - ./shared.env
     environment:
       <<: *common-variables
       EVENTSTORE_GOSSIP_SEED: "${SEC_ESC_2_IP}:2113,${SEC_ESC_3_IP}:2113"
@@ -26,7 +26,7 @@ services:
   es2:
     image: eventstore/eventstore:20.10.0-bionic
     env_file:
-      - shared.env
+      - ./shared.env
     environment:
       <<: *common-variables
       EVENTSTORE_GOSSIP_SEED: "${SEC_ESC_1_IP}:2113,${SEC_ESC_3_IP}:2113"
@@ -44,7 +44,7 @@ services:
   es3:
     image: eventstore/eventstore:20.10.0-bionic
     env_file:
-      - shared.env
+      - ./shared.env
     environment:
       <<: *common-variables
       EVENTSTORE_GOSSIP_SEED: "${SEC_ESC_1_IP}:2113,${SEC_ESC_2_IP}:2113"
