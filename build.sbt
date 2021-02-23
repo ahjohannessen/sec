@@ -3,7 +3,7 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 lazy val Scala2 = "2.13.4"
-lazy val Scala3 = "3.0.0-M3"
+lazy val Scala3 = "3.0.0-RC1"
 
 lazy val sec = project
   .in(file("."))
