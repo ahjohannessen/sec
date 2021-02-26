@@ -23,7 +23,7 @@ import cats.Endo
 import cats.data._
 import cats.effect._
 import cats.syntax.all._
-import io.chrisdavenport.log4cats.Logger
+import org.typelevel.log4cats.Logger
 import io.grpc.{ManagedChannel, ManagedChannelBuilder, NameResolverRegistry}
 import sec.api.channel._
 import sec.api.cluster._
