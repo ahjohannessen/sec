@@ -2,7 +2,7 @@ version: '3.8'
 services:
 
   es:
-    image: quay.io/ahjohannessen/esdb:oss-v21.2.0
+    image: eventstore/eventstore:21.2.0-bionic
     env_file:
       - ./shared.env
     environment:
