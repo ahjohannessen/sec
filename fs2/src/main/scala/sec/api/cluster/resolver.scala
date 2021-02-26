@@ -73,7 +73,7 @@ private[sec] object Resolver {
 
 //======================================================================================================================
 
-final private[sec] case class ResolverProvider[F[_]: Effect](
+final private[sec] case class ResolverProvider[F[_]](
   scheme: String,
   resolver: Resolver[F]
 ) extends NameResolverProvider {

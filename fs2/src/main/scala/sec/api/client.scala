@@ -40,13 +40,13 @@ trait EsClient[F[_]] {
 
 object EsClient {
 
-  def singleNode[F[_]: ConcurrentEffect: Timer](address: String, port: Int): SingleNodeBuilder[F] =
+  def singleNode[F[_]: ConcurrentEffect](address: String, port: Int): SingleNodeBuilder[F] =
     singleNode[F](Endpoint(address, port))
 
-  def singleNode[F[_]: ConcurrentEffect: Timer](endpoint: Endpoint): SingleNodeBuilder[F] =
+  def singleNode[F[_]: ConcurrentEffect](endpoint: Endpoint): SingleNodeBuilder[F] =
     SingleNodeBuilder[F](endpoint, None, Options.default, 10.seconds, logger = NoOpLogger.impl[F])
 
-  def cluster[F[_]: ConcurrentEffect: Timer](seed: NonEmptySet[Endpoint], authority: String): ClusterBuilder[F] =
+  def cluster[F[_]: ConcurrentEffect](seed: NonEmptySet[Endpoint], authority: String): ClusterBuilder[F] =
     ClusterBuilder[F](seed, authority, Options.default, ClusterOptions.default, NoOpLogger.impl[F])
 
 //======================================================================================================================

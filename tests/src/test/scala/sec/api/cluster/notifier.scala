@@ -182,7 +182,7 @@ class NotifierSpec extends Specification with CatsIO {
 
 object NotifierSpec {
 
-  final case class RecordingListener[F[_]: Sync](recordings: Ref[F, List[Nel[Endpoint]]]) extends Listener[F] {
+  final case class RecordingListener[F[_]](recordings: Ref[F, List[Nel[Endpoint]]]) extends Listener[F] {
     def onResult(result: Nel[Endpoint]): F[Unit] = recordings.update(_ :+ result)
   }
 
