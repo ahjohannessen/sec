@@ -24,8 +24,8 @@ import cats.data.NonEmptySet
 import cats.effect.{ConcurrentEffect, Timer}
 import com.eventstore.dbclient.proto.gossip.GossipFs2Grpc
 import com.eventstore.dbclient.proto.streams.StreamsFs2Grpc
-import io.chrisdavenport.log4cats.Logger
-import io.chrisdavenport.log4cats.noop.NoOpLogger
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.noop.NoOpLogger
 import io.grpc.{CallOptions, ManagedChannel}
 import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.grpc.convert.convertToEs

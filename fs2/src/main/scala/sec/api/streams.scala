@@ -27,7 +27,7 @@ import cats.effect.concurrent.Ref
 import cats.syntax.all._
 import com.eventstore.dbclient.proto.streams._
 import fs2.{Pipe, Pull, Stream}
-import io.chrisdavenport.log4cats.Logger
+import org.typelevel.log4cats.Logger
 import sec.api.exceptions.WrongExpectedVersion
 import sec.api.mapping.streams.incoming._
 import sec.api.mapping.streams.outgoing._

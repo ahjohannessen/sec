@@ -27,7 +27,7 @@ import cats.effect.implicits._
 import cats.syntax.all._
 import fs2.Stream
 import fs2.concurrent.SignallingRef
-import io.chrisdavenport.log4cats.Logger
+import org.typelevel.log4cats.Logger
 
 import Notifier.Listener
 import NodePrioritizer.prioritizeNodes

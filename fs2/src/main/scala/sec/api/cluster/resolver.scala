@@ -25,7 +25,7 @@ import scala.jdk.CollectionConverters._
 import cats.data.{NonEmptyList, NonEmptySet}
 import cats.effect._
 import fs2.Stream
-import io.chrisdavenport.log4cats.Logger
+import org.typelevel.log4cats.Logger
 import io.grpc.NameResolver.{Args, Listener2, ResolutionResult}
 import io.grpc.{NameResolver, NameResolverProvider}
 

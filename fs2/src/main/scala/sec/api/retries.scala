@@ -25,7 +25,7 @@ import scala.util.control.NonFatal
 import cats.effect.implicits._
 import cats.effect.{Concurrent, Timer}
 import cats.syntax.all._
-import io.chrisdavenport.log4cats.Logger
+import org.typelevel.log4cats.Logger
 import sec.utilities._
 
 private[sec] object retries {

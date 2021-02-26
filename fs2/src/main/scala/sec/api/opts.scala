@@ -20,7 +20,7 @@ package api
 import scala.concurrent.duration._
 
 import cats.effect.{Concurrent, Timer}
-import io.chrisdavenport.log4cats.Logger
+import org.typelevel.log4cats.Logger
 import sec.api.retries._
 
 //======================================================================================================================

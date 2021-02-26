@@ -25,7 +25,7 @@ import cats.effect._
 import cats.effect.concurrent.Ref
 import cats.syntax.all._
 import fs2.Stream
-import io.chrisdavenport.log4cats.Logger
+import org.typelevel.log4cats.Logger
 import io.grpc._
 import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.retries._
