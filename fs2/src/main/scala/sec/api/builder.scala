@@ -153,7 +153,7 @@ class ClusterBuilder[F[_]] private (
 
 object ClusterBuilder {
 
-  private[sec] def apply[F[_]: ConcurrentEffect: Timer](
+  private[sec] def apply[F[_]](
     seed: NonEmptySet[Endpoint],
     authority: String,
     options: Options,
