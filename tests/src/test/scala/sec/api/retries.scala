@@ -24,9 +24,9 @@ import cats.effect._
 import cats.effect.laws.util.TestContext
 import cats.effect.testing.specs2.CatsEffect
 import cats.syntax.all._
-import io.chrisdavenport.log4cats.Logger
-import io.chrisdavenport.log4cats.noop.NoOpLogger
-import io.chrisdavenport.log4cats.testing.TestingLogger
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.noop.NoOpLogger
+import org.typelevel.log4cats.testing.TestingLogger
 import org.specs2.mutable.Specification
 
 class RetriesSpec extends Specification with CatsEffect {

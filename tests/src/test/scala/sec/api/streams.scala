@@ -24,8 +24,8 @@ import cats.Order
 import cats.effect._
 import cats.effect.testing.specs2.CatsIO
 import fs2.Stream
-import io.chrisdavenport.log4cats.noop.NoOpLogger
-import io.chrisdavenport.log4cats.testing.TestingLogger
+import org.typelevel.log4cats.noop.NoOpLogger
+import org.typelevel.log4cats.testing.TestingLogger
 import org.specs2.mutable.Specification
 import sec.api.Direction.Forwards
 import sec.api.Streams._

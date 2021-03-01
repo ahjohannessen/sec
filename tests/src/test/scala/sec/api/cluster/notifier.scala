@@ -30,7 +30,7 @@ import cats.effect.testing.specs2.CatsIO
 import cats.syntax.all._
 import fs2.Stream
 import fs2.concurrent.SignallingRef
-import io.chrisdavenport.log4cats.testing.TestingLogger
+import org.typelevel.log4cats.testing.TestingLogger
 import org.specs2.mutable.Specification
 import sec.arbitraries._
 

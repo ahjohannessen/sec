@@ -20,8 +20,8 @@ import scala.concurrent.duration._
 
 import cats.effect._
 import cats.effect.testing.specs2._
-import io.chrisdavenport.log4cats.Logger
-import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.specs2.mutable.Specification
 import org.specs2.specification.AfterAll
 import sec.api.{EsClient, Gossip, MetaStreams, Streams}
