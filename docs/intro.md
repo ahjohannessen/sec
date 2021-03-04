@@ -5,7 +5,7 @@ sidebar_label: Overview
 slug: /
 ---
 
- - @libName@ is a [EventStoreDB 20.6.x](https://www.eventstore.com) client library for Scala.
+ - @libName@ is a [EventStoreDB v20.10+](https://www.eventstore.com) client library for Scala.
  - @libName@ is purely functional, non-blocking, and provides a tagless-final API.
  - @libName@ embraces the [Scala Code of Conduct](https://www.scala-lang.org/conduct).
 
