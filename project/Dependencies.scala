@@ -6,17 +6,17 @@ object Dependencies {
   object versions {
 
     val catsCore         = "2.5.0"
-    val catsEffect       = "2.4.1"
-    val fs2              = "2.5.4"
-    val log4cats         = "1.2.2"
+    val catsEffect       = "3.0.1"
+    val fs2              = "3.0.1"
+    val log4cats         = "2.0.1"
     val logback          = "1.2.3"
     val scodecBits       = "1.1.25"
-    val circe            = "0.13.0"
+    val circe            = "0.14.0-M4"
     val scalaPb          = scalapb.compiler.Version.scalapbVersion
     val grpc             = "1.36.1"
     val disciplineSpecs2 = "1.1.4"
     val specs2           = "4.10.6"
-    val catsEffectSpecs2 = "0.5.2"
+    val catsEffectSpecs2 = "1.0.0"
 
   }
 
@@ -39,16 +39,16 @@ object Dependencies {
 
   // Testing
 
-  val specs2           = "org.specs2"     %% "specs2-core"                % versions.specs2
-  val specs2ScalaCheck = "org.specs2"     %% "specs2-scalacheck"          % versions.specs2
-  val specs2Cats       = "org.specs2"     %% "specs2-cats"                % versions.specs2
-  val disciplineSpecs2 = "org.typelevel"  %% "discipline-specs2"          % versions.disciplineSpecs2
-  val catsLaws         = "org.typelevel"  %% "cats-laws"                  % versions.catsCore
-  val catsEffectLaws   = "org.typelevel"  %% "cats-effect-laws"           % versions.catsEffect
-  val catsEffectSpecs2 = "com.codecommit" %% "cats-effect-testing-specs2" % versions.catsEffectSpecs2
-  val logback          = "ch.qos.logback"  % "logback-classic"            % versions.logback
-  val log4catsTesting  = "org.typelevel"  %% "log4cats-testing"           % versions.log4cats
-  val log4catsSlf4j    = "org.typelevel"  %% "log4cats-slf4j"             % versions.log4cats
+  val specs2            = "org.specs2"    %% "specs2-core"                % versions.specs2
+  val specs2ScalaCheck  = "org.specs2"    %% "specs2-scalacheck"          % versions.specs2
+  val specs2Cats        = "org.specs2"    %% "specs2-cats"                % versions.specs2
+  val disciplineSpecs2  = "org.typelevel" %% "discipline-specs2"          % versions.disciplineSpecs2
+  val catsLaws          = "org.typelevel" %% "cats-laws"                  % versions.catsCore
+  val catsEffectTestkit = "org.typelevel" %% "cats-effect-testkit"        % versions.catsEffect
+  val catsEffectSpecs2  = "org.typelevel" %% "cats-effect-testing-specs2" % versions.catsEffectSpecs2
+  val logback           = "ch.qos.logback" % "logback-classic"            % versions.logback
+  val log4catsTesting   = "org.typelevel" %% "log4cats-testing"           % versions.log4cats
+  val log4catsSlf4j     = "org.typelevel" %% "log4cats-slf4j"             % versions.log4cats
 
   // Scalafix
 

@@ -24,8 +24,7 @@ import scala.concurrent.duration._
 
 import cats.Endo
 import cats.data.{NonEmptyList => Nel}
-import cats.effect.IO
-import cats.effect.concurrent.Ref
+import cats.effect.{IO, Ref}
 import cats.syntax.all._
 import fs2._
 import io.circe.Json
@@ -214,7 +213,7 @@ class StreamsSuite extends SnSpec {
           _    <- Stream.eval(writeRandom(100))
           _    <- Stream.eval(writeBefore)
           _    <- Stream.eval(writeRandom(100))
-          _    <- Stream.sleep(500.millis)
+          _    <- Stream.sleep[IO](500.millis)
           data <- subscribe.concurrently(Stream.eval(writeAfter).delayBy(500.millis))
         } yield data
 
@@ -256,7 +255,7 @@ class StreamsSuite extends SnSpec {
           pos  <- Stream.eval(writeRandom(100)).map(_.logPosition)
           _    <- Stream.eval(writeBefore)
           _    <- Stream.eval(writeRandom(100))
-          _    <- Stream.sleep(500.millis)
+          _    <- Stream.sleep[IO](500.millis)
           data <- subscribe(pos).concurrently(Stream.eval(writeAfter).delayBy(500.millis))
         } yield data
 
@@ -448,7 +447,7 @@ class StreamsSuite extends SnSpec {
           val result: Stream[IO, List[EventData]] = for {
             ref        <- Stream.eval(Ref.of[IO, List[EventData]](Nil))
             st         <- beforeWrite.map(_.streamPosition)
-            _          <- Stream.sleep(500.millis)
+            _          <- Stream.sleep[IO](500.millis)
             _          <- subscribe(e => ref.update(_ :+ e.eventData)).concurrently(afterWrite(st))
             readEvents <- Stream.eval(ref.get)
           } yield readEvents

@@ -53,7 +53,7 @@ object SnSpec {
 
   ///
 
-  def mkClient[F[_]: ConcurrentEffect: Timer](log: Logger[F]): Resource[F, EsClient[F]] = EsClient
+  def mkClient[F[_]: Async](log: Logger[F]): Resource[F, EsClient[F]] = EsClient
     .singleNode[F](Endpoint(address, port))
     .withAuthority(authority)
     .withCertificate(certPath)

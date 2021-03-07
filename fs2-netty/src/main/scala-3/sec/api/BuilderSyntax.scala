@@ -17,15 +17,15 @@
 package sec
 package api
 
-import cats.effect.{ConcurrentEffect, Resource, Timer}
+import cats.effect.{Async, Resource}
 
 trait BuilderSyntax {
 
-  extension [F[_]: ConcurrentEffect: Timer](b: SingleNodeBuilder[F]) {
+  extension [F[_]: Async](b: SingleNodeBuilder[F]) {
     def resource: Resource[F, EsClient[F]] = b.build(netty.mkBuilder[F])
   }
 
-  extension [F[_]: ConcurrentEffect: Timer](b: ClusterBuilder[F]) {
+  extension [F[_]: Async](b: ClusterBuilder[F]) {
     def resource: Resource[F, EsClient[F]] = b.build(netty.mkBuilder[F])
   }
 

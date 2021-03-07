@@ -18,10 +18,11 @@ package sec
 package api
 
 import scala.concurrent.duration._
-
 import cats.Endo
+import cats.syntax.all._
 import cats.data.NonEmptySet
-import cats.effect.{ConcurrentEffect, Timer}
+import cats.effect.Resource
+import cats.effect.kernel.Async
 import com.eventstore.dbclient.proto.gossip.GossipFs2Grpc
 import com.eventstore.dbclient.proto.streams.StreamsFs2Grpc
 import org.typelevel.log4cats.Logger
@@ -40,26 +41,35 @@ trait EsClient[F[_]] {
 
 object EsClient {
 
-  def singleNode[F[_]: ConcurrentEffect](address: String, port: Int): SingleNodeBuilder[F] =
+  def singleNode[F[_]: Async](address: String, port: Int): SingleNodeBuilder[F] =
     singleNode[F](Endpoint(address, port))
 
-  def singleNode[F[_]: ConcurrentEffect](endpoint: Endpoint): SingleNodeBuilder[F] =
+  def singleNode[F[_]: Async](endpoint: Endpoint): SingleNodeBuilder[F] =
     SingleNodeBuilder[F](endpoint, None, Options.default, 10.seconds, logger = NoOpLogger.impl[F])
 
-  def cluster[F[_]: ConcurrentEffect](seed: NonEmptySet[Endpoint], authority: String): ClusterBuilder[F] =
+  def cluster[F[_]: Async](seed: NonEmptySet[Endpoint], authority: String): ClusterBuilder[F] =
     ClusterBuilder[F](seed, authority, Options.default, ClusterOptions.default, NoOpLogger.impl[F])
 
 //======================================================================================================================
 
-  private[sec] def apply[F[_]: ConcurrentEffect: Timer](
+  private[sec] def apply[F[_]: Async](
     mc: ManagedChannel,
+    options: Options,
+    requiresLeader: Boolean,
+    logger: Logger[F]
+  ): Resource[F, EsClient[F]] =
+    (mkStreamsFs2Grpc[F](mc), mkGossipFs2Grpc[F](mc)).mapN((s, g) => create[F](s, g, options, requiresLeader, logger))
+
+  private[sec] def create[F[_]: Async](
+    streamsFs2Grpc: StreamsFs2Grpc[F, Context],
+    gossipFs2Grpc: GossipFs2Grpc[F, Context],
     options: Options,
     requiresLeader: Boolean,
     logger: Logger[F]
   ): EsClient[F] = new EsClient[F] {
 
     val streams: Streams[F] = Streams(
-      mkStreamsFs2Grpc[F](mc),
+      streamsFs2Grpc,
       mkContext(options, requiresLeader),
       mkOpts[F](options.operationOptions, logger, "Streams")
     )
@@ -67,7 +77,7 @@ object EsClient {
     val metaStreams: MetaStreams[F] = MetaStreams[F](streams)
 
     val gossip: Gossip[F] = Gossip(
-      mkGossipFs2Grpc[F](mc),
+      gossipFs2Grpc,
       mkContext(options, requiresLeader),
       mkOpts[F](options.operationOptions, logger, "Gossip")
     )
@@ -90,18 +100,18 @@ object EsClient {
 
   /// Streams
 
-  private[sec] def mkStreamsFs2Grpc[F[_]: ConcurrentEffect](
+  private[sec] def mkStreamsFs2Grpc[F[_]: Async](
     mc: ManagedChannel,
     fn: Endo[CallOptions] = identity
-  ): StreamsFs2Grpc[F, Context] =
-    StreamsFs2Grpc.client[F, Context](mc, _.toMetadata, fn, convertToEs)
+  ): Resource[F, StreamsFs2Grpc[F, Context]] =
+    StreamsFs2Grpc.clientResource[F, Context](mc, _.toMetadata, fn, convertToEs)
 
   /// Gossip
 
-  private[sec] def mkGossipFs2Grpc[F[_]: ConcurrentEffect](
+  private[sec] def mkGossipFs2Grpc[F[_]: Async](
     mc: ManagedChannel,
     fn: Endo[CallOptions] = identity
-  ): GossipFs2Grpc[F, Context] =
-    GossipFs2Grpc.client[F, Context](mc, _.toMetadata, fn, convertToEs)
+  ): Resource[F, GossipFs2Grpc[F, Context]] =
+    GossipFs2Grpc.clientResource[F, Context](mc, _.toMetadata, fn, convertToEs)
 
 }

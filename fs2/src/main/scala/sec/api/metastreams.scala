@@ -185,7 +185,7 @@ trait MetaStreams[F[_]] {
    *
    * @param id the id of the stream.
    * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   * @param truncatedBefore the truncated before stream position for the stream, the value used entails
+   * @param truncateBefore the truncated before stream position for the stream, the value used entails
    *                        that events with a stream position less than the truncated before value
    *                        should be removed.
    */
