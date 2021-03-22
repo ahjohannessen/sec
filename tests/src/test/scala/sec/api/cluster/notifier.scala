@@ -61,7 +61,7 @@ class NotifierSpec extends Specification with CatsIO {
           updates   <- mkUpdates[IO](Nil)
           halt      <- mkHaltR[IO]
           listener  <- mkListenerR[IO]
-          endpoints <- Resource.liftF(Ref.of[IO, Nes[Endpoint]](seed))
+          endpoints <- Resource.eval(Ref.of[IO, Nes[Endpoint]](seed))
           notifier   = gossip.create[IO](seed, (_, nes) => nes, updates, endpoints, halt)
           n         <- notifier.start(listener)
         } yield n *> listener.recordings.get
@@ -87,7 +87,7 @@ class NotifierSpec extends Specification with CatsIO {
           updates   <- mkUpdates[IO](List(mkCi(m1, m2, m3), mkCi(m4, m5), mkCi(m4, m5)))
           halt      <- mkHaltR[IO]
           listener  <- mkListenerR[IO]
-          endpoints <- Resource.liftF(Ref.of[IO, Nes[Endpoint]](seed))
+          endpoints <- Resource.eval(Ref.of[IO, Nes[Endpoint]](seed))
           notifier   = gossip.create[IO](seed, next, updates, endpoints, halt)
           n         <- notifier.start(listener)
         } yield n *> listener.recordings.get
@@ -194,7 +194,7 @@ object NotifierSpec {
   def mkHaltR[F[_]: Concurrent]: Resource[F, SignallingRef[F, Boolean]] =
     Resource.make(SignallingRef[F, Boolean](false))(_.set(true))
 
-  def mkListenerR[F[_]: Sync]: Resource[F, RecordingListener[F]] = Resource.liftF(mkListener[F])
+  def mkListenerR[F[_]: Sync]: Resource[F, RecordingListener[F]] = Resource.eval(mkListener[F])
   def mkListener[F[_]: Sync]: F[RecordingListener[F]]            = Ref.of[F, List[Nel[Endpoint]]](Nil).map(RecordingListener[F])
 
 }

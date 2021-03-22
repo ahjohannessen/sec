@@ -63,7 +63,7 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
   ): Resource[F, EsClient[F]] = {
 
     val params: ChannelBuilderParams     = ChannelBuilderParams(endpoint, options.connectionMode)
-    val channelBuilder: Resource[F, MCB] = Resource.liftF(mcb(params))
+    val channelBuilder: Resource[F, MCB] = Resource.eval(mcb(params))
     val modifications: Endo[MCB]         = b => authority.fold(b)(a => b.overrideAuthority(a))
 
     channelBuilder >>= { builder =>
@@ -136,7 +136,7 @@ class ClusterBuilder[F[_]] private (
         .evalTap[F, Unit](p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
 
       def builder(p: ResolverProvider[F]): Resource[F, MCB] =
-        Resource.liftF(builderForTarget(s"${p.scheme}:///"))
+        Resource.eval(builderForTarget(s"${p.scheme}:///"))
 
       mkProvider >>= builder >>= {
         _.defaultLoadBalancingPolicy("round_robin")

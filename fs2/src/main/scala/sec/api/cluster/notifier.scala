@@ -51,7 +51,7 @@ private[sec] object Notifier {
       updates: Stream[F, ClusterInfo],
       log: Logger[F]
     ): Resource[F, Notifier[F]] = mkHaltSignal[F](log) >>= { halt =>
-      Resource.liftF(Ref[F].of(seed)).map(create(seed, defaultSelector, updates, _, halt))
+      Resource.eval(Ref[F].of(seed)).map(create(seed, defaultSelector, updates, _, halt))
     }
 
     def create[F[_]](
@@ -69,7 +69,7 @@ private[sec] object Notifier {
           (endpoints.set(next) >> l.onResult(next.toNonEmptyList)).whenA(current =!= next)
         }
 
-        val bootstrap = Resource.liftF(l.onResult(seed.toNonEmptyList))
+        val bootstrap = Resource.eval(l.onResult(seed.toNonEmptyList))
         val run       = updates.evalMap(update).interruptWhen(halt)
 
         bootstrap *> run.compile.drain.background
