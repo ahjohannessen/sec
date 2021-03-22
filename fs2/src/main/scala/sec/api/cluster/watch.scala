@@ -47,7 +47,7 @@ private[sec] object ClusterWatch {
     logger: Logger[F]
   ): Resource[F, ClusterWatch[F]] = {
 
-    val mkCache: Resource[F, Cache[F]] = Resource.liftF(Cache(ClusterInfo(Set.empty)))
+    val mkCache: Resource[F, Cache[F]] = Resource.eval(Cache(ClusterInfo(Set.empty)))
 
     def mkProvider(updates: Stream[F, ClusterInfo]): Resource[F, ResolverProvider[F]] =
       ResolverProvider
@@ -55,7 +55,7 @@ private[sec] object ClusterWatch {
         .evalTap(p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
 
     def mkChannel(p: ResolverProvider[F]): Resource[F, ManagedChannel] = Resource
-      .liftF(builderFromTarget(s"${p.scheme}:///"))
+      .eval(builderFromTarget(s"${p.scheme}:///"))
       .flatMap(_.defaultLoadBalancingPolicy("round_robin").resource[F](options.channelShutdownAwait))
 
     for {

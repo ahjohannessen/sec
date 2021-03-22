@@ -76,11 +76,11 @@ class ClusterWatchSpec extends Specification with CatsIO {
       type Res = (Stream[IO, ClusterInfo], Ref[IO, List[ClusterInfo]])
 
       val result: Resource[IO, Res] = for {
-        infos   <- Resource.liftF(Ref.of[IO, Nel[ClusterInfo]](Nel.of(ci1, ci2, ci3, ci4, ci5)))
-        store   <- Resource.liftF(Ref.of[IO, List[ClusterInfo]](ci1 :: Nil))
-        log     <- Resource.liftF(mkLog)
+        infos   <- Resource.eval(Ref.of[IO, Nel[ClusterInfo]](Nel.of(ci1, ci2, ci3, ci4, ci5)))
+        store   <- Resource.eval(Ref.of[IO, List[ClusterInfo]](ci1 :: Nil))
+        log     <- Resource.eval(mkLog)
         watch   <- ClusterWatch.create[IO](readFn(infos), options, recordingCache(store), log)
-        changes <- Resource.liftF(watch.subscribe.pure[IO])
+        changes <- Resource.eval(watch.subscribe.pure[IO])
       } yield (changes, store)
 
       result.map { case (changes, store) =>
