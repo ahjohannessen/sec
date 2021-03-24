@@ -13,7 +13,7 @@ object Dependencies {
     val scodecBits       = "1.1.24"
     val circe            = "0.13.0"
     val scalaPb          = scalapb.compiler.Version.scalapbVersion
-    val grpc             = "1.36.0"
+    val grpc             = "1.36.1"
     val disciplineSpecs2 = "1.1.4"
     val specs2           = "4.10.6"
     val catsEffectSpecs2 = "0.5.2"
