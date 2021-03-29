@@ -17,11 +17,12 @@
 package sec
 package api
 
-import cats.effect.{Concurrent, Timer}
+import cats.effect.Concurrent
 import cats.implicits._
 import com.eventstore.dbclient.proto.gossip.{ClusterInfo => PClusterInfo, GossipFs2Grpc}
 import com.eventstore.dbclient.proto.shared.Empty
 import sec.api.mapping.gossip.mkClusterInfo
+import cats.effect.Temporal
 
 /**
  * API for reading gossip information from an EventStoreDB cluster.
@@ -47,7 +48,7 @@ trait Gossip[F[_]] {
 
 object Gossip {
 
-  private[sec] def apply[F[_]: Concurrent: Timer, C](
+  private[sec] def apply[F[_]: Concurrent: Temporal, C](
     client: GossipFs2Grpc[F, C],
     mkCtx: Option[UserCredentials] => C,
     opts: Opts[F]
@@ -56,7 +57,7 @@ object Gossip {
     def withCredentials(creds: UserCredentials): Gossip[F] = Gossip[F, C](client, _ => mkCtx(creds.some), opts)
   }
 
-  private[sec] def read0[F[_]: Concurrent: Timer](o: Opts[F])(f: F[PClusterInfo]): F[ClusterInfo] =
+  private[sec] def read0[F[_]: Concurrent: Temporal](o: Opts[F])(f: F[PClusterInfo]): F[ClusterInfo] =
     o.run(f, "read") >>= mkClusterInfo[F]
 
 }

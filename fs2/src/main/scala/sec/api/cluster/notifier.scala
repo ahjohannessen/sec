@@ -31,6 +31,7 @@ import org.typelevel.log4cats.Logger
 
 import Notifier.Listener
 import NodePrioritizer.prioritizeNodes
+import cats.effect.Ref
 
 private[sec] trait Notifier[F[_]] {
   def start(l: Listener[F]): Resource[F, F[Unit]]

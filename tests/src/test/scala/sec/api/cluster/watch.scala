@@ -26,7 +26,6 @@ import scala.concurrent.duration._
 
 import cats.data.{NonEmptyList => Nel}
 import cats.effect._
-import cats.effect.concurrent.Ref
 import cats.effect.laws.util.TestContext
 import cats.effect.testing.specs2.CatsIO
 import cats.syntax.all._
@@ -37,6 +36,7 @@ import org.scalacheck.Gen
 import org.specs2.mutable.Specification
 import sec.api.exceptions.ServerUnavailable
 import sec.arbitraries._
+import cats.effect.Ref
 
 class ClusterWatchSpec extends Specification with CatsIO {
 

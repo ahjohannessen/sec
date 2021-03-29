@@ -27,6 +27,7 @@ import org.typelevel.log4cats.Logger
 import io.grpc.{ManagedChannel, ManagedChannelBuilder, NameResolverRegistry}
 import sec.api.channel._
 import sec.api.cluster._
+import cats.effect.Temporal
 
 //======================================================================================================================
 
@@ -59,7 +60,7 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
 
   private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](mcb: ChannelBuilderParams => F[MCB])(implicit
     F: ConcurrentEffect[F],
-    T: Timer[F]
+    T: Temporal[F]
   ): Resource[F, EsClient[F]] = {
 
     val params: ChannelBuilderParams     = ChannelBuilderParams(endpoint, options.connectionMode)
@@ -115,7 +116,7 @@ class ClusterBuilder[F[_]] private (
     mcb: ChannelBuilderParams => F[MCB]
   )(implicit
     F: ConcurrentEffect[F],
-    T: Timer[F]
+    T: Temporal[F]
   ): Resource[F, EsClient[F]] = {
 
     val log: Logger[F] = logger.withModifiedString(s => s"Cluster > $s")

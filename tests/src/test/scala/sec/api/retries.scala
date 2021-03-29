@@ -28,6 +28,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
 import org.typelevel.log4cats.testing.TestingLogger
 import org.specs2.mutable.Specification
+import cats.effect.Temporal
 
 class RetriesSpec extends Specification with CatsEffect {
 
@@ -45,7 +46,7 @@ class RetriesSpec extends Specification with CatsEffect {
       retryOn: Throwable => Boolean = _ => true
     )(implicit TC: TestContext) = {
       implicit val cs: ContextShift[IO] = IO.contextShift(TC)
-      implicit val timer: Timer[IO]     = TC.timer
+      implicit val timer: Temporal[IO]     = TC.timer
       retries.retry[IO, A](action, "retry-spec", retryConfig, log)(retryOn).unsafeToFuture()
     }
 

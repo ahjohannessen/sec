@@ -25,7 +25,6 @@ import scala.concurrent.duration._
 import cats.Endo
 import cats.data.{NonEmptyList => Nel}
 import cats.effect.IO
-import cats.effect.concurrent.Ref
 import cats.syntax.all._
 import fs2._
 import io.circe.Json
@@ -36,6 +35,7 @@ import sec.syntax.all._
 
 import helpers.text.mkSnakeCase
 import helpers.implicits._
+import cats.effect.Ref
 
 class StreamsSuite extends SnSpec {
 

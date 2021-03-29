@@ -22,7 +22,6 @@ import scala.concurrent.duration._
 
 import cats.data._
 import cats.effect._
-import cats.effect.concurrent.Ref
 import cats.syntax.all._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
@@ -31,6 +30,7 @@ import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.retries._
 
 import channel._
+import cats.effect.{ Ref, Temporal }
 
 private[sec] trait ClusterWatch[F[_]] {
   def subscribe: Stream[F, ClusterInfo]
@@ -38,7 +38,7 @@ private[sec] trait ClusterWatch[F[_]] {
 
 private[sec] object ClusterWatch {
 
-  def apply[F[_]: ConcurrentEffect: Timer, MCB <: ManagedChannelBuilder[MCB]](
+  def apply[F[_]: ConcurrentEffect: Temporal, MCB <: ManagedChannelBuilder[MCB]](
     builderFromTarget: String => F[MCB],
     options: ClusterOptions,
     gossipFn: ManagedChannel => Gossip[F],
@@ -68,7 +68,7 @@ private[sec] object ClusterWatch {
 
   }
 
-  def create[F[_]: ConcurrentEffect: Timer](
+  def create[F[_]: ConcurrentEffect: Temporal](
     readFn: F[ClusterInfo],
     options: ClusterOptions,
     store: Cache[F],
@@ -83,12 +83,12 @@ private[sec] object ClusterWatch {
 
   }
 
-  def mkWatch[F[_]: Timer](get: F[ClusterInfo], interval: FiniteDuration): ClusterWatch[F] =
+  def mkWatch[F[_]: Temporal](get: F[ClusterInfo], interval: FiniteDuration): ClusterWatch[F] =
     new ClusterWatch[F] {
       val subscribe: Stream[F, ClusterInfo] = Stream.eval(get).metered(interval).repeat.changesBy(_.members)
     }
 
-  def mkFetcher[F[_]: ConcurrentEffect: Timer](
+  def mkFetcher[F[_]: ConcurrentEffect: Temporal](
     readFn: F[ClusterInfo],
     co: ClusterOptions,
     setInfo: ClusterInfo => F[Unit],

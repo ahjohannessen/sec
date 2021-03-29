@@ -28,6 +28,7 @@ import cats.syntax.all._
 import org.typelevel.log4cats.Logger
 import org.scalacheck.Gen
 import sec.arbitraries._
+import cats.effect.Temporal
 
 trait SnSpec extends ClientSpec {
 
@@ -53,7 +54,7 @@ object SnSpec {
 
   ///
 
-  def mkClient[F[_]: ConcurrentEffect: Timer](log: Logger[F]): Resource[F, EsClient[F]] = EsClient
+  def mkClient[F[_]: ConcurrentEffect: Temporal](log: Logger[F]): Resource[F, EsClient[F]] = EsClient
     .singleNode[F](Endpoint(address, port))
     .withAuthority(authority)
     .withCertificate(certPath)
