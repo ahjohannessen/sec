@@ -23,10 +23,11 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.control.NonFatal
 
 import cats.effect.implicits._
-import cats.effect.{Concurrent, Timer}
+import cats.effect.Concurrent
 import cats.syntax.all._
 import org.typelevel.log4cats.Logger
 import sec.utilities._
+import cats.effect.Temporal
 
 private[sec] object retries {
 
@@ -68,7 +69,7 @@ private[sec] object retries {
 
 //======================================================================================================================
 
-  def retry[F[_]: Concurrent: Timer, A](
+  def retry[F[_]: Concurrent: Temporal, A](
     action: F[A],
     actionName: String,
     retryConfig: RetryConfig,
@@ -89,7 +90,7 @@ private[sec] object retries {
       case NonFatal(t) if retryOn(t) =>
         if (attempts <= maxAttempts)
           logWarn(attempts, d, t).whenA(attempts < maxAttempts) *>
-            Timer[F].sleep(d) *> run(attempts + 1, nextDelay(d))
+            Temporal[F].sleep(d) *> run(attempts + 1, nextDelay(d))
         else
           logError(t) *> t.raiseError[F, A]
     }
