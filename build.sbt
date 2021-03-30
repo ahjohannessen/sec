@@ -3,7 +3,7 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 lazy val Scala2 = "2.13.5"
-lazy val Scala3 = "3.0.0-RC1"
+lazy val Scala3 = "3.0.0-RC2"
 
 lazy val sec = project
   .in(file("."))
@@ -104,7 +104,7 @@ lazy val commonSettings = Seq(
     if (isDotty.value) Seq("-source:3.0-migration") else Nil
   },
   scalacOptions ++= {
-    if(isDotty.value) Seq("-release:8") else Seq("-target:8")
+    if (isDotty.value) Seq("-Xtarget:8") else Seq("-target:8")
   },
   Compile / doc / sources := {
     val old = (Compile / doc / sources).value
