@@ -25,7 +25,6 @@ import java.{util => ju}
 import cats.Applicative
 import cats.data.{NonEmptyList => Nel, NonEmptySet => Nes}
 import cats.effect._
-import cats.effect.concurrent.Ref
 import cats.effect.testing.specs2.CatsIO
 import cats.syntax.all._
 import fs2.Stream
@@ -36,6 +35,7 @@ import sec.arbitraries._
 
 import VNodeState._
 import Notifier._
+import cats.effect.Ref
 
 class NotifierSpec extends Specification with CatsIO {
 

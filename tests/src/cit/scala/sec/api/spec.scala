@@ -26,6 +26,7 @@ import cats.effect._
 import org.typelevel.log4cats.Logger
 
 import helpers.endpoint.endpointFrom
+import cats.effect.Temporal
 
 trait CSpec extends ClientSpec {
   final val makeResource: Resource[IO, EsClient[IO]] = CSpec.mkClient[IO](log)
@@ -44,7 +45,7 @@ object CSpec {
 
   ///
 
-  def mkClient[F[_]: ConcurrentEffect: Timer](log: Logger[F]): Resource[F, EsClient[F]] = EsClient
+  def mkClient[F[_]: ConcurrentEffect: Temporal](log: Logger[F]): Resource[F, EsClient[F]] = EsClient
     .cluster[F](seed, authority)
     .withChannelShutdownAwait(0.seconds)
     .withCertificate(caPath)

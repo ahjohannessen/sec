@@ -21,7 +21,7 @@ import scala.concurrent.duration._
 
 import cats.Endo
 import cats.data.NonEmptySet
-import cats.effect.{ConcurrentEffect, Timer}
+import cats.effect.ConcurrentEffect
 import com.eventstore.dbclient.proto.gossip.GossipFs2Grpc
 import com.eventstore.dbclient.proto.streams.StreamsFs2Grpc
 import org.typelevel.log4cats.Logger
@@ -31,6 +31,7 @@ import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.grpc.convert.convertToEs
 import sec.api.grpc.metadata._
 import sec.api.retries.RetryConfig
+import cats.effect.Temporal
 
 trait EsClient[F[_]] {
   def streams: Streams[F]
@@ -51,7 +52,7 @@ object EsClient {
 
 //======================================================================================================================
 
-  private[sec] def apply[F[_]: ConcurrentEffect: Timer](
+  private[sec] def apply[F[_]: ConcurrentEffect: Temporal](
     mc: ManagedChannel,
     options: Options,
     requiresLeader: Boolean,

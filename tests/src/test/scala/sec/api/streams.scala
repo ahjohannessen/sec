@@ -47,7 +47,7 @@ class StreamsSpec extends Specification with CatsIO {
         timeout       = None
       )
 
-      IO.suspend {
+      IO.defer {
         var attempts = 0
         val action: IO[Int] = IO {
           attempts += 1
@@ -71,7 +71,7 @@ class StreamsSpec extends Specification with CatsIO {
         timeout       = None
       )
 
-      IO.suspend {
+      IO.defer {
 
         var failures, successes = 0
         val action: IO[Int] = IO {
@@ -107,7 +107,7 @@ class StreamsSpec extends Specification with CatsIO {
         timeout       = None
       )
 
-      IO.suspend {
+      IO.defer {
 
         var failures = 0
         val action: IO[Int] = IO {
@@ -135,7 +135,7 @@ class StreamsSpec extends Specification with CatsIO {
         timeout       = None
       )
 
-      IO.suspend {
+      IO.defer {
 
         var failures, successes = 0
         val action = IO {
@@ -173,7 +173,7 @@ class StreamsSpec extends Specification with CatsIO {
         timeout       = None
       )
 
-      IO.suspend {
+      IO.defer {
 
         val delays = scala.collection.mutable.ListBuffer.empty[Long]
 
@@ -242,7 +242,7 @@ class StreamsSpec extends Specification with CatsIO {
       val logger = TestingLogger.impl[IO](warnEnabled = true, errorEnabled = true)
       val opts   = Opts[IO](retryEnabled = true, config, _ => true, logger)
 
-      IO.suspend {
+      IO.defer {
 
         val stream = withRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
 
