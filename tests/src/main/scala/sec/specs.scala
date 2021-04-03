@@ -17,21 +17,21 @@
 package sec
 
 import scala.concurrent.duration._
-
 import cats.effect._
+import cats.effect.unsafe.implicits._
 import cats.effect.testing.specs2._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.specs2.mutable.Specification
 import org.specs2.specification.AfterAll
 import sec.api.{EsClient, Gossip, MetaStreams, Streams}
-
 import helpers.text.mkSnakeCase
 
-trait ResourceSpec[A] extends Specification with AfterAll with CatsIO {
+trait ResourceSpec[A] extends Specification with AfterAll with CatsEffect {
+
   final val testName                        = mkSnakeCase(getClass.getSimpleName)
   final private lazy val logger: Logger[IO] = Slf4jLogger.fromName[IO](testName).unsafeRunSync()
-  final private lazy val (value, shutdown)  = makeResource.allocated[IO, A].unsafeRunSync()
+  final private lazy val (value, shutdown)  = makeResource.allocated.unsafeRunSync()
   final override def afterAll(): Unit       = shutdown.unsafeRunSync()
 
   protected def makeResource: Resource[IO, A]

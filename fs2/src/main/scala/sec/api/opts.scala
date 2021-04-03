@@ -18,8 +18,7 @@ package sec
 package api
 
 import scala.concurrent.duration._
-
-import cats.effect.{Concurrent, Timer}
+import cats.effect.Temporal
 import org.typelevel.log4cats.Logger
 import sec.api.retries._
 
@@ -36,7 +35,7 @@ private[sec] object Opts {
 
   implicit final class OptsOps[F[_]](val opts: Opts[F]) extends AnyVal {
 
-    def run[A](fa: F[A], opName: String)(implicit F: Concurrent[F], T: Timer[F]): F[A] =
+    def run[A](fa: F[A], opName: String)(implicit F: Temporal[F]): F[A] =
       if (opts.retryEnabled) retry[F, A](fa, opName, opts.retryConfig, opts.log)(opts.retryOn) else fa
 
     def logWarn(opName: String)(attempt: Int, delay: FiniteDuration, error: Throwable): F[Unit] =

@@ -44,7 +44,7 @@ object CSpec {
 
   ///
 
-  def mkClient[F[_]: ConcurrentEffect: Timer](log: Logger[F]): Resource[F, EsClient[F]] = EsClient
+  def mkClient[F[_]: Async](log: Logger[F]): Resource[F, EsClient[F]] = EsClient
     .cluster[F](seed, authority)
     .withChannelShutdownAwait(0.seconds)
     .withCertificate(caPath)

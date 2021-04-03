@@ -22,7 +22,6 @@ import scala.concurrent.duration._
 
 import cats.data._
 import cats.effect._
-import cats.effect.concurrent.Ref
 import cats.syntax.all._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
@@ -38,10 +37,10 @@ private[sec] trait ClusterWatch[F[_]] {
 
 private[sec] object ClusterWatch {
 
-  def apply[F[_]: ConcurrentEffect: Timer, MCB <: ManagedChannelBuilder[MCB]](
+  def apply[F[_]: Async, MCB <: ManagedChannelBuilder[MCB]](
     builderFromTarget: String => F[MCB],
     options: ClusterOptions,
-    gossipFn: ManagedChannel => Gossip[F],
+    gossipFn: ManagedChannel => Resource[F, Gossip[F]],
     seed: NonEmptySet[Endpoint],
     authority: String,
     logger: Logger[F]
@@ -63,12 +62,13 @@ private[sec] object ClusterWatch {
       updates   = mkWatch(store.get, options.notificationInterval).subscribe
       provider <- mkProvider(updates)
       channel  <- mkChannel(provider)
-      watch    <- create[F](gossipFn(channel).read, options, store, logger)
+      gossip   <- gossipFn(channel)
+      watch    <- create[F](gossip.read, options, store, logger)
     } yield watch
 
   }
 
-  def create[F[_]: ConcurrentEffect: Timer](
+  def create[F[_]: Async](
     readFn: F[ClusterInfo],
     options: ClusterOptions,
     store: Cache[F],
@@ -83,12 +83,12 @@ private[sec] object ClusterWatch {
 
   }
 
-  def mkWatch[F[_]: Timer](get: F[ClusterInfo], interval: FiniteDuration): ClusterWatch[F] =
+  def mkWatch[F[_]: Temporal](get: F[ClusterInfo], interval: FiniteDuration): ClusterWatch[F] =
     new ClusterWatch[F] {
       val subscribe: Stream[F, ClusterInfo] = Stream.eval(get).metered(interval).repeat.changesBy(_.members)
     }
 
-  def mkFetcher[F[_]: ConcurrentEffect: Timer](
+  def mkFetcher[F[_]: Async](
     readFn: F[ClusterInfo],
     co: ClusterOptions,
     setInfo: ClusterInfo => F[Unit],

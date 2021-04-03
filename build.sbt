@@ -1,13 +1,18 @@
 import Dependencies._
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
+Global / lintUnusedKeysOnLoad := false
 
-lazy val Scala2 = "2.13.5"
-lazy val Scala3 = "3.0.0-RC2"
+ThisBuild / assumedVersionScheme := VersionScheme.Always
+ThisBuild / evictionErrorLevel := Level.Info
+
+lazy val Scala2  = "2.13.5"
+lazy val Scala3  = "3.0.0-RC1"
+lazy val isDotty = Def.setting[Boolean](scalaVersion.value.startsWith("3."))
 
 lazy val sec = project
   .in(file("."))
-  .settings(skip in publish := true)
+  .settings(publish / skip := true)
   .dependsOn(core, `fs2-core`, `fs2-netty`, tests, docs)
   .aggregate(core, `fs2-core`, `fs2-netty`, tests, docs)
 
@@ -22,9 +27,8 @@ lazy val core = project
     libraryDependencies ++=
       compileM(cats, scodecBits, circe, scalaPb, grpcApi, grpcStub, grpcProtobuf, grpcCore),
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
-    Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (sourceManaged in Compile).value)
+    Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (Compile / sourceManaged).value)
   )
-  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
 
 //==== FS2 =============================================================================================================
 
@@ -39,7 +43,6 @@ lazy val `fs2-core` = project
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf")
   )
-  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
   .dependsOn(core)
 
 lazy val `fs2-netty` = project
@@ -66,15 +69,40 @@ lazy val tests = project
   .settings(inConfig(SingleNodeITest)(integrationSettings ++ scalafixConfigSettings(SingleNodeITest)))
   .settings(inConfig(ClusterITest)(integrationSettings ++ scalafixConfigSettings(ClusterITest)))
   .settings(
-    skip in publish := true,
+    publish / skip := true,
     buildInfoPackage := "sec",
     buildInfoKeys := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
-    Test / headerSources ++= sources.in(SingleNodeITest).value ++ sources.in(ClusterITest).value,
-    libraryDependencies ++=
-      compileM(catsLaws, catsEffectLaws, disciplineSpecs2, specs2ScalaCheck, specs2Cats) ++
-        compileM(specs2, catsEffectSpecs2, log4catsSlf4j, log4catsTesting, logback)
+    Test / headerSources ++= (SingleNodeITest / sources).value ++ (ClusterITest / sources).value,
+    libraryDependencies := {
+      if (isDotty.value)
+        compileM(
+          specs2.cross(CrossVersion.for3Use2_13),
+          specs2ScalaCheck.cross(CrossVersion.for3Use2_13),
+          specs2Cats.cross(CrossVersion.for3Use2_13),
+          catsEffectSpecs2,
+          disciplineSpecs2,
+          catsLaws,
+          catsEffectTestkit,
+          log4catsSlf4j,
+          log4catsTesting,
+          logback
+        ).map(
+          _.exclude("org.typelevel", "cats-effect_2.13")
+            .exclude("org.scalacheck", "scalacheck_2.13")
+            .exclude("org.typelevel", "cats-core_2.13"))
+      else
+        compileM(specs2,
+                 specs2ScalaCheck,
+                 specs2Cats,
+                 catsEffectSpecs2,
+                 disciplineSpecs2,
+                 catsLaws,
+                 catsEffectTestkit,
+                 log4catsSlf4j,
+                 log4catsTesting,
+                 logback)
+    }
   )
-  .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
   .dependsOn(core, `fs2-netty`)
 
 //==== Docs ============================================================================================================
@@ -84,7 +112,6 @@ lazy val docs = project
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
   .dependsOn(`fs2-netty`)
   .settings(
-    crossScalaVersions := Seq(Scala2),
     publish / skip := true,
     moduleName := "sec-docs",
     mdocIn := file("docs"),
@@ -96,6 +123,15 @@ lazy val docs = project
       "esdb"          -> "EventStoreDB"
     )
   )
+  .settings(
+    libraryDependencies := {
+      if (isDotty.value)
+        libraryDependencies.value.map(
+          _.exclude("com.thesamet.scalapb", "lenses_2.13").exclude("com.thesamet.scalapb", "scalapb-runtime_2.13"))
+      else
+        libraryDependencies.value
+    }
+  )
 
 //==== Common ==========================================================================================================
 
@@ -105,10 +141,6 @@ lazy val commonSettings = Seq(
   },
   scalacOptions ++= {
     if (isDotty.value) Seq("-Xtarget:8") else Seq("-target:8")
-  },
-  Compile / doc / sources := {
-    val old = (Compile / doc / sources).value
-    if (isDotty.value) Nil else old
   },
   Compile / doc / scalacOptions ~=
     (_.filterNot(_ == "-Xfatal-warnings"))
@@ -133,10 +165,10 @@ inThisBuild(
         url("https://github.com/ahjohannessen")
       )),
     shellPrompt := Prompt.enrichedShellPrompt,
-    scalacOptions in (Compile, doc) ++= Seq(
+    (Compile / doc / scalacOptions) ++= Seq(
       "-groups",
       "-sourcepath",
-      (baseDirectory in LocalRootProject).value.getAbsolutePath,
+      (LocalRootProject / baseDirectory).value.getAbsolutePath,
       "-doc-source-url",
       "https://github.com/ahjohannessen/sec/blob/v" + version.value + "€{FILE_PATH}.scala"
     )
@@ -158,13 +190,14 @@ def scalaCondition(version: String) = s"contains(matrix.scala, '$version')"
 
 inThisBuild(
   List(
+    githubWorkflowOSes := Seq("ubuntu-20.04"),
     githubWorkflowJavaVersions := Seq("adopt@1.11"),
     githubWorkflowTargetTags += "v*",
     githubWorkflowTargetBranches := Seq("master"),
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
-      cond     = Some(scalaCondition(scalaVersion.value)),
+      cond     = Some(scalaCondition(Scala2)),
       env = Map(
         "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
       )
@@ -173,7 +206,7 @@ inThisBuild(
       WorkflowStep.Sbt(
         name     = Some("Compile docs"),
         commands = List("compileDocs"),
-        cond     = Some(scalaCondition(scalaVersion.value))
+        cond     = Some(scalaCondition(Scala2))
       ),
       WorkflowStep.Sbt(
         name     = Some("Regular tests"),
@@ -186,19 +219,19 @@ inThisBuild(
           "SEC_SIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_SIT_AUTHORITY"  -> "es.sec.local"
         ),
-        cond = Some(scalaCondition(scalaVersion.value))
+        cond = Some(scalaCondition(Scala2))
       )
     ),
     githubWorkflowBuildPostamble += WorkflowStep.Run(
       name     = Some("Stop Single Node"),
       commands = List("pushd .docker", "./single-node.sh down", "popd"),
-      cond     = Some(s"always() && ${scalaCondition(scalaVersion.value)}")
+      cond     = Some(s"always() && ${scalaCondition(Scala2)}")
     ),
     githubWorkflowBuildPostamble ++= Seq(
       WorkflowStep.Run(
         name     = Some("Start Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh up -d", "popd"),
-        cond     = Some(scalaCondition(scalaVersion.value)),
+        cond     = Some(scalaCondition(Scala2)),
         env = Map(
           "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
         )
@@ -210,12 +243,12 @@ inThisBuild(
           "SEC_CIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_CIT_AUTHORITY"  -> "es.sec.local"
         ),
-        cond = Some(scalaCondition(scalaVersion.value))
+        cond = Some(scalaCondition(Scala2))
       ),
       WorkflowStep.Run(
         name     = Some("Stop Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh down", "popd"),
-        cond     = Some(s"always() && ${scalaCondition(scalaVersion.value)}")
+        cond     = Some(s"always() && ${scalaCondition(Scala2)}")
       )
     ),
     githubWorkflowPublishTargetBranches := Seq(
@@ -240,7 +273,7 @@ inThisBuild(
         env = Map(
           "GIT_DEPLOY_KEY" -> "${{ secrets.GIT_DEPLOY_KEY }}"
         ),
-        cond = Some(scalaCondition(scalaVersion.value))
+        cond = Some(scalaCondition(Scala2))
       )
     )
   )

@@ -19,27 +19,26 @@ package api
 package cluster
 
 import java.net.URI
-
 import scala.jdk.CollectionConverters._
-
 import cats.data.{NonEmptyList, NonEmptySet}
+import cats.syntax.all._
 import cats.effect._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 import io.grpc.NameResolver.{Args, Listener2, ResolutionResult}
 import io.grpc.{NameResolver, NameResolverProvider}
-
 import Notifier.Listener
 import Resolver.mkListener
+import cats.effect.std.Dispatcher
 
 //======================================================================================================================
 
-final private[sec] case class Resolver[F[_]](
+final private[sec] case class Resolver[F[_]: Sync](
   authority: String,
-  notifier: Notifier[F]
-)(implicit F: Effect[F])
-  extends NameResolver {
-  override def start(l: Listener2): Unit   = F.toIO(notifier.start(mkListener[F](l)).allocated).void.unsafeRunSync()
+  notifier: Notifier[F],
+  dispatcher: Dispatcher[F]
+) extends NameResolver {
+  override def start(l: Listener2): Unit   = dispatcher.unsafeRunSync(notifier.start(mkListener[F](l)).allocated.void)
   override val shutdown: Unit              = ()
   override val getServiceAuthority: String = authority
   override val refresh: Unit               = ()
@@ -53,21 +52,23 @@ private[sec] object Resolver {
   def mkListener[F[_]](l2: Listener2)(implicit F: Sync[F]): Listener[F] =
     (endpoints: NonEmptyList[Endpoint]) => F.delay(l2.onResult(mkResult(endpoints)))
 
-  def gossip[F[_]: ConcurrentEffect](
+  def gossip[F[_]: Async](
     authority: String,
     seed: NonEmptySet[Endpoint],
     updates: Stream[F, ClusterInfo],
     log: Logger[F]
-  ): Resource[F, Resolver[F]] =
-    Notifier.gossip[F](seed, updates, log).map(Resolver[F](authority, _))
+  ): Resource[F, Resolver[F]] = Dispatcher[F] >>= { d =>
+    Notifier.gossip[F](seed, updates, log).map(Resolver[F](authority, _, d))
+  }
 
-  def bestNodes[F[_]: ConcurrentEffect](
+  def bestNodes[F[_]: Async](
     authority: String,
     np: NodePreference,
     updates: Stream[F, ClusterInfo],
     log: Logger[F]
-  ): Resource[F, Resolver[F]] =
-    Notifier.bestNodes[F](np, updates, log).map(Resolver[F](authority, _))
+  ): Resource[F, Resolver[F]] = Dispatcher[F] >>= { d =>
+    Notifier.bestNodes[F](np, updates, log).map(Resolver[F](authority, _, d))
+  }
 
 }
 
@@ -90,7 +91,7 @@ private[sec] object ResolverProvider {
   final val gossipScheme: String  = "eventstore-gossip"
   final val clusterScheme: String = "eventstore-cluster"
 
-  def gossip[F[_]: ConcurrentEffect](
+  def gossip[F[_]: Async](
     authority: String,
     seed: NonEmptySet[Endpoint],
     updates: Stream[F, ClusterInfo],
@@ -99,7 +100,7 @@ private[sec] object ResolverProvider {
     .gossip(authority, seed, updates, log.withModifiedString(s => s"Gossip Resolver > $s"))
     .map(ResolverProvider(gossipScheme, _))
 
-  def bestNodes[F[_]: ConcurrentEffect](
+  def bestNodes[F[_]: Async](
     authority: String,
     np: NodePreference,
     updates: Stream[F, ClusterInfo],

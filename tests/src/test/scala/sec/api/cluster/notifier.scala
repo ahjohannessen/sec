@@ -21,26 +21,21 @@ package cluster
 import java.time.ZonedDateTime
 import java.util.UUID
 import java.{util => ju}
-
-import cats.Applicative
 import cats.data.{NonEmptyList => Nel, NonEmptySet => Nes}
 import cats.effect._
-import cats.effect.concurrent.Ref
-import cats.effect.testing.specs2.CatsIO
+import cats.effect.testing.specs2._
 import cats.syntax.all._
 import fs2.Stream
 import fs2.concurrent.SignallingRef
 import org.typelevel.log4cats.testing.TestingLogger
 import org.specs2.mutable.Specification
 import sec.arbitraries._
-
 import VNodeState._
 import Notifier._
 
-class NotifierSpec extends Specification with CatsIO {
+class NotifierSpec extends Specification with CatsEffect {
 
   import NotifierSpec._
-  import cats.effect.IO.ioEffect // Dotty
 
   "Notifier" should {
 
@@ -186,7 +181,7 @@ object NotifierSpec {
     def onResult(result: Nel[Endpoint]): F[Unit] = recordings.update(_ :+ result)
   }
 
-  def mkUpdates[F[_]: Applicative](
+  def mkUpdates[F[_]](
     updates: List[ClusterInfo]
   ): Resource[F, Stream[F, ClusterInfo]] =
     Resource.pure[F, Stream[F, ClusterInfo]](Stream.emits(updates))

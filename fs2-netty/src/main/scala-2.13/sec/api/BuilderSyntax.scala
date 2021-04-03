@@ -17,17 +17,17 @@
 package sec
 package api
 
-import cats.effect.{ConcurrentEffect, Resource, Timer}
+import cats.effect.{Async, Resource}
 
 //======================================================================================================================
 
 trait BuilderSyntax {
 
-  implicit def singleNodeBuilderSyntax[F[_]: ConcurrentEffect: Timer](
+  implicit def singleNodeBuilderSyntax[F[_]: Async](
     snb: SingleNodeBuilder[F]
   ): SingleNodeBuilderOps[F] = new SingleNodeBuilderOps[F](snb)
 
-  implicit def clusterBuilderSyntax[F[_]: ConcurrentEffect: Timer](
+  implicit def clusterBuilderSyntax[F[_]: Async](
     cb: ClusterBuilder[F]
   ): ClusterBuilderOps[F] = new ClusterBuilderOps[F](cb)
 
@@ -35,11 +35,11 @@ trait BuilderSyntax {
 
 //======================================================================================================================
 
-final class SingleNodeBuilderOps[F[_]: ConcurrentEffect: Timer](val b: SingleNodeBuilder[F]) {
+final class SingleNodeBuilderOps[F[_]: Async](val b: SingleNodeBuilder[F]) {
   def resource: Resource[F, EsClient[F]] = b.build(netty.mkBuilder[F])
 }
 
-final class ClusterBuilderOps[F[_]: ConcurrentEffect: Timer](val b: ClusterBuilder[F]) {
+final class ClusterBuilderOps[F[_]: Async](val b: ClusterBuilder[F]) {
   def resource: Resource[F, EsClient[F]] = b.build(netty.mkBuilder[F])
 }
 

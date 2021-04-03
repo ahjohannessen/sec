@@ -23,7 +23,6 @@ import scala.util.control.NonFatal
 import cats._
 import cats.data._
 import cats.effect._
-import cats.effect.concurrent.Ref
 import cats.syntax.all._
 import com.eventstore.dbclient.proto.streams._
 import fs2.{Pipe, Pull, Stream}
@@ -185,7 +184,7 @@ object Streams {
 
 //======================================================================================================================
 
-  private[sec] def apply[F[_]: Concurrent: Timer, C](
+  private[sec] def apply[F[_]: Temporal, C](
     client: StreamsFs2Grpc[F, C],
     mkCtx: Option[UserCredentials] => C,
     opts: Opts[F]
@@ -257,7 +256,7 @@ object Streams {
 
 //======================================================================================================================
 
-  private[sec] def subscribeToAll0[F[_]: Sync: Timer](
+  private[sec] def subscribeToAll0[F[_]: Temporal](
     exclusiveFrom: Option[LogPosition],
     resolveLinkTos: Boolean,
     opts: Opts[F]
@@ -273,7 +272,7 @@ object Streams {
 
   }
 
-  private[sec] def subscribeToAll0[F[_]: Sync: Timer](
+  private[sec] def subscribeToAll0[F[_]: Temporal](
     exclusiveFrom: Option[LogPosition],
     filterOptions: SubscriptionFilterOptions,
     resolveLinkTos: Boolean,
@@ -291,7 +290,7 @@ object Streams {
     withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
   }
 
-  private[sec] def subscribeToStream0[F[_]: Sync: Timer](
+  private[sec] def subscribeToStream0[F[_]: Temporal](
     streamId: StreamId,
     exclusiveFrom: Option[StreamPosition],
     resolveLinkTos: Boolean,
@@ -310,7 +309,7 @@ object Streams {
     withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
   }
 
-  private[sec] def readAll0[F[_]: Sync: Timer](
+  private[sec] def readAll0[F[_]: Temporal](
     from: LogPosition,
     direction: Direction,
     maxCount: Long,
@@ -325,7 +324,7 @@ object Streams {
     if (maxCount > 0) withRetry(from, read, fn, opts, "readAll", direction) else Stream.empty
   }
 
-  private[sec] def readStream0[F[_]: Sync: Timer](
+  private[sec] def readStream0[F[_]: Temporal](
     streamId: StreamId,
     from: StreamPosition,
     direction: Direction,
@@ -347,7 +346,7 @@ object Streams {
     if (valid && maxCount > 0) withRetry(from, read, fn, opts, "readStream", direction) else Stream.empty
   }
 
-  private[sec] def appendToStream0[F[_]: Concurrent: Timer](
+  private[sec] def appendToStream0[F[_]: Temporal](
     streamId: StreamId,
     expectedState: StreamState,
     eventsNel: NonEmptyList[EventData],
@@ -361,7 +360,7 @@ object Streams {
     opts.run(operation, "appendToStream") >>= { ar => mkWriteResult[F](streamId, ar) }
   }
 
-  private[sec] def delete0[F[_]: Concurrent: Timer](
+  private[sec] def delete0[F[_]: Temporal](
     streamId: StreamId,
     expectedState: StreamState,
     opts: Opts[F]
@@ -370,7 +369,7 @@ object Streams {
       case e: WrongExpectedVersion => e.adaptOrFallback(streamId, expectedState)
     }
 
-  private[sec] def tombstone0[F[_]: Concurrent: Timer](
+  private[sec] def tombstone0[F[_]: Temporal](
     streamId: StreamId,
     expectedState: StreamState,
     opts: Opts[F]
@@ -412,7 +411,7 @@ object Streams {
   private[sec] def subAllFilteredPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, Either[Checkpoint, AllEvent]] =
     _.through(subConfirmationPipe(log)).through(_.evalMap(mkCheckpointOrEvent[F]).unNone)
 
-  private[sec] def withRetry[F[_]: Sync: Timer, T: Order, O](
+  private[sec] def withRetry[F[_]: Temporal, T: Order, O](
     from: T,
     streamFn: T => Stream[F, O],
     extractFn: O => T,

@@ -19,9 +19,8 @@ package api
 
 import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
-
 import cats.effect._
-import cats.effect.laws.util.TestContext
+import cats.effect.testkit._
 import cats.effect.testing.specs2.CatsEffect
 import cats.syntax.all._
 import org.typelevel.log4cats.Logger
@@ -29,7 +28,7 @@ import org.typelevel.log4cats.noop.NoOpLogger
 import org.typelevel.log4cats.testing.TestingLogger
 import org.specs2.mutable.Specification
 
-class RetriesSpec extends Specification with CatsEffect {
+class RetriesSpec extends Specification with TestInstances with CatsEffect {
 
   import RetriesSpec.Oops
   import sec.api.retries.{retry => _, _}
@@ -44,8 +43,7 @@ class RetriesSpec extends Specification with CatsEffect {
       log: Logger[IO] = NoOpLogger.impl[IO],
       retryOn: Throwable => Boolean = _ => true
     )(implicit TC: TestContext) = {
-      implicit val cs: ContextShift[IO] = IO.contextShift(TC)
-      implicit val timer: Timer[IO]     = TC.timer
+      implicit val ticker: Ticker = Ticker(TC)
       retries.retry[IO, A](action, "retry-spec", retryConfig, log)(retryOn).unsafeToFuture()
     }
 
@@ -68,7 +66,11 @@ class RetriesSpec extends Specification with CatsEffect {
         attempts
       }
 
-      test(action, config).value.map(_.toEither) should beSome(Right(1))
+      val result = test(action, config)
+
+      ec.tick()
+
+      result.value.map(_.toEither) should beSome(Right(1))
     }
 
     "delay" >> {
@@ -171,14 +173,14 @@ class RetriesSpec extends Specification with CatsEffect {
         timeout       = Some(100.millis)
       )
 
-      val action1 = test(IO.sleep(101.millis)(ec.timer) *> IO[Int](1), config)
+      val action1 = test(IO.sleep(101.millis) *> IO[Int](1), config)
 
       action1.value should beNone
       ec.tick(300.millis)
 
       action1.value.map(_.toEither) shouldEqual retries.Timeout(100.millis).asLeft.some
 
-      val action2 = test(IO.sleep(99.millis)(ec.timer) *> IO[Int](1), config)
+      val action2 = test(IO.sleep(99.millis) *> IO[Int](1), config)
 
       action2.value should beNone
       ec.tick(99.millis)
@@ -199,6 +201,8 @@ class RetriesSpec extends Specification with CatsEffect {
       )
 
       val action = test(IO.raiseError[Int](Oops), config, retryOn = _ => false)
+
+      ec.tick()
 
       action.value.map(_.toEither) should beSome(Oops.asLeft)
     }

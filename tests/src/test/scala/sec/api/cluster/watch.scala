@@ -20,28 +20,25 @@ package cluster
 
 import java.time.ZonedDateTime
 import java.{util => ju}
-
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
-
 import cats.data.{NonEmptyList => Nel}
 import cats.effect._
-import cats.effect.concurrent.Ref
-import cats.effect.laws.util.TestContext
-import cats.effect.testing.specs2.CatsIO
+import cats.effect.testkit._
+import cats.effect.testing.specs2.CatsEffect
 import cats.syntax.all._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.scalacheck.Gen
+import org.specs2.matcher.MatchResult
 import org.specs2.mutable.Specification
 import sec.api.exceptions.ServerUnavailable
 import sec.arbitraries._
 
-class ClusterWatchSpec extends Specification with CatsIO {
+class ClusterWatchSpec extends Specification with TestInstances with CatsEffect {
 
   import ClusterWatch.Cache
-  import cats.effect.IO.ioEffect // Dotty
 
   "ClusterWatch" should {
 
@@ -83,10 +80,12 @@ class ClusterWatchSpec extends Specification with CatsIO {
         changes <- Resource.eval(watch.subscribe.pure[IO])
       } yield (changes, store)
 
-      result.map { case (changes, store) =>
+      val x = result.map { case (changes, store) =>
         changes.take(4).compile.toList.map(_ shouldEqual List(ci1, ci2, ci4, ci5)) >>
           store.get.map(_.lastOption shouldEqual ci5.some)
       }
+
+      x.use(a => a)
 
     }
 
@@ -101,7 +100,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
         .withReadTimeout(50.millis)
         .withNotificationInterval(50.millis)
 
-      def test(err: Throwable, count: Int) = {
+      def test(err: Throwable, count: Int): IO[MatchResult[Any]] = {
 
         val result = for {
           readCountRef <- Stream.eval(Ref.of[IO, Int](0))
@@ -112,7 +111,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
                  .resource(ClusterWatch.create[IO](readFn, options, recordingCache(store), log))
                  .map(_ => -1)
                  .handleErrorWith(_ => Stream.eval(readCountRef.get))
-          _     <- Stream.sleep(500.millis)
+          _     <- Stream.sleep[IO](500.millis)
           count <- Stream.eval(readCountRef.get)
         } yield count
 
@@ -129,7 +128,7 @@ class ClusterWatchSpec extends Specification with CatsIO {
     "retry retriable error using retry delay for backoff" >> {
 
       val ec: TestContext          = TestContext()
-      val ce: ConcurrentEffect[IO] = IO.ioConcurrentEffect(IO.contextShift(ec))
+      implicit val tc: Ticker = Ticker(ec)
 
       val options = ClusterOptions.default
         .withMaxDiscoverAttempts(2.some)
@@ -140,19 +139,21 @@ class ClusterWatchSpec extends Specification with CatsIO {
 
       val error = sampleOfGen(Gen.oneOf(ServerUnavailable("Oh Noes"), new TimeoutException("Oh Noes")))
 
-      val countRef = Ref[IO].of(0).unsafeRunSync()
-      val storeRef = Ref[IO].of(List.empty[ClusterInfo]).unsafeRunSync()
+      val countRef = Ref[IO].of(0).unsafeRunSync()(cats.effect.unsafe.implicits.global)
+      val storeRef = Ref[IO].of(List.empty[ClusterInfo]).unsafeRunSync()(cats.effect.unsafe.implicits.global)
       val cache    = recordingCache(storeRef)
       val readFn   = countRef.update(_ + 1) *> IO.raiseError(error) *> IO(ClusterInfo(Set.empty))
-      val log      = mkLog.unsafeRunSync()
-      val watch    = ClusterWatch.create[IO](readFn, options, cache, log)(ce, ec.timer)
+      val log      = mkLog.unsafeRunSync()(cats.effect.unsafe.implicits.global)
+      val watch    = ClusterWatch.create[IO](readFn, options, cache, log)
 
       def test(expected: Int) = {
         ec.tick(options.retryDelay)
-        countRef.get.unsafeRunSync() shouldEqual expected
+        val valueF = countRef.get.unsafeToFuture()
+        ec.tick()
+        valueF.value.get.toOption.get shouldEqual expected
       }
 
-      val _ = watch.allocated[IO, ClusterWatch[IO]].unsafeRunAsyncAndForget()
+      val _ = watch.allocated[ClusterWatch[IO]].unsafeRunAndForget()
 
       test(1)
       test(2)

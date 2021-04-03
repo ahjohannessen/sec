@@ -58,8 +58,7 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
   ///
 
   private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](mcb: ChannelBuilderParams => F[MCB])(implicit
-    F: ConcurrentEffect[F],
-    T: Timer[F]
+    F: Async[F]
   ): Resource[F, EsClient[F]] = {
 
     val params: ChannelBuilderParams     = ChannelBuilderParams(endpoint, options.connectionMode)
@@ -67,7 +66,7 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
     val modifications: Endo[MCB]         = b => authority.fold(b)(a => b.overrideAuthority(a))
 
     channelBuilder >>= { builder =>
-      modifications(builder).resource[F](shutdownAwait).map(EsClient[F](_, options, requiresLeader = false, logger))
+      modifications(builder).resource[F](shutdownAwait).flatMap(EsClient[F](_, options, requiresLeader = false, logger))
     }
   }
 
@@ -113,27 +112,25 @@ class ClusterBuilder[F[_]] private (
 
   private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](
     mcb: ChannelBuilderParams => F[MCB]
-  )(implicit
-    F: ConcurrentEffect[F],
-    T: Timer[F]
-  ): Resource[F, EsClient[F]] = {
+  )(implicit F: Async[F]): Resource[F, EsClient[F]] = {
 
     val log: Logger[F] = logger.withModifiedString(s => s"Cluster > $s")
 
     val builderForTarget: String => F[MCB] =
       t => mcb(ChannelBuilderParams(t, options.connectionMode))
 
-    def gossipFn(mc: ManagedChannel): Gossip[F] = Gossip(
-      EsClient.mkGossipFs2Grpc[F](mc),
-      EsClient.mkContext(options, requiresLeader = false),
-      EsClient.mkOpts[F](options.operationOptions.copy(retryEnabled = false), log, "gossip")
-    )
+    def gossipFn(mc: ManagedChannel): Resource[F, Gossip[F]] = EsClient
+      .mkGossipFs2Grpc[F](mc)
+      .map(g =>
+        Gossip(g,
+               EsClient.mkContext(options, requiresLeader = false),
+               EsClient.mkOpts[F](options.operationOptions.copy(retryEnabled = false), log, "gossip")))
 
     ClusterWatch(builderForTarget, clusterOptions, gossipFn, seed, authority, log) >>= { cw =>
 
       val mkProvider: Resource[F, ResolverProvider[F]] = ResolverProvider
         .bestNodes[F](authority, clusterOptions.preference, cw.subscribe, log)
-        .evalTap[F, Unit](p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
+        .evalTap(p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
 
       def builder(p: ResolverProvider[F]): Resource[F, MCB] =
         Resource.eval(builderForTarget(s"${p.scheme}:///"))
@@ -141,8 +138,9 @@ class ClusterBuilder[F[_]] private (
       mkProvider >>= builder >>= {
         _.defaultLoadBalancingPolicy("round_robin")
           .overrideAuthority(authority)
-          .resource[F](clusterOptions.channelShutdownAwait)
-          .map(EsClient[F](_, options, clusterOptions.preference.isLeader, logger))
+          .resource[F](clusterOptions.channelShutdownAwait) >>= { mc =>
+          EsClient[F](mc, options, clusterOptions.preference.isLeader, logger)
+        }
       }
 
     }

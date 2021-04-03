@@ -22,7 +22,6 @@ import scala.util.Random
 
 import cats.data.{NonEmptyList => Nel, NonEmptySet => Nes}
 import cats.effect._
-import cats.effect.concurrent._
 import cats.effect.implicits._
 import cats.syntax.all._
 import fs2.Stream
@@ -54,26 +53,23 @@ private[sec] object Notifier {
       Resource.eval(Ref[F].of(seed)).map(create(seed, defaultSelector, updates, _, halt))
     }
 
-    def create[F[_]](
+    def create[F[_]: Concurrent](
       seed: Nes[Endpoint],
       determineNext: (ClusterInfo, Nes[Endpoint]) => Nes[Endpoint],
       updates: Stream[F, ClusterInfo],
       endpoints: Ref[F, Nes[Endpoint]],
       halt: SignallingRef[F, Boolean]
-    )(implicit F: Concurrent[F]): Notifier[F] = new Notifier[F] {
+    ): Notifier[F] = (l: Listener[F]) => {
 
-      def start(l: Listener[F]): Resource[F, F[Unit]] = {
-
-        def update(ci: ClusterInfo): F[Unit] = endpoints.get >>= { current =>
-          val next = determineNext(ci, seed)
-          (endpoints.set(next) >> l.onResult(next.toNonEmptyList)).whenA(current =!= next)
-        }
-
-        val bootstrap = Resource.eval(l.onResult(seed.toNonEmptyList))
-        val run       = updates.evalMap(update).interruptWhen(halt)
-
-        bootstrap *> run.compile.drain.background
+      def update(ci: ClusterInfo): F[Unit] = endpoints.get >>= { current =>
+        val next = determineNext(ci, seed)
+        (endpoints.set(next) >> l.onResult(next.toNonEmptyList)).whenA(current =!= next)
       }
+
+      val bootstrap = Resource.eval(l.onResult(seed.toNonEmptyList))
+      val run       = updates.evalMap(update).interruptWhen(halt)
+
+      bootstrap *> run.compile.drain.background.map(_.void)
     }
 
     def defaultSelector(ci: ClusterInfo, seed: Nes[Endpoint]): Nes[Endpoint] =
@@ -92,7 +88,7 @@ private[sec] object Notifier {
       np: NodePreference,
       updates: Stream[F, ClusterInfo],
       log: Logger[F]
-    )(implicit F: Concurrent[F]): Resource[F, Notifier[F]] =
+    )(implicit F: Async[F]): Resource[F, Notifier[F]] =
       mkHaltSignal[F](log).map(create(np, defaultSelector[F], updates, _))
 
     def create[F[_]](
@@ -100,18 +96,15 @@ private[sec] object Notifier {
       determineNext: (ClusterInfo, NodePreference) => F[List[MemberInfo]],
       updates: Stream[F, ClusterInfo],
       halt: SignallingRef[F, Boolean]
-    )(implicit F: Concurrent[F]): Notifier[F] = new Notifier[F] {
+    )(implicit F: Concurrent[F]): Notifier[F] = (l: Listener[F]) => {
 
-      def start(l: Listener[F]): Resource[F, F[Unit]] = {
-
-        def update(ci: ClusterInfo): F[Unit] = determineNext(ci, np) >>= {
-          case Nil     => F.unit
-          case x :: xs => l.onResult(Nel(x, xs).map(_.httpEndpoint))
-        }
-
-        updates.evalMap(update).interruptWhen(halt).compile.drain.background
-
+      def update(ci: ClusterInfo): F[Unit] = determineNext(ci, np) >>= {
+        case Nil     => F.unit
+        case x :: xs => l.onResult(Nel(x, xs).map(_.httpEndpoint))
       }
+
+      updates.evalMap(update).interruptWhen(halt).compile.drain.background.map(_.void)
+
     }
 
     /*
