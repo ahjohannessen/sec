@@ -190,7 +190,6 @@ def scalaCondition(version: String) = s"contains(matrix.scala, '$version')"
 
 inThisBuild(
   List(
-    githubWorkflowOSes := Seq("ubuntu-20.04"),
     githubWorkflowJavaVersions := Seq("adopt@1.11"),
     githubWorkflowTargetTags += "v*",
     githubWorkflowTargetBranches := Seq("master"),
