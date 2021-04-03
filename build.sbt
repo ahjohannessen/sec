@@ -7,7 +7,7 @@ ThisBuild / assumedVersionScheme := VersionScheme.Always
 ThisBuild / evictionErrorLevel := Level.Info
 
 lazy val Scala2  = "2.13.5"
-lazy val Scala3  = "3.0.0-RC1"
+lazy val Scala3  = "3.0.0-RC2"
 lazy val isDotty = Def.setting[Boolean](scalaVersion.value.startsWith("3."))
 
 lazy val sec = project
@@ -190,7 +190,6 @@ def scalaCondition(version: String) = s"contains(matrix.scala, '$version')"
 
 inThisBuild(
   List(
-    githubWorkflowOSes := Seq("ubuntu-18.04"),
     githubWorkflowJavaVersions := Seq("adopt@1.11"),
     githubWorkflowTargetTags += "v*",
     githubWorkflowTargetBranches := Seq("master"),
