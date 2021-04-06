@@ -214,7 +214,7 @@ inThisBuild(
       ),
       WorkflowStep.Sbt(
         name     = Some("Single node integration tests"),
-        commands = List("tests/sit:test"),
+        commands = List("tests / Sit / test"),
         env = Map(
           "SEC_SIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_SIT_AUTHORITY"  -> "es.sec.local"
@@ -238,7 +238,7 @@ inThisBuild(
       ),
       WorkflowStep.Sbt(
         name     = Some("Cluster integration tests"),
-        commands = List("tests/cit:test"),
+        commands = List("tests / Cit / test"),
         env = Map(
           "SEC_CIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_CIT_AUTHORITY"  -> "es.sec.local"
