@@ -91,7 +91,8 @@ lazy val tests = project
             .exclude("org.scalacheck", "scalacheck_2.13")
             .exclude("org.typelevel", "cats-core_2.13"))
       else
-        compileM(specs2,
+        compileM(catsEffect,
+                 specs2,
                  specs2ScalaCheck,
                  specs2Cats,
                  catsEffectSpecs2,
@@ -149,7 +150,7 @@ lazy val commonSettings = Seq(
 inThisBuild(
   List(
     scalaVersion := crossScalaVersions.value.last,
-    crossScalaVersions := Seq(Scala3, Scala2),
+    crossScalaVersions := Seq(/*Scala3, circe not on RC2 yet*/ Scala2),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
     organizationName := "Scala EventStoreDB Client",
@@ -183,7 +184,7 @@ inThisBuild(
 
 //==== Github Actions ==================================================================================================
 
-addCommandAlias("compileTests", "tests/test:compile; tests/sit:compile; tests/cit:compile;")
+addCommandAlias("compileTests", "tests / Test / compile; tests / Sit / compile; tests / Cit / compile;")
 addCommandAlias("compileDocs", "docs/mdoc")
 
 def scalaCondition(version: String) = s"contains(matrix.scala, '$version')"
