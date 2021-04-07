@@ -22,7 +22,7 @@ import sec.api._
 
 trait StreamsSyntax {
 
-  extension [F[_]: ErrorM](s: Streams[F]) {
+  extension [F[_]](s: Streams[F]) {
 
     /// Subscription
 
@@ -102,7 +102,7 @@ trait StreamsSyntax {
      * Read events forwards from an individual stream. A [[sec.api.exceptions.StreamNotFound]] is raised
      * when the stream does not exist.
      *
-     * @param streamId the id of the stream to subscribe to.
+     * @param streamId the id of the stream to read from.
      * @param from stream position to read from.
      * @param maxCount limits maximum events returned.
      * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
@@ -120,7 +120,7 @@ trait StreamsSyntax {
      * Read events backwards from an individual stream. A [[sec.api.exceptions.StreamNotFound]] is raised
      * when the stream does not exist.
      *
-     * @param streamId the id of the stream to subscribe to.
+     * @param streamId the id of the stream to read from.
      * @param from stream position to read from.
      * @param maxCount limits maximum events returned.
      * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
