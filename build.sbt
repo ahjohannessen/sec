@@ -150,7 +150,7 @@ lazy val commonSettings = Seq(
 inThisBuild(
   List(
     scalaVersion := crossScalaVersions.value.last,
-    crossScalaVersions := Seq(/*Scala3, circe not on RC2 yet*/ Scala2),
+    crossScalaVersions := Seq(Scala3, Scala2),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
     organizationName := "Scala EventStoreDB Client",
