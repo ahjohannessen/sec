@@ -11,7 +11,7 @@ object Dependencies {
     val log4cats         = "2.0.1"
     val logback          = "1.2.3"
     val scodecBits       = "1.1.25"
-    val circe            = "0.14.0-M4"
+    val circe            = "0.14.0-M5"
     val scalaPb          = scalapb.compiler.Version.scalapbVersion
     val grpc             = "1.36.1"
     val disciplineSpecs2 = "1.1.4"
