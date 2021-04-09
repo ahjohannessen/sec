@@ -106,7 +106,7 @@ jobs:
           popd
 
       - name: Compress target directories
-        run: tar cf targets.tar sec-docs/target tests/target fs2-netty/target target fs2/target core/target project/target
+        run: tar cf targets.tar sec-docs/target tests/target fs2-netty/target target fs2/target tsc/target core/target project/target
 
       - name: Upload target directories
         uses: actions/upload-artifact@v2

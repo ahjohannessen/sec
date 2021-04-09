@@ -17,7 +17,6 @@
 package sec
 package api
 
-import scala.concurrent.duration._
 import cats.Endo
 import cats.data._
 import cats.effect._
@@ -30,10 +29,9 @@ import sec.api.cluster._
 //======================================================================================================================
 
 sealed abstract class SingleNodeBuilder[F[_]] private (
-  endpoint: Endpoint,
-  authority: Option[String],
+  val endpoint: Endpoint,
+  val authority: Option[String],
   options: Options,
-  shutdownAwait: FiniteDuration,
   logger: Logger[F]
 ) extends OptionsBuilder[SingleNodeBuilder[F]] {
 
@@ -41,20 +39,16 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
     endpoint: Endpoint = endpoint,
     authority: Option[String] = authority,
     options: Options = options,
-    shutdownAwait: FiniteDuration = shutdownAwait,
     logger: Logger[F] = logger
   ): SingleNodeBuilder[F] =
-    new SingleNodeBuilder[F](endpoint, authority, options, shutdownAwait, logger) {}
+    new SingleNodeBuilder[F](endpoint, authority, options, logger) {}
 
   private[sec] def modOptions(fn: Endo[Options]): SingleNodeBuilder[F] = copy(options = fn(options))
 
-  def withEndpoint(value: Endpoint): SingleNodeBuilder[F]                   = copy(endpoint = value)
-  def withAuthority(value: String): SingleNodeBuilder[F]                    = copy(authority = value.some)
-  def withNoAuthority: SingleNodeBuilder[F]                                 = copy(authority = None)
-  def withLogger(value: Logger[F]): SingleNodeBuilder[F]                    = copy(logger = value)
-  def withChannelShutdownAwait(await: FiniteDuration): SingleNodeBuilder[F] = copy(shutdownAwait = await)
-
-  ///
+  def withEndpoint(value: Endpoint): SingleNodeBuilder[F] = copy(endpoint = value)
+  def withAuthority(value: String): SingleNodeBuilder[F]  = copy(authority = value.some)
+  def withNoAuthority: SingleNodeBuilder[F]               = copy(authority = None)
+  def withLogger(value: Logger[F]): SingleNodeBuilder[F]  = copy(logger = value)
 
   private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](mcb: ChannelBuilderParams => F[MCB])(implicit
     F: Async[F]): Resource[F, EsClient[F]] = {
@@ -62,17 +56,17 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
     val mkChannelBuilderParams: F[ChannelBuilderParams] =
       mkCredentials(options.connectionMode).map(ChannelBuilderParams(endpoint, _))
 
-    val modifications: Endo[MCB] =
-      b => authority.fold(b)(a => b.overrideAuthority(a))
+    val makeClient: MCB => Resource[F, EsClient[F]] = { builder =>
 
-    val makeClient: MCB => Resource[F, EsClient[F]] =
-      builder =>
-        modifications(builder)
-          .resource[F](shutdownAwait)
-          .flatMap(EsClient[F](_, options, requiresLeader = false, logger))
+      val mods: Endo[MCB] =
+        b => authority.fold(b)(a => b.overrideAuthority(a))
+
+      channel
+        .resource[F](mods(builder).build, options.channelShutdownAwait)
+        .flatMap(EsClient[F](_, options, requiresLeader = false, logger))
+    }
 
     Resource.eval(mkChannelBuilderParams).evalMap(mcb) >>= makeClient
-
   }
 
 }
@@ -83,17 +77,16 @@ object SingleNodeBuilder {
     endpoint: Endpoint,
     authority: Option[String],
     options: Options,
-    shutdownAwait: FiniteDuration,
     logger: Logger[F]
   ): SingleNodeBuilder[F] =
-    new SingleNodeBuilder[F](endpoint, authority, options, shutdownAwait, logger) {}
+    new SingleNodeBuilder[F](endpoint, authority, options, logger) {}
 }
 
 //======================================================================================================================
 
 class ClusterBuilder[F[_]] private (
-  seed: NonEmptySet[Endpoint],
-  authority: String,
+  val seed: NonEmptySet[Endpoint],
+  val authority: String,
   options: Options,
   clusterOptions: ClusterOptions,
   logger: Logger[F]
@@ -131,7 +124,7 @@ class ClusterBuilder[F[_]] private (
                EsClient.mkContext(options, requiresLeader = false),
                EsClient.mkOpts[F](options.operationOptions.copy(retryEnabled = false), log, "gossip")))
 
-    ClusterWatch(builderForTarget, clusterOptions, gossipFn, seed, authority, log) >>= { cw =>
+    ClusterWatch(builderForTarget, options, clusterOptions, gossipFn, seed, authority, log) >>= { cw =>
 
       val mkProvider: Resource[F, ResolverProvider[F]] = ResolverProvider
         .bestNodes[F](authority, clusterOptions.preference, cw.subscribe, log)
@@ -140,10 +133,11 @@ class ClusterBuilder[F[_]] private (
       def builder(p: ResolverProvider[F]): Resource[F, MCB] =
         Resource.eval(builderForTarget(s"${p.scheme}:///"))
 
-      mkProvider >>= builder >>= {
-        _.defaultLoadBalancingPolicy("round_robin")
-          .overrideAuthority(authority)
-          .resource[F](clusterOptions.channelShutdownAwait) >>= { mc =>
+      val mods: Endo[MCB] =
+        _.defaultLoadBalancingPolicy("round_robin").overrideAuthority(authority)
+
+      mkProvider >>= builder >>= { b =>
+        channel.resource[F](mods(b).build, options.channelShutdownAwait) >>= { mc =>
           EsClient[F](mc, options, clusterOptions.preference.isLeader, logger)
         }
       }

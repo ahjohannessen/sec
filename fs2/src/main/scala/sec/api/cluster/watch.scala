@@ -28,8 +28,7 @@ import org.typelevel.log4cats.Logger
 import io.grpc._
 import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.retries._
-
-import channel._
+import sec.api.channel._
 
 private[sec] trait ClusterWatch[F[_]] {
   def subscribe: Stream[F, ClusterInfo]
@@ -39,7 +38,8 @@ private[sec] object ClusterWatch {
 
   def apply[F[_]: Async, MCB <: ManagedChannelBuilder[MCB]](
     builderFromTarget: String => F[MCB],
-    options: ClusterOptions,
+    options: Options,
+    clusterOptions: ClusterOptions,
     gossipFn: ManagedChannel => Resource[F, Gossip[F]],
     seed: NonEmptySet[Endpoint],
     authority: String,
@@ -55,15 +55,15 @@ private[sec] object ClusterWatch {
 
     def mkChannel(p: ResolverProvider[F]): Resource[F, ManagedChannel] = Resource
       .eval(builderFromTarget(s"${p.scheme}:///"))
-      .flatMap(_.defaultLoadBalancingPolicy("round_robin").resource[F](options.channelShutdownAwait))
+      .flatMap(b => resource[F](b.defaultLoadBalancingPolicy("round_robin").build, options.channelShutdownAwait))
 
     for {
       store    <- mkCache
-      updates   = mkWatch(store.get, options.notificationInterval).subscribe
+      updates   = mkWatch(store.get, clusterOptions.notificationInterval).subscribe
       provider <- mkProvider(updates)
       channel  <- mkChannel(provider)
       gossip   <- gossipFn(channel)
-      watch    <- create[F](gossip.read, options, store, logger)
+      watch    <- create[F](gossip.read, clusterOptions, store, logger)
     } yield watch
 
   }
