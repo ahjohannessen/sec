@@ -155,6 +155,7 @@ addCommandAlias("compileTests", "tests/test:compile; tests/sit:compile; tests/ci
 addCommandAlias("compileDocs", "docs/mdoc")
 
 def scalaCondition(version: String) = s"contains(matrix.scala, '$version')"
+val docsOnMaster = "github.ref == 'refs/heads/master'"
 
 inThisBuild(
   List(
@@ -240,7 +241,7 @@ inThisBuild(
         env = Map(
           "GIT_DEPLOY_KEY" -> "${{ secrets.GIT_DEPLOY_KEY }}"
         ),
-        cond = Some(scalaCondition(scalaVersion.value))
+        cond = Some(s"${scalaCondition(scalaVersion.value)} && $docsOnMaster")
       )
     )
   )

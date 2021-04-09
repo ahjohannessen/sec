@@ -177,7 +177,7 @@ jobs:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
         run: sbt ++${{ matrix.scala }} ci-release
 
-      - if: contains(matrix.scala, '2.13.5')
+      - if: contains(matrix.scala, '2.13.5') && github.ref == 'refs/heads/master'
         env:
           GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
         run: sbt ++${{ matrix.scala }} docs/docusaurusPublishGhpages
