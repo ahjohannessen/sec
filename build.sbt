@@ -7,9 +7,9 @@ lazy val Scala3 = "3.0.0-RC2"
 
 lazy val sec = project
   .in(file("."))
-  .settings(skip in publish := true)
-  .dependsOn(core, `fs2-core`, `fs2-netty`, tests, docs)
-  .aggregate(core, `fs2-core`, `fs2-netty`, tests, docs)
+  .settings(publish / skip := true)
+  .dependsOn(core, `fs2-core`, `fs2-netty`, tsc, tests, docs)
+  .aggregate(core, `fs2-core`, `fs2-netty`, tsc, tests, docs)
 
 //==== Core ============================================================================================================
 
@@ -22,7 +22,7 @@ lazy val core = project
     libraryDependencies ++=
       compileM(cats, scodecBits, circe, scalaPb, grpcApi, grpcStub, grpcProtobuf, grpcCore),
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
-    Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (sourceManaged in Compile).value)
+    Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (Compile / sourceManaged).value)
   )
   .settings(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
 
@@ -47,6 +47,15 @@ lazy val `fs2-netty` = project
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
   .settings(name := "sec-fs2-client", libraryDependencies ++= compileM(grpcNetty))
+  .dependsOn(`fs2-core`, tsc)
+
+//==== Config ==========================================================================================================
+
+lazy val tsc = project
+  .in(file("tsc"))
+  .enablePlugins(AutomateHeaderPlugin)
+  .settings(commonSettings)
+  .settings(name := "sec-tsc", libraryDependencies ++= compileM(tsConfig))
   .dependsOn(`fs2-core`)
 
 //==== Tests ===========================================================================================================
@@ -66,7 +75,7 @@ lazy val tests = project
   .settings(inConfig(SingleNodeITest)(integrationSettings ++ scalafixConfigSettings(SingleNodeITest)))
   .settings(inConfig(ClusterITest)(integrationSettings ++ scalafixConfigSettings(ClusterITest)))
   .settings(
-    skip in publish := true,
+    publish / skip := true,
     buildInfoPackage := "sec",
     buildInfoKeys := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
     Test / headerSources ++= sources.in(SingleNodeITest).value ++ sources.in(ClusterITest).value,
@@ -133,10 +142,10 @@ inThisBuild(
         url("https://github.com/ahjohannessen")
       )),
     shellPrompt := Prompt.enrichedShellPrompt,
-    scalacOptions in (Compile, doc) ++= Seq(
+    (Compile / doc / scalacOptions) ++= Seq(
       "-groups",
       "-sourcepath",
-      (baseDirectory in LocalRootProject).value.getAbsolutePath,
+      (LocalRootProject / baseDirectory).value.getAbsolutePath,
       "-doc-source-url",
       "https://github.com/ahjohannessen/sec/blob/v" + version.value + "€{FILE_PATH}.scala"
     )
@@ -151,7 +160,7 @@ inThisBuild(
 
 //==== Github Actions ==================================================================================================
 
-addCommandAlias("compileTests", "tests/test:compile; tests/sit:compile; tests/cit:compile;")
+addCommandAlias("compileTests", "tests / Test / compile; tests / Sit / compile; tests / Cit / compile;")
 addCommandAlias("compileDocs", "docs/mdoc")
 
 def scalaCondition(version: String) = s"contains(matrix.scala, '$version')"
@@ -165,7 +174,7 @@ inThisBuild(
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
-      cond     = Some(scalaCondition(scalaVersion.value)),
+      cond     = Some(scalaCondition(Scala2)),
       env = Map(
         "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
       )
@@ -174,7 +183,7 @@ inThisBuild(
       WorkflowStep.Sbt(
         name     = Some("Compile docs"),
         commands = List("compileDocs"),
-        cond     = Some(scalaCondition(scalaVersion.value))
+        cond     = Some(scalaCondition(Scala2))
       ),
       WorkflowStep.Sbt(
         name     = Some("Regular tests"),
@@ -182,41 +191,41 @@ inThisBuild(
       ),
       WorkflowStep.Sbt(
         name     = Some("Single node integration tests"),
-        commands = List("tests/sit:test"),
+        commands = List("tests / Sit / test"),
         env = Map(
           "SEC_SIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_SIT_AUTHORITY"  -> "es.sec.local"
         ),
-        cond = Some(scalaCondition(scalaVersion.value))
+        cond = Some(scalaCondition(Scala2))
       )
     ),
     githubWorkflowBuildPostamble += WorkflowStep.Run(
       name     = Some("Stop Single Node"),
       commands = List("pushd .docker", "./single-node.sh down", "popd"),
-      cond     = Some(s"always() && ${scalaCondition(scalaVersion.value)}")
+      cond     = Some(s"always() && ${scalaCondition(Scala2)}")
     ),
     githubWorkflowBuildPostamble ++= Seq(
       WorkflowStep.Run(
         name     = Some("Start Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh up -d", "popd"),
-        cond     = Some(scalaCondition(scalaVersion.value)),
+        cond     = Some(scalaCondition(Scala2)),
         env = Map(
           "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
         )
       ),
       WorkflowStep.Sbt(
         name     = Some("Cluster integration tests"),
-        commands = List("tests/cit:test"),
+        commands = List("tests / Cit / test"),
         env = Map(
           "SEC_CIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_CIT_AUTHORITY"  -> "es.sec.local"
         ),
-        cond = Some(scalaCondition(scalaVersion.value))
+        cond = Some(scalaCondition(Scala2))
       ),
       WorkflowStep.Run(
         name     = Some("Stop Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh down", "popd"),
-        cond     = Some(s"always() && ${scalaCondition(scalaVersion.value)}")
+        cond     = Some(s"always() && ${scalaCondition(Scala2)}")
       )
     ),
     githubWorkflowPublishTargetBranches := Seq(
@@ -241,7 +250,7 @@ inThisBuild(
         env = Map(
           "GIT_DEPLOY_KEY" -> "${{ secrets.GIT_DEPLOY_KEY }}"
         ),
-        cond = Some(s"${scalaCondition(scalaVersion.value)} && $docsOnMain")
+        cond = Some(s"${scalaCondition(Scala2)} && $docsOnMain")
       )
     )
   )

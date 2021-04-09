@@ -29,8 +29,7 @@ import org.typelevel.log4cats.Logger
 import io.grpc._
 import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.retries._
-
-import channel._
+import sec.api.channel.resource
 
 private[sec] trait ClusterWatch[F[_]] {
   def subscribe: Stream[F, ClusterInfo]
@@ -40,7 +39,8 @@ private[sec] object ClusterWatch {
 
   def apply[F[_]: ConcurrentEffect: Timer, MCB <: ManagedChannelBuilder[MCB]](
     builderFromTarget: String => F[MCB],
-    options: ClusterOptions,
+    options: Options,
+    clusterOptions: ClusterOptions,
     gossipFn: ManagedChannel => Gossip[F],
     seed: NonEmptySet[Endpoint],
     authority: String,
@@ -56,27 +56,27 @@ private[sec] object ClusterWatch {
 
     def mkChannel(p: ResolverProvider[F]): Resource[F, ManagedChannel] = Resource
       .eval(builderFromTarget(s"${p.scheme}:///"))
-      .flatMap(_.defaultLoadBalancingPolicy("round_robin").resource[F](options.channelShutdownAwait))
+      .flatMap(b => resource[F](b.defaultLoadBalancingPolicy("round_robin").build, options.channelShutdownAwait))
 
     for {
       store    <- mkCache
-      updates   = mkWatch(store.get, options.notificationInterval).subscribe
+      updates   = mkWatch(store.get, clusterOptions.notificationInterval).subscribe
       provider <- mkProvider(updates)
       channel  <- mkChannel(provider)
-      watch    <- create[F](gossipFn(channel).read, options, store, logger)
+      watch    <- create[F](gossipFn(channel).read, clusterOptions, store, logger)
     } yield watch
 
   }
 
   def create[F[_]: ConcurrentEffect: Timer](
     readFn: F[ClusterInfo],
-    options: ClusterOptions,
+    clusterOptions: ClusterOptions,
     store: Cache[F],
     log: Logger[F]
   ): Resource[F, ClusterWatch[F]] = {
 
-    val watch   = mkWatch(store.get, options.notificationInterval)
-    val fetcher = mkFetcher(readFn, options, store.set, log)
+    val watch   = mkWatch(store.get, clusterOptions.notificationInterval)
+    val fetcher = mkFetcher(readFn, clusterOptions, store.set, log)
     val create  = Stream.emit(watch).concurrently(fetcher)
 
     create.compile.resource.lastOrError
