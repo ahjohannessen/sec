@@ -16,13 +16,30 @@
 
 package sec.api
 
+import java.io.File
+
 import scala.concurrent.blocking
 import scala.concurrent.duration._
 
+import cats.syntax.all._
 import cats.effect.{Resource, Sync}
-import io.grpc.{ManagedChannel, ManagedChannelBuilder}
+import io.grpc._
+import sec.api.ConnectionMode._
 
 private[sec] object channel {
+
+  def mkCredentials[F[_]: Sync](cm: ConnectionMode): F[Option[ChannelCredentials]] = {
+
+    def make(cert: File): F[ChannelCredentials] = Sync[F].blocking {
+      TlsChannelCredentials.newBuilder().trustManager(cert).build()
+    }
+
+    cm match {
+      case Insecure     => none[ChannelCredentials].pure[F]
+      case Secure(cert) => make(cert).map(_.some)
+    }
+
+  }
 
   implicit final class ManagedChannelBuilderOps[MCB <: ManagedChannelBuilder[MCB]](val mcb: MCB) extends AnyVal {
 
