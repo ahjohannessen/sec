@@ -34,7 +34,7 @@ trait CSpec extends ClientSpec {
 object CSpec {
 
   final private val certsFolder = new File(sys.env.getOrElse("SEC_CIT_CERTS_PATH", BuildInfo.certsPath))
-  final private val caPath      = new File(certsFolder, "ca/ca.crt").toPath
+  final private val ca          = new File(certsFolder, "ca/ca.crt")
   final private val authority   = sys.env.getOrElse("SEC_CIT_AUTHORITY", "es.sec.local")
   final private val seed = NonEmptySet.of(
     endpointFrom("SEC_CLUSTER_ES1_ADDRESS", "SEC_CIT_ES1_PORT", "127.0.0.1", 2114),
@@ -47,7 +47,7 @@ object CSpec {
   def mkClient[F[_]: ConcurrentEffect: Timer](log: Logger[F]): Resource[F, EsClient[F]] = EsClient
     .cluster[F](seed, authority)
     .withChannelShutdownAwait(0.seconds)
-    .withCertificate(caPath)
+    .withCertificate(ca)
     .withLogger(log)
     .withOperationsRetryDisabled
     .resource
