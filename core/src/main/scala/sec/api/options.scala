@@ -17,11 +17,10 @@
 package sec
 package api
 
-import java.nio.file.Path
-
+import java.io.File
 import scala.concurrent.duration._
-
 import cats.syntax.all._
+import io.grpc.ChannelCredentials
 
 //======================================================================================================================
 
@@ -48,7 +47,7 @@ private[sec] object Options {
     private def modifyOO(fn: OperationOptions => OperationOptions): Options =
       o.copy(operationOptions = fn(o.operationOptions))
 
-    def withSecureMode(certChain: Path): Options                    = o.copy(connectionMode = Secure(certChain))
+    def withSecureMode(cert: File): Options                         = o.copy(connectionMode = Secure(cert))
     def withInsecureMode: Options                                   = o.copy(connectionMode = Insecure)
     def withConnectionName(name: String): Options                   = o.copy(connectionName = name)
     def withCredentials(creds: Option[UserCredentials]): Options    = o.copy(credentials = creds)
@@ -66,8 +65,8 @@ private[sec] object Options {
 
 sealed private[sec] trait ConnectionMode
 private[sec] object ConnectionMode {
-  case object Insecure                     extends ConnectionMode
-  final case class Secure(certChain: Path) extends ConnectionMode
+  case object Insecure                extends ConnectionMode
+  final case class Secure(cert: File) extends ConnectionMode
 }
 
 //======================================================================================================================
@@ -135,16 +134,16 @@ private[sec] object OperationOptions {
 
 final private[sec] case class ChannelBuilderParams(
   targetOrEndpoint: Either[String, Endpoint],
-  mode: ConnectionMode
+  creds: Option[ChannelCredentials]
 )
 
 private[sec] object ChannelBuilderParams {
 
-  def apply(target: String, cm: ConnectionMode): ChannelBuilderParams =
-    ChannelBuilderParams(target.asLeft, cm)
+  def apply(target: String, creds: Option[ChannelCredentials]): ChannelBuilderParams =
+    ChannelBuilderParams(target.asLeft, creds)
 
-  def apply(endpoint: Endpoint, cm: ConnectionMode): ChannelBuilderParams =
-    ChannelBuilderParams(endpoint.asRight, cm)
+  def apply(endpoint: Endpoint, creds: Option[ChannelCredentials]): ChannelBuilderParams =
+    ChannelBuilderParams(endpoint.asRight, creds)
 
 }
 
@@ -154,7 +153,7 @@ private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]] {
 
   private[sec] def modOptions(fn: Options => Options): B
 
-  def withCertificate(value: Path): B                       = modOptions(_.withSecureMode(value))
+  def withCertificate(value: File): B                       = modOptions(_.withSecureMode(value))
   def withConnectionName(value: String): B                  = modOptions(_.withConnectionName(value))
   def withCredentials(value: Option[UserCredentials]): B    = modOptions(_.withCredentials(value))
   def withOperationsRetryDelay(value: FiniteDuration): B    = modOptions(_.withOperationsRetryDelay(value))
