@@ -44,7 +44,7 @@ import sec.api._
 object HelloWorld extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = EsClient
-    .singleNode[IO]("127.0.0.1", 2113)
+    .singleNode[IO](Endpoint("127.0.0.1", 2113))
     .resource.use(client => 
       client.gossip.read.map(_.render).flatMap(str => IO(println(str)))
     )

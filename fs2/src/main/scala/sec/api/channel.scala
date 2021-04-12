@@ -41,22 +41,23 @@ private[sec] object channel {
 
   }
 
-  implicit final class ManagedChannelBuilderOps[MCB <: ManagedChannelBuilder[MCB]](val mcb: MCB) extends AnyVal {
+  ///
 
-    def resource[F[_]: Sync](shutdownAwait: FiniteDuration): Resource[F, ManagedChannel] =
-      resourceWithShutdown[F] { ch =>
-        Sync[F].delay {
-          ch.shutdown()
-          if (!blocking(ch.awaitTermination(shutdownAwait.length, shutdownAwait.unit))) {
-            ch.shutdownNow()
-            ()
-          }
+  def resource[F[_]: Sync](acquire: => ManagedChannel, shutdownAwait: FiniteDuration): Resource[F, ManagedChannel] = {
+    resourceWithShutdown[F](acquire) { ch =>
+      Sync[F].delay {
+        ch.shutdown()
+        if (!blocking(ch.awaitTermination(shutdownAwait.length, shutdownAwait.unit))) {
+          ch.shutdownNow()
+          ()
         }
       }
-
-    def resourceWithShutdown[F[_]: Sync](shutdown: ManagedChannel => F[Unit]): Resource[F, ManagedChannel] =
-      Resource.make(Sync[F].delay(mcb.build()))(shutdown)
-
+    }
   }
+
+  def resourceWithShutdown[F[_]: Sync](acquire: => ManagedChannel)(
+    release: ManagedChannel => F[Unit]
+  ): Resource[F, ManagedChannel] =
+    Resource.make(Sync[F].delay(acquire))(release)
 
 }

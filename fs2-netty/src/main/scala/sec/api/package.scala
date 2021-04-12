@@ -20,7 +20,7 @@ import java.util.UUID
 
 import cats.effect._
 
-package object api extends BuilderSyntax {
+package object api extends BuilderSyntax with EsClientObjectSyntax {
 
   def mkUuid[F[_]: Sync]: F[UUID] = Sync[F].delay(UUID.randomUUID())
 

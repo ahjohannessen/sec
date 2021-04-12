@@ -9,13 +9,13 @@ import cats.data.NonEmptyList
 import cats.syntax.all._
 import cats.effect._
 import sec._
-import sec.api.{mkUuid, EsClient, Streams}
+import sec.api._
 import sec.syntax.all._
 
 object WritingEvents extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = EsClient
-    .singleNode[IO]("127.0.0.1", 2113)
+    .singleNode[IO](Endpoint("127.0.0.1", 2113))
     .resource
     .use(client => useStreams(client.streams))
     .as(ExitCode.Success)

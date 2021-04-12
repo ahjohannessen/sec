@@ -28,7 +28,8 @@ private[sec] case class Options(
   connectionName: String,
   credentials: Option[UserCredentials],
   operationOptions: OperationOptions,
-  connectionMode: ConnectionMode
+  connectionMode: ConnectionMode,
+  channelShutdownAwait: FiniteDuration
 )
 
 private[sec] object Options {
@@ -36,10 +37,11 @@ private[sec] object Options {
   import ConnectionMode._
 
   val default: Options = Options(
-    connectionName   = "sec-client",
-    credentials      = UserCredentials.unsafe("admin", "changeit").some,
-    operationOptions = OperationOptions.default,
-    connectionMode   = Insecure
+    connectionName       = "sec-client",
+    credentials          = UserCredentials.unsafe("admin", "changeit").some,
+    operationOptions     = OperationOptions.default,
+    connectionMode       = Insecure,
+    channelShutdownAwait = 5.seconds
   )
 
   implicit final class OptionsOps(val o: Options) extends AnyVal {
@@ -51,12 +53,12 @@ private[sec] object Options {
     def withInsecureMode: Options                                   = o.copy(connectionMode = Insecure)
     def withConnectionName(name: String): Options                   = o.copy(connectionName = name)
     def withCredentials(creds: Option[UserCredentials]): Options    = o.copy(credentials = creds)
+    def withChannelShutdownAwait(await: FiniteDuration): Options    = o.copy(channelShutdownAwait = await)
     def withOperationsRetryDelay(delay: FiniteDuration): Options    = modifyOO(_.copy(retryDelay = delay))
     def withOperationsRetryMaxDelay(delay: FiniteDuration): Options = modifyOO(_.copy(retryMaxDelay = delay))
     def withOperationsRetryMaxAttempts(max: Int): Options           = modifyOO(_.copy(retryMaxAttempts = max))
     def withOperationsRetryBackoffFactor(factor: Double): Options   = modifyOO(_.copy(retryBackoffFactor = factor))
-    def withOperationsRetryEnabled: Options                         = modifyOO(_.copy(retryEnabled = true))
-    def withOperationsRetryDisabled: Options                        = modifyOO(_.copy(retryEnabled = false))
+    def withOperationsRetryEnabled(enabled: Boolean): Options       = modifyOO(_.copy(retryEnabled = enabled))
   }
 
 }
@@ -78,8 +80,7 @@ final private[sec] case class ClusterOptions(
   retryBackoffFactor: Double,
   readTimeout: FiniteDuration,
   notificationInterval: FiniteDuration,
-  preference: NodePreference,
-  channelShutdownAwait: FiniteDuration
+  preference: NodePreference
 )
 
 private[sec] object ClusterOptions {
@@ -91,8 +92,7 @@ private[sec] object ClusterOptions {
     retryBackoffFactor   = 1.25,
     readTimeout          = 5.seconds,
     notificationInterval = 100.millis,
-    preference           = NodePreference.Leader,
-    channelShutdownAwait = 10.seconds
+    preference           = NodePreference.Leader
   )
 
   implicit final class ClusterOptionsOps(val co: ClusterOptions) extends AnyVal {
@@ -103,7 +103,6 @@ private[sec] object ClusterOptions {
     def withReadTimeout(timeout: FiniteDuration): ClusterOptions           = co.copy(readTimeout = timeout)
     def withNotificationInterval(interval: FiniteDuration): ClusterOptions = co.copy(notificationInterval = interval)
     def withNodePreference(np: NodePreference): ClusterOptions             = co.copy(preference = np)
-    def withChannelShutdownAwait(await: FiniteDuration): ClusterOptions    = co.copy(channelShutdownAwait = await)
   }
 
 }
@@ -156,12 +155,13 @@ private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]] {
   def withCertificate(value: File): B                       = modOptions(_.withSecureMode(value))
   def withConnectionName(value: String): B                  = modOptions(_.withConnectionName(value))
   def withCredentials(value: Option[UserCredentials]): B    = modOptions(_.withCredentials(value))
+  def withChannelShutdownAwait(value: FiniteDuration): B    = modOptions(_.withChannelShutdownAwait(value))
   def withOperationsRetryDelay(value: FiniteDuration): B    = modOptions(_.withOperationsRetryDelay(value))
   def withOperationsRetryMaxDelay(value: FiniteDuration): B = modOptions(_.withOperationsRetryMaxDelay(value))
   def withOperationsRetryMaxAttempts(value: Int): B         = modOptions(_.withOperationsRetryMaxAttempts(value))
   def withOperationsRetryBackoffFactor(value: Double): B    = modOptions(_.withOperationsRetryBackoffFactor(value))
-  def withOperationsRetryEnabled: B                         = modOptions(_.withOperationsRetryEnabled)
-  def withOperationsRetryDisabled: B                        = modOptions(_.withOperationsRetryDisabled)
+  def withOperationsRetryEnabled: B                         = modOptions(_.withOperationsRetryEnabled(true))
+  def withOperationsRetryDisabled: B                        = modOptions(_.withOperationsRetryEnabled(false))
 }
 
 //======================================================================================================================
@@ -177,7 +177,6 @@ private[sec] trait ClusterOptionsBuilder[B <: ClusterOptionsBuilder[B]] {
   def withClusterReadTimeout(value: FiniteDuration): B          = modCOptions(_.withReadTimeout(value))
   def withClusterNotificationInterval(value: FiniteDuration): B = modCOptions(_.withNotificationInterval(value))
   def withClusterNodePreference(value: NodePreference): B       = modCOptions(_.withNodePreference(value))
-  def withChannelShutdownAwait(value: FiniteDuration): B        = modCOptions(_.withChannelShutdownAwait(value))
 }
 
 //======================================================================================================================

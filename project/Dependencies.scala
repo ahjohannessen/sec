@@ -17,6 +17,7 @@ object Dependencies {
     val disciplineSpecs2 = "1.1.4"
     val specs2           = "4.10.6"
     val catsEffectSpecs2 = "1.0.1"
+    val tsConfig         = "1.4.1"
 
   }
 
@@ -36,6 +37,7 @@ object Dependencies {
   val grpcCore     = "io.grpc"               % "grpc-core"         % versions.grpc
   val grpcProtobuf = "io.grpc"               % "grpc-protobuf"     % versions.grpc
   val grpcNetty    = "io.grpc"               % "grpc-netty-shaded" % versions.grpc
+  val tsConfig     = "com.typesafe"          % "config"            % versions.tsConfig
 
   // Testing
 

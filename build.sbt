@@ -13,8 +13,8 @@ lazy val isDotty = Def.setting[Boolean](scalaVersion.value.startsWith("3."))
 lazy val sec = project
   .in(file("."))
   .settings(publish / skip := true)
-  .dependsOn(core, `fs2-core`, `fs2-netty`, tests, docs)
-  .aggregate(core, `fs2-core`, `fs2-netty`, tests, docs)
+  .dependsOn(core, `fs2-core`, `fs2-netty`, tsc, tests, docs)
+  .aggregate(core, `fs2-core`, `fs2-netty`, tsc, tests, docs)
 
 //==== Core ============================================================================================================
 
@@ -50,6 +50,15 @@ lazy val `fs2-netty` = project
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
   .settings(name := "sec-fs2-client", libraryDependencies ++= compileM(grpcNetty))
+  .dependsOn(`fs2-core`, tsc)
+
+//==== Config ==========================================================================================================
+
+lazy val tsc = project
+  .in(file("tsc"))
+  .enablePlugins(AutomateHeaderPlugin)
+  .settings(commonSettings)
+  .settings(name := "sec-tsc", libraryDependencies ++= compileM(tsConfig))
   .dependsOn(`fs2-core`)
 
 //==== Tests ===========================================================================================================
