@@ -73,7 +73,7 @@ jobs:
         env:
           SEC_SIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_SIT_AUTHORITY: es.sec.local
-        run: 'sbt ++${{ matrix.scala }} tests/sit:test'
+        run: sbt ++${{ matrix.scala }} 'tests / Sit / test'
 
       - name: Stop Single Node
         if: always() && contains(matrix.scala, '2.13.5')
@@ -96,7 +96,7 @@ jobs:
         env:
           SEC_CIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_CIT_AUTHORITY: es.sec.local
-        run: 'sbt ++${{ matrix.scala }} tests/cit:test'
+        run: sbt ++${{ matrix.scala }} 'tests / Cit / test'
 
       - name: Stop Cluster Nodes
         if: always() && contains(matrix.scala, '2.13.5')
@@ -106,7 +106,7 @@ jobs:
           popd
 
       - name: Compress target directories
-        run: tar cf targets.tar sec-docs/target tests/target fs2-netty/target target fs2/target core/target project/target
+        run: tar cf targets.tar sec-docs/target tests/target fs2-netty/target target fs2/target tsc/target core/target project/target
 
       - name: Upload target directories
         uses: actions/upload-artifact@v2
