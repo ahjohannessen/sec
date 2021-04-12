@@ -9,7 +9,7 @@ import cats.data.NonEmptyList
 import cats.syntax.all._
 import cats.effect._
 import sec._
-import sec.api.{mkUuid, EsClient, Streams}
+import sec.api._
 import sec.syntax.all._
 
 object WritingEvents extends IOApp {
