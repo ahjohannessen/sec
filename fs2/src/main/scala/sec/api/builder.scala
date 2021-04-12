@@ -18,7 +18,6 @@ package sec
 package api
 
 import scala.concurrent.duration._
-
 import cats.Endo
 import cats.data._
 import cats.effect._
@@ -62,13 +61,20 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
     T: Timer[F]
   ): Resource[F, EsClient[F]] = {
 
-    val params: ChannelBuilderParams     = ChannelBuilderParams(endpoint, options.connectionMode)
-    val channelBuilder: Resource[F, MCB] = Resource.eval(mcb(params))
-    val modifications: Endo[MCB]         = b => authority.fold(b)(a => b.overrideAuthority(a))
+    val mkChannelBuilderParams: F[ChannelBuilderParams] =
+      mkCredentials(options.connectionMode).map(ChannelBuilderParams(endpoint, _))
 
-    channelBuilder >>= { builder =>
-      modifications(builder).resource[F](shutdownAwait).map(EsClient[F](_, options, requiresLeader = false, logger))
-    }
+    val modifications: Endo[MCB] =
+      b => authority.fold(b)(a => b.overrideAuthority(a))
+
+    val makeClient: MCB => Resource[F, EsClient[F]] =
+      builder =>
+        modifications(builder)
+          .resource[F](shutdownAwait)
+          .map(EsClient[F](_, options, requiresLeader = false, logger))
+
+    Resource.eval(mkChannelBuilderParams).evalMap(mcb) >>= makeClient
+
   }
 
 }
@@ -120,8 +126,8 @@ class ClusterBuilder[F[_]] private (
 
     val log: Logger[F] = logger.withModifiedString(s => s"Cluster > $s")
 
-    val builderForTarget: String => F[MCB] =
-      t => mcb(ChannelBuilderParams(t, options.connectionMode))
+    val builderForTarget: String => F[MCB] = t =>
+      mkCredentials(options.connectionMode) >>= { cc => mcb(ChannelBuilderParams(t, cc)) }
 
     def gossipFn(mc: ManagedChannel): Gossip[F] = Gossip(
       EsClient.mkGossipFs2Grpc[F](mc),

@@ -155,13 +155,13 @@ addCommandAlias("compileTests", "tests/test:compile; tests/sit:compile; tests/ci
 addCommandAlias("compileDocs", "docs/mdoc")
 
 def scalaCondition(version: String) = s"contains(matrix.scala, '$version')"
-val docsOnMaster = "github.ref == 'refs/heads/master'"
+val docsOnMain                      = "github.ref == 'refs/heads/main'"
 
 inThisBuild(
   List(
     githubWorkflowJavaVersions := Seq("adopt@1.11"),
     githubWorkflowTargetTags += "v*",
-    githubWorkflowTargetBranches := Seq("master"),
+    githubWorkflowTargetBranches := Seq("series/0.x"),
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
@@ -220,7 +220,7 @@ inThisBuild(
       )
     ),
     githubWorkflowPublishTargetBranches := Seq(
-      RefPredicate.Equals(Ref.Branch("master")),
+      RefPredicate.Equals(Ref.Branch("series/0.x")),
       RefPredicate.StartsWith(Ref.Tag("v"))
     ),
     githubWorkflowPublishPreamble +=
@@ -241,7 +241,7 @@ inThisBuild(
         env = Map(
           "GIT_DEPLOY_KEY" -> "${{ secrets.GIT_DEPLOY_KEY }}"
         ),
-        cond = Some(s"${scalaCondition(scalaVersion.value)} && $docsOnMaster")
+        cond = Some(s"${scalaCondition(scalaVersion.value)} && $docsOnMain")
       )
     )
   )
