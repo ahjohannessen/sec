@@ -50,7 +50,7 @@ object EsClient {
   ): SingleNodeBuilder[F] =
     SingleNodeBuilder[F](endpoint, authority, options, NoOpLogger.impl[F])
 
-  def cluster[F[_]: Async](seed: NonEmptySet[Endpoint], authority: String): ClusterBuilder[F] =
+  def cluster[F[_]: Applicative](seed: NonEmptySet[Endpoint], authority: String): ClusterBuilder[F] =
     cluster[F](seed, authority, Options.default, ClusterOptions.default)
 
   private[sec] def cluster[F[_]: Applicative](

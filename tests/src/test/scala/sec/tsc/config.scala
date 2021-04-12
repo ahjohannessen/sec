@@ -74,52 +74,48 @@ class ConfigSpec extends Specification {
   "mkClusterBuilder" >> {
 
     "no config" >> {
+      mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, ConfigFactory.parseString("")) should beNone
+    }
 
-      "no config" >> {
-        mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, ConfigFactory.parseString("")) should beNone
-      }
+    "config" >> {
 
-      "config" >> {
-
-        val cfg = ConfigFactory.parseString(
-          """
+      val cfg = ConfigFactory.parseString(
+        """
             | sec.cluster.authority = "example.org"
             | sec.cluster.seed      = [ "127.0.0.1", "127.0.0.2:2213", "127.0.0.3" ]
             |""".stripMargin
+      )
+
+      val builder = mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg)
+
+      builder.fold(ko) { b =>
+        b.authority shouldEqual "example.org"
+        b.seed shouldEqual NonEmptySet.of(
+          Endpoint("127.0.0.1", 2113),
+          Endpoint("127.0.0.2", 2213),
+          Endpoint("127.0.0.3", 2113)
         )
-
-        val builder = mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg)
-
-        builder.fold(ko) { b =>
-          b.authority shouldEqual "example.org"
-          b.seed shouldEqual NonEmptySet.of(
-            Endpoint("127.0.0.1", 2113),
-            Endpoint("127.0.0.2", 2213),
-            Endpoint("127.0.0.3", 2113)
-          )
-        }
-
       }
 
-      "partial config" >> {
+    }
 
-        val cfg1 = ConfigFactory.parseString(
-          """
+    "partial config" >> {
+
+      val cfg1 = ConfigFactory.parseString(
+        """
             | sec.cluster.authority = "example.org"
             | sec.cluster.seed      = []
             |""".stripMargin
-        )
+      )
 
-        val cfg2 = ConfigFactory.parseString(
-          """
+      val cfg2 = ConfigFactory.parseString(
+        """
             | sec.cluster.seed = [ "127.0.0.1", "127.0.0.2:2213", "127.0.0.3" ]
             |""".stripMargin
-        )
+      )
 
-        mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg1) should beNone
-        mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg2) should beNone
-
-      }
+      mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg1) should beNone
+      mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg2) should beNone
 
     }
 
