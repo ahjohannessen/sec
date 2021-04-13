@@ -35,11 +35,10 @@ private[sec] object config {
   private val defaultPort    = 2113
   private val defaultAddress = "127.0.0.1"
 
-  private val root   = "sec"
-  private val snPath = s"$root.single-node"
-  private val clPath = s"$root.cluster"
-  private val ooPath = s"$root.operations"
-  private val coPath = s"$clPath.options"
+  private val rootPath = "sec"
+  private val ooPath   = s"$rootPath.operations"
+  private val clPath   = s"$rootPath.cluster"
+  private val coPath   = s"$clPath.options"
 
   ///
 
@@ -77,9 +76,9 @@ private[sec] object config {
 
   def mkSingleNodeBuilder[F[_]: Applicative](o: Options, cfg: Config): SingleNodeBuilder[F] = {
 
-    val authority = cfg.option(s"$snPath.authority", _.getString)
-    val address   = cfg.option(s"$snPath.address", _.getString).getOrElse(defaultAddress)
-    val port      = cfg.option(s"$snPath.port", _.getInt).getOrElse(defaultPort)
+    val authority = cfg.option(s"$rootPath.authority", _.getString)
+    val address   = cfg.option(s"$rootPath.address", _.getString).getOrElse(defaultAddress)
+    val port      = cfg.option(s"$rootPath.port", _.getInt).getOrElse(defaultPort)
 
     EsClient.singleNode[F](Endpoint(address, port), authority, o)
   }
@@ -109,7 +108,7 @@ private[sec] object config {
       }
     }
 
-    val authority: Option[String] = cfg.option(s"$clPath.authority", _.getString)
+    val authority: Option[String] = cfg.option(s"$rootPath.authority", _.getString)
 
     (seed, authority).mapN((s, a) => EsClient.cluster[F](s, a, o, co))
 
@@ -121,21 +120,22 @@ private[sec] object config {
 
     val certificate: Endo[Options] = o =>
       cfg
-        .option(s"$root.certificate-path", _.getString)
+        .option(s"$rootPath.certificate-path", _.getString)
+        .filter(_.trim.nonEmpty)
         .map(new File(_))
         .fold(o.withInsecureMode)(o.withSecureMode)
 
     val credentials: Endo[Options] = o =>
-      (cfg.option(s"$root.username", _.getString), cfg.option(s"$root.password", _.getString))
+      (cfg.option(s"$rootPath.username", _.getString), cfg.option(s"$rootPath.password", _.getString))
         .mapN(UserCredentials(_, _))
         .map(_.toOption)
         .fold(o)(o.withCredentials)
 
     val modifications: List[Endo[Options]] = List(
-      o => cfg.option(s"$root.connection-name", _.getString).fold(o)(o.withConnectionName),
+      o => cfg.option(s"$rootPath.connection-name", _.getString).fold(o)(o.withConnectionName),
       certificate,
       credentials,
-      o => cfg.durationOpt(s"$root.channel-shutdown-await").fold(o)(o.withChannelShutdownAwait),
+      o => cfg.durationOpt(s"$rootPath.channel-shutdown-await").fold(o)(o.withChannelShutdownAwait),
       o => cfg.option(s"$ooPath.retry-enabled", _.getBoolean).fold(o)(o.withOperationsRetryEnabled),
       o => cfg.durationOpt(s"$ooPath.retry-delay").fold(o)(o.withOperationsRetryDelay),
       o => cfg.durationOpt(s"$ooPath.retry-max-delay").fold(o)(o.withOperationsRetryMaxDelay),
