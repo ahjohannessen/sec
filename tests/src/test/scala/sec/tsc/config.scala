@@ -43,9 +43,9 @@ class ConfigSpec extends Specification {
 
       val cfg =
         ConfigFactory.parseString("""
-          | sec.single-node.authority = "example.org"
-          | sec.single-node.address   = "10.0.0.2"
-          | sec.single-node.port      = 12113
+          | sec.authority = "example.org"
+          | sec.address   = "10.0.0.2"
+          | sec.port      = 12113
           |""".stripMargin)
 
       val builder = mkSingleNodeBuilder[ErrorOr](Options.default, cfg)
@@ -59,7 +59,7 @@ class ConfigSpec extends Specification {
 
       val cfg =
         ConfigFactory.parseString("""
-          | sec.single-node.address = "10.0.0.3"
+          | sec.address = "10.0.0.3"
           |""".stripMargin)
 
       val builder = mkSingleNodeBuilder[ErrorOr](Options.default, cfg)
@@ -81,8 +81,8 @@ class ConfigSpec extends Specification {
 
       val cfg = ConfigFactory.parseString(
         """
-            | sec.cluster.authority = "example.org"
-            | sec.cluster.seed      = [ "127.0.0.1", "127.0.0.2:2213", "127.0.0.3" ]
+            | sec.authority    = "example.org"
+            | sec.cluster.seed = [ "127.0.0.1", "127.0.0.2:2213", "127.0.0.3" ]
             |""".stripMargin
       )
 
@@ -103,8 +103,8 @@ class ConfigSpec extends Specification {
 
       val cfg1 = ConfigFactory.parseString(
         """
-            | sec.cluster.authority = "example.org"
-            | sec.cluster.seed      = []
+            | sec.authority    = "example.org"
+            | sec.cluster.seed = []
             |""".stripMargin
       )
 
@@ -142,8 +142,8 @@ class ConfigSpec extends Specification {
 
       val cfg =
         ConfigFactory.parseString("""
-          | sec.single-node.authority = "example.org"
-          | sec.single-node.address   = "10.0.0.2"
+          | sec.authority = "example.org"
+          | sec.address   = "10.0.0.2"
           |""".stripMargin)
 
       mkBuilder[ErrorOr](cfg, NoOpLogger[ErrorOr]) match {
@@ -163,8 +163,8 @@ class ConfigSpec extends Specification {
 
       val cfg = ConfigFactory.parseString(
         """
-            | sec.cluster.authority = "example.org"
-            | sec.cluster.seed      = [ "127.0.0.1:2113", "127.0.0.2:2113", "127.0.0.3:2113" ]
+            | sec.authority    = "example.org"
+            | sec.cluster.seed = [ "127.0.0.1:2113", "127.0.0.2:2113", "127.0.0.3:2113" ]
             |""".stripMargin
       )
 
