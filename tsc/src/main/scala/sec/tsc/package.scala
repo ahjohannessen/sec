@@ -42,6 +42,11 @@ private[sec] object config {
 
   ///
 
+  private val getAuthority: Config => Option[String] = cfg =>
+    cfg.option(s"$rootPath.authority", _.getString).filter(_.trim.nonEmpty)
+
+  ///
+
   def mkClient[F[_]: ConcurrentEffect: Timer, MCB <: ManagedChannelBuilder[MCB]](
     mcb: ChannelBuilderParams => F[MCB],
     cfg: Config
@@ -76,7 +81,7 @@ private[sec] object config {
 
   def mkSingleNodeBuilder[F[_]: Applicative](o: Options, cfg: Config): SingleNodeBuilder[F] = {
 
-    val authority = cfg.option(s"$rootPath.authority", _.getString)
+    val authority = getAuthority(cfg)
     val address   = cfg.option(s"$rootPath.address", _.getString).getOrElse(defaultAddress)
     val port      = cfg.option(s"$rootPath.port", _.getInt).getOrElse(defaultPort)
 
@@ -89,6 +94,7 @@ private[sec] object config {
     cfg: Config
   ): Option[ClusterBuilder[F]] = {
 
+    val authority: Option[String] = getAuthority(cfg)
     val seed: Option[NonEmptySet[Endpoint]] = {
 
       val seeds: List[String] =
@@ -107,8 +113,6 @@ private[sec] object config {
         case Nil     => None
       }
     }
-
-    val authority: Option[String] = cfg.option(s"$rootPath.authority", _.getString)
 
     (seed, authority).mapN((s, a) => EsClient.cluster[F](s, a, o, co))
 
@@ -186,11 +190,11 @@ private[sec] object config {
     def durationOpt(path: String): Option[FiniteDuration] = {
       def duration(path: String): FiniteDuration =
         FiniteDuration(cfg.getDuration(path, MILLISECONDS), MILLISECONDS).toCoarsest
-      if (cfg hasPath path) Some(duration(path)) else None
+      if (cfg hasPath path) Either.catchNonFatal(duration(path)).toOption else None
     }
 
     def option[T](path: String, f: Config => (String => T)): Option[T] =
-      if (cfg hasPath path) Option(f(cfg)(path)) else None
+      if (cfg hasPath path) Either.catchNonFatal(f(cfg)(path)).toOption else None
   }
 
 }
