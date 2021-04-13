@@ -57,15 +57,26 @@ class ConfigSpec extends Specification {
 
     "partial config" >> {
 
-      val cfg =
+      val cfg1 =
         ConfigFactory.parseString("""
           | sec.address = "10.0.0.3"
           |""".stripMargin)
 
-      val builder = mkSingleNodeBuilder[ErrorOr](Options.default, cfg)
+      val cfg2 =
+        ConfigFactory
+          .parseString(s"""
+          | sec.authority = $${?NOT_DEFINED}
+          | sec.address   = "10.0.0.3"
+          |""".stripMargin)
+          .resolve()
 
-      builder.authority should beNone
-      builder.endpoint shouldEqual Endpoint("10.0.0.3", 2113)
+      val builder1 = mkSingleNodeBuilder[ErrorOr](Options.default, cfg1)
+      builder1.authority should beNone
+      builder1.endpoint shouldEqual Endpoint("10.0.0.3", 2113)
+
+      val builder2 = mkSingleNodeBuilder[ErrorOr](Options.default, cfg2)
+      builder2.authority should beNone
+      builder2.endpoint shouldEqual Endpoint("10.0.0.3", 2113)
 
     }
 
