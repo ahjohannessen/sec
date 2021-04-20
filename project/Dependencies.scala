@@ -14,7 +14,7 @@ object Dependencies {
     val circe            = "0.14.0-M5"
     val scalaPb          = scalapb.compiler.Version.scalapbVersion
     val grpc             = "1.37.0"
-    val disciplineSpecs2 = "1.1.4"
+    val disciplineSpecs2 = "1.1.5"
     val specs2           = "4.10.6"
     val catsEffectSpecs2 = "1.0.1"
     val tsConfig         = "1.4.1"
