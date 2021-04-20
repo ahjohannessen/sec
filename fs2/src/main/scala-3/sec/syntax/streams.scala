@@ -34,9 +34,9 @@ trait StreamsSyntax {
      * @return a [[Stream]] that emits [[AllEvent]] values.
      */
     def subscribeToAll(
-        exclusiveFrom: Option[LogPosition]
+      exclusiveFrom: Option[LogPosition]
     ): Stream[F, AllEvent] =
-        s.subscribeToAll(exclusiveFrom, resolveLinkTos = false)
+      s.subscribeToAll(exclusiveFrom, resolveLinkTos = false)
 
     /**
      * Subscribes to the global stream, [[StreamId.All]] using a subscription filter without
@@ -48,10 +48,10 @@ trait StreamsSyntax {
      *         How frequent [[Checkpoint]] is emitted depends on [[filterOptions]].
      */
     def subscribeToAll(
-        exclusiveFrom: Option[LogPosition],
-        filterOptions: SubscriptionFilterOptions
+      exclusiveFrom: Option[LogPosition],
+      filterOptions: SubscriptionFilterOptions
     ): Stream[F, Either[Checkpoint, AllEvent]] =
-        s.subscribeToAll(exclusiveFrom, filterOptions, resolveLinkTos = false)
+      s.subscribeToAll(exclusiveFrom, filterOptions, resolveLinkTos = false)
 
     /**
      * Subscribes to an individual stream without resolving [[EventType.LinkTo]] events.
@@ -61,10 +61,10 @@ trait StreamsSyntax {
      * @return a [[Stream]] that emits [[StreamEvent]] values.
      */
     def subscribeToStream(
-        streamId: StreamId,
-        exclusiveFrom: Option[StreamPosition]
+      streamId: StreamId,
+      exclusiveFrom: Option[StreamPosition]
     ): Stream[F, StreamEvent] =
-        s.subscribeToStream(streamId, exclusiveFrom, resolveLinkTos = false)
+      s.subscribeToStream(streamId, exclusiveFrom, resolveLinkTos = false)
 
     /// Read
 
@@ -77,11 +77,11 @@ trait StreamsSyntax {
      * @return a [[Stream]] that emits [[AllEvent]] values.
      */
     def readAllForwards(
-        from: LogPosition = LogPosition.Start,
-        maxCount: Long = Long.MaxValue,
-        resolveLinkTos: Boolean = false
+      from: LogPosition = LogPosition.Start,
+      maxCount: Long = Long.MaxValue,
+      resolveLinkTos: Boolean = false
     ): Stream[F, AllEvent] =
-        s.readAll(from, Direction.Forwards, maxCount, resolveLinkTos)
+      s.readAll(from, Direction.Forwards, maxCount, resolveLinkTos)
 
     /**
      * Read events backwards from the global stream, [[sec.StreamId.All]].
@@ -92,11 +92,11 @@ trait StreamsSyntax {
      * @return a [[Stream]] that emits [[AllEvent]] values.
      */
     def readAllBackwards(
-        from: LogPosition = LogPosition.End,
-        maxCount: Long = Long.MaxValue,
-        resolveLinkTos: Boolean = false
+      from: LogPosition = LogPosition.End,
+      maxCount: Long = Long.MaxValue,
+      resolveLinkTos: Boolean = false
     ): Stream[F, AllEvent] =
-        s.readAll(from, Direction.Backwards, maxCount, resolveLinkTos)
+      s.readAll(from, Direction.Backwards, maxCount, resolveLinkTos)
 
     /**
      * Read events forwards from an individual stream. A [[sec.api.exceptions.StreamNotFound]] is raised
@@ -109,12 +109,12 @@ trait StreamsSyntax {
      * @return a [[Stream]] that emits [[StreamEvent]] values.
      */
     def readStreamForwards(
-        streamId: StreamId,
-        from: StreamPosition = StreamPosition.Start,
-        maxCount: Long = Long.MaxValue,
-        resolveLinkTos: Boolean = false
+      streamId: StreamId,
+      from: StreamPosition = StreamPosition.Start,
+      maxCount: Long = Long.MaxValue,
+      resolveLinkTos: Boolean = false
     ): Stream[F, StreamEvent] =
-        s.readStream(streamId, from, Direction.Forwards, maxCount, resolveLinkTos)
+      s.readStream(streamId, from, Direction.Forwards, maxCount, resolveLinkTos)
 
     /**
      * Read events backwards from an individual stream. A [[sec.api.exceptions.StreamNotFound]] is raised
@@ -127,12 +127,12 @@ trait StreamsSyntax {
      * @return a [[Stream]] that emits [[StreamEvent]] values.
      */
     def readStreamBackwards(
-        streamId: StreamId,
-        from: StreamPosition = StreamPosition.End,
-        maxCount: Long = Long.MaxValue,
-        resolveLinkTos: Boolean = false
+      streamId: StreamId,
+      from: StreamPosition = StreamPosition.End,
+      maxCount: Long = Long.MaxValue,
+      resolveLinkTos: Boolean = false
     ): Stream[F, StreamEvent] =
-        s.readStream(streamId, from, Direction.Backwards, maxCount, resolveLinkTos)
+      s.readStream(streamId, from, Direction.Backwards, maxCount, resolveLinkTos)
 
   }
 

@@ -25,7 +25,8 @@ lazy val core = project
   .settings(
     name := "sec-core",
     libraryDependencies ++=
-      compileM(cats, scodecBits, circe, scalaPb, grpcApi, grpcStub, grpcProtobuf, grpcCore),
+      compileM(grpcApi, grpcStub, grpcProtobuf, grpcCore) ++
+        compileM(cats, scodecBits, circe, scalaPb),
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
     Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (Compile / sourceManaged).value)
   )
@@ -39,7 +40,8 @@ lazy val `fs2-core` = project
   .settings(
     name := "sec-fs2",
     libraryDependencies ++=
-      compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser),
+      compileM(grpcApi, grpcStub, grpcProtobuf, grpcCore) ++
+        compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser),
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf")
   )
