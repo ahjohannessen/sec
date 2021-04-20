@@ -26,16 +26,16 @@ trait MetaStreamsSyntax {
 
   extension [F[_]: ErrorM](ms: MetaStreams[F]) {
 
-  /**
-   * Sets max age in [[FiniteDuration]] for a stream and returns [[WriteResult]] with current positions of the stream
-   * after a successful operation. Failure to fulfill the expected state is manifested by raising
-   * [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   * @param age the max age [[FiniteDuration]] value for data in the stream. Valid values are [[FiniteDuration]]
-   *            greater or equal to 1 second. An [[InvalidInput]] exception is raised for invalid input value.
-   */  
+    /**
+     * Sets max age in [[FiniteDuration]] for a stream and returns [[WriteResult]] with current positions of the stream
+     * after a successful operation. Failure to fulfill the expected state is manifested by raising
+     * [[sec.api.exceptions.WrongExpectedState]].
+     *
+     * @param id the id of the stream.
+     * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
+     * @param age the max age [[FiniteDuration]] value for data in the stream. Valid values are [[FiniteDuration]]
+     *            greater or equal to 1 second. An [[InvalidInput]] exception is raised for invalid input value.
+     */
     def setMaxAge(id: Id, expectedState: StreamState, age: FiniteDuration): F[WriteResult] =
       MaxAge(age).liftTo[F] >>= (ms.setMaxAge(id, expectedState, _))
 

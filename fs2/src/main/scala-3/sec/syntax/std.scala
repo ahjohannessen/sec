@@ -22,7 +22,7 @@ import scodec.bits.ByteVector
 
 trait StringSyntax {
 
-  extension[F[_]: ErrorA] (s: String) {
+  extension [F[_]: ErrorA](s: String) {
 
     def utf8Bytes: F[ByteVector] = ByteVector.encodeUtf8(s).liftTo[F]
 

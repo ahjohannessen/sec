@@ -27,7 +27,7 @@ import sec.tsc.config.mkClient
 
 trait EsClientObjectSyntax {
 
-  extension(ec: EsClient.type) {
+  extension (ec: EsClient.type) {
 
     def fromConfig[F[_]: Async]: Resource[F, EsClient[F]] =
       Resource.eval(Sync[F].delay(ConfigFactory.load)) >>= { cfg =>

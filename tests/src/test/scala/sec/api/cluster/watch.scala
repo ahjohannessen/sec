@@ -127,7 +127,7 @@ class ClusterWatchSpec extends Specification with TestInstances with CatsEffect 
 
     "retry retriable error using retry delay for backoff" >> {
 
-      val ec: TestContext          = TestContext()
+      val ec: TestContext     = TestContext()
       implicit val tc: Ticker = Ticker(ec)
 
       val options = ClusterOptions.default
