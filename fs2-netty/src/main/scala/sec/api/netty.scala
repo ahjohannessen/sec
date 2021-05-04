@@ -25,8 +25,8 @@ private[sec] object netty {
 
   def mkBuilder[F[_]: Sync](p: ChannelBuilderParams): F[NettyChannelBuilder] = Sync[F].delay {
     p.targetOrEndpoint.fold(
-      t => p.creds.fold(forTarget(t))(forTarget(t, _)),
-      ep => p.creds.fold(forAddress(ep.address, ep.port))(forAddress(ep.address, ep.port, _))
+      t => p.creds.fold(forTarget(t).usePlaintext())(forTarget(t, _)),
+      ep => p.creds.fold(forAddress(ep.address, ep.port).usePlaintext())(forAddress(ep.address, ep.port, _))
     )
   }
 
