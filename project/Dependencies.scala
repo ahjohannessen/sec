@@ -11,12 +11,12 @@ object Dependencies {
     val log4cats         = "2.1.0"
     val logback          = "1.2.3"
     val scodecBits       = "1.1.26"
-    val circe            = "0.14.0-M5"
+    val circe            = "0.14.0-M6"
     val scalaPb          = scalapb.compiler.Version.scalapbVersion
     val grpc             = "1.37.0"
     val disciplineSpecs2 = "1.1.5"
     val specs2           = "4.11.0"
-    val catsEffectSpecs2 = "1.0.1"
+    val catsEffectSpecs2 = "1.1.0"
     val tsConfig         = "1.4.1"
 
   }
