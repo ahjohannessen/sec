@@ -27,6 +27,7 @@ import com.eventstore.dbclient.proto.streams.StreamsFs2Grpc
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
 import io.grpc.{CallOptions, ManagedChannel}
+import fs2.grpc.client.ClientOptions
 import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.grpc.convert.convertToEs
 import sec.api.grpc.metadata._
@@ -115,7 +116,13 @@ object EsClient {
     mc: ManagedChannel,
     fn: Endo[CallOptions] = identity
   ): Resource[F, StreamsFs2Grpc[F, Context]] =
-    StreamsFs2Grpc.clientResource[F, Context](mc, _.toMetadata, fn, convertToEs)
+    StreamsFs2Grpc.clientResource[F, Context](
+      mc, 
+      _.toMetadata, 
+      ClientOptions.default
+        .configureCallOptions(fn)
+        .withErrorAdapter(Function.unlift(convertToEs))
+    )
 
   /// Gossip
 
@@ -123,6 +130,12 @@ object EsClient {
     mc: ManagedChannel,
     fn: Endo[CallOptions] = identity
   ): Resource[F, GossipFs2Grpc[F, Context]] =
-    GossipFs2Grpc.clientResource[F, Context](mc, _.toMetadata, fn, convertToEs)
+    GossipFs2Grpc.clientResource[F, Context](
+      mc, 
+      _.toMetadata, 
+      ClientOptions.default
+        .configureCallOptions(fn)
+        .withErrorAdapter(Function.unlift(convertToEs))
+    )
 
 }

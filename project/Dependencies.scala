@@ -5,16 +5,16 @@ object Dependencies {
 
   object versions {
 
-    val catsCore         = "2.6.0"
-    val catsEffect       = "3.1.0"
-    val fs2              = "3.0.2"
-    val log4cats         = "2.1.0"
+    val catsCore         = "2.6.1"
+    val catsEffect       = "3.1.1"
+    val fs2              = "3.0.3"
+    val log4cats         = "2.1.1"
     val logback          = "1.2.3"
-    val scodecBits       = "1.1.26"
-    val circe            = "0.14.0-M6"
+    val scodecBits       = "1.1.27"
+    val circe            = "0.14.0-M7"
     val scalaPb          = scalapb.compiler.Version.scalapbVersion
     val grpc             = "1.37.1"
-    val disciplineSpecs2 = "1.1.5"
+    val disciplineSpecs2 = "1.1.6"
     val specs2           = "4.11.0"
     val catsEffectSpecs2 = "1.1.0"
     val tsConfig         = "1.4.1"
