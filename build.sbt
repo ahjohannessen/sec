@@ -6,7 +6,7 @@ Global / lintUnusedKeysOnLoad := false
 ThisBuild / assumedVersionScheme := VersionScheme.Always
 ThisBuild / evictionErrorLevel := Level.Info
 
-lazy val Scala2  = "2.13.5"
+lazy val Scala2  = "2.13.6"
 lazy val Scala3  = "3.0.0-RC3"
 lazy val isDotty = Def.setting[Boolean](scalaVersion.value.startsWith("3."))
 
