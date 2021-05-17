@@ -6,9 +6,9 @@ Global / lintUnusedKeysOnLoad := false
 ThisBuild / assumedVersionScheme := VersionScheme.Always
 ThisBuild / evictionErrorLevel := Level.Info
 
-lazy val Scala2  = "2.13.5"
-lazy val Scala3  = "3.0.0-RC3"
-lazy val isDotty = Def.setting[Boolean](scalaVersion.value.startsWith("3."))
+lazy val Scala2  = "2.13.6"
+lazy val Scala3  = "3.0.0"
+lazy val isScala3 = Def.setting[Boolean](scalaVersion.value.startsWith("3."))
 
 lazy val sec = project
   .in(file("."))
@@ -85,12 +85,12 @@ lazy val tests = project
     buildInfoKeys := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
     Test / headerSources ++= (SingleNodeITest / sources).value ++ (ClusterITest / sources).value,
     libraryDependencies := {
-      if (isDotty.value)
+      if (isScala3.value)
         compileM(
           specs2.cross(CrossVersion.for3Use2_13),
           specs2ScalaCheck.cross(CrossVersion.for3Use2_13),
           specs2Cats.cross(CrossVersion.for3Use2_13),
-          catsEffectSpecs2,
+          catsEffectSpecs2.cross(CrossVersion.for3Use2_13),
           disciplineSpecs2,
           catsLaws,
           catsEffectTestkit,
@@ -135,24 +135,15 @@ lazy val docs = project
       "esdb"          -> "EventStoreDB"
     )
   )
-  .settings(
-    libraryDependencies := {
-      if (isDotty.value)
-        libraryDependencies.value.map(
-          _.exclude("com.thesamet.scalapb", "lenses_2.13").exclude("com.thesamet.scalapb", "scalapb-runtime_2.13"))
-      else
-        libraryDependencies.value
-    }
-  )
 
 //==== Common ==========================================================================================================
 
 lazy val commonSettings = Seq(
   scalacOptions ++= {
-    if (isDotty.value) Seq("-source:3.0-migration") else Nil
+    if (isScala3.value) Seq("-source:3.0-migration") else Nil
   },
   scalacOptions ++= {
-    if (isDotty.value) Seq("-Xtarget:8") else Seq("-target:8")
+    if (isScala3.value) Seq("-Xtarget:8") else Seq("-target:8")
   },
   Compile / doc / scalacOptions ~=
     (_.filterNot(_ == "-Xfatal-warnings"))
@@ -160,7 +151,7 @@ lazy val commonSettings = Seq(
 
 inThisBuild(
   List(
-    scalaVersion := crossScalaVersions.value.last,
+    scalaVersion := crossScalaVersions.value.head,
     crossScalaVersions := Seq(Scala3, Scala2),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
