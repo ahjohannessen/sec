@@ -67,7 +67,7 @@ private[sec] object Options {
 
 sealed private[sec] trait ConnectionMode
 private[sec] object ConnectionMode {
-  case object Insecure                extends ConnectionMode
+  case object Insecure extends ConnectionMode
   final case class Secure(cert: File) extends ConnectionMode
 }
 

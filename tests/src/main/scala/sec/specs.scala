@@ -18,32 +18,29 @@ package sec
 
 import scala.concurrent.duration._
 import cats.effect._
-import cats.effect.unsafe.implicits._
-import cats.effect.testing.specs2._
+import munit.CatsEffectSuite
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import org.specs2.mutable.Specification
-import org.specs2.specification.AfterAll
 import sec.api.{EsClient, Gossip, MetaStreams, Streams}
 import helpers.text.mkSnakeCase
 
-trait ResourceSpec[A] extends Specification with AfterAll with CatsEffect {
+trait ResourceSpec[A] extends CatsEffectSuite {
 
   final val testName                        = mkSnakeCase(getClass.getSimpleName)
-  final private lazy val logger: Logger[IO] = Slf4jLogger.fromName[IO](testName).unsafeRunSync()
-  final private lazy val (value, shutdown)  = makeResource.allocated.unsafeRunSync()
-  final override def afterAll(): Unit       = shutdown.unsafeRunSync()
+  final private lazy val logger: Logger[IO] = Slf4jLogger.fromName[IO](testName).unsafeRunSync()(ioRuntime)
+  final protected def log: Logger[IO]       = logger
 
   protected def makeResource: Resource[IO, A]
-  final protected def resource: A     = value
-  final protected def log: Logger[IO] = logger
+  protected lazy val fixture: Fixture[A] = ResourceSuiteLocalFixture(testName, makeResource)
+  override def munitFixtures             = List(fixture)
+
 }
 
 trait ClientSpec extends ResourceSpec[EsClient[IO]] {
 
-  override val Timeout: Duration = 120.seconds
+  override val munitTimeout: Duration = 120.seconds
 
-  final def client: EsClient[IO]         = resource
+  final def client: EsClient[IO]         = fixture()
   final def streams: Streams[IO]         = client.streams
   final def metaStreams: MetaStreams[IO] = client.metaStreams
   final def gossip: Gossip[IO]           = client.gossip

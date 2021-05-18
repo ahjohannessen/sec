@@ -26,21 +26,20 @@ import EventFilter._
 
 //======================================================================================================================
 
-/**
- * Used for server-side event stream filtering. There are two *kinds* of filters:
- *
- *   - [[EventFilter.ByStreamId]] when you wish to filter by stream identifier.
- *   - [[EventFilter.ByEventType]] when you wish to filter by event type.
- *
- * In combination with [[EventFilter.Kind]] you can choose between two types of filter expressions:
- *
- *   - [[EventFilter.PrefixFilter]] when you wish to filter for prefixes. An example of this is
- *     `PrefixFilter("user_stream")` for streams starting with the string value `"user_stream"`
- *      like `"user_stream-a"` and `"user_stream-b"`.
- *
- *   - [[EventFilter.RegexFilter]] when you wish to filter with a regular expression. An example of this is
- *     `RegexFilter("^[^$].*")` when you for do not wish to retrieve events starting with `$`.
- */
+/** Used for server-side event stream filtering. There are two *kinds* of filters:
+  *
+  *   - [[EventFilter.ByStreamId]] when you wish to filter by stream identifier.
+  *   - [[EventFilter.ByEventType]] when you wish to filter by event type.
+  *
+  * In combination with [[EventFilter.Kind]] you can choose between two types of filter expressions:
+  *
+  *   - [[EventFilter.PrefixFilter]] when you wish to filter for prefixes. An example of this is
+  *     `PrefixFilter("user_stream")` for streams starting with the string value `"user_stream"` like `"user_stream-a"`
+  *     and `"user_stream-b"`.
+  *
+  *   - [[EventFilter.RegexFilter]] when you wish to filter with a regular expression. An example of this is
+  *     `RegexFilter("^[^$].*")` when you for do not wish to retrieve events starting with `$`.
+  */
 final case class EventFilter(
   kind: Kind,
   option: Either[NonEmptyList[PrefixFilter], RegexFilter]
@@ -49,7 +48,7 @@ final case class EventFilter(
 object EventFilter {
 
   sealed trait Kind
-  case object ByStreamId  extends Kind
+  case object ByStreamId extends Kind
   case object ByEventType extends Kind
 
   def streamIdPrefix(fst: String, rest: String*): EventFilter  = prefix(ByStreamId, fst, rest: _*)
@@ -67,7 +66,7 @@ object EventFilter {
 
   sealed trait Expression
   final case class PrefixFilter(value: String) extends Expression
-  final case class RegexFilter(value: String)  extends Expression
+  final case class RegexFilter(value: String) extends Expression
 
   object RegexFilter {
     val excludeSystemEvents: RegexFilter = apply("^[^$].*".r)
@@ -86,14 +85,15 @@ sealed abstract case class SubscriptionFilterOptions(
 
 object SubscriptionFilterOptions {
 
-  /**
-   * @param filter See [[EventFilter]].
-   * @param maxSearchWindow Maximum number of events to read that do not match the filter.
-   *                        Minimum valid value is 1 and if provided value is less then 1 is used.
-   * @param checkpointIntervalMultiplier The checkpoint interval is multiplied by the max search window to
-   *                                     determine the number of events after which to checkpoint.
-   *                                     Minimum valid value is 1 and if provided value is less then 1 is used.
-   */
+  /** @param filter
+    *   See [[EventFilter]].
+    * @param maxSearchWindow
+    *   Maximum number of events to read that do not match the filter. Minimum valid value is 1 and if provided value is
+    *   less then 1 is used.
+    * @param checkpointIntervalMultiplier
+    *   The checkpoint interval is multiplied by the max search window to determine the number of events after which to
+    *   checkpoint. Minimum valid value is 1 and if provided value is less then 1 is used.
+    */
   def apply(
     filter: EventFilter,
     maxSearchWindow: Option[Int] = 32.some,

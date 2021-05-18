@@ -18,25 +18,25 @@ package sec
 package api
 
 import scala.concurrent.duration._
+import sec.helpers.implicits.munit._
 
 class ClusterSuite extends CSpec {
 
-  "Cluster" should {
+  test("should be reachable") {
 
-    "be reachable" >> {
-
-      fs2.Stream
-        .eval(gossip.read)
-        .evalTap(x => log.info(s"Gossip.read: ${x.render}"))
-        .metered(150.millis)
-        .repeat
-        .take(5)
-        .compile
-        .lastOrError
-        .map(_.members)
-        .map(m => (m.size mustEqual 3) and (m.forall(_.isAlive) should beTrue))
-
-    }
+    fs2.Stream
+      .eval(gossip.read)
+      .evalTap(x => log.info(s"Gossip.read: ${x.render}"))
+      .metered(150.millis)
+      .repeat
+      .take(5)
+      .compile
+      .lastOrError
+      .map(_.members)
+      .map { m =>
+        m.size shouldEqual 3
+        m.forall(_.isAlive) shouldEqual true
+      }
 
   }
 

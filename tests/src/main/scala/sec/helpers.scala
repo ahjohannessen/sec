@@ -17,7 +17,6 @@
 package sec
 
 import java.util.regex.Pattern
-
 import cats.syntax.all._
 import scodec.bits.ByteVector
 import sec.api.Endpoint
@@ -38,6 +37,15 @@ object helpers {
 
     implicit final class BooleanOps(val b: Boolean) extends AnyVal {
       def fold[A](t: => A, f: => A): A = if (b) t else f
+    }
+
+    object munit {
+
+      implicit final class ShouldOps[A](val left: A) extends AnyVal {
+        def shouldEqual[B](right: B)(implicit loc: _root_.munit.Location, ev: B <:< A): Unit =
+          _root_.munit.Assertions.assertEquals(left, right)
+      }
+
     }
 
   }

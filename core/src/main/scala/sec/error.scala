@@ -19,4 +19,4 @@ package sec
 import scala.util.control.NoStackTrace
 
 sealed abstract class ValidationError(msg: String) extends RuntimeException(msg) with NoStackTrace
-final case class InvalidInput(msg: String)         extends ValidationError(msg)
+final case class InvalidInput(msg: String) extends ValidationError(msg)

@@ -19,15 +19,14 @@ package api
 
 class GossipSuite extends SnSpec {
 
-  sequential
+  test("read") {
 
-  "Gossip" should {
-
-    "read" >> {
-
-      gossip.read.map(_.members.headOption should beLike {
-        case Some(MemberInfo(_, _, VNodeState.Leader, true, Endpoint("127.0.0.1", 2113))) => ok
-      })
+    gossip.read.map {
+      _.members.headOption.fold(fail("Expected member")) { mi =>
+        assertEquals(mi.state, VNodeState.Leader)
+        assertEquals(mi.httpEndpoint, Endpoint("127.0.0.1", 2113))
+        assert(mi.isAlive)
+      }
     }
   }
 

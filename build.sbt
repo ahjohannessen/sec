@@ -6,8 +6,8 @@ Global / lintUnusedKeysOnLoad := false
 ThisBuild / assumedVersionScheme := VersionScheme.Always
 ThisBuild / evictionErrorLevel := Level.Info
 
-lazy val Scala2  = "2.13.6"
-lazy val Scala3  = "3.0.0"
+lazy val Scala2   = "2.13.6"
+lazy val Scala3   = "3.0.0"
 lazy val isScala3 = Def.setting[Boolean](scalaVersion.value.startsWith("3."))
 
 lazy val sec = project
@@ -69,7 +69,7 @@ lazy val SingleNodeITest = config("sit") extend Test
 lazy val ClusterITest    = config("cit") extend Test
 
 lazy val integrationSettings = Defaults.testSettings ++ Seq(
-  parallelExecution := false
+  SingleNodeITest / parallelExecution := false
 )
 
 lazy val tests = project
@@ -91,6 +91,7 @@ lazy val tests = project
           specs2ScalaCheck.cross(CrossVersion.for3Use2_13),
           specs2Cats.cross(CrossVersion.for3Use2_13),
           catsEffectSpecs2.cross(CrossVersion.for3Use2_13),
+          munitCatsEffect,
           disciplineSpecs2,
           catsLaws,
           catsEffectTestkit,
@@ -102,17 +103,20 @@ lazy val tests = project
             .exclude("org.scalacheck", "scalacheck_2.13")
             .exclude("org.typelevel", "cats-core_2.13"))
       else
-        compileM(catsEffect,
-                 specs2,
-                 specs2ScalaCheck,
-                 specs2Cats,
-                 catsEffectSpecs2,
-                 disciplineSpecs2,
-                 catsLaws,
-                 catsEffectTestkit,
-                 log4catsSlf4j,
-                 log4catsTesting,
-                 logback)
+        compileM(
+          catsEffect,
+          specs2,
+          specs2ScalaCheck,
+          specs2Cats,
+          catsEffectSpecs2,
+          munitCatsEffect,
+          disciplineSpecs2,
+          catsLaws,
+          catsEffectTestkit,
+          log4catsSlf4j,
+          log4catsTesting,
+          logback
+        )
     }
   )
   .dependsOn(core, `fs2-netty`)
@@ -200,7 +204,7 @@ inThisBuild(
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
-      cond     = Some(scalaCondition(Scala2)),
+      cond     = Some(scalaCondition(Scala3)),
       env = Map(
         "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
       )
@@ -222,19 +226,19 @@ inThisBuild(
           "SEC_SIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_SIT_AUTHORITY"  -> "es.sec.local"
         ),
-        cond = Some(scalaCondition(Scala2))
+        cond = Some(scalaCondition(Scala3))
       )
     ),
     githubWorkflowBuildPostamble += WorkflowStep.Run(
       name     = Some("Stop Single Node"),
       commands = List("pushd .docker", "./single-node.sh down", "popd"),
-      cond     = Some(s"always() && ${scalaCondition(Scala2)}")
+      cond     = Some(s"always() && ${scalaCondition(Scala3)}")
     ),
     githubWorkflowBuildPostamble ++= Seq(
       WorkflowStep.Run(
         name     = Some("Start Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh up -d", "popd"),
-        cond     = Some(scalaCondition(Scala2)),
+        cond     = Some(scalaCondition(Scala3)),
         env = Map(
           "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
         )
@@ -246,12 +250,12 @@ inThisBuild(
           "SEC_CIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_CIT_AUTHORITY"  -> "es.sec.local"
         ),
-        cond = Some(scalaCondition(Scala2))
+        cond = Some(scalaCondition(Scala3))
       ),
       WorkflowStep.Run(
         name     = Some("Stop Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh down", "popd"),
-        cond     = Some(s"always() && ${scalaCondition(Scala2)}")
+        cond     = Some(s"always() && ${scalaCondition(Scala3)}")
       )
     ),
     githubWorkflowPublishTargetBranches := Seq(

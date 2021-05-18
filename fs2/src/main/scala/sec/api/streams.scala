@@ -31,70 +31,82 @@ import sec.api.exceptions.WrongExpectedVersion
 import sec.api.mapping.streams.incoming._
 import sec.api.mapping.streams.outgoing._
 
-/**
- * API for interacting with streams in EventStoreDB.
- *
- * ==Main operations==
- *
- *    - subscribing to the global stream or an individual stream.
- *    - reading from the global stream or an individual stream.
- *    - appending event data to an existing stream or creating a new stream.
- *    - deleting events from a stream.
- *
- * @tparam F the effect type in which [[Streams]] operates.
- */
+/** API for interacting with streams in EventStoreDB.
+  *
+  * 122Main operations122
+  *
+  *   - subscribing to the global stream or an individual stream.
+  *   - reading from the global stream or an individual stream.
+  *   - appending event data to an existing stream or creating a new stream.
+  *   - deleting events from a stream.
+  *
+  * @tparam F
+  *   the effect type in which [[Streams]] operates.
+  */
 trait Streams[F[_]] {
 
-  /**
-   * Subscribes to the global stream, [[StreamId.All]].
-   *
-   * @param exclusiveFrom position to start from. Use [[None]] to subscribe from the beginning.
-   * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits [[AllEvent]] values.
-   */
+  /** Subscribes to the global stream, [[StreamId.All]].
+    *
+    * @param exclusiveFrom
+    *   position to start from. Use [[None]] to subscribe from the beginning.
+    * @param resolveLinkTos
+    *   whether to resolve [[EventType.LinkTo]] events automatically.
+    * @return
+    *   a [[Stream]] that emits [[AllEvent]] values.
+    */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
     resolveLinkTos: Boolean
   ): Stream[F, AllEvent]
 
-  /**
-   * Subscribes to the global stream, [[StreamId.All]] using a subscription filter.
-   *
-   * @param exclusiveFrom log position to start from. Use [[None]] to subscribe from the beginning.
-   * @param filterOptions to use when subscribing - See [[sec.api.SubscriptionFilterOptions]].
-   * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits either [[Checkpoint]] or [[AllEvent]] values.
-   *         How frequent [[Checkpoint]] is emitted depends on `filterOptions`.
-   */
+  /** Subscribes to the global stream, [[StreamId.All]] using a subscription filter.
+    *
+    * @param exclusiveFrom
+    *   log position to start from. Use [[None]] to subscribe from the beginning.
+    * @param filterOptions
+    *   to use when subscribing - See [[sec.api.SubscriptionFilterOptions]].
+    * @param resolveLinkTos
+    *   whether to resolve [[EventType.LinkTo]] events automatically.
+    * @return
+    *   a [[Stream]] that emits either [[Checkpoint]] or [[AllEvent]] values. How frequent [[Checkpoint]] is emitted
+    *   depends on `filterOptions`.
+    */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
     filterOptions: SubscriptionFilterOptions,
     resolveLinkTos: Boolean
   ): Stream[F, Either[Checkpoint, AllEvent]]
 
-  /**
-   * Subscribes to an individual stream.
-   *
-   * @param streamId the id of the stream to subscribe to.
-   * @param exclusiveFrom stream position to start from. Use [[None]] to subscribe from the beginning.
-   * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits [[StreamEvent]] values.
-   */
+  /** Subscribes to an individual stream.
+    *
+    * @param streamId
+    *   the id of the stream to subscribe to.
+    * @param exclusiveFrom
+    *   stream position to start from. Use [[None]] to subscribe from the beginning.
+    * @param resolveLinkTos
+    *   whether to resolve [[EventType.LinkTo]] events automatically.
+    * @return
+    *   a [[Stream]] that emits [[StreamEvent]] values.
+    */
   def subscribeToStream(
     streamId: StreamId,
     exclusiveFrom: Option[StreamPosition],
     resolveLinkTos: Boolean
   ): Stream[F, StreamEvent]
 
-  /**
-   * Read events from the global stream, [[sec.StreamId.All]].
-   *
-   * @param from log position to read from.
-   * @param direction whether to read forwards or backwards.
-   * @param maxCount limits maximum events returned.
-   * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits [[AllEvent]] values.
-   */
+  /** Read events from the global stream, [[sec.StreamId.All]].
+    *
+    * @param from
+    *   log position to read from.
+    * @param direction
+    *   whether to read forwards or backwards.
+    * @param maxCount
+    *   limits maximum events returned.
+    * @param resolveLinkTos
+    *   whether to resolve [[EventType.LinkTo]] events automatically.
+    * @return
+    *   a [[Stream]] that emits [[AllEvent]] values.
+    */
   def readAll(
     from: LogPosition,
     direction: Direction,
@@ -102,17 +114,22 @@ trait Streams[F[_]] {
     resolveLinkTos: Boolean
   ): Stream[F, AllEvent]
 
-  /**
-   * Read events from an individual stream. A [[sec.api.exceptions.StreamNotFound]] is raised
-   * when the stream does not exist.
-   *
-   * @param streamId the id of the stream to subscribe to.
-   * @param from stream position to read from.
-   * @param direction whether to read forwards or backwards.
-   * @param maxCount limits maximum events returned.
-   * @param resolveLinkTos whether to resolve [[EventType.LinkTo]] events automatically.
-   * @return a [[Stream]] that emits [[StreamEvent]] values.
-   */
+  /** Read events from an individual stream. A [[sec.api.exceptions.StreamNotFound]] is raised when the stream does not
+    * exist.
+    *
+    * @param streamId
+    *   the id of the stream to subscribe to.
+    * @param from
+    *   stream position to read from.
+    * @param direction
+    *   whether to read forwards or backwards.
+    * @param maxCount
+    *   limits maximum events returned.
+    * @param resolveLinkTos
+    *   whether to resolve [[EventType.LinkTo]] events automatically.
+    * @return
+    *   a [[Stream]] that emits [[StreamEvent]] values.
+    */
   def readStream(
     streamId: StreamId,
     from: StreamPosition,
@@ -121,59 +138,68 @@ trait Streams[F[_]] {
     resolveLinkTos: Boolean
   ): Stream[F, StreamEvent]
 
-  /**
-   * Appends [[EventData]] to a stream and returns [[WriteResult]] with current positions of the stream
-   * after a successful operation. Failure to fulfill the expected state is manifested by raising
-   * [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @see [[https://ahjohannessen.github.io/sec/docs/writing]] for details about appending to a stream.
-   *
-   * @param streamId the id of the stream to append to.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   * @param data event data to be appended to the stream. See [[EventData]].
-   */
+  /** Appends [[EventData]] to a stream and returns [[WriteResult]] with current positions of the stream after a
+    * successful operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @see
+    *   [[https://ahjohannessen.github.io/sec/docs/writing]] for details about appending to a stream.
+    *
+    * @param streamId
+    *   the id of the stream to append to.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    * @param data
+    *   event data to be appended to the stream. See [[EventData]].
+    */
   def appendToStream(
     streamId: StreamId,
     expectedState: StreamState,
     data: NonEmptyList[EventData]
   ): F[WriteResult]
 
-  /**
-   * Deletes a stream and returns [[DeleteResult]] with current log position after a successful operation.
-   * Failure to fulfill the expected stated is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @note Deleted streams can be recreated.
-   * @see [[https://ahjohannessen.github.io/sec/docs/deleting]] for details about what it means to delete a stream.
-   *
-   * @param streamId the id of the stream to delete.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   */
+  /** Deletes a stream and returns [[DeleteResult]] with current log position after a successful operation. Failure to
+    * fulfill the expected stated is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @note
+    *   Deleted streams can be recreated.
+    * @see
+    *   [[https://ahjohannessen.github.io/sec/docs/deleting]] for details about what it means to delete a stream.
+    *
+    * @param streamId
+    *   the id of the stream to delete.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    */
   def delete(
     streamId: StreamId,
     expectedState: StreamState
   ): F[DeleteResult]
 
-  /**
-   * Tombstones a stream and returns [[TombstoneResult]] with current log position after a successful operation.
-   * Failure to fulfill the expected stated is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @note Tombstoned streams can *never* be recreated.
-   * @see [[https://ahjohannessen.github.io/sec/docs/deleting]] for details about what it means to tombstone a stream.
-   *
-   * @param streamId the id of the stream to delete.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   */
+  /** Tombstones a stream and returns [[TombstoneResult]] with current log position after a successful operation.
+    * Failure to fulfill the expected stated is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @note
+    *   Tombstoned streams can *never* be recreated.
+    * @see
+    *   [[https://ahjohannessen.github.io/sec/docs/deleting]] for details about what it means to tombstone a stream.
+    *
+    * @param streamId
+    *   the id of the stream to delete.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    */
   def tombstone(
     streamId: StreamId,
     expectedState: StreamState
   ): F[TombstoneResult]
 
-  /**
-   * Returns an instance that uses provided [[UserCredentials]]. This is useful when an operation
-   * requires different credentials from what is provided through configuration.
-   *
-   * @param creds Custom user credentials to use.
-   */
+  /** Returns an instance that uses provided [[UserCredentials]]. This is useful when an operation requires different
+    * credentials from what is provided through configuration.
+    *
+    * @param creds
+    *   Custom user credentials to use.
+    */
   def withCredentials(
     creds: UserCredentials
   ): Streams[F]

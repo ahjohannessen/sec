@@ -6,7 +6,7 @@ x-common-variables: &common-variables
 services:
 
   es1:
-    image: eventstore/eventstore:21.2.0-bionic
+    image: eventstore/eventstore:20.10.2-bionic
     env_file:
       - ./shared.env
     environment:
@@ -24,7 +24,7 @@ services:
       - cert-gen
 
   es2:
-    image: eventstore/eventstore:21.2.0-bionic
+    image: eventstore/eventstore:20.10.2-bionic
     env_file:
       - ./shared.env
     environment:
@@ -42,7 +42,7 @@ services:
       - cert-gen
 
   es3:
-    image: eventstore/eventstore:21.2.0-bionic
+    image: eventstore/eventstore:20.10.2-bionic
     env_file:
       - ./shared.env
     environment:

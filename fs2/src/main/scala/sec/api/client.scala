@@ -117,11 +117,12 @@ object EsClient {
     fn: Endo[CallOptions] = identity
   ): Resource[F, StreamsFs2Grpc[F, Context]] =
     StreamsFs2Grpc.clientResource[F, Context](
-      mc, 
-      _.toMetadata, 
+      mc,
+      _.toMetadata,
       ClientOptions.default
         .configureCallOptions(fn)
         .withErrorAdapter(Function.unlift(convertToEs))
+        .withPrefetchN(1024)
     )
 
   /// Gossip
@@ -131,11 +132,12 @@ object EsClient {
     fn: Endo[CallOptions] = identity
   ): Resource[F, GossipFs2Grpc[F, Context]] =
     GossipFs2Grpc.clientResource[F, Context](
-      mc, 
-      _.toMetadata, 
+      mc,
+      _.toMetadata,
       ClientOptions.default
         .configureCallOptions(fn)
         .withErrorAdapter(Function.unlift(convertToEs))
+        .withPrefetchN(1024)
     )
 
 }

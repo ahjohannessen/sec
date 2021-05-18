@@ -35,211 +35,229 @@ import StreamPosition.Exact
 import StreamId.MetaId
 import MetaStreams._
 
-/**
- * API for interacting with metadata streams in EventStoreDB.
- *
- * Methods for getting, setting and unsetting metadata for streams.
- *
- * @tparam F the effect type in which [[MetaStreams]] operates.
- */
+/** API for interacting with metadata streams in EventStoreDB.
+  *
+  * Methods for getting, setting and unsetting metadata for streams.
+  *
+  * @tparam F
+  *   the effect type in which [[MetaStreams]] operates.
+  */
 trait MetaStreams[F[_]] {
 
-  /**
-   * Gets the max age for a stream.
-   *
-   * @param id the id of the stream.
-   * @return an optional result for the metadata stream containing
-   *         current [[StreamPosition]] for the metadata stream and
-   *         the [[MaxAge]] value.
-   */
+  /** Gets the max age for a stream.
+    *
+    * @param id
+    *   the id of the stream.
+    * @return
+    *   an optional result for the metadata stream containing current [[StreamPosition]] for the metadata stream and the
+    *   [[MaxAge]] value.
+    */
   def getMaxAge(id: Id): F[Option[ReadResult[MaxAge]]]
 
-  /**
-   * Sets [[MaxAge]] for a stream and returns [[WriteResult]] with current positions of the stream
-   * after a successful operation. Failure to fulfill the expected state is manifested by raising
-   * [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   * @param age the max age for data in the stream.
-   */
+  /** Sets [[MaxAge]] for a stream and returns [[WriteResult]] with current positions of the stream after a successful
+    * operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @param id
+    *   the id of the stream.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    * @param age
+    *   the max age for data in the stream.
+    */
   def setMaxAge(id: Id, expectedState: StreamState, age: MaxAge): F[WriteResult]
 
-  /**
-   * Removes [[MaxAge]] for a stream and returns [[WriteResult]] with current positions of the stream
-   * after a successful operation. Failure to fulfill the expected state is manifested by raising
-   * [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   */
+  /** Removes [[MaxAge]] for a stream and returns [[WriteResult]] with current positions of the stream after a
+    * successful operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @param id
+    *   the id of the stream.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    */
   def unsetMaxAge(id: Id, expectedState: StreamState): F[WriteResult]
 
-  /**
-   * Gets the max count for a stream.
-   *
-   * @param id the id of the stream.
-   * @return an optional result for the metadata stream containing
-   *         current [[StreamPosition]] for the metadata stream and
-   *         the [[MaxCount]] value.
-   */
+  /** Gets the max count for a stream.
+    *
+    * @param id
+    *   the id of the stream.
+    * @return
+    *   an optional result for the metadata stream containing current [[StreamPosition]] for the metadata stream and the
+    *   [[MaxCount]] value.
+    */
   def getMaxCount(id: Id): F[Option[ReadResult[MaxCount]]]
 
-  /**
-   * Sets [[MaxCount]] for a stream and returns [[WriteResult]] with current positions of the stream
-   * after a successful operation. Failure to fulfill the expected state is manifested by raising
-   * [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   * @param count the max count of data in the stream.
-   */
+  /** Sets [[MaxCount]] for a stream and returns [[WriteResult]] with current positions of the stream after a successful
+    * operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @param id
+    *   the id of the stream.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    * @param count
+    *   the max count of data in the stream.
+    */
   def setMaxCount(id: Id, expectedState: StreamState, count: MaxCount): F[WriteResult]
 
-  /**
-   * Removes [[MaxCount]] for a stream and returns [[WriteResult]] with current positions of the stream
-   * after a successful operation. Failure to fulfill the expected state is manifested by raising
-   * [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   */
+  /** Removes [[MaxCount]] for a stream and returns [[WriteResult]] with current positions of the stream after a
+    * successful operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @param id
+    *   the id of the stream.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    */
   def unsetMaxCount(id: Id, expectedState: StreamState): F[WriteResult]
 
-  /**
-   * Gets the cache control for a stream.
-   *
-   * @param id the id of the stream.
-   * @return an optional result for the metadata stream containing
-   *         current [[StreamPosition]] for the metadata stream and
-   *         the [[CacheControl]] value.
-   */
+  /** Gets the cache control for a stream.
+    *
+    * @param id
+    *   the id of the stream.
+    * @return
+    *   an optional result for the metadata stream containing current [[StreamPosition]] for the metadata stream and the
+    *   [[CacheControl]] value.
+    */
   def getCacheControl(id: Id): F[Option[ReadResult[CacheControl]]]
 
-  /**
-   * Sets [[CacheControl]] for a stream and returns [[WriteResult]] with current positions of the stream
-   * after a successful operation. Failure to fulfill the expected state is manifested by raising
-   * [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   * @param cacheControl the cache control for the stream.
-   */
+  /** Sets [[CacheControl]] for a stream and returns [[WriteResult]] with current positions of the stream after a
+    * successful operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @param id
+    *   the id of the stream.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    * @param cacheControl
+    *   the cache control for the stream.
+    */
   def setCacheControl(id: Id, expectedState: StreamState, cacheControl: CacheControl): F[WriteResult]
 
-  /**
-   * Removes [[CacheControl]] for a stream and returns [[WriteResult]] with current positions of the stream
-   * after a successful operation. Failure to fulfill the expected state is manifested by raising
-   * [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   */
+  /** Removes [[CacheControl]] for a stream and returns [[WriteResult]] with current positions of the stream after a
+    * successful operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @param id
+    *   the id of the stream.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    */
   def unsetCacheControl(id: Id, expectedState: StreamState): F[WriteResult]
 
-  /**
-   * Gets the access control list for a stream.
-   *
-   * @param id the id of the stream.
-   * @return an optional result for the metadata stream containing
-   *         current [[StreamPosition]] for the metadata stream and
-   *         the [[StreamAcl]] value.
-   */
+  /** Gets the access control list for a stream.
+    *
+    * @param id
+    *   the id of the stream.
+    * @return
+    *   an optional result for the metadata stream containing current [[StreamPosition]] for the metadata stream and the
+    *   [[StreamAcl]] value.
+    */
   def getAcl(id: Id): F[Option[ReadResult[StreamAcl]]]
 
-  /**
-   * Sets [[StreamAcl]] for a stream and returns [[WriteResult]] with current positions of the stream
-   * after a successful operation. Failure to fulfill the expected state is manifested by raising
-   * [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   * @param acl the access control list for the stream.
-   */
+  /** Sets [[StreamAcl]] for a stream and returns [[WriteResult]] with current positions of the stream after a
+    * successful operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @param id
+    *   the id of the stream.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    * @param acl
+    *   the access control list for the stream.
+    */
   def setAcl(id: Id, expectedState: StreamState, acl: StreamAcl): F[WriteResult]
 
-  /**
-   * Removes [[StreamAcl]] for a stream and returns [[WriteResult]] with current positions of the stream
-   * after a successful operation. Failure to fulfill the expected state is manifested by raising
-   * [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   */
+  /** Removes [[StreamAcl]] for a stream and returns [[WriteResult]] with current positions of the stream after a
+    * successful operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @param id
+    *   the id of the stream.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    */
   def unsetAcl(id: Id, expectedState: StreamState): F[WriteResult]
 
-  /**
-   * Gets the [[StreamPosition]] value that a stream is truncated before.
-   *
-   * @param id the id of the stream.
-   * @return an optional result for the metadata stream containing
-   *         current [[StreamPosition]] for the metadata stream and
-   *         the [[StreamPosition]] truncate before value.
-   */
+  /** Gets the [[StreamPosition]] value that a stream is truncated before.
+    *
+    * @param id
+    *   the id of the stream.
+    * @return
+    *   an optional result for the metadata stream containing current [[StreamPosition]] for the metadata stream and the
+    *   [[StreamPosition]] truncate before value.
+    */
   def getTruncateBefore(id: Id): F[Option[ReadResult[Exact]]]
 
-  /**
-   * Sets [[StreamPosition]] truncated value for a stream and returns [[WriteResult]] with current positions
-   * of the stream after a successful operation. Failure to fulfill the expected state is manifested
-   * by raising [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   * @param truncateBefore the truncated before stream position for the stream, the value used entails
-   *                        that events with a stream position less than the truncated before value
-   *                        should be removed.
-   */
+  /** Sets [[StreamPosition]] truncated value for a stream and returns [[WriteResult]] with current positions of the
+    * stream after a successful operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @param id
+    *   the id of the stream.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    * @param truncateBefore
+    *   the truncated before stream position for the stream, the value used entails that events with a stream position
+    *   less than the truncated before value should be removed.
+    */
   def setTruncateBefore(id: Id, expectedState: StreamState, truncateBefore: Exact): F[WriteResult]
 
-  /**
-   * Removes [[StreamPosition]] truncated value for a stream and returns [[WriteResult]] with current positions
-   * of the stream after a successful operation. Failure to fulfill the expected state is manifested
-   * by raising [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   */
+  /** Removes [[StreamPosition]] truncated value for a stream and returns [[WriteResult]] with current positions of the
+    * stream after a successful operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @param id
+    *   the id of the stream.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    */
   def unsetTruncateBefore(id: Id, expectedState: StreamState): F[WriteResult]
 
-  /**
-   * Gets a custom JSON encoded metadata value for a stream using a provided decoder.
-   *
-   * @param id the id of the stream.
-   * @return an optional result for the metadata stream containing
-   *         current [[StreamPosition]] for the metadata stream and
-   *         a JSON value using the provided [[io.circe.Decoder]] decoder.
-   */
+  /** Gets a custom JSON encoded metadata value for a stream using a provided decoder.
+    *
+    * @param id
+    *   the id of the stream.
+    * @return
+    *   an optional result for the metadata stream containing current [[StreamPosition]] for the metadata stream and a
+    *   JSON value using the provided [[io.circe.Decoder]] decoder.
+    */
   def getCustom[T: Decoder](id: Id): F[Option[ReadResult[T]]]
 
-  /**
-   * Sets a custom JSON metadata value for a stream and returns [[WriteResult]] with current positions
-   * of the stream after a successful operation. Failure to fulfill the expected state is manifested
-   * by raising [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   * @param custom the custom JSON value using the provided [[io.circe.Encoder.AsObject]] encoder.
-   */
+  /** Sets a custom JSON metadata value for a stream and returns [[WriteResult]] with current positions of the stream
+    * after a successful operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @param id
+    *   the id of the stream.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    * @param custom
+    *   the custom JSON value using the provided [[io.circe.Encoder.AsObject]] encoder.
+    */
   def setCustom[T: Encoder.AsObject](id: Id, expectedState: StreamState, custom: T): F[WriteResult]
 
-  /**
-   * Removes custom JSON metadata value for a stream and returns [[WriteResult]] with current positions
-   * of the stream after a successful operation. Failure to fulfill the expected state is manifested
-   * by raising [[sec.api.exceptions.WrongExpectedState]].
-   *
-   * @note Removing custom JSON metadata does not affect other metadata values.
-   *
-   * @param id the id of the stream.
-   * @param expectedState the state that the stream is expected to in. See [[StreamState]] for details.
-   */
+  /** Removes custom JSON metadata value for a stream and returns [[WriteResult]] with current positions of the stream
+    * after a successful operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @note
+    *   Removing custom JSON metadata does not affect other metadata values.
+    *
+    * @param id
+    *   the id of the stream.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    */
   def unsetCustom(id: Id, expectedState: StreamState): F[WriteResult]
 
-  /**
-   * Returns an instance that uses provided [[UserCredentials]]. This is useful when an operation
-   * requires different credentials from what is provided through configuration.
-   *
-   * @param creds Custom user credentials to use.
-   */
+  /** Returns an instance that uses provided [[UserCredentials]]. This is useful when an operation requires different
+    * credentials from what is provided through configuration.
+    *
+    * @param creds
+    *   Custom user credentials to use.
+    */
   def withCredentials(creds: UserCredentials): MetaStreams[F]
 
   ///

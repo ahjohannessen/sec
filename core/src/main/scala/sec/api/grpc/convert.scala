@@ -72,10 +72,10 @@ private[sec] object convert {
       case ce.PersistentSubscriptionFailed       => PersistentSubscription.Failed(streamName, groupName, reason)
       case ce.PersistentSubscriptionDoesNotExist => PersistentSubscription.NotFound(streamName, groupName)
       case ce.PersistentSubscriptionExists       => PersistentSubscription.Exists(streamName, groupName)
-      case ce.MaximumSubscribersReached          => PersistentSubscription.MaximumSubscribersReached(streamName, groupName)
-      case ce.PersistentSubscriptionDropped      => PersistentSubscription.Dropped(streamName, groupName)
-      case ce.UserNotFound                       => UserNotFound(loginName)
-      case unknown                               => UnknownError(s"Exception key: $unknown")
+      case ce.MaximumSubscribersReached     => PersistentSubscription.MaximumSubscribersReached(streamName, groupName)
+      case ce.PersistentSubscriptionDropped => PersistentSubscription.Dropped(streamName, groupName)
+      case ce.UserNotFound                  => UserNotFound(loginName)
+      case unknown                          => UnknownError(s"Exception key: $unknown")
     }
 
     reified orElse serverUnavailable(ex)

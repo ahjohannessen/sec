@@ -17,6 +17,7 @@ object Dependencies {
     val disciplineSpecs2 = "1.1.6"
     val specs2           = "4.11.0"
     val catsEffectSpecs2 = "1.1.0"
+    val munitCatsEffect  = "1.0.3"
     val tsConfig         = "1.4.1"
 
   }
@@ -48,6 +49,7 @@ object Dependencies {
   val catsLaws          = "org.typelevel" %% "cats-laws"                  % versions.catsCore
   val catsEffectTestkit = "org.typelevel" %% "cats-effect-testkit"        % versions.catsEffect
   val catsEffectSpecs2  = "org.typelevel" %% "cats-effect-testing-specs2" % versions.catsEffectSpecs2
+  val munitCatsEffect   = "org.typelevel" %% "munit-cats-effect-3"        % versions.munitCatsEffect
   val logback           = "ch.qos.logback" % "logback-classic"            % versions.logback
   val log4catsTesting   = "org.typelevel" %% "log4cats-testing"           % versions.log4cats
   val log4catsSlf4j     = "org.typelevel" %% "log4cats-slf4j"             % versions.log4cats
