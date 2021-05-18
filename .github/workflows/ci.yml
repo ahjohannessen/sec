@@ -50,7 +50,7 @@ jobs:
           key: ${{ runner.os }}-sbt-cache-v2-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Start Single Node
-        if: contains(matrix.scala, '2.13.6')
+        if: contains(matrix.scala, '3.0.0')
         env:
           SEC_GENCERT_CERTS_ROOT: ${{ github.workspace }}
         run: |
@@ -69,21 +69,21 @@ jobs:
         run: sbt ++${{ matrix.scala }} compileTests tests/test
 
       - name: Single node integration tests
-        if: contains(matrix.scala, '2.13.6')
+        if: contains(matrix.scala, '3.0.0')
         env:
           SEC_SIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_SIT_AUTHORITY: es.sec.local
         run: sbt ++${{ matrix.scala }} 'tests / Sit / test'
 
       - name: Stop Single Node
-        if: always() && contains(matrix.scala, '2.13.6')
+        if: always() && contains(matrix.scala, '3.0.0')
         run: |
           pushd .docker
           ./single-node.sh down
           popd
 
       - name: Start Cluster Nodes
-        if: contains(matrix.scala, '2.13.6')
+        if: contains(matrix.scala, '3.0.0')
         env:
           SEC_GENCERT_CERTS_ROOT: ${{ github.workspace }}
         run: |
@@ -92,14 +92,14 @@ jobs:
           popd
 
       - name: Cluster integration tests
-        if: contains(matrix.scala, '2.13.6')
+        if: contains(matrix.scala, '3.0.0')
         env:
           SEC_CIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_CIT_AUTHORITY: es.sec.local
         run: sbt ++${{ matrix.scala }} 'tests / Cit / test'
 
       - name: Stop Cluster Nodes
-        if: always() && contains(matrix.scala, '2.13.6')
+        if: always() && contains(matrix.scala, '3.0.0')
         run: |
           pushd .docker
           ./cluster.sh down

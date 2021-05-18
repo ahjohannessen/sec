@@ -200,7 +200,7 @@ inThisBuild(
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
-      cond     = Some(scalaCondition(Scala2)),
+      cond     = Some(scalaCondition(Scala3)),
       env = Map(
         "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
       )
@@ -222,19 +222,19 @@ inThisBuild(
           "SEC_SIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_SIT_AUTHORITY"  -> "es.sec.local"
         ),
-        cond = Some(scalaCondition(Scala2))
+        cond = Some(scalaCondition(Scala3))
       )
     ),
     githubWorkflowBuildPostamble += WorkflowStep.Run(
       name     = Some("Stop Single Node"),
       commands = List("pushd .docker", "./single-node.sh down", "popd"),
-      cond     = Some(s"always() && ${scalaCondition(Scala2)}")
+      cond     = Some(s"always() && ${scalaCondition(Scala3)}")
     ),
     githubWorkflowBuildPostamble ++= Seq(
       WorkflowStep.Run(
         name     = Some("Start Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh up -d", "popd"),
-        cond     = Some(scalaCondition(Scala2)),
+        cond     = Some(scalaCondition(Scala3)),
         env = Map(
           "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
         )
@@ -246,12 +246,12 @@ inThisBuild(
           "SEC_CIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_CIT_AUTHORITY"  -> "es.sec.local"
         ),
-        cond = Some(scalaCondition(Scala2))
+        cond = Some(scalaCondition(Scala3))
       ),
       WorkflowStep.Run(
         name     = Some("Stop Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh down", "popd"),
-        cond     = Some(s"always() && ${scalaCondition(Scala2)}")
+        cond     = Some(s"always() && ${scalaCondition(Scala3)}")
       )
     ),
     githubWorkflowPublishTargetBranches := Seq(
