@@ -69,7 +69,7 @@ lazy val SingleNodeITest = config("sit") extend Test
 lazy val ClusterITest    = config("cit") extend Test
 
 lazy val integrationSettings = Defaults.testSettings ++ Seq(
-  SingleNodeITest / test / fork := true
+  fork := true
 )
 
 lazy val tests = project
