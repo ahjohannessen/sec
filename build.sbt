@@ -151,7 +151,7 @@ lazy val commonSettings = Seq(
 
 inThisBuild(
   List(
-    scalaVersion := Scala3,
+    scalaVersion := Scala2,
     crossScalaVersions := Seq(Scala3, Scala2),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
