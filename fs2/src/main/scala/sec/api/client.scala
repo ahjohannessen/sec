@@ -70,7 +70,9 @@ object EsClient {
     requiresLeader: Boolean,
     logger: Logger[F]
   ): Resource[F, EsClient[F]] =
-    (mkStreamsFs2Grpc[F](mc), mkGossipFs2Grpc[F](mc)).mapN((s, g) => create[F](s, g, options, requiresLeader, logger))
+    (mkStreamsFs2Grpc[F](mc, options.prefetchN), mkGossipFs2Grpc[F](mc)).mapN { (s, g) =>
+      create[F](s, g, options, requiresLeader, logger)
+    }
 
   private[sec] def create[F[_]: Async](
     streamsFs2Grpc: StreamsFs2Grpc[F, Context],
@@ -114,6 +116,7 @@ object EsClient {
 
   private[sec] def mkStreamsFs2Grpc[F[_]: Async](
     mc: ManagedChannel,
+    prefetchN: Int,
     fn: Endo[CallOptions] = identity
   ): Resource[F, StreamsFs2Grpc[F, Context]] =
     StreamsFs2Grpc.clientResource[F, Context](
@@ -122,7 +125,7 @@ object EsClient {
       ClientOptions.default
         .configureCallOptions(fn)
         .withErrorAdapter(Function.unlift(convertToEs))
-        .withPrefetchN(4096)
+        .withPrefetchN(prefetchN)
     )
 
   /// Gossip
@@ -137,7 +140,6 @@ object EsClient {
       ClientOptions.default
         .configureCallOptions(fn)
         .withErrorAdapter(Function.unlift(convertToEs))
-        .withPrefetchN(4096)
     )
 
 }

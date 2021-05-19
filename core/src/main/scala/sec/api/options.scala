@@ -29,7 +29,8 @@ private[sec] case class Options(
   credentials: Option[UserCredentials],
   operationOptions: OperationOptions,
   connectionMode: ConnectionMode,
-  channelShutdownAwait: FiniteDuration
+  channelShutdownAwait: FiniteDuration,
+  prefetchN: Int
 )
 
 private[sec] object Options {
@@ -41,7 +42,8 @@ private[sec] object Options {
     credentials          = UserCredentials.unsafe("admin", "changeit").some,
     operationOptions     = OperationOptions.default,
     connectionMode       = Insecure,
-    channelShutdownAwait = 5.seconds
+    channelShutdownAwait = 5.seconds,
+    prefetchN            = 512
   )
 
   implicit final class OptionsOps(val o: Options) extends AnyVal {
@@ -54,6 +56,7 @@ private[sec] object Options {
     def withConnectionName(name: String): Options                   = o.copy(connectionName = name)
     def withCredentials(creds: Option[UserCredentials]): Options    = o.copy(credentials = creds)
     def withChannelShutdownAwait(await: FiniteDuration): Options    = o.copy(channelShutdownAwait = await)
+    def withPrefetchN(n: Int)                                       = o.copy(prefetchN = math.max(n, 1))
     def withOperationsRetryDelay(delay: FiniteDuration): Options    = modifyOO(_.copy(retryDelay = delay))
     def withOperationsRetryMaxDelay(delay: FiniteDuration): Options = modifyOO(_.copy(retryMaxDelay = delay))
     def withOperationsRetryMaxAttempts(max: Int): Options           = modifyOO(_.copy(retryMaxAttempts = max))
@@ -156,6 +159,7 @@ private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]] {
   def withConnectionName(value: String): B                  = modOptions(_.withConnectionName(value))
   def withCredentials(value: Option[UserCredentials]): B    = modOptions(_.withCredentials(value))
   def withChannelShutdownAwait(value: FiniteDuration): B    = modOptions(_.withChannelShutdownAwait(value))
+  def withPrefetchN(value: Int)                             = modOptions(_.withPrefetchN(value))
   def withOperationsRetryDelay(value: FiniteDuration): B    = modOptions(_.withOperationsRetryDelay(value))
   def withOperationsRetryMaxDelay(value: FiniteDuration): B = modOptions(_.withOperationsRetryMaxDelay(value))
   def withOperationsRetryMaxAttempts(value: Int): B         = modOptions(_.withOperationsRetryMaxAttempts(value))

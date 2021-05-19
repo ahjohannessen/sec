@@ -215,6 +215,7 @@ class ConfigSpec extends Specification {
           |   username               = "mr"
           |   password               = "mr"
           |   channel-shutdown-await = 20s
+          |   prefetch-n-messages    = 1
           | 
           |   operations {
           |   
@@ -234,6 +235,7 @@ class ConfigSpec extends Specification {
         .withSecureMode(new File("path/to/certificate"))
         .withCredentials(UserCredentials("mr", "mr").toOption)
         .withChannelShutdownAwait(20.seconds)
+        .withPrefetchN(1)
         .withOperationsRetryEnabled(false)
         .withOperationsRetryDelay(2500.millis)
         .withOperationsRetryMaxDelay(5.seconds)
