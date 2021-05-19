@@ -57,7 +57,7 @@ object SnSpec {
     .singleNode[F](Endpoint(address, port))
     .withAuthority(authority)
     .withCertificate(cert)
-    .withChannelShutdownAwait(0.seconds)
+    .withChannelShutdownAwait(200.millis)
     .withLogger(log)
     .withOperationsRetryDisabled
     .resource
