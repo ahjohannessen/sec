@@ -140,6 +140,7 @@ private[sec] object config {
       certificate,
       credentials,
       o => cfg.durationOpt(s"$rootPath.channel-shutdown-await").fold(o)(o.withChannelShutdownAwait),
+      o => cfg.option(s"$rootPath.prefetch-n-messages", _.getInt).fold(o)(o.withPrefetchN),
       o => cfg.option(s"$ooPath.retry-enabled", _.getBoolean).fold(o)(o.withOperationsRetryEnabled),
       o => cfg.durationOpt(s"$ooPath.retry-delay").fold(o)(o.withOperationsRetryDelay),
       o => cfg.durationOpt(s"$ooPath.retry-max-delay").fold(o)(o.withOperationsRetryMaxDelay),
