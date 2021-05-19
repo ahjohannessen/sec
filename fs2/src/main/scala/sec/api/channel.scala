@@ -17,10 +17,7 @@
 package sec.api
 
 import java.io.File
-
-import scala.concurrent.blocking
 import scala.concurrent.duration._
-
 import cats.syntax.all._
 import cats.effect.{Resource, Sync}
 import io.grpc._
@@ -45,13 +42,13 @@ private[sec] object channel {
 
   def resource[F[_]: Sync](acquire: => ManagedChannel, shutdownAwait: FiniteDuration): Resource[F, ManagedChannel] = {
     resourceWithShutdown[F](acquire) { ch =>
-      Sync[F].delay {
-        ch.shutdown()
-        if (!blocking(ch.awaitTermination(shutdownAwait.length, shutdownAwait.unit))) {
-          ch.shutdownNow()
-          ()
+      Sync[F].delay(ch.shutdown()) >>
+        Sync[F].blocking {
+          if (!ch.awaitTermination(shutdownAwait.length, shutdownAwait.unit)) {
+            ch.shutdownNow()
+            ()
+          }
         }
-      }
     }
   }
 

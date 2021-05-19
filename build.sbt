@@ -6,8 +6,8 @@ Global / lintUnusedKeysOnLoad := false
 ThisBuild / assumedVersionScheme := VersionScheme.Always
 ThisBuild / evictionErrorLevel := Level.Info
 
-lazy val Scala2  = "2.13.6"
-lazy val Scala3  = "3.0.0"
+lazy val Scala2   = "2.13.6"
+lazy val Scala3   = "3.0.0"
 lazy val isScala3 = Def.setting[Boolean](scalaVersion.value.startsWith("3."))
 
 lazy val sec = project
@@ -68,9 +68,7 @@ lazy val tsc = project
 lazy val SingleNodeITest = config("sit") extend Test
 lazy val ClusterITest    = config("cit") extend Test
 
-lazy val integrationSettings = Defaults.testSettings ++ Seq(
-  parallelExecution := false
-)
+lazy val integrationSettings = Defaults.testSettings
 
 lazy val tests = project
   .in(file("tests"))
@@ -80,6 +78,8 @@ lazy val tests = project
   .settings(inConfig(SingleNodeITest)(integrationSettings ++ scalafixConfigSettings(SingleNodeITest)))
   .settings(inConfig(ClusterITest)(integrationSettings ++ scalafixConfigSettings(ClusterITest)))
   .settings(
+    logBuffered := false,
+    parallelExecution := true,
     publish / skip := true,
     buildInfoPackage := "sec",
     buildInfoKeys := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
@@ -152,7 +152,7 @@ lazy val commonSettings = Seq(
 inThisBuild(
   List(
     scalaVersion := crossScalaVersions.value.head,
-    crossScalaVersions := Seq(Scala3, Scala2),
+    crossScalaVersions := Seq(Scala2),
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
     organizationName := "Scala EventStoreDB Client",
@@ -206,15 +206,15 @@ inThisBuild(
       )
     ),
     githubWorkflowBuild := Seq(
-      WorkflowStep.Sbt(
-        name     = Some("Compile docs"),
-        commands = List("compileDocs"),
-        cond     = Some(scalaCondition(Scala2))
-      ),
-      WorkflowStep.Sbt(
-        name     = Some("Regular tests"),
-        commands = List("compileTests", "tests/test")
-      ),
+      // WorkflowStep.Sbt(
+      //   name     = Some("Compile docs"),
+      //   commands = List("compileDocs"),
+      //   cond     = Some(scalaCondition(Scala2))
+      // ),
+      // WorkflowStep.Sbt(
+      //   name     = Some("Regular tests"),
+      //   commands = List("compileTests", "tests/test")
+      // ),
       WorkflowStep.Sbt(
         name     = Some("Single node integration tests"),
         commands = List("tests / Sit / test"),

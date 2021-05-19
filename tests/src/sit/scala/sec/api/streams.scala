@@ -19,9 +19,7 @@ package api
 
 import java.util.UUID
 import java.{util => ju}
-
 import scala.concurrent.duration._
-
 import cats.Endo
 import cats.data.{NonEmptyList => Nel}
 import cats.effect.{IO, Ref}
@@ -32,12 +30,12 @@ import scodec.bits.ByteVector
 import sec.api.Direction._
 import sec.api.exceptions._
 import sec.syntax.all._
-
 import helpers.text.mkSnakeCase
 import helpers.implicits._
 
 class StreamsSuite extends SnSpec {
 
+  args.execute(threadsNb = 1)
   sequential
 
   "Streams" should {
@@ -124,7 +122,7 @@ class StreamsSuite extends SnSpec {
           write(s1, s1Before) >>= { wa => write(s2, s2Before).map(wb => (wa, wb)) }
 
         def writeAfter(s1: StreamId, r1: StreamState, s2: StreamId, r2: StreamState) =
-          (write(s1, s1After, r1) >> write(s2, s2After, r2)).delayBy(500.millis)
+          (write(s1, s1After, r1) >> write(s2, s2After, r2)).delayBy(1.second)
 
         def test(exclusiveFrom: Option[LogPosition], s1: StreamId, s2: StreamId) =
           writeBefore(s1, s2) >>= { case (wa, wb) =>
@@ -213,8 +211,8 @@ class StreamsSuite extends SnSpec {
           _    <- Stream.eval(writeRandom(100))
           _    <- Stream.eval(writeBefore)
           _    <- Stream.eval(writeRandom(100))
-          _    <- Stream.sleep[IO](500.millis)
-          data <- subscribe.concurrently(Stream.eval(writeAfter).delayBy(500.millis))
+          _    <- Stream.sleep[IO](1.second)
+          data <- subscribe.concurrently(Stream.eval(writeAfter).delayBy(1.second))
         } yield data
 
         result.compile.toList.map { r =>
@@ -255,8 +253,8 @@ class StreamsSuite extends SnSpec {
           pos  <- Stream.eval(writeRandom(100)).map(_.logPosition)
           _    <- Stream.eval(writeBefore)
           _    <- Stream.eval(writeRandom(100))
-          _    <- Stream.sleep[IO](500.millis)
-          data <- subscribe(pos).concurrently(Stream.eval(writeAfter).delayBy(500.millis))
+          _    <- Stream.sleep[IO](1.second)
+          data <- subscribe(pos).concurrently(Stream.eval(writeAfter).delayBy(1.second))
         } yield data
 
         result.compile.toList.map { r =>
@@ -367,7 +365,7 @@ class StreamsSuite extends SnSpec {
 
           val id        = genStreamId(s"${streamPrefix}non_existing_stream_")
           val subscribe = streams.subscribeToStream(id, exclusivefrom).take(takeCount.toLong).map(_.eventData)
-          val write     = Stream.eval(streams.appendToStream(id, StreamState.NoStream, events)).delayBy(500.millis)
+          val write     = Stream.eval(streams.appendToStream(id, StreamState.NoStream, events)).delayBy(1.second)
           val result    = subscribe.concurrently(write)
 
           result.compile.toList
@@ -390,13 +388,13 @@ class StreamsSuite extends SnSpec {
       "works with multiple subscriptions to same stream" >> {
 
         val eventCount      = 10
-        val subscriberCount = 4
+        val subscriberCount = 3
         val events          = genEvents(eventCount)
 
         def test(exclusivFrom: Option[StreamPosition], takeCount: Int) = {
 
           val id    = genStreamId(s"${streamPrefix}multiple_subscriptions_to_same_stream_")
-          val write = Stream.eval(streams.appendToStream(id, StreamState.NoStream, events)).delayBy(500.millis)
+          val write = Stream.eval(streams.appendToStream(id, StreamState.NoStream, events)).delayBy(1.second)
 
           def mkSubscribers(onEvent: IO[Unit]): Stream[IO, StreamEvent] = Stream
             .emit(streams.subscribeToStream(id, exclusivFrom).evalTap(_ => onEvent).take(takeCount.toLong))
@@ -439,7 +437,7 @@ class StreamsSuite extends SnSpec {
             Stream.eval(streams.appendToStream(id, StreamState.NoStream, beforeEvents))
 
           def afterWrite(st: StreamState): Stream[IO, WriteResult] =
-            Stream.eval(streams.appendToStream(id, st, afterEvents)).delayBy(500.millis)
+            Stream.eval(streams.appendToStream(id, st, afterEvents)).delayBy(1.second)
 
           def subscribe(onEvent: StreamEvent => IO[Unit]): Stream[IO, StreamEvent] =
             streams.subscribeToStream(id, exclusiveFrom).evalTap(onEvent).take(takeCount.toLong)
@@ -447,7 +445,7 @@ class StreamsSuite extends SnSpec {
           val result: Stream[IO, List[EventData]] = for {
             ref        <- Stream.eval(Ref.of[IO, List[EventData]](Nil))
             st         <- beforeWrite.map(_.streamPosition)
-            _          <- Stream.sleep[IO](500.millis)
+            _          <- Stream.sleep[IO](1.second)
             _          <- subscribe(e => ref.update(_ :+ e.eventData)).concurrently(afterWrite(st))
             readEvents <- Stream.eval(ref.get)
           } yield readEvents
@@ -476,7 +474,7 @@ class StreamsSuite extends SnSpec {
 
           val id        = genStreamId(s"${streamPrefix}stream_is_tombstoned_")
           val subscribe = streams.subscribeToStream(id, exclusiveFrom)
-          val delete    = Stream.eval(streams.tombstone(id, StreamState.Any)).delayBy(500.millis)
+          val delete    = Stream.eval(streams.tombstone(id, StreamState.Any)).delayBy(1.second)
           val expected  = StreamDeleted(id.stringValue).asLeft
 
           subscribe.concurrently(delete).compile.last.attempt.map(_.shouldEqual(expected))
@@ -509,8 +507,8 @@ class StreamsSuite extends SnSpec {
 
       val id1     = genStreamId(streamPrefix)
       val id2     = genStreamId(streamPrefix)
-      val events1 = genEvents(500, eventTypePrefix)
-      val events2 = genEvents(500, eventTypePrefix)
+      val events1 = genEvents(10, eventTypePrefix)
+      val events2 = genEvents(10, eventTypePrefix)
       val written = events1 ::: events2
 
       val writeEvents =
@@ -518,7 +516,10 @@ class StreamsSuite extends SnSpec {
           streams.appendToStream(id2, StreamState.NoStream, events2)
 
       def read(from: LogPosition, direction: Direction, maxCount: Long = 1) =
-        streams.readAll(from, direction, maxCount, resolveLinkTos = false).compile.toList
+        streams
+          .readAll(from, direction, maxCount, resolveLinkTos = false)
+          .compile
+          .toList
 
       //
 
@@ -533,7 +534,7 @@ class StreamsSuite extends SnSpec {
         }
 
         "reading from end yields no events" >> {
-          read(End, Forwards, 10).map(_.isEmpty should beTrue)
+          read(End, Forwards).map(_.isEmpty should beTrue)
         }
 
         "events are in same order as written" >> {
