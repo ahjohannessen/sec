@@ -61,7 +61,7 @@ private[sec] object StreamMetadata {
     def withCacheControl(value: CacheControl): StreamMetadata        = sm.setCacheControl(value.some)
     def withAcl(value: StreamAcl): StreamMetadata                    = sm.setAcl(value.some)
     def withCustom(value: JsonObject): StreamMetadata                = sm.setCustom(value.some)
-    def withCustom(value: (String, Json)*): StreamMetadata           = sm.withCustom(JsonObject.fromMap(Map.from(value)))
+    def withCustom(value: (String, Json)*): StreamMetadata = sm.withCustom(JsonObject.fromMap(Map.from(value)))
 
     ///
 
@@ -111,19 +111,16 @@ private[sec] object StreamMetadata {
 
 //======================================================================================================================
 
-/**
- * The maximum age of events in the stream. Events older than this
- * will be automatically removed.
- */
+/** The maximum age of events in the stream. Events older than this will be automatically removed.
+  */
 sealed abstract case class MaxAge(value: FiniteDuration)
 object MaxAge {
 
-  /**
-   * The maximum age of events in the stream. Events older than this
-   * will be automatically removed.
-   *
-   * @param maxAge must be greater than or equal to 1 second.
-   */
+  /** The maximum age of events in the stream. Events older than this will be automatically removed.
+    *
+    * @param maxAge
+    *   must be greater than or equal to 1 second.
+    */
   def apply(maxAge: FiniteDuration): Either[InvalidInput, MaxAge] =
     if (maxAge < 1.second) InvalidInput(s"maxAge must be >= 1 second, it was $maxAge.").asLeft
     else new MaxAge(maxAge) {}.asRight
@@ -131,16 +128,14 @@ object MaxAge {
   private[sec] def render(ma: MaxAge): String = ma.value.toString()
 }
 
-/**
- * The maximum count of events in the stream. When the stream has more
- * than max count then the oldest will be removed.
- */
+/** The maximum count of events in the stream. When the stream has more than max count then the oldest will be removed.
+  */
 sealed abstract case class MaxCount(value: Int)
 object MaxCount {
 
-  /**
-   * @param maxCount must be greater than or equal to 1.
-   */
+  /** @param maxCount
+    *   must be greater than or equal to 1.
+    */
   def apply(maxCount: Int): Either[InvalidInput, MaxCount] =
     if (maxCount < 1) InvalidInput(s"max count must be >= 1, it was $maxCount.").asLeft
     else new MaxCount(maxCount) {}.asRight
@@ -150,18 +145,16 @@ object MaxCount {
 
 }
 
-/**
- * Used for the ATOM API of EventStoreDB. The head of a feed in the ATOM API is not cacheable.
- * This value allows you to specify a period of time you want it to be cacheable.
- * Low numbers are best here, e.g. 30-60 seconds, and introducing values
- * here will introduce latency over the ATOM protocol if caching is occuring.
- */
+/** Used for the ATOM API of EventStoreDB. The head of a feed in the ATOM API is not cacheable. This value allows you to
+  * specify a period of time you want it to be cacheable. Low numbers are best here, e.g. 30-60 seconds, and introducing
+  * values here will introduce latency over the ATOM protocol if caching is occuring.
+  */
 sealed abstract case class CacheControl(value: FiniteDuration)
 object CacheControl {
 
-  /**
-   * @param cacheControl must be greater than or equal to 1 second.
-   */
+  /** @param cacheControl
+    *   must be greater than or equal to 1 second.
+    */
   def apply(cacheControl: FiniteDuration): Either[InvalidInput, CacheControl] =
     if (cacheControl < 1.second) InvalidInput(s"cache control must be >= 1, it was $cacheControl.").asLeft
     else new CacheControl(cacheControl) {}.asRight
@@ -171,25 +164,26 @@ object CacheControl {
 
 //======================================================================================================================
 
-/**
- * @param maxAge The maximum age of events in the stream.
- * Items older than this will be automatically removed.
- *
- * @param maxCount The maximum count of events in the stream.
- * When you have more than count the oldest will be removed.
- *
- * @param truncateBefore When set says that events with a stream position
- * less than the truncated before value should be removed.
- *
- * @param cacheControl The head of a feed in the atom api is not cacheable.
- * This allows you to specify a period of time you want it to be cacheable.
- * Low numbers are best here (say 30-60 seconds) and introducing values
- * here will introduce latency over the atom protocol if caching is occuring.
- *
- * @param acl The access control list for this stream.
- *
- * @note More details are here https://eventstore.org/docs/server/deleting-streams-and-events/index.html
- */
+/** @param maxAge
+  *   The maximum age of events in the stream. Items older than this will be automatically removed.
+  *
+  * @param maxCount
+  *   The maximum count of events in the stream. When you have more than count the oldest will be removed.
+  *
+  * @param truncateBefore
+  *   When set says that events with a stream position less than the truncated before value should be removed.
+  *
+  * @param cacheControl
+  *   The head of a feed in the atom api is not cacheable. This allows you to specify a period of time you want it to be
+  *   cacheable. Low numbers are best here (say 30-60 seconds) and introducing values here will introduce latency over
+  *   the atom protocol if caching is occuring.
+  *
+  * @param acl
+  *   The access control list for this stream.
+  *
+  * @note
+  *   More details are here https://eventstore.org/docs/server/deleting-streams-and-events/index.html
+  */
 final private[sec] case class MetaState(
   maxAge: Option[MaxAge],
   maxCount: Option[MaxCount],
@@ -282,15 +276,19 @@ private[sec] object MetaState {
 
 //======================================================================================================================
 
-/**
- * Access Control List for a stream.
- *
- * @param readRoles Roles and users permitted to read the stream.
- * @param writeRoles Roles and users permitted to write to the stream.
- * @param deleteRoles Roles and users permitted to delete the stream.
- * @param metaReadRoles Roles and users permitted to read stream metadata.
- * @param metaWriteRoles Roles and users permitted to write stream metadata.
- */
+/** Access Control List for a stream.
+  *
+  * @param readRoles
+  *   Roles and users permitted to read the stream.
+  * @param writeRoles
+  *   Roles and users permitted to write to the stream.
+  * @param deleteRoles
+  *   Roles and users permitted to delete the stream.
+  * @param metaReadRoles
+  *   Roles and users permitted to read stream metadata.
+  * @param metaWriteRoles
+  *   Roles and users permitted to write stream metadata.
+  */
 final case class StreamAcl(
   readRoles: Set[String],
   writeRoles: Set[String],
