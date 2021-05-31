@@ -302,7 +302,7 @@ private[sec] object streams {
       ct match {
         case ContentTypes.ApplicationOctetStream => F.pure(sec.ContentType.Binary)
         case ContentTypes.ApplicationJson        => F.pure(sec.ContentType.Json)
-        case unknown                             => F.raiseError(ProtoResultError(s"Required value $ContentType missing or invalid: $unknown"))
+        case unknown => F.raiseError(ProtoResultError(s"Required value $ContentType missing or invalid: $unknown"))
       }
 
     def mkEventType[F[_]: ErrorA](name: String): F[EventType] =
@@ -327,8 +327,8 @@ private[sec] object streams {
 
         val streamPositionExact: Either[Throwable, StreamPosition.Exact] = s.value.currentRevisionOption match {
           case Success.CurrentRevisionOption.CurrentRevision(v) => StreamPosition.exact(v).asRight
-          case Success.CurrentRevisionOption.NoStream(_)        => error("Did not expect NoStream when using NonEmptyList")
-          case Success.CurrentRevisionOption.Empty              => error("CurrentRevisionOption is missing")
+          case Success.CurrentRevisionOption.NoStream(_) => error("Did not expect NoStream when using NonEmptyList")
+          case Success.CurrentRevisionOption.Empty       => error("CurrentRevisionOption is missing")
         }
 
         (streamPositionExact, logPositionExact).mapN((r, p) => WriteResult(r, p))

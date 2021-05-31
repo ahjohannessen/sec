@@ -31,12 +31,12 @@ import sec.arbitraries._
 
 trait SnSpec extends ClientSpec {
 
-  def genUuid[F[_]: Sync]: F[UUID]                        = Sync[F].delay(sampleOf[UUID])
-  def genIdentifier: String                               = sampleOfGen(Gen.identifier.suchThat(id => id.length >= 5 && id.length <= 20))
-  def genStreamUuid[F[_]: Sync]: F[StreamId.Id]           = genUuid[F].map(id => genStreamId(id.toString.replace("-", "")))
-  def genStreamId(streamPrefix: String): StreamId.Id      = sampleOfGen(idGen.genStreamIdNormal(s"$streamPrefix"))
-  def genEvent: EventData                                 = sampleOfGen(eventdataGen.eventDataOne)
-  def genEvents(n: Int): Nel[EventData]                   = genEvents(n, eventTypeGen.defaultPrefix)
+  def genUuid[F[_]: Sync]: F[UUID] = Sync[F].delay(sampleOf[UUID])
+  def genIdentifier: String        = sampleOfGen(Gen.identifier.suchThat(id => id.length >= 5 && id.length <= 20))
+  def genStreamUuid[F[_]: Sync]: F[StreamId.Id]      = genUuid[F].map(id => genStreamId(id.toString.replace("-", "")))
+  def genStreamId(streamPrefix: String): StreamId.Id = sampleOfGen(idGen.genStreamIdNormal(s"$streamPrefix"))
+  def genEvent: EventData                            = sampleOfGen(eventdataGen.eventDataOne)
+  def genEvents(n: Int): Nel[EventData]              = genEvents(n, eventTypeGen.defaultPrefix)
   def genEvents(n: Int, etPrefix: String): Nel[EventData] = sampleOfGen(eventdataGen.eventDataNelN(n, etPrefix))
 
   final val makeResource: Resource[IO, EsClient[IO]] = SnSpec.mkClient[IO](log)

@@ -23,25 +23,23 @@ import com.eventstore.dbclient.proto.gossip.{GossipFs2Grpc, ClusterInfo => PClus
 import com.eventstore.dbclient.proto.shared.Empty
 import sec.api.mapping.gossip.mkClusterInfo
 
-/**
- * API for reading gossip information from an EventStoreDB cluster.
- *
- * @tparam F the effect type in which [[Gossip]] operates.
- */
+/** API for reading gossip information from an EventStoreDB cluster.
+  *
+  * @tparam F
+  *   the effect type in which [[Gossip]] operates.
+  */
 trait Gossip[F[_]] {
 
-  /**
-   * Gets cluster information.
-   */
+  /** Gets cluster information.
+    */
   def read: F[ClusterInfo]
 
-  /**
-   * Returns an instance that uses provided [[UserCredentials]]. This is useful when reading
-   * cluster information that requires different credentials from what is provided through
-   * configuration.
-   *
-   * @param creds Custom user credentials to use.
-   */
+  /** Returns an instance that uses provided [[UserCredentials]]. This is useful when reading cluster information that
+    * requires different credentials from what is provided through configuration.
+    *
+    * @param creds
+    *   Custom user credentials to use.
+    */
   def withCredentials(creds: UserCredentials): Gossip[F]
 }
 

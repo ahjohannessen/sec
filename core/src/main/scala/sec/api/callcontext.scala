@@ -29,9 +29,8 @@ final private[sec] case class Context(
 
 //======================================================================================================================
 
-/**
- * Credentials used for EventStoreDB connections.
- */
+/** Credentials used for EventStoreDB connections.
+  */
 
 sealed abstract case class UserCredentials(username: String, password: String) {
   override def toString = s"UserCredentials(username = $username, password = 🤐)"
@@ -42,10 +41,9 @@ object UserCredentials {
   private[sec] def unsafe(username: String, password: String): UserCredentials =
     new UserCredentials(username, password) {}
 
-  /**
-   * Constructs an instance with provided @param username and @param password. Input is validated
-   * for being non-empty and not containing the character `:`.
-   */
+  /** Constructs an instance with provided @param username and @param password. Input is validated for being non-empty
+    * and not containing the character `:`.
+    */
   def apply(username: String, password: String): Either[InvalidInput, UserCredentials] = {
 
     def validate(value: String, name: String) = {

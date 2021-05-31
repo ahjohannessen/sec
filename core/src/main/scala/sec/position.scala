@@ -21,36 +21,36 @@ import cats.{Eq, Order}
 
 //======================================================================================================================
 
-/**
- * The expected state that a stream is currently in. There are four variants:
- *
- *   - [[StreamState.NoStream]] the stream does not exist yet.
- *   - [[StreamState.Any]] No expectation of the current stream state.
- *   - [[StreamState.StreamExists]] The stream, or its metadata stream, exists.
- *   - [[StreamPosition.Exact]] The stream exists and its last written stream position
- *                              is expected to be an exact value.
- *
- * ==Use Cases==
- *
- * When you write to a stream for the first time you provide [[StreamState.NoStream]]. In order to decide if [[StreamState.NoStream]]
- * is required you can try to read from the stream and if the read operation raises [[sec.api.exceptions.StreamNotFound]] you know that
- * your expectation should be [[StreamState.NoStream]].
- *
- * When you do not have any expectation of the current state of a stream you should use [[StreamState.Any]]. This is, for instance, used
- * when you just wish to append data to a stream regardless of other concurrent operations to the stream.
- *
- * When you require that a stream, or its metadata stream, is present you should use [[StreamState.StreamExists]].
- *
- * When you need to implement optimistic concurrency you use [[StreamPosition.Exact]] and [[StreamState.NoStream]] as your
- * exected stream state. You use [[StreamState.NoStream]] as expected stream state when you append to a stream for the first time,
- * otherwise you use an [[StreamPosition.Exact]] value. A [[sec.api.exceptions.WrongExpectedState]] exception is rasised when the stream
- * exists and has changed in the meantime.
- */
+/** The expected state that a stream is currently in. There are four variants:
+  *
+  *   - [[StreamState.NoStream]] the stream does not exist yet.
+  *   - [[StreamState.Any]] No expectation of the current stream state.
+  *   - [[StreamState.StreamExists]] The stream, or its metadata stream, exists.
+  *   - [[StreamPosition.Exact]] The stream exists and its last written stream position is expected to be an exact
+  *     value.
+  *
+  * 122Use Cases122
+  *
+  * When you write to a stream for the first time you provide [[StreamState.NoStream]]. In order to decide if
+  * [[StreamState.NoStream]] is required you can try to read from the stream and if the read operation raises
+  * [[sec.api.exceptions.StreamNotFound]] you know that your expectation should be [[StreamState.NoStream]].
+  *
+  * When you do not have any expectation of the current state of a stream you should use [[StreamState.Any]]. This is,
+  * for instance, used when you just wish to append data to a stream regardless of other concurrent operations to the
+  * stream.
+  *
+  * When you require that a stream, or its metadata stream, is present you should use [[StreamState.StreamExists]].
+  *
+  * When you need to implement optimistic concurrency you use [[StreamPosition.Exact]] and [[StreamState.NoStream]] as
+  * your exected stream state. You use [[StreamState.NoStream]] as expected stream state when you append to a stream for
+  * the first time, otherwise you use an [[StreamPosition.Exact]] value. A [[sec.api.exceptions.WrongExpectedState]]
+  * exception is rasised when the stream exists and has changed in the meantime.
+  */
 sealed trait StreamState
 object StreamState {
 
-  case object NoStream     extends StreamState
-  case object Any          extends StreamState
+  case object NoStream extends StreamState
+  case object Any extends StreamState
   case object StreamExists extends StreamState
 
   implicit val eq: Eq[StreamState] = Eq.fromUniversalEquals
@@ -70,12 +70,11 @@ object StreamState {
 
 //======================================================================================================================
 
-/**
- * Stream position in an individual stream. There are two variants:
- *
- *  - [[StreamPosition.Exact]] An exact position in a stream.
- *  - [[StreamPosition.End]] Represents the end of a particular stream.
- */
+/** Stream position in an individual stream. There are two variants:
+  *
+  *   - [[StreamPosition.Exact]] An exact position in a stream.
+  *   - [[StreamPosition.End]] Represents the end of a particular stream.
+  */
 sealed trait StreamPosition
 object StreamPosition {
 
@@ -96,9 +95,8 @@ object StreamPosition {
 
   private[sec] def exact(value: Long): Exact = Exact.create(value)
 
-  /**
-   * Constructs an exact stream position in a stream. Provided value is validated for `0L` <= `Long.MaxValue`.
-   */
+  /** Constructs an exact stream position in a stream. Provided value is validated for `0L` <= `Long.MaxValue`.
+    */
   def apply(value: Long): Either[InvalidInput, Exact] = Exact(value)
 
   ///
@@ -125,12 +123,11 @@ object StreamPosition {
 
 //======================================================================================================================
 
-/**
- * Log position for the global stream. There are two variants:
- *
- *  - [[LogPosition.Exact]] An exact position in the global stream.
- *  - [[LogPosition.End]] Represents the end of the global stream.
- */
+/** Log position for the global stream. There are two variants:
+  *
+  *   - [[LogPosition.Exact]] An exact position in the global stream.
+  *   - [[LogPosition.End]] Represents the end of the global stream.
+  */
 sealed trait LogPosition
 object LogPosition {
 
@@ -161,10 +158,9 @@ object LogPosition {
 
   private[sec] def exact(commit: Long, prepare: Long): Exact = Exact.create(commit, prepare)
 
-  /**
-   * Constructs an exact log position in the global stream. Provided values are
-   * validated for `0L` <= `Long.MaxValue` and that @param commit is larger than @param prepare.
-   */
+  /** Constructs an exact log position in the global stream. Provided values are validated for `0L` <= `Long.MaxValue`
+    * and that @param commit is larger than @param prepare.
+    */
   def apply(commit: Long, prepare: Long): Either[InvalidInput, Exact] = Exact(commit, prepare)
 
   ///

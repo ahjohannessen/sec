@@ -32,7 +32,7 @@ final private[grpc] case class InvalidInput(input: String, tpe: String)
 
 //======================================================================================================================
 
-private[grpc] object IntMarshaller  extends NumericAsciiMarshaller[Int]("Int")
+private[grpc] object IntMarshaller extends NumericAsciiMarshaller[Int]("Int")
 private[grpc] object LongMarshaller extends NumericAsciiMarshaller[Long]("Long")
 
 sealed abstract private[grpc] class NumericAsciiMarshaller[T: Numeric](tpe: String) extends AsciiMarshaller[T] {

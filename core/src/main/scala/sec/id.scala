@@ -22,17 +22,17 @@ import sec.utilities.{guardNonEmpty, guardNotStartsWith}
 
 //======================================================================================================================
 
-/**
- * Stream identifier for streams in EventStoreDB. There are three variants:
- *
- *  - [[StreamId.System]] identifier used for reserverd internal system streams.
- *  - [[StreamId.Normal]] identifier used by users.
- *  - [[StreamId.MetaId]] identifier used for metadata streams of [[StreamId.System]] streams or [[StreamId.Normal]] streams.
- */
+/** Stream identifier for streams in EventStoreDB. There are three variants:
+  *
+  *   - [[StreamId.System]] identifier used for reserverd internal system streams.
+  *   - [[StreamId.Normal]] identifier used by users.
+  *   - [[StreamId.MetaId]] identifier used for metadata streams of [[StreamId.System]] streams or [[StreamId.Normal]]
+  *     streams.
+  */
 sealed trait StreamId
 object StreamId {
 
-  sealed trait Id                 extends StreamId
+  sealed trait Id extends StreamId
   final case class MetaId(id: Id) extends StreamId
 
   sealed abstract case class System(name: String) extends Id
@@ -53,10 +53,10 @@ object StreamId {
   final val Scavenges: System = System.unsafe("scavenges")
   final val Streams: System   = System.unsafe("streams")
 
-  /**
-   * @param name Constructs a stream identifier for a stream. Provided value is validated for non-empty
-   *             and not starting with the system reserved metadata prefix `$$`.
-   */
+  /** @param name
+    *   Constructs a stream identifier for a stream. Provided value is validated for non-empty and not starting with the
+    *   system reserved metadata prefix `$$`.
+    */
   def apply(name: String): Either[InvalidInput, Id] =
     (guardNonEmptyName(name) >>= guardNotStartsWith(metadataPrefix) >>= stringToId).leftMap(InvalidInput(_))
 
