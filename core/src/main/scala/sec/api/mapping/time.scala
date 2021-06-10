@@ -20,6 +20,7 @@ package mapping
 
 import java.time.{Instant, ZoneOffset, ZonedDateTime}
 
+import cats.ApplicativeThrow
 import cats.syntax.all._
 
 private[sec] object time {
@@ -27,7 +28,7 @@ private[sec] object time {
   /** @param value
     *   100-nanosecond intervals elapsed since 1970-01-01T00:00:00Z
     */
-  def fromTicksSinceEpoch[F[_]: ErrorA](value: Long): F[ZonedDateTime] = {
+  def fromTicksSinceEpoch[F[_]: ApplicativeThrow](value: Long): F[ZonedDateTime] = {
 
     val unitsPerSecond = 10000000L
     val seconds        = value / unitsPerSecond

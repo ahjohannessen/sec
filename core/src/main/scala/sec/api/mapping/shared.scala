@@ -19,9 +19,9 @@ package api
 package mapping
 
 import java.util.{UUID => JUUID}
-
+import cats.{ApplicativeThrow, MonadThrow}
 import cats.syntax.all._
-import com.eventstore.dbclient.proto.shared.{StreamIdentifier, UUID}
+import com.eventstore.client.{StreamIdentifier, UUID}
 import com.google.protobuf.ByteString
 import sec.StreamId
 
@@ -30,7 +30,7 @@ private[sec] object shared {
   val mkUuid: JUUID => UUID = j =>
     UUID().withStructured(UUID.Structured(j.getMostSignificantBits(), j.getLeastSignificantBits()))
 
-  def mkJuuid[F[_]: ErrorA](uuid: UUID): F[JUUID] = {
+  def mkJuuid[F[_]: ApplicativeThrow](uuid: UUID): F[JUUID] = {
 
     val juuid = uuid.value match {
       case UUID.Value.Structured(v) => new JUUID(v.mostSignificantBits, v.leastSignificantBits).asRight
@@ -43,10 +43,10 @@ private[sec] object shared {
 
   //
 
-  def mkStreamId[F[_]: ErrorM](sid: Option[StreamIdentifier]): F[StreamId] =
+  def mkStreamId[F[_]: MonadThrow](sid: Option[StreamIdentifier]): F[StreamId] =
     mkStreamId[F](sid.getOrElse(StreamIdentifier()))
 
-  def mkStreamId[F[_]: ErrorM](sid: StreamIdentifier): F[StreamId] =
+  def mkStreamId[F[_]: MonadThrow](sid: StreamIdentifier): F[StreamId] =
     sid.utf8[F] >>= { sidStr =>
       StreamId.stringToStreamId(sidStr).leftMap(ProtoResultError(_)).liftTo[F]
     }
@@ -60,7 +60,7 @@ private[sec] object shared {
   }
 
   implicit final class StreamIdentifierOps(val v: StreamIdentifier) extends AnyVal {
-    def utf8[F[_]](implicit F: ErrorA[F]): F[String] =
+    def utf8[F[_]](implicit F: ApplicativeThrow[F]): F[String] =
       F.catchNonFatal(Option(v.streamName.toStringUtf8()).getOrElse(""))
   }
 

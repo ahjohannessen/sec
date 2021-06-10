@@ -17,6 +17,7 @@
 package sec
 package syntax
 
+import cats.ApplicativeThrow
 import cats.syntax.all._
 import scodec.bits.ByteVector
 
@@ -25,5 +26,5 @@ trait StringSyntax {
 }
 
 final class StringOps(val s: String) extends AnyVal {
-  def utf8Bytes[F[_]: ErrorA]: F[ByteVector] = ByteVector.encodeUtf8(s).liftTo[F]
+  def utf8Bytes[F[_]: ApplicativeThrow]: F[ByteVector] = ByteVector.encodeUtf8(s).liftTo[F]
 }

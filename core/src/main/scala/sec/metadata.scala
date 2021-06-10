@@ -18,7 +18,7 @@ package sec
 
 import scala.concurrent.duration._
 
-import cats.Endo
+import cats.{ApplicativeThrow, Endo}
 import cats.syntax.all._
 import io.circe.Decoder.Result
 import io.circe._
@@ -65,13 +65,13 @@ private[sec] object StreamMetadata {
 
     ///
 
-    def getCustom[F[_]: ErrorA, T: Decoder]: F[Option[T]] =
+    def getCustom[F[_]: ApplicativeThrow, T: Decoder]: F[Option[T]] =
       sm.custom.traverse(jo => Decoder[T].apply(Json.fromJsonObject(jo).hcursor).liftTo[F])
 
     def setCustom[T: Encoder.AsObject](custom: T): StreamMetadata =
       sm.withCustom(Encoder.AsObject[T].encodeObject(custom))
 
-    def modifyCustom[F[_]: ErrorA, T: Codec.AsObject](fn: Endo[Option[T]]): F[StreamMetadata] =
+    def modifyCustom[F[_]: ApplicativeThrow, T: Codec.AsObject](fn: Endo[Option[T]]): F[StreamMetadata] =
       getCustom[F, T].map(c => sm.setCustom(fn(c).map(Encoder.AsObject[T].encodeObject)))
 
   }

@@ -19,8 +19,8 @@ package api
 
 import cats.syntax.all._
 import cats.effect.Temporal
-import com.eventstore.dbclient.proto.gossip.{GossipFs2Grpc, ClusterInfo => PClusterInfo}
-import com.eventstore.dbclient.proto.shared.Empty
+import com.eventstore.client.gossip.{GossipFs2Grpc, ClusterInfo => PClusterInfo}
+import com.eventstore.client.Empty
 import sec.api.mapping.gossip.mkClusterInfo
 
 /** API for reading gossip information from an EventStoreDB cluster.

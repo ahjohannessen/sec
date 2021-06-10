@@ -22,8 +22,8 @@ import java.time.{Instant, ZoneOffset}
 import java.util.{UUID => JUUID}
 
 import cats.syntax.all._
-import com.eventstore.dbclient.proto.shared.UUID
-import com.eventstore.dbclient.proto.{gossip => g}
+import com.eventstore.client.UUID
+import com.eventstore.client.{gossip => g}
 import org.specs2._
 import sec.api.mapping.gossip._
 

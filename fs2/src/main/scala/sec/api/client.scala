@@ -22,8 +22,8 @@ import cats.syntax.all._
 import cats.data.NonEmptySet
 import cats.effect.Resource
 import cats.effect.kernel.Async
-import com.eventstore.dbclient.proto.gossip.GossipFs2Grpc
-import com.eventstore.dbclient.proto.streams.StreamsFs2Grpc
+import com.eventstore.client.gossip.GossipFs2Grpc
+import com.eventstore.client.streams.StreamsFs2Grpc
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
 import io.grpc.{CallOptions, ManagedChannel}

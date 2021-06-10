@@ -23,8 +23,8 @@ import java.util.{UUID => JUUID}
 
 import cats.data.NonEmptyList
 import cats.syntax.all._
-import com.eventstore.dbclient.proto.shared.{Empty, UUID}
-import com.eventstore.dbclient.proto.{streams => s}
+import com.eventstore.client.{Empty, FilterOptions, UUID}
+import com.eventstore.client.{streams => s}
 import org.specs2._
 import scodec.bits.ByteVector
 import sec.api.exceptions.{StreamNotFound, WrongExpectedState}
@@ -76,9 +76,8 @@ class StreamsMappingSpec extends mutable.Specification {
     "mapReadEventFilter" >> {
 
       import EventFilter._
-      import s.ReadReq.Options.FilterOptions
-      import s.ReadReq.Options.FilterOptions.Expression
       import s.ReadReq.Options.FilterOption.{Filter, NoFilter}
+      import FilterOptions.Expression
 
       def mkOptions(f: EventFilter, maxWindow: Option[Int] = 10.some, multiplier: Int = 1) =
         SubscriptionFilterOptions(f, maxWindow, multiplier).some
@@ -87,14 +86,14 @@ class StreamsMappingSpec extends mutable.Specification {
 
       mapReadEventFilter(mkOptions(streamIdPrefix("a", "b"))) shouldEqual Filter(
         FilterOptions()
-          .withStreamIdentifier(Expression().withPrefix(List("a", "b")))
+          .withStreamName(Expression().withPrefix(List("a", "b")))
           .withMax(10)
           .withCheckpointIntervalMultiplier(1)
       )
 
       mapReadEventFilter(mkOptions(streamIdPrefix("a"), None, 1)) shouldEqual Filter(
         FilterOptions()
-          .withStreamIdentifier(Expression().withPrefix(List("a")))
+          .withStreamName(Expression().withPrefix(List("a")))
           .withCount(empty)
           .withCheckpointIntervalMultiplier(1)
       )
@@ -115,14 +114,14 @@ class StreamsMappingSpec extends mutable.Specification {
 
       mapReadEventFilter(mkOptions(streamIdRegex("^[^$].*"))) shouldEqual Filter(
         FilterOptions()
-          .withStreamIdentifier(Expression().withRegex("^[^$].*"))
+          .withStreamName(Expression().withRegex("^[^$].*"))
           .withMax(10)
           .withCheckpointIntervalMultiplier(1)
       )
 
       mapReadEventFilter(mkOptions(streamIdRegex("^(ns_).+"), None, 1)) shouldEqual Filter(
         FilterOptions()
-          .withStreamIdentifier(Expression().withRegex("^(ns_).+"))
+          .withStreamName(Expression().withRegex("^(ns_).+"))
           .withCount(empty)
           .withCheckpointIntervalMultiplier(1)
       )

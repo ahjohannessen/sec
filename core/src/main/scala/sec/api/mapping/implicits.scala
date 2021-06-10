@@ -18,6 +18,7 @@ package sec
 package api
 package mapping
 
+import cats.ApplicativeThrow
 import cats.syntax.all._
 import com.google.protobuf.ByteString
 import scodec.bits.ByteVector
@@ -36,9 +37,9 @@ private[sec] object implicits {
 
   implicit final class OptionOps[A](private val o: Option[A]) extends AnyVal {
 
-    def require[F[_]: ErrorA](value: String): F[A] = require[F](value, None)
+    def require[F[_]: ApplicativeThrow](value: String): F[A] = require[F](value, None)
 
-    def require[F[_]: ErrorA](value: String, details: Option[String]) = {
+    def require[F[_]: ApplicativeThrow](value: String, details: Option[String]) = {
       def extra = details.map(d => s" $d").getOrElse("")
       def msg   = s"Required value $value missing or invalid.$extra"
       o.toRight(ProtoResultError(msg)).liftTo[F]

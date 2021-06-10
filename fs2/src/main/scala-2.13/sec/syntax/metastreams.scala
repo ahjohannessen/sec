@@ -18,7 +18,7 @@ package sec
 package syntax
 
 import scala.concurrent.duration.FiniteDuration
-
+import cats.MonadThrow
 import cats.syntax.all._
 import sec.api._
 
@@ -26,11 +26,11 @@ import StreamId.Id
 
 trait MetaStreamsSyntax {
 
-  implicit final def syntaxForMetaStreams[F[_]: ErrorM](ms: MetaStreams[F]): MetaStreamsOps[F] =
+  implicit final def syntaxForMetaStreams[F[_]: MonadThrow](ms: MetaStreams[F]): MetaStreamsOps[F] =
     new MetaStreamsOps[F](ms)
 }
 
-final class MetaStreamsOps[F[_]: ErrorM](val ms: MetaStreams[F]) {
+final class MetaStreamsOps[F[_]: MonadThrow](val ms: MetaStreams[F]) {
 
   /** Sets max age in [[FiniteDuration]] for a stream and returns [[WriteResult]] with current positions of the stream
     * after a successful operation. Failure to fulfill the expected state is manifested by raising
