@@ -30,7 +30,8 @@ private[sec] case class Options(
   operationOptions: OperationOptions,
   connectionMode: ConnectionMode,
   channelShutdownAwait: FiniteDuration,
-  prefetchN: Int
+  prefetchN: Int,
+  batchAppendSize: Int
 )
 
 private[sec] object Options {
@@ -43,7 +44,8 @@ private[sec] object Options {
     operationOptions     = OperationOptions.default,
     connectionMode       = Insecure,
     channelShutdownAwait = 5.seconds,
-    prefetchN            = 512
+    prefetchN            = 512,
+    batchAppendSize      = 3 * 1024 * 1024
   )
 
   implicit final class OptionsOps(val o: Options) extends AnyVal {
@@ -57,6 +59,7 @@ private[sec] object Options {
     def withCredentials(creds: Option[UserCredentials]): Options    = o.copy(credentials = creds)
     def withChannelShutdownAwait(await: FiniteDuration): Options    = o.copy(channelShutdownAwait = await)
     def withPrefetchN(n: Int)                                       = o.copy(prefetchN = math.max(n, 1))
+    def withBatchAppendSize(n: Int)                                 = o.copy(batchAppendSize = n)
     def withOperationsRetryDelay(delay: FiniteDuration): Options    = modifyOO(_.copy(retryDelay = delay))
     def withOperationsRetryMaxDelay(delay: FiniteDuration): Options = modifyOO(_.copy(retryMaxDelay = delay))
     def withOperationsRetryMaxAttempts(max: Int): Options           = modifyOO(_.copy(retryMaxAttempts = max))

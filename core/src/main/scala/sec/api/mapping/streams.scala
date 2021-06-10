@@ -351,14 +351,16 @@ private[sec] object streams {
     def mkEventType[F[_]: ApplicativeThrow](name: String): F[EventType] =
       EventType.stringToEventType(Option(name).getOrElse("")).leftMap(ProtoResultError(_)).liftTo[F]
 
+    ///
+
+    private def error[T](msg: String): Either[Throwable, T] =
+      ProtoResultError(msg).asLeft[T]
+
     def mkWriteResult[F[_]: ApplicativeThrow](sid: StreamId, ar: AppendResp): F[WriteResult] = {
 
       import AppendResp.{Result, Success}
       import AppendResp.WrongExpectedVersion.ExpectedRevisionOption
       import AppendResp.WrongExpectedVersion.CurrentRevisionOption
-
-      def error[T](msg: String): Either[Throwable, T] =
-        ProtoResultError(msg).asLeft[T]
 
       def success(s: Result.Success) = {
 
@@ -405,6 +407,52 @@ private[sec] object streams {
 
       result.liftTo[F]
     }
+
+    def mkBatchWriteResult[F[_]: ApplicativeThrow](bar: BatchAppendResp): F[WriteResult] = {
+
+      import BatchAppendResp._
+      import com.google.rpc._
+      import com.eventstore.{client => cp}
+
+      def success(s: Success): Either[Throwable, WriteResult] = {
+
+        val logPositionExact: Either[Throwable, LogPosition.Exact] = s.positionOption match {
+          case Success.PositionOption.Position(p)   => LogPosition.exact(p.commitPosition, p.preparePosition).asRight
+          case Success.PositionOption.NoPosition(_) => error("Did not expect NoPosition when using NonEmptyList")
+          case Success.PositionOption.Empty         => error("PositionOption is missing")
+        }
+
+        val streamPositionExact: Either[Throwable, StreamPosition.Exact] = s.currentRevisionOption match {
+          case Success.CurrentRevisionOption.CurrentRevision(v) => StreamPosition.exact(v).asRight
+          case Success.CurrentRevisionOption.NoStream(_) => error("Did not expect NoStream when using NonEmptyList")
+          case Success.CurrentRevisionOption.Empty       => error("CurrentRevisionOption is missing")
+        }
+
+        (streamPositionExact, logPositionExact).mapN((r, p) => WriteResult(r, p))
+      }
+
+      def failure(f: Status): Either[Throwable, WriteResult] = {
+
+        val x = f.details match {
+          case None => error(s"No details provided in error with code ${f.code} and message: ${f.message}")
+          case Some(v) =>
+            v.is[cp.StreamDeleted]
+        }
+
+        ???
+      }
+
+      val result: Either[Throwable, WriteResult] = bar.result match {
+        case BatchAppendResp.Result.Error(value) => failure(value)
+        case BatchAppendResp.Result.Success(v)   => success(v)
+        case BatchAppendResp.Result.Empty        => error("Result is missing")
+      }
+
+      result.liftTo[F]
+
+    }
+
+    ///
 
     def mkDeleteResult[F[_]: ApplicativeThrow](dr: DeleteResp): F[DeleteResult] =
       dr.positionOption.position
