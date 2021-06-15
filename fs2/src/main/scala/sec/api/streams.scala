@@ -17,6 +17,7 @@
 package sec
 package api
 
+import java.util.{UUID => JUUID}
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 import cats._
@@ -25,6 +26,7 @@ import cats.effect._
 import cats.syntax.all._
 import com.eventstore.client.streams._
 import fs2.{Pipe, Pull, Stream}
+import fs2.concurrent.SignallingRef
 import org.typelevel.log4cats.Logger
 import sec.api.exceptions.WrongExpectedVersion
 import sec.api.mapping.streams.incoming._
@@ -157,6 +159,26 @@ trait Streams[F[_]] {
     data: NonEmptyList[EventData]
   ): F[WriteResult]
 
+  /** Appends [[EventData]] to a stream and returns [[WriteResult]] with current positions of the stream after a
+    * successful operation. Failure to fulfill the expected state is manifested by raising
+    * [[sec.api.exceptions.WrongExpectedState]].
+    *
+    * @see
+    *   [[https://ahjohannessen.github.io/sec/docs/writing]] for details about appending to a stream.
+    *
+    * @param streamId
+    *   the id of the stream to append to.
+    * @param expectedState
+    *   the state that the stream is expected to in. See [[StreamState]] for details.
+    * @param data
+    *   stream of event data to be appended to the event stream. See [[EventData]].
+    */
+  def appendToStream(
+    streamId: StreamId,
+    expectedState: StreamState,
+    data: Stream[F, EventData]
+  ): F[WriteResult]
+
   /** Deletes a stream and returns [[DeleteResult]] with current log position after a successful operation. Failure to
     * fulfill the expected stated is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
     *
@@ -209,9 +231,10 @@ object Streams {
 
 //======================================================================================================================
 
-  private[sec] def apply[F[_]: Temporal, C](
+  private[sec] def apply[F[_]: Async, C](
     client: StreamsFs2Grpc[F, C],
     mkCtx: Option[UserCredentials] => C,
+    maxBatchSizeBytes: Int,
     opts: Opts[F]
   ): Streams[F] = new Streams[F] {
 
@@ -261,6 +284,20 @@ object Streams {
     ): F[WriteResult] =
       appendToStream0[F](streamId, expectedState, data, opts)(client.append(_, ctx))
 
+    def appendToStream(
+      streamId: StreamId,
+      expectedState: StreamState,
+      data: Stream[F, EventData]
+    ): F[WriteResult] =
+      appendToStream0[F](
+        streamId,
+        expectedState,
+        data,
+        Sync[F].delay(JUUID.randomUUID()),
+        maxBatchSizeBytes,
+        opts
+      )(client.batchAppend(_, ctx))
+
     def delete(
       streamId: StreamId,
       expectedState: StreamState
@@ -276,7 +313,7 @@ object Streams {
     def withCredentials(
       creds: UserCredentials
     ): Streams[F] =
-      Streams[F, C](client, _ => mkCtx(creds.some), opts)
+      Streams[F, C](client, _ => mkCtx(creds.some), maxBatchSizeBytes, opts)
   }
 
 //======================================================================================================================
@@ -384,6 +421,58 @@ object Streams {
 
     opts.run(operation, "appendToStream") >>= { ar => mkWriteResult[F](streamId, ar) }
   }
+
+  private[sec] def appendToStream0[F[_]: Async](
+    streamId: StreamId,
+    expectedState: StreamState,
+    events: Stream[F, EventData],
+    mkJuuid: F[JUUID],
+    maxBatchSizeInBytes: Int,
+    opts: Opts[F]
+  )(f: Stream[F, BatchAppendReq] => Stream[F, BatchAppendResp]): F[WriteResult] =
+    SignallingRef[F, Boolean](false) >>= { signal =>
+      mkJuuid >>= { uuid =>
+
+        def run0(
+          first: Boolean,
+          data: Stream[F, BatchAppendReq.ProposedMessage],
+          acc: List[BatchAppendReq.ProposedMessage],
+          accSize: Int
+        ): Pull[F, BatchAppendReq, Unit] = {
+
+          def mkRequest(isFinal: Boolean): BatchAppendReq =
+            if (first)
+              mkProposalsReq(uuid, acc, isFinal)
+                .withOptions(mkBatchAppendHeader(streamId, expectedState, None))
+            else
+              mkProposalsReq(uuid, acc, isFinal)
+
+          data.pull.uncons1.flatMap {
+
+            case Some((h, t)) =>
+              val size     = h.serializedSize
+              val nextSize = accSize + size
+
+              if (nextSize < maxBatchSizeInBytes)
+                run0(first, t, h :: acc, nextSize)
+              else
+                Pull.output1(mkRequest(isFinal = false)) >> run0(false, t, List(h), size)
+
+            case None =>
+              Pull.output1(mkRequest(isFinal = true)) >> Pull.done
+          }
+        }
+
+        val writer: Stream[F, BatchAppendReq] =
+          run0(first = true, events.map(mkBatchAppendProposal), Nil, 0).stream ++ Stream.never.interruptWhen(signal)
+
+        val operation: F[BatchAppendResp] =
+          f(writer).onFinalize(signal.set(true)).compile.lastOrError
+
+        opts.run(operation, "appendToStream") >>= mkBatchWriteResult[F]
+
+      }
+    }
 
   private[sec] def delete0[F[_]: Temporal](
     streamId: StreamId,

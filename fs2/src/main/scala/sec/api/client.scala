@@ -85,6 +85,7 @@ object EsClient {
     val streams: Streams[F] = Streams(
       streamsFs2Grpc,
       mkContext(options, requiresLeader),
+      options.batchAppendSize,
       mkOpts[F](options.operationOptions, logger, "Streams")
     )
 

@@ -18,7 +18,8 @@ package sec
 package api
 package mapping
 
-import java.time.{Instant, ZonedDateTime}
+import java.util.{UUID => JUUID}
+import java.time.ZonedDateTime
 import cats.{ApplicativeThrow, MonadThrow}
 import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.all._
@@ -221,10 +222,10 @@ private[sec] object streams {
     def mkBatchAppendHeader(
       streamId: StreamId,
       expectedState: StreamState,
-      deadline: Option[ZonedDateTime] // Not sure whether this is prudent
+      deadline: Option[ZonedDateTime]
     ): BatchAppendReq.Options = {
 
-      import scalapb.TimestampConverters._
+      import com.google.protobuf.timestamp.Timestamp
 
       val empty = com.google.protobuf.empty.Empty()
 
@@ -235,29 +236,53 @@ private[sec] object streams {
         case StreamState.Any          => BatchAppendReq.Options.ExpectedStreamPosition.Any(empty)
       }
 
-      val dl: Instant = deadline.map(_.toInstant()).getOrElse(Instant.MAX)
+      val dl = deadline.map(_.toInstant()).getOrElse(ZonedDateTime.now().plusMinutes(1L).toInstant())
 
-      BatchAppendReq
+      val req = BatchAppendReq
         .Options()
         .withStreamIdentifier(streamId.sid.esSid)
         .withExpectedStreamPosition(mapExpectedStreamPosition(expectedState))
-        .withDeadline(dl)
+
+      req.withDeadline(
+        Timestamp.fromJavaProto(
+          com.google.protobuf.Timestamp.newBuilder().setSeconds(dl.getEpochSecond()).setNanos(dl.getNano()).build())
+      )
+
+      // dl.fold(req)(req.withDeadline(_))
 
     }
 
-    def mkBatchAppendProposals(events: NonEmptyList[EventData]): NonEmptyList[BatchAppendReq.ProposedMessage] = {
-      events.map { e =>
+    def mkBatchAppendProposal(e: EventData): BatchAppendReq.ProposedMessage = {
 
-        val id         = mkUuid(e.eventId)
-        val customMeta = e.metadata.toByteString
-        val data       = e.data.toByteString
-        val ct         = e.contentType.fold(ContentTypes.ApplicationOctetStream, ContentTypes.ApplicationJson)
-        val meta       = Map(Type -> EventType.eventTypeToString(e.eventType), ContentType -> ct)
+      val id         = mkUuid(e.eventId)
+      val customMeta = e.metadata.toByteString
+      val data       = e.data.toByteString
+      val ct         = e.contentType.fold(ContentTypes.ApplicationOctetStream, ContentTypes.ApplicationJson)
+      val meta       = Map(Type -> EventType.eventTypeToString(e.eventType), ContentType -> ct)
 
-        BatchAppendReq.ProposedMessage(id.some, meta, customMeta, data)
-      }
+      BatchAppendReq.ProposedMessage(id.some, meta, customMeta, data)
 
     }
+
+    def mkHeaderReq(
+      correlationId: JUUID,
+      streamId: StreamId,
+      expectedState: StreamState,
+      deadline: Option[ZonedDateTime]
+    ): BatchAppendReq =
+      BatchAppendReq()
+        .withCorrelationId(mkUuid(correlationId))
+        .withOptions(mkBatchAppendHeader(streamId, expectedState, deadline))
+
+    def mkProposalsReq(
+      correlationId: JUUID,
+      data: List[BatchAppendReq.ProposedMessage],
+      isFinal: Boolean
+    ): BatchAppendReq =
+      BatchAppendReq()
+        .withCorrelationId(mkUuid(correlationId))
+        .withProposedMessages(data)
+        .withIsFinal(isFinal)
 
   }
 
