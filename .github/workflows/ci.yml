@@ -33,7 +33,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Java and Scala
-        uses: olafurpg/setup-scala@v12
+        uses: olafurpg/setup-scala@v13
         with:
           java-version: ${{ matrix.java }}
 
@@ -59,21 +59,21 @@ jobs:
           popd
 
       - name: Check that workflows are up to date
-        run: sbt --client '++${{ matrix.scala }}; githubWorkflowCheck'
+        run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
       - name: Compile docs
         if: contains(matrix.scala, '2.13.6')
-        run: sbt --client '++${{ matrix.scala }}; compileDocs'
+        run: sbt ++${{ matrix.scala }} compileDocs
 
       - name: Regular tests
-        run: sbt --client '++${{ matrix.scala }}; compileTests; tests/test'
+        run: sbt ++${{ matrix.scala }} compileTests tests/test
 
       - name: Single node integration tests
         if: contains(matrix.scala, '2.13.6')
         env:
           SEC_SIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_SIT_AUTHORITY: es.sec.local
-        run: sbt --client '++${{ matrix.scala }}; tests / Sit / test'
+        run: sbt ++${{ matrix.scala }} 'tests / Sit / test'
 
       - name: Stop Single Node
         if: always() && contains(matrix.scala, '2.13.6')
@@ -96,7 +96,7 @@ jobs:
         env:
           SEC_CIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_CIT_AUTHORITY: es.sec.local
-        run: sbt --client '++${{ matrix.scala }}; tests / Cit / test'
+        run: sbt ++${{ matrix.scala }} 'tests / Cit / test'
 
       - name: Stop Cluster Nodes
         if: always() && contains(matrix.scala, '2.13.6')
@@ -131,7 +131,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Java and Scala
-        uses: olafurpg/setup-scala@v12
+        uses: olafurpg/setup-scala@v13
         with:
           java-version: ${{ matrix.java }}
 
@@ -175,9 +175,9 @@ jobs:
           GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
-        run: sbt --client '++${{ matrix.scala }}; ci-release'
+        run: sbt ++${{ matrix.scala }} ci-release
 
       - if: contains(matrix.scala, '2.13.6') && github.ref == 'refs/heads/main'
         env:
           GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
-        run: sbt --client '++${{ matrix.scala }}; docs/docusaurusPublishGhpages'
+        run: sbt ++${{ matrix.scala }} docs/docusaurusPublishGhpages
