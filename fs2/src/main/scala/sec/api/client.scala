@@ -32,6 +32,8 @@ import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.grpc.convert.convertToEs
 import sec.api.grpc.metadata._
 import sec.api.retries.RetryConfig
+import com.eventstore.client.streams.BatchAppendReq
+import fs2.concurrent.SignallingRef
 
 trait EsClient[F[_]] {
   def streams: Streams[F]
@@ -69,14 +71,25 @@ object EsClient {
     options: Options,
     requiresLeader: Boolean,
     logger: Logger[F]
-  ): Resource[F, EsClient[F]] =
-    (mkStreamsFs2Grpc[F](mc, options.prefetchN), mkGossipFs2Grpc[F](mc)).mapN { (s, g) =>
-      create[F](s, g, options, requiresLeader, logger)
-    }
+  ): Resource[F, EsClient[F]] = {
+
+    def appender(s: StreamsFs2Grpc[F, Context], ctx: Context): Resource[F, Streams.BatchAppender[F]] =
+      Streams.BatchAppender[F](s.batchAppend(_, ctx))
+
+    for {
+      s  <- mkStreamsFs2Grpc[F](mc, options.prefetchN)
+      g  <- mkGossipFs2Grpc[F](mc)
+      c   = mkContext(options, requiresLeader)(None)
+      ba <- appender(s, c)
+
+    } yield create[F](s, g, ba, options, requiresLeader, logger)
+
+  }
 
   private[sec] def create[F[_]: Async](
     streamsFs2Grpc: StreamsFs2Grpc[F, Context],
     gossipFs2Grpc: GossipFs2Grpc[F, Context],
+    batchAppender: Streams.BatchAppender[F],
     options: Options,
     requiresLeader: Boolean,
     logger: Logger[F]
@@ -86,6 +99,7 @@ object EsClient {
       streamsFs2Grpc,
       mkContext(options, requiresLeader),
       options.batchAppendSize,
+      batchAppender,
       mkOpts[F](options.operationOptions, logger, "Streams")
     )
 

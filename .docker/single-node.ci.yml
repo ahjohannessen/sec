@@ -2,18 +2,24 @@ version: '3.8'
 services:
 
   es:
+    healthcheck:
+      disable: true
     image: docker.pkg.github.com/eventstore/eventstore/eventstore:ci
     #image: eventstore/eventstore:21.2.0-bionic
     env_file:
       - ./shared.env
     environment:
       - EVENTSTORE_MEM_DB=True
-      - EVENTSTORE_GOSSIP_ON_SINGLE_NODE=True
+#      - EVENTSTORE_GOSSIP_ON_SINGLE_NODE=True
       - EVENTSTORE_START_STANDARD_PROJECTIONS=True
+      - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=True      
       - EVENTSTORE_LOG_LEVEL=Verbose
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
       - "./logconfig.json:/opt/eventstore/logconfig.json"
+      # - "./Microsoft.AspNetCore.Server.Kestrel.dll:/opt/eventstore/Microsoft.AspNetCore.Server.Kestrel.dll"
+      # - "./Microsoft.AspNetCore.Server.Kestrel.Core.dll:/opt/eventstore/Microsoft.AspNetCore.Server.Kestrel.Core.dll"
+      # - "./Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.dll:/opt/eventstore/Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.dll"
     ports:
       - 2113:2113
     networks:

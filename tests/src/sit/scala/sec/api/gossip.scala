@@ -19,6 +19,7 @@ package api
 
 class GossipSuite extends SnSpec {
 
+  args.execute(threadsNb = 1)
   sequential
 
   "Gossip" should {

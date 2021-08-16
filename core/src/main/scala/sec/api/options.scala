@@ -45,7 +45,7 @@ private[sec] object Options {
     connectionMode       = Insecure,
     channelShutdownAwait = 5.seconds,
     prefetchN            = 512,
-    batchAppendSize      = 3 * 1024 * 1024
+    batchAppendSize      = 2 * 1024 * 1024
   )
 
   implicit final class OptionsOps(val o: Options) extends AnyVal {

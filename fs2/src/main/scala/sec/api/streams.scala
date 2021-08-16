@@ -25,7 +25,7 @@ import cats.data._
 import cats.effect._
 import cats.syntax.all._
 import com.eventstore.client.streams._
-import fs2.{Pipe, Pull, Stream}
+import fs2._
 import fs2.concurrent.SignallingRef
 import org.typelevel.log4cats.Logger
 import sec.api.exceptions.WrongExpectedVersion
@@ -235,6 +235,7 @@ object Streams {
     client: StreamsFs2Grpc[F, C],
     mkCtx: Option[UserCredentials] => C,
     maxBatchSizeBytes: Int,
+    batchAppender: BatchAppender[F],
     opts: Opts[F]
   ): Streams[F] = new Streams[F] {
 
@@ -282,7 +283,8 @@ object Streams {
       expectedState: StreamState,
       data: NonEmptyList[EventData]
     ): F[WriteResult] =
-      appendToStream0[F](streamId, expectedState, data, opts)(client.append(_, ctx))
+      appendToStream(streamId, expectedState, Stream.emits(data.toList))
+//      appendToStream0[F](streamId, expectedState, data, opts)(client.append(_, ctx))
 
     def appendToStream(
       streamId: StreamId,
@@ -296,7 +298,7 @@ object Streams {
         Sync[F].delay(JUUID.randomUUID()),
         maxBatchSizeBytes,
         opts
-      )(client.batchAppend(_, ctx))
+      )(batchAppender)
 
     def delete(
       streamId: StreamId,
@@ -313,7 +315,7 @@ object Streams {
     def withCredentials(
       creds: UserCredentials
     ): Streams[F] =
-      Streams[F, C](client, _ => mkCtx(creds.some), maxBatchSizeBytes, opts)
+      Streams[F, C](client, _ => mkCtx(creds.some), maxBatchSizeBytes, batchAppender, opts)
   }
 
 //======================================================================================================================
@@ -429,50 +431,48 @@ object Streams {
     mkJuuid: F[JUUID],
     maxBatchSizeInBytes: Int,
     opts: Opts[F]
-  )(f: Stream[F, BatchAppendReq] => Stream[F, BatchAppendResp]): F[WriteResult] =
-    SignallingRef[F, Boolean](false) >>= { signal =>
-      mkJuuid >>= { uuid =>
+  )(appender: BatchAppender[F]): F[WriteResult] = {
 
-        def run0(
-          first: Boolean,
-          data: Stream[F, BatchAppendReq.ProposedMessage],
-          acc: List[BatchAppendReq.ProposedMessage],
-          accSize: Int
-        ): Pull[F, BatchAppendReq, Unit] = {
+    mkJuuid >>= { uuid =>
 
-          def mkRequest(isFinal: Boolean): BatchAppendReq =
-            if (first)
-              mkProposalsReq(uuid, acc, isFinal)
-                .withOptions(mkBatchAppendHeader(streamId, expectedState, None))
+      def run0(
+        first: Boolean,
+        data: Stream[F, BatchAppendReq.ProposedMessage],
+        acc: List[BatchAppendReq.ProposedMessage],
+        accSize: Int
+      ): Pull[F, BatchAppendReq, Unit] = {
+
+        def mkRequest(isFinal: Boolean): BatchAppendReq =
+          if (first)
+            mkProposalsReq(uuid, acc.reverse, isFinal)
+              .withOptions(mkBatchAppendHeader(streamId, expectedState, None))
+          else
+            mkProposalsReq(uuid, acc.reverse, isFinal)
+
+        data.pull.uncons1.flatMap {
+
+          case Some((h, t)) =>
+            val size     = h.serializedSize
+            val nextSize = accSize + size
+
+            if (nextSize < maxBatchSizeInBytes)
+              run0(first, t, h :: acc, nextSize)
             else
-              mkProposalsReq(uuid, acc, isFinal)
+              Pull.output1(mkRequest(isFinal = false)) >> run0(false, t, List(h), size)
 
-          data.pull.uncons1.flatMap {
-
-            case Some((h, t)) =>
-              val size     = h.serializedSize
-              val nextSize = accSize + size
-
-              if (nextSize < maxBatchSizeInBytes)
-                run0(first, t, h :: acc, nextSize)
-              else
-                Pull.output1(mkRequest(isFinal = false)) >> run0(false, t, List(h), size)
-
-            case None =>
-              Pull.output1(mkRequest(isFinal = true)) >> Pull.done
-          }
+          case None =>
+            Pull.output1(mkRequest(isFinal = true)) >> Pull.done
         }
-
-        val writer: Stream[F, BatchAppendReq] =
-          run0(first = true, events.map(mkBatchAppendProposal), Nil, 0).stream ++ Stream.never.interruptWhen(signal)
-
-        val operation: F[BatchAppendResp] =
-          f(writer).onFinalize(signal.set(true)).compile.lastOrError
-
-        opts.run(operation, "appendToStream") >>= mkBatchWriteResult[F]
-
       }
+
+      val writer: Stream[F, BatchAppendReq] =
+        run0(first = true, events.map(mkBatchAppendProposal), Nil, 0).stream
+
+      opts.run(appender.append(uuid, writer), "appendToStream") >>= mkBatchWriteResult[F]
+
     }
+
+  }
 
   private[sec] def delete0[F[_]: Temporal](
     streamId: StreamId,
@@ -584,6 +584,69 @@ object Streams {
       }
 
     } else streamFn(from)
+
+  }
+
+  private[sec] trait BatchAppender[F[_]] {
+    def append(cid: JUUID, source: Stream[F, BatchAppendReq]): F[BatchAppendResp]
+  }
+
+  private[sec] object BatchAppender {
+
+    import cats.effect.implicits._
+    import cats.effect.std.Queue
+    import mapping.implicits._
+    import mapping.shared.mkJuuid
+
+    def apply[F[_]](handle: Stream[F, BatchAppendReq] => Stream[F, BatchAppendResp])(implicit
+      F: Async[F]): Resource[F, BatchAppender[F]] = {
+
+      def extractId(x: BatchAppendResp): F[JUUID] =
+        x.correlationId.require[F]("correlationId") >>= mkJuuid[F]
+
+      def handleIncoming(x: BatchAppendResp, outstanding: Ref[F, Map[JUUID, Deferred[F, BatchAppendResp]]]) =
+        extractId(x) >>= { id =>
+          outstanding.modify(m => (m - id, m.get(id))).flatMap(_.fold(F.unit)(_.complete(x).void))
+        }
+
+      for {
+        outgoing      <- Resource.make(Queue.unbounded[F, Option[BatchAppendReq]])(_.offer(None))
+        outgoingStream = Stream.fromQueueNoneTerminated(outgoing)
+        outstanding   <- Resource.eval(Ref.of[F, Map[JUUID, Deferred[F, BatchAppendResp]]](Map.empty))
+        ingest         = handle(outgoingStream).evalMap(handleIncoming(_, outstanding))
+        _             <- ingest.compile.drain.background
+
+      } yield
+        BatchAppender[F](
+          (ba: BatchAppendReq) => outgoing.offer(ba.some),
+          outstanding
+        )
+
+    }
+
+    def apply[F[_]: Async](
+      outgoing: BatchAppendReq => F[Unit],
+      incoming: Ref[F, Map[JUUID, Deferred[F, BatchAppendResp]]]
+    ): BatchAppender[F] = new BatchAppender[F] {
+
+      def append(cid: JUUID, source: Stream[F, BatchAppendReq]): F[BatchAppendResp] =
+        for {
+          p <- Deferred[F, BatchAppendResp]
+          _ <- incoming.update(_ + (cid -> p))
+          _ <-
+            source
+              .evalTap(outgoing)
+              .evalTap(ba =>
+                Async[F].delay(println(s"Writing ${ba.proposedMessages.size} events ${ba.proposedMessages.foldLeft(0)(
+                  (b, m) => m.serializedSize + b) / ba.proposedMessages.size} bytes average")))
+              .compile
+              .drain
+              .onError { case e =>
+                incoming.update(_ - cid)
+              }
+          pf <- p.get
+        } yield pf
+    }
 
   }
 
