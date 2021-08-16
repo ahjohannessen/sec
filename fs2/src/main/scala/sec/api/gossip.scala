@@ -19,7 +19,7 @@ package api
 
 import cats.syntax.all._
 import cats.effect.Temporal
-import com.eventstore.dbclient.proto.gossip.{GossipFs2Grpc, ClusterInfo => PClusterInfo}
+import com.eventstore.dbclient.proto.gossip.{ClusterInfo => PClusterInfo, GossipFs2Grpc}
 import com.eventstore.dbclient.proto.shared.Empty
 import sec.api.mapping.gossip.mkClusterInfo
 
