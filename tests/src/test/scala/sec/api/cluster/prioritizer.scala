@@ -100,7 +100,7 @@ class NodePrioritizerSpec extends Specification with CatsEffect {
         pickBestNode(members(expected), pref, randomSeed).map(_.httpEndpoint.port) shouldEqual
           members(expected).filter(_.state.eqv(expected)).lastOption.map(_.httpEndpoint.port)
 
-      expectations.toList.map({ case (p, e) => test(p, e) })
+      expectations.toList.map { case (p, e) => test(p, e) }
 
     }
 
