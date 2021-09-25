@@ -2,7 +2,7 @@ version: '3.8'
 services:
 
   es:
-    image: eventstore/eventstore:21.2.0-bionic
+    image: eventstore/eventstore:21.6.0-bionic
     env_file:
       - ./shared.env
     environment:

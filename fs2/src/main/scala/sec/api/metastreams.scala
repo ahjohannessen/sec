@@ -19,7 +19,7 @@ package api
 
 import java.{util => ju}
 
-import cats.Endo
+import cats.{ApplicativeThrow, Endo}
 import cats.data.NonEmptyList
 import cats.effect.Sync
 import cats.syntax.all._
@@ -381,7 +381,7 @@ object MetaStreams {
   private[sec] val printer: Printer             = Printer.noSpaces.copy(dropNullValues = true)
   private[sec] def uuid[F[_]: Sync]: F[ju.UUID] = Sync[F].delay(ju.UUID.randomUUID())
 
-  private[sec] def mkEventData[F[_]: ErrorA](eventId: ju.UUID, sm: StreamMetadata): F[EventData] =
+  private[sec] def mkEventData[F[_]: ApplicativeThrow](eventId: ju.UUID, sm: StreamMetadata): F[EventData] =
     ByteVector
       .encodeUtf8(printer.print(Encoder[StreamMetadata].apply(sm)))
       .map(EventData(EventType.StreamMetadata, eventId, _, ContentType.Json))

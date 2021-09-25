@@ -18,6 +18,7 @@ package sec
 package api
 package mapping
 
+import cats.MonadThrow
 import cats.syntax.all._
 import com.eventstore.dbclient.proto.{gossip => p}
 import sec.api.mapping.implicits._
@@ -51,7 +52,7 @@ private[sec] object gossip {
 
   }
 
-  def mkMemberInfo[F[_]: ErrorM](mi: p.MemberInfo): F[MemberInfo] = {
+  def mkMemberInfo[F[_]: MonadThrow](mi: p.MemberInfo): F[MemberInfo] = {
 
     val instanceId = mi.instanceId.require[F]("instanceId") >>= mkJuuid[F]
     val timestamp  = fromTicksSinceEpoch[F](mi.timeStamp)
@@ -64,7 +65,7 @@ private[sec] object gossip {
     }
   }
 
-  def mkClusterInfo[F[_]: ErrorM](ci: p.ClusterInfo): F[ClusterInfo] =
+  def mkClusterInfo[F[_]: MonadThrow](ci: p.ClusterInfo): F[ClusterInfo] =
     ci.members.toList.traverse(mkMemberInfo[F]).map(m => ClusterInfo(m.toSet))
 
 }

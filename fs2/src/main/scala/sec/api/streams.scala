@@ -406,16 +406,16 @@ object Streams {
 
 //======================================================================================================================
 
-  private[sec] def readAllEventPipe[F[_]: ErrorM]: Pipe[F, ReadResp, AllEvent] =
+  private[sec] def readAllEventPipe[F[_]: MonadThrow]: Pipe[F, ReadResp, AllEvent] =
     _.evalMap(reqReadAll[F]).unNone
 
-  private[sec] def readStreamEventPipe[F[_]: ErrorM]: Pipe[F, ReadResp, StreamEvent] =
+  private[sec] def readStreamEventPipe[F[_]: MonadThrow]: Pipe[F, ReadResp, StreamEvent] =
     _.evalMap(reqReadStream[F]).unNone
 
-  private[sec] def streamNotFoundPipe[F[_]: ErrorM]: Pipe[F, ReadResp, ReadResp] =
+  private[sec] def streamNotFoundPipe[F[_]: MonadThrow]: Pipe[F, ReadResp, ReadResp] =
     _.evalMap(failStreamNotFound[F])
 
-  private[sec] def subConfirmationPipe[F[_]: ErrorM](logger: Logger[F]): Pipe[F, ReadResp, ReadResp] = in => {
+  private[sec] def subConfirmationPipe[F[_]: MonadThrow](logger: Logger[F]): Pipe[F, ReadResp, ReadResp] = in => {
 
     val log: SubscriptionConfirmation => F[Unit] =
       sc => logger.debug(s"$sc received")
@@ -428,13 +428,19 @@ object Streams {
     initialPull.stream
   }
 
-  private[sec] def subscriptionAllPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, AllEvent] =
+  private[sec] def subscriptionAllPipe[F[_]: MonadThrow](
+    log: Logger[F]
+  ): Pipe[F, ReadResp, AllEvent] =
     _.through(subConfirmationPipe(log)).through(readAllEventPipe)
 
-  private[sec] def subscriptionStreamPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, StreamEvent] =
+  private[sec] def subscriptionStreamPipe[F[_]: MonadThrow](
+    log: Logger[F]
+  ): Pipe[F, ReadResp, StreamEvent] =
     _.through(subConfirmationPipe(log)).through(readStreamEventPipe)
 
-  private[sec] def subAllFilteredPipe[F[_]: ErrorM](log: Logger[F]): Pipe[F, ReadResp, Either[Checkpoint, AllEvent]] =
+  private[sec] def subAllFilteredPipe[F[_]: MonadThrow](
+    log: Logger[F]
+  ): Pipe[F, ReadResp, Either[Checkpoint, AllEvent]] =
     _.through(subConfirmationPipe(log)).through(_.evalMap(mkCheckpointOrEvent[F]).unNone)
 
   private[sec] def withRetry[F[_]: Temporal, T: Order, O](

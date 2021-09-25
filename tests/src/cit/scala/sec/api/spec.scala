@@ -18,16 +18,15 @@ package sec
 package api
 
 import java.io.File
-
 import scala.concurrent.duration._
-
 import cats.data.NonEmptySet
 import cats.effect._
 import org.typelevel.log4cats.Logger
-
 import helpers.endpoint.endpointFrom
+import org.specs2.specification.Retries
 
-trait CSpec extends ClientSpec {
+trait CSpec extends ClientSpec with Retries {
+  override def sleep: Duration                       = 500.millis
   final val makeResource: Resource[IO, EsClient[IO]] = CSpec.mkClient[IO](log)
 }
 
