@@ -82,7 +82,8 @@ private[sec] object convert {
   }
 
   val serverUnavailable: StatusRuntimeException => Option[ServerUnavailable] = { ex =>
-    Option.when(ex.getStatus.getCode == Status.Code.UNAVAILABLE)(ServerUnavailable(ex.getMessage))
+    val cause = Option(ex.getCause()).fold("")(c => s", cause: ${c.getMessage}")
+    Option.when(ex.getStatus.getCode == Status.Code.UNAVAILABLE)(ServerUnavailable(s"${ex.getMessage}$cause"))
   }
 
 //======================================================================================================================

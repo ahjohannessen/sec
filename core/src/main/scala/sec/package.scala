@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import cats.{ApplicativeError, MonadError}
-
 package object sec {
 
   type AllEvent    = sec.Event[PositionInfo.Global]
@@ -23,9 +21,7 @@ package object sec {
 
   ///
 
-  private[sec] type ErrorM[F[_]] = MonadError[F, Throwable]
-  private[sec] type ErrorA[F[_]] = ApplicativeError[F, Throwable]
-  private[sec] type Attempt[T]   = Either[String, T]
-  private[sec] type ErrorOr[T]   = Either[Throwable, T]
+  private[sec] type Attempt[T] = Either[String, T]
+  private[sec] type ErrorOr[T] = Either[Throwable, T]
 
 }

@@ -31,12 +31,15 @@ import fs2.Stream
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.scalacheck.Gen
+import org.specs2.specification.Retries
 import org.specs2.matcher.MatchResult
 import org.specs2.mutable.Specification
 import sec.api.exceptions.ServerUnavailable
 import sec.arbitraries._
 
-class ClusterWatchSpec extends Specification with TestInstances with CatsEffect {
+class ClusterWatchSpec extends Specification with Retries with TestInstances with CatsEffect {
+
+  override def sleep: Duration = 500.millis
 
   import ClusterWatch.Cache
 
