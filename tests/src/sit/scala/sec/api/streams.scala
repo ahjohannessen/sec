@@ -1388,7 +1388,7 @@ class StreamsSuite extends SnSpec {
             wr1 <- streams.appendToStream(id, StreamState.NoStream, beforeEvents)
             _   <- streams.delete(id, wr1.streamPosition)
             wr2 <- streams.appendToStream(id, expectedState, afterEvents)
-            _   <- IO.sleep(100.millis) // Workaround for ES github issue #1744
+            _ <- IO.sleep(100.millis) // Workaround for ES github issue #1744
             evt <- streams.readStreamForwards(id, maxCount = 3).compile.toList
             tbm <- metaStreams.getTruncateBefore(id)
 
@@ -1436,10 +1436,10 @@ class StreamsSuite extends SnSpec {
           .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
 
         for {
-          swr    <- streams.appendToStream(id, StreamState.NoStream, beforeEvents)
-          mwr    <- metaStreams.setMetadata(id, StreamState.NoStream, metadata)
-          _      <- streams.appendToStream(id, StreamPosition.exact(1), afterEvents)
-          _      <- IO.sleep(1.second) // Workaround for ES github issue #1744
+          swr <- streams.appendToStream(id, StreamState.NoStream, beforeEvents)
+          mwr <- metaStreams.setMetadata(id, StreamState.NoStream, metadata)
+          _   <- streams.appendToStream(id, StreamPosition.exact(1), afterEvents)
+          _ <- IO.sleep(1.second) // Workaround for ES github issue #1744
           events <- streams.readStreamForwards(id, maxCount = 3).compile.toList
           meta   <- metaStreams.getMetadata(id)
 
