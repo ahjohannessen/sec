@@ -18,7 +18,6 @@ package sec
 package api
 
 import cats.{Applicative, Endo}
-import cats.syntax.all._
 import cats.data.NonEmptySet
 import cats.effect.Resource
 import cats.effect.kernel.Async
@@ -32,8 +31,6 @@ import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.grpc.convert.convertToEs
 import sec.api.grpc.metadata._
 import sec.api.retries.RetryConfig
-import com.eventstore.client.streams.BatchAppendReq
-import fs2.concurrent.SignallingRef
 
 trait EsClient[F[_]] {
   def streams: Streams[F]

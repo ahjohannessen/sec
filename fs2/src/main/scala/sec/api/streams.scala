@@ -26,7 +26,7 @@ import cats.effect._
 import cats.syntax.all._
 import com.eventstore.client.streams._
 import fs2._
-import fs2.concurrent.SignallingRef
+// import fs2.concurrent.SignallingRef
 import org.typelevel.log4cats.Logger
 import sec.api.exceptions.WrongExpectedVersion
 import sec.api.mapping.streams.incoming._
@@ -641,7 +641,7 @@ object Streams {
                   (b, m) => m.serializedSize + b) / ba.proposedMessages.size} bytes average")))
               .compile
               .drain
-              .onError { case e =>
+              .onError { case _ =>
                 incoming.update(_ - cid)
               }
           pf <- p.get

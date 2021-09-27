@@ -25,7 +25,6 @@ import org.typelevel.log4cats.Logger
 import io.grpc.{ManagedChannel, ManagedChannelBuilder, NameResolverRegistry}
 import sec.api.channel._
 import sec.api.cluster._
-import fs2.concurrent.SignallingRef
 
 //======================================================================================================================
 

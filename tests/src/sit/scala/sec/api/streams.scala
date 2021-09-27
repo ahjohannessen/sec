@@ -35,7 +35,7 @@ import helpers.implicits._
 
 class StreamsSuite extends SnSpec {
 
-  args.execute(threadsNb = 1)
+  args.execute(threadsNb = 4)
   sequential
 
   "Streams" should {
@@ -849,13 +849,16 @@ class StreamsSuite extends SnSpec {
 
       "create stream on first write if does not exist" >> {
 
-        val events = genEvents(2500)
+        val events = genEvents(3000)
 
         def test(expectedState: StreamState) = {
 
           val id = genStreamId(s"${streamPrefix}non_existing_${mkSnakeCase(expectedState.render)}_")
 
-          streams.appendToStream(id, expectedState, events)
+          cats.effect.Clock[IO].timed(streams.appendToStream(id, expectedState, events)).flatMap { case (d, _) =>
+            cats.effect.std.Console[IO].println(s"took: ${d.toMillis} ms")
+
+          }
 
           // >>= { wr =>
           //   streams.readStreamForwards(id, maxCount = 2).compile.toList.map { el =>
