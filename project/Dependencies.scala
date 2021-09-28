@@ -10,7 +10,7 @@ object Dependencies {
     val fs2              = "3.1.3"
     val log4cats         = "2.1.1"
     val logback          = "1.2.6"
-    val scodecBits       = "1.1.28"
+    val scodecBits       = "1.1.29"
     val circe            = "0.14.1"
     val scalaPb          = scalapb.compiler.Version.scalapbVersion
     val grpc             = "1.41.0"
