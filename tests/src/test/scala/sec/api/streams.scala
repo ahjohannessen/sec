@@ -22,7 +22,7 @@ import scala.util.control.NoStackTrace
 
 import cats.Order
 import cats.effect._
-import cats.effect.testing.specs2.CatsEffect
+// import cats.effect.testing.specs2.CatsEffect
 import fs2.Stream
 import org.typelevel.log4cats.noop.NoOpLogger
 import org.typelevel.log4cats.testing.TestingLogger

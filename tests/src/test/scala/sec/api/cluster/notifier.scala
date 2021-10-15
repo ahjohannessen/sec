@@ -23,7 +23,7 @@ import java.util.UUID
 import java.{util => ju}
 import cats.data.{NonEmptyList => Nel, NonEmptySet => Nes}
 import cats.effect._
-import cats.effect.testing.specs2._
+// import cats.effect.testing.specs2._
 import cats.syntax.all._
 import fs2.Stream
 import fs2.concurrent.SignallingRef

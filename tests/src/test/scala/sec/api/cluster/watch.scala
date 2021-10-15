@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 import cats.data.{NonEmptyList => Nel}
 import cats.effect._
 import cats.effect.testkit._
-import cats.effect.testing.specs2.CatsEffect
+// import cats.effect.testing.specs2.CatsEffect
 import cats.syntax.all._
 import fs2.Stream
 import org.typelevel.log4cats.Logger

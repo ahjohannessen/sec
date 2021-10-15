@@ -21,7 +21,7 @@ import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 import cats.effect._
 import cats.effect.testkit._
-import cats.effect.testing.specs2.CatsEffect
+// import cats.effect.testing.specs2.CatsEffect
 import cats.syntax.all._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
