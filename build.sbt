@@ -194,7 +194,8 @@ val docsOnMain                      = "github.ref == 'refs/heads/main'"
 
 inThisBuild(
   List(
-    githubWorkflowJavaVersions := Seq("adopt@1.11"),
+    githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/typelevel/jdk-index/raw/main/index.json"),
+    githubWorkflowJavaVersions := Seq("adoptium@17"),
     githubWorkflowTargetTags += "v*",
     githubWorkflowTargetBranches := Seq("main"),
     githubWorkflowBuildPreamble += WorkflowStep.Run(
