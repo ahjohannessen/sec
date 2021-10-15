@@ -19,7 +19,7 @@ package sec
 import scala.concurrent.duration._
 import cats.effect._
 import cats.effect.unsafe.implicits._
-import cats.effect.testing.specs2._
+// import cats.effect.testing.specs2._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.specs2.mutable.Specification

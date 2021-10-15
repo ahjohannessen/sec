@@ -21,7 +21,7 @@ package cluster
 import java.time.ZonedDateTime
 import java.{util => ju}
 import cats.data.{NonEmptyList => Nel}
-import cats.effect.testing.specs2._
+// import cats.effect.testing.specs2._
 import cats.syntax.all._
 import org.scalacheck.{Arbitrary, Gen}
 import org.specs2.mutable.Specification
