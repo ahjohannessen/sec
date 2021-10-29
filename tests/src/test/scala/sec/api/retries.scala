@@ -47,7 +47,7 @@ class RetriesSpec extends Specification with TestInstances with CatsEffect {
       retries.retry[IO, A](action, "retry-spec", retryConfig, log)(retryOn).unsafeToFuture()
     }
 
-    ///
+    // /
 
     "immediate success" >> {
       implicit val ec: TestContext = TestContext()

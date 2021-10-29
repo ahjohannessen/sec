@@ -45,7 +45,7 @@ object StreamId {
     def unsafe(name: String): Normal = new Normal(name) {}
   }
 
-  ///
+  // /
 
   final val All: System       = System.unsafe("all")
   final val Settings: System  = System.unsafe("settings")
@@ -60,7 +60,7 @@ object StreamId {
   def apply(name: String): Either[InvalidInput, Id] =
     (guardNonEmptyName(name) >>= guardNotStartsWith(metadataPrefix) >>= stringToId).leftMap(InvalidInput(_))
 
-  ///
+  // /
 
   private[sec] val guardNonEmptyName: String => Attempt[String] = guardNonEmpty("name")
 
@@ -95,7 +95,7 @@ object StreamId {
   final private[sec] val metadataPrefix: String    = "$$"
   final private[sec] val metadataPrefixLength: Int = metadataPrefix.length
 
-  ///
+  // /
 
   implicit final class StreamIdOps(val sid: StreamId) extends AnyVal {
 

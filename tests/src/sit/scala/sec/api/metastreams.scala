@@ -38,7 +38,7 @@ class MetaStreamsSuite extends SnSpec {
     val mkStreamId: String => StreamId.Id =
       usecase => genStreamId(s"meta_streams_${genIdentifier}_$usecase")
 
-    ///
+    // /
 
     "work with existing stream and no metadata exists" >> {
 

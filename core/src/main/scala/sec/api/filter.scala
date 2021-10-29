@@ -62,7 +62,7 @@ object EventFilter {
   def regex(kind: Kind, filter: String): EventFilter =
     EventFilter(kind, RegexFilter(filter).asRight)
 
-  ///
+  // /
 
   sealed trait Expression
   final case class PrefixFilter(value: String) extends Expression

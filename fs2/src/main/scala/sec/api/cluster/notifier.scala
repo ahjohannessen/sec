@@ -41,7 +41,7 @@ private[sec] object Notifier {
     def onResult(result: Nel[Endpoint]): F[Unit]
   }
 
-  ///
+  // /
 
   object gossip {
 
@@ -80,7 +80,7 @@ private[sec] object Notifier {
 
   }
 
-  ///
+  // /
 
   object bestNodes {
 
@@ -120,7 +120,7 @@ private[sec] object Notifier {
         case Nil                                      => Nil
       }
 
-    ///
+    // /
 
     def prioritize[F[_]: Sync](ci: ClusterInfo, np: NodePreference): F[List[MemberInfo]] =
       Sync[F].delay(new Random()).map { rnd =>

@@ -112,7 +112,7 @@ object EsClient {
     Opts[F](oo.retryEnabled, rc, defaultRetryOn, log.withModifiedString(s => s"$prefix > $s"))
   }
 
-  /// Streams
+  // / Streams
 
   private[sec] def mkStreamsFs2Grpc[F[_]: Async](
     mc: ManagedChannel,
@@ -128,7 +128,7 @@ object EsClient {
         .withPrefetchN(prefetchN)
     )
 
-  /// Gossip
+  // / Gossip
 
   private[sec] def mkGossipFs2Grpc[F[_]: Async](
     mc: ManagedChannel,

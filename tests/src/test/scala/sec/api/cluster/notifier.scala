@@ -44,7 +44,7 @@ class NotifierSpec extends Specification with CatsEffect {
     def mkEp(addr: String, port: Int = 2113): Endpoint = Endpoint(addr, port)
     def mkCi(ms: MemberInfo*): ClusterInfo             = ClusterInfo(Set(ms: _*))
 
-    ///
+    // /
 
     "gossip" >> {
 

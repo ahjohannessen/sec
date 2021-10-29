@@ -40,12 +40,12 @@ private[sec] object config {
   private val clPath   = s"$rootPath.cluster"
   private val coPath   = s"$clPath.options"
 
-  ///
+  // /
 
   private val getAuthority: Config => Option[String] = cfg =>
     cfg.option(s"$rootPath.authority", _.getString).filter(_.trim.nonEmpty)
 
-  ///
+  // /
 
   def mkClient[F[_]: Async, MCB <: ManagedChannelBuilder[MCB]](
     mcb: ChannelBuilderParams => F[MCB],
@@ -62,7 +62,7 @@ private[sec] object config {
       case Right(s) => s.build(mcb)
     }
 
-  ///
+  // /
 
   def mkBuilder[F[_]: MonadThrow](
     cfg: Config,
@@ -118,7 +118,7 @@ private[sec] object config {
 
   }
 
-  ///
+  // /
 
   def mkOptions[F[_]: ApplicativeThrow](cfg: Config): F[Options] = {
 
@@ -154,7 +154,7 @@ private[sec] object config {
 
   }
 
-  ///
+  // /
 
   def mkClusterOptions[F[_]: ApplicativeThrow](cfg: Config): F[ClusterOptions] = {
 
