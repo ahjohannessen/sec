@@ -24,7 +24,7 @@ trait StreamsSyntax {
 
   extension [F[_]](s: Streams[F]) {
 
-    /// Subscription
+    // / Subscription
 
     /** Subscribes to the global stream, [[StreamId.All]] without resolving [[EventType.LinkTo]] events.
       *
@@ -70,7 +70,7 @@ trait StreamsSyntax {
     ): Stream[F, StreamEvent] =
       s.subscribeToStream(streamId, exclusiveFrom, resolveLinkTos = false)
 
-    /// Read
+    // / Read
 
     /** Read events forwards from the global stream, [[sec.StreamId.All]].
       *

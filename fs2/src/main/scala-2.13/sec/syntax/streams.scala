@@ -26,7 +26,7 @@ trait StreamsSyntax {
 
 final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
 
-  /// Subscription
+  // / Subscription
 
   /** Subscribes to the global stream, [[StreamId.All]] without resolving [[EventType.LinkTo]] events.
     *
@@ -72,7 +72,7 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
   ): Stream[F, StreamEvent] =
     s.subscribeToStream(streamId, exclusiveFrom, resolveLinkTos = false)
 
-  /// Read
+  // / Read
 
   /** Read events forwards from the global stream, [[sec.StreamId.All]].
     *

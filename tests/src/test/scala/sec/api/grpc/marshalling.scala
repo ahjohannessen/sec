@@ -24,7 +24,7 @@ class MarshallingSpec extends mutable.Specification {
 
   "NumericAsciiMarshallers" >> {
 
-    /// Happy Path
+    // / Happy Path
 
     IntMarshaller.toAsciiString(Int.MinValue) shouldEqual "-2147483648"
     IntMarshaller.parseAsciiString("-2147483648") shouldEqual Int.MinValue
@@ -44,7 +44,7 @@ class MarshallingSpec extends mutable.Specification {
     LongMarshaller.toAsciiString(Long.MaxValue) shouldEqual "9223372036854775807"
     LongMarshaller.parseAsciiString("9223372036854775807") shouldEqual Long.MaxValue
 
-    /// Sad Path
+    // / Sad Path
 
     InvalidInput("Blackie Lawless", "WASP").getMessage() shouldEqual "Could not parse Blackie Lawless to WASP"
 

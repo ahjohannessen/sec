@@ -44,7 +44,7 @@ class StreamMetadataSpec extends Specification {
     val sm2 = StreamMetadata(sampleOf[MetaState], foo.asJsonObject.some)
     Decoder[StreamMetadata].apply(Encoder[StreamMetadata].apply(sm2).hcursor) should beRight(sm2)
 
-    /// roundtrips with custom & overlapping keys favors system reserved keys
+    // / roundtrips with custom & overlapping keys favors system reserved keys
 
     val reserved = StreamMetadata.reservedKeys
 
@@ -166,7 +166,7 @@ class StreamAclSpec extends Specification {
     Encoder[StreamAcl].apply(acl) shouldEqual expectedJson
     Decoder[StreamAcl].apply(expectedJson.hcursor) should beRight(acl)
 
-    /// Supports parsing single values / missing values
+    // / Supports parsing single values / missing values
 
     val aclJson = """
           |  {

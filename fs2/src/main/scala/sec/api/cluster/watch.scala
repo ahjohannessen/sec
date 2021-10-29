@@ -104,7 +104,7 @@ private[sec] object ClusterWatch {
     Stream.eval(action).metered(notificationInterval).repeat.changesBy(_.members).evalMap(setInfo)
   }
 
-  ///
+  // /
 
   def retryConfig(co: ClusterOptions): RetryConfig = {
     val timeout     = co.readTimeout.some
@@ -112,7 +112,7 @@ private[sec] object ClusterWatch {
     RetryConfig(co.retryDelay, co.retryMaxDelay, co.retryBackoffFactor, maxAttempts, timeout)
   }
 
-  ///
+  // /
 
   trait Cache[F[_]] {
     def set(ci: ClusterInfo): F[Unit]

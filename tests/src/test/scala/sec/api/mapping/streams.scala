@@ -47,7 +47,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
     val empty = Empty()
 
-    ///
+    // /
 
     "uuidOption" >> {
       uuidOption shouldEqual s.ReadReq.Options.UUIDOption().withStructured(empty)
@@ -428,7 +428,7 @@ class StreamsMappingSpec extends mutable.Specification {
         mkPos: s.ReadResp.ReadEvent.RecordedEvent => ErrorOr[P]
       ) = {
 
-        ///
+        // /
 
         val readEvent = s.ReadResp.ReadEvent()
 
@@ -552,7 +552,7 @@ class StreamsMappingSpec extends mutable.Specification {
         ) shouldEqual ProtoResultError(s"Required value $Created missing or invalid.").asLeft
       }
 
-      ///
+      // /
 
       val sid = sec.StreamId(streamId).unsafe
       val et  = sec.EventType(eventType).unsafe
@@ -696,7 +696,7 @@ class StreamsMappingSpec extends mutable.Specification {
       test(s.AppendResp().withSuccess(successRevOne.withPositionOption(Success.PositionOption.Empty))) shouldEqual
         ProtoResultError("PositionOption is missing").asLeft
 
-      ///
+      // /
 
       val wreExpectedOne          = ExpectedRevisionOption.ExpectedRevision(1L)
       val wreExpectedNoStream     = ExpectedRevisionOption.ExpectedNoStream(empty)
@@ -736,7 +736,7 @@ class StreamsMappingSpec extends mutable.Specification {
       testCurrent(wreCurrentNoStream, sec.StreamState.NoStream)
       test(mkCurrent(wreCurrentEmpty)) shouldEqual ProtoResultError("CurrentRevisionOption is missing").asLeft
 
-      ///
+      // /
 
       test(s.AppendResp().withResult(Result.Empty)) shouldEqual
         ProtoResultError("Result is missing").asLeft

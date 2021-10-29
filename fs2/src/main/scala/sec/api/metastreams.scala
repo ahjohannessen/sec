@@ -260,7 +260,7 @@ trait MetaStreams[F[_]] {
     */
   def withCredentials(creds: UserCredentials): MetaStreams[F]
 
-  ///
+  // /
 
   private[sec] def getMetadata(id: Id): F[Option[MetaResult]]
   private[sec] def setMetadata(id: Id, expectedState: StreamState, data: StreamMetadata): F[WriteResult]
@@ -270,7 +270,7 @@ trait MetaStreams[F[_]] {
 
 object MetaStreams {
 
-  //====================================================================================================================
+  // ====================================================================================================================
 
   type ReadResult[T]           = Result[Option[T]]
   private[sec] type MetaResult = Result[StreamMetadata]
@@ -287,12 +287,12 @@ object MetaStreams {
     }
   }
 
-  //====================================================================================================================
+  // ====================================================================================================================
 
   private[sec] def apply[F[_]: Sync](s: Streams[F]): MetaStreams[F] = MetaStreams[F](MetaRW[F](s))
   private[sec] def apply[F[_]](meta: MetaRW[F])(implicit F: Sync[F]): MetaStreams[F] = new MetaStreams[F] {
 
-    //==================================================================================================================
+    // ==================================================================================================================
 
     def getMaxAge(id: Id): F[Option[ReadResult[MaxAge]]]               = getResult(id, _.maxAge)
     def setMaxAge(id: Id, es: StreamState, ma: MaxAge): F[WriteResult] = setMaxAge(id, es, ma.some)
@@ -335,7 +335,7 @@ object MetaStreams {
     def withCredentials(creds: UserCredentials): MetaStreams[F] =
       MetaStreams[F](meta.withCredentials(creds))
 
-    //==================================================================================================================
+    // ==================================================================================================================
 
     private[sec] def getResult[A](id: Id, fn: StreamMetadata => Option[A]): F[Option[ReadResult[A]]] =
       getMetadata(id).nested.map(_.zoom(fn)).value

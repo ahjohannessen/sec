@@ -178,13 +178,13 @@ class ConvertSpec extends mutable.Specification {
       m.put(ek, ce.UserNotFound)
     } should beSome(UserNotFound(unknown))
 
-    /// Unknown Exception Key
+    // / Unknown Exception Key
 
     convert { m =>
       m.put(ek, "not-handled")
     } should beSome(UnknownError("Exception key: not-handled"))
 
-    /// From Status Codes & Causes
+    // / From Status Codes & Causes
 
     convertToEs(Status.UNAVAILABLE.withDescription("Oops").asRuntimeException()) should beSome(
       ServerUnavailable("UNAVAILABLE: Oops")

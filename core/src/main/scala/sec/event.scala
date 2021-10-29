@@ -161,7 +161,7 @@ object EventType {
     def unsafe(name: String): Normal = new Normal(name) {}
   }
 
-  ///
+  // /
 
   final val StreamDeleted: System   = System.unsafe("streamDeleted")
   final val StatsCollected: System  = System.unsafe("statsCollected")
@@ -177,7 +177,7 @@ object EventType {
   def apply(name: String): Either[InvalidInput, Normal] =
     normal(name).leftMap(InvalidInput(_))
 
-  ///
+  // /
 
   private[sec] val guardNonEmptyName: String => Attempt[String] = guardNonEmpty("Event type name")
 
@@ -187,7 +187,7 @@ object EventType {
   private[sec] def normal(name: String): Attempt[Normal] =
     guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix) >>= (Normal.unsafe(_).asRight)
 
-  ///
+  // /
 
   private[sec] val eventTypeToString: EventType => String = {
     case System(n) => s"$systemPrefix$n"
@@ -295,7 +295,7 @@ object EventData {
   ): Either[InvalidInput, EventData] =
     EventType(eventType).map(EventData(_, eventId, data, metadata, contentType))
 
-  ///
+  // /
 
   implicit final private[sec] class EventDataOps(val ed: EventData) extends AnyVal {
     def renderData: String     = render(ed.data, ed.contentType)

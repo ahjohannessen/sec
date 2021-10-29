@@ -38,7 +38,7 @@ private[sec] object channel {
 
   }
 
-  ///
+  // /
 
   def resource[F[_]: Sync](acquire: => ManagedChannel, shutdownAwait: FiniteDuration): Resource[F, ManagedChannel] = {
     resourceWithShutdown[F](acquire) { ch =>

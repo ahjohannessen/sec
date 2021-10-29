@@ -43,7 +43,7 @@ private[sec] object StreamMetadata {
     def cacheControl: Option[CacheControl]           = sm.state.cacheControl
     def acl: Option[StreamAcl]                       = sm.state.acl
 
-    ///
+    // /
 
     private def modS(fn: MetaState => MetaState): StreamMetadata = sm.copy(state = fn(sm.state))
 
@@ -62,7 +62,7 @@ private[sec] object StreamMetadata {
     def withCustom(value: JsonObject): StreamMetadata                = sm.setCustom(value.some)
     def withCustom(value: (String, Json)*): StreamMetadata = sm.withCustom(JsonObject.fromMap(Map.from(value)))
 
-    ///
+    // /
 
     def getCustom[F[_]: ApplicativeThrow, T: Decoder]: F[Option[T]] =
       sm.custom.traverse(jo => Decoder[T].apply(Json.fromJsonObject(jo).hcursor).liftTo[F])
@@ -75,7 +75,7 @@ private[sec] object StreamMetadata {
 
   }
 
-  ///
+  // /
 
   import MetaState.metadataKeys
 
@@ -195,7 +195,7 @@ private[sec] object MetaState {
 
   val empty: MetaState = MetaState(None, None, None, None, None)
 
-  ///
+  // /
 
   implicit private[sec] val codecForMetaState: Codec.AsObject[MetaState] =
     new Codec.AsObject[MetaState] {
@@ -311,7 +311,7 @@ object StreamAcl {
 
   }
 
-  ///
+  // /
 
   implicit private[sec] val codecForStreamAcl: Codec.AsObject[StreamAcl] = new Codec.AsObject[StreamAcl] {
 

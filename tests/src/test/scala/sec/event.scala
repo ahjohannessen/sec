@@ -50,7 +50,7 @@ class EventSpec extends Specification {
 
   val re: ResolvedEvent[PositionInfo.Global] = ResolvedEvent(er, link)
 
-  ///
+  // /
 
   "EventOps" >> {
 
@@ -208,7 +208,7 @@ class EventDataSpec extends Specification {
       EventData(et, id, data, meta, ct) should beLike { case EventData(`et`, `id`, `data`, `meta`, `ct`) => ok }
     }
 
-    ///
+    // /
 
     testCommon(dataJson, metaJson, Json)
     testCommon(dataBinary, metaBinary, Binary)

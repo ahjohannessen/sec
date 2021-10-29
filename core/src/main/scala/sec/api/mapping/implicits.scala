@@ -33,7 +33,7 @@ private[sec] object implicits {
     def toByteVector: ByteVector = ByteVector.view(bs.asReadOnlyByteBuffer())
   }
 
-  ///
+  // /
 
   implicit final class OptionOps[A](private val o: Option[A]) extends AnyVal {
 

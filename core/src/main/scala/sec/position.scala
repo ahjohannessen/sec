@@ -91,7 +91,7 @@ object StreamPosition {
 
   case object End extends StreamPosition
 
-  ///
+  // /
 
   private[sec] def exact(value: Long): Exact = Exact.create(value)
 
@@ -99,7 +99,7 @@ object StreamPosition {
     */
   def apply(value: Long): Either[InvalidInput, Exact] = Exact(value)
 
-  ///
+  // /
 
   implicit final class StreamPositionOps(val sp: StreamPosition) extends AnyVal {
     def render: String = sp match {
@@ -108,7 +108,7 @@ object StreamPosition {
     }
   }
 
-  ///
+  // /
 
   implicit val orderForStreamPosition: Order[StreamPosition] = Order.from {
     case (x: Exact, y: Exact) => Order[Exact].compare(x, y)
@@ -154,7 +154,7 @@ object LogPosition {
 
   case object End extends LogPosition
 
-  ///
+  // /
 
   private[sec] def exact(commit: Long, prepare: Long): Exact = Exact.create(commit, prepare)
 
@@ -163,7 +163,7 @@ object LogPosition {
     */
   def apply(commit: Long, prepare: Long): Either[InvalidInput, Exact] = Exact(commit, prepare)
 
-  ///
+  // /
 
   implicit final class LogPositionOps(val lp: LogPosition) extends AnyVal {
     def render: String = lp match {
@@ -172,7 +172,7 @@ object LogPosition {
     }
   }
 
-  ///
+  // /
 
   implicit val orderForLogPosition: Order[LogPosition] = Order.from {
     case (x: Exact, y: Exact) => Order[Exact].compare(x, y)
