@@ -16,6 +16,7 @@
 
 package sec
 
+import java.lang.{Long => JLong}
 import cats.syntax.all._
 import cats.{Eq, Order}
 
@@ -59,7 +60,7 @@ object StreamState {
     case NoStream                => "NoStream"
     case Any                     => "Any"
     case StreamExists            => "StreamExists"
-    case StreamPosition.Exact(v) => s"Exact(${v}L)"
+    case StreamPosition.Exact(v) => s"Exact(${v.render})"
   }
 
   implicit final class StreamStateOps(val ss: StreamState) extends AnyVal {
@@ -78,32 +79,24 @@ object StreamState {
 sealed trait StreamPosition
 object StreamPosition {
 
-  val Start: Exact = exact(0L)
+  val Start: Exact = Exact(ULong.MinValue)
 
-  sealed abstract case class Exact(value: Long) extends StreamPosition with StreamState with PositionInfo
+  final case class Exact(value: ULong) extends StreamPosition with StreamState with PositionInfo
   object Exact {
-
-    private[StreamPosition] def create(value: Long): Exact = new Exact(value) {}
-
-    def apply(value: Long): Either[InvalidInput, Exact] =
-      Either.cond(value >= 0L, create(value), InvalidInput(s"value must be >= 0, but is $value"))
+    def fromUnsigned(value: Long): Exact = Exact(ULong(value))
   }
 
   case object End extends StreamPosition
 
-  // /
-
-  private[sec] def exact(value: Long): Exact = Exact.create(value)
-
-  /** Constructs an exact stream position in a stream. Provided value is validated for `0L` <= `Long.MaxValue`.
+  /** Constructs an exact stream position in a stream.
     */
-  def apply(value: Long): Either[InvalidInput, Exact] = Exact(value)
+  def apply(value: Long): Exact = Exact.fromUnsigned(value)
 
   // /
 
   implicit final class StreamPositionOps(val sp: StreamPosition) extends AnyVal {
     def render: String = sp match {
-      case e: Exact => s"${e.value}L"
+      case e: Exact => s"${e.value.render}"
       case End      => "end"
     }
   }
@@ -133,21 +126,17 @@ object LogPosition {
 
   val Start: Exact = exact(0L, 0L)
 
-  sealed abstract case class Exact(commit: Long, prepare: Long) extends LogPosition
+  sealed abstract case class Exact(commit: ULong, prepare: ULong) extends LogPosition
   object Exact {
 
-    private[LogPosition] def create(commit: Long, prepare: Long): Exact =
+    private[sec] def create(commit: ULong, prepare: ULong): Exact =
       new Exact(commit, prepare) {}
 
     def apply(commit: Long, prepare: Long): Either[InvalidInput, Exact] = {
-
-      val result = for {
-        c <- Either.cond(commit >= 0, commit, s"commit must be >= 0, but is $commit")
-        p <- Either.cond(prepare >= 0, prepare, s"prepare must be >= 0, but is $prepare")
-        e <- Either.cond(commit >= prepare, create(c, p), s"commit must be >= prepare, but $commit < $prepare")
-      } yield e
-
-      result.leftMap(InvalidInput(_))
+      val commitU  = ULong(commit)
+      val prepareU = ULong(prepare)
+      def error    = InvalidInput(s"commit must be >= prepare, but $commitU < $prepareU")
+      if (commitU < prepareU) error.asLeft else create(commitU, prepareU).asRight
     }
 
   }
@@ -156,10 +145,12 @@ object LogPosition {
 
   // /
 
-  private[sec] def exact(commit: Long, prepare: Long): Exact = Exact.create(commit, prepare)
+  private[sec] def exact(commit: Long, prepare: Long): Exact =
+    Exact.create(ULong(commit), ULong(prepare))
 
-  /** Constructs an exact log position in the global stream. Provided values are validated for `0L` <= `Long.MaxValue`
-    * and that @param commit is larger than @param prepare.
+  /** Constructs an exact log position in the global stream.
+    *
+    * Values are validated that @param commit is larger than @param prepare.
     */
   def apply(commit: Long, prepare: Long): Either[InvalidInput, Exact] = Exact(commit, prepare)
 
@@ -167,7 +158,7 @@ object LogPosition {
 
   implicit final class LogPositionOps(val lp: LogPosition) extends AnyVal {
     def render: String = lp match {
-      case Exact(c, p) => s"(c = ${c}L, p = ${p}L)"
+      case Exact(c, p) => s"(c = ${c.render}, p = ${p.render})"
       case End         => "end"
     }
   }
@@ -213,10 +204,39 @@ object PositionInfo {
     def streamPosition: StreamPosition.Exact = fold(_.stream, identity)
 
     def renderPosition: String = fold(
-      a => s"log: (c = ${a.log.commit}L, p = ${a.log.prepare}L), stream: ${a.stream.value}L",
-      e => s"stream: ${e.value}L"
+      a => s"log: (c = ${a.log.commit.render}, p = ${a.log.prepare.render}), stream: ${a.stream.value.render}",
+      e => s"stream: ${e.value.render}"
     )
 
   }
 
+}
+
+//======================================================================================================================
+
+object ULong {
+
+  val MinValue: ULong = ULong(0L)
+  val MaxValue: ULong = ULong(-1L)
+
+  def apply(n: Long): ULong = new ULong(n)
+
+  //
+
+  implicit val orderForULong: Order[ULong] =
+    Order.from[ULong]((x, y) => JLong.compareUnsigned(x.signed, y.signed))
+
+  implicit val orderingForULong: Ordering[ULong] =
+    orderForULong.toOrdering
+
+  implicit final class ULongOps(val u: ULong) {
+    def toLong: Long     = u.signed
+    def render: String   = JLong.toUnsignedString(u.signed)
+    def toBigInt: BigInt = BigInt(JLong.toUnsignedString(u.signed))
+  }
+
+}
+
+final class ULong(val signed: Long) extends AnyVal {
+  override def toString: String = JLong.toUnsignedString(signed)
 }

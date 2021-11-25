@@ -62,9 +62,9 @@ class StreamsMappingSpec extends mutable.Specification {
     }
 
     "mapStreamPosition" >> {
-      mapStreamPosition(sec.StreamPosition.exact(1L)) shouldEqual RevisionOption.Revision(1L)
+      mapStreamPosition(sec.StreamPosition(1L)) shouldEqual RevisionOption.Revision(1L)
       mapStreamPosition(sec.StreamPosition.End) shouldEqual RevisionOption.End(empty)
-      mapStreamPositionOpt(sec.StreamPosition.exact(0L).some) shouldEqual RevisionOption.Revision(0L)
+      mapStreamPositionOpt(sec.StreamPosition(0L).some) shouldEqual RevisionOption.Revision(0L)
       mapStreamPositionOpt(None) shouldEqual RevisionOption.Start(empty)
     }
 
@@ -163,7 +163,7 @@ class StreamsMappingSpec extends mutable.Specification {
           )
 
       for {
-        ef <- List(Option.empty[StreamPosition], Start.some, exact(1337L).some, End.some)
+        ef <- List(Option.empty[StreamPosition], Start.some, StreamPosition(1337L).some, End.some)
         rt <- List(true, false)
       } yield test(ef, rt)
     }
@@ -218,7 +218,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
       for {
         rd <- List(Direction.Forwards, Direction.Backwards)
-        fr <- List(sec.StreamPosition.Start, sec.StreamPosition.exact(2200), sec.StreamPosition.End)
+        fr <- List(sec.StreamPosition.Start, sec.StreamPosition(2200), sec.StreamPosition.End)
         ct <- List(100L, 1000L, 10000L)
         rt <- List(true, false)
       } yield test(rd, fr, ct, rt)
@@ -257,7 +257,7 @@ class StreamsMappingSpec extends mutable.Specification {
       def test(ess: StreamState, esr: ExpectedStreamRevision) =
         mkDeleteReq(sid, ess) shouldEqual s.DeleteReq().withOptions(s.DeleteReq.Options(sid.esSid.some, esr))
 
-      test(sec.StreamPosition.exact(0L), ExpectedStreamRevision.Revision(0L))
+      test(sec.StreamPosition(0L), ExpectedStreamRevision.Revision(0L))
       test(sec.StreamState.NoStream, ExpectedStreamRevision.NoStream(empty))
       test(sec.StreamState.StreamExists, ExpectedStreamRevision.StreamExists(empty))
       test(sec.StreamState.Any, ExpectedStreamRevision.Any(empty))
@@ -271,7 +271,7 @@ class StreamsMappingSpec extends mutable.Specification {
       def test(ess: StreamState, esr: ExpectedStreamRevision) =
         mkTombstoneReq(sid, ess) shouldEqual s.TombstoneReq().withOptions(s.TombstoneReq.Options(sid.esSid.some, esr))
 
-      test(sec.StreamPosition.exact(0L), ExpectedStreamRevision.Revision(0L))
+      test(sec.StreamPosition(0L), ExpectedStreamRevision.Revision(0L))
       test(sec.StreamState.NoStream, ExpectedStreamRevision.NoStream(empty))
       test(sec.StreamState.StreamExists, ExpectedStreamRevision.StreamExists(empty))
       test(sec.StreamState.Any, ExpectedStreamRevision.Any(empty))
@@ -285,7 +285,7 @@ class StreamsMappingSpec extends mutable.Specification {
       def test(ess: StreamState, esr: ExpectedStreamRevision) =
         mkAppendHeaderReq(sid, ess) shouldEqual s.AppendReq().withOptions(s.AppendReq.Options(sid.esSid.some, esr))
 
-      test(sec.StreamPosition.exact(0L), ExpectedStreamRevision.Revision(0L))
+      test(sec.StreamPosition(0L), ExpectedStreamRevision.Revision(0L))
       test(sec.StreamState.NoStream, ExpectedStreamRevision.NoStream(empty))
       test(sec.StreamState.StreamExists, ExpectedStreamRevision.StreamExists(empty))
       test(sec.StreamState.Any, ExpectedStreamRevision.Any(empty))
@@ -344,35 +344,31 @@ class StreamsMappingSpec extends mutable.Specification {
 
     "mkPositionAll" >> {
 
-      val re    = s.ReadResp.ReadEvent.RecordedEvent()
-      val valid = re.withStreamRevision(1L).withCommitPosition(2L).withPreparePosition(2L)
+      val re     = s.ReadResp.ReadEvent.RecordedEvent()
+      val valid1 = re.withStreamRevision(1000L).withCommitPosition(2L).withPreparePosition(2L)
+      val valid2 = re.withStreamRevision(-1000L).withCommitPosition(-2L).withPreparePosition(-2L)
 
       // Happy Path
-      mkPositionGlobal[ErrorOr](valid) shouldEqual
-        PositionInfo.Global(StreamPosition.exact(1L), LogPosition.exact(2L, 2L)).asRight
+      mkPositionGlobal[ErrorOr](valid1) shouldEqual
+        PositionInfo.Global(StreamPosition(1000L), LogPosition.exact(2L, 2L)).asRight
 
-      // Bad StreamPosition
-      mkPositionGlobal[ErrorOr](valid.withStreamRevision(-1L)) shouldEqual
-        InvalidInput("value must be >= 0, but is -1").asLeft
+      mkPositionGlobal[ErrorOr](valid2) shouldEqual
+        PositionInfo.Global(StreamPosition(-1000L), LogPosition.exact(-2L, -2L)).asRight
 
       // Bad LogPosition
-      mkPositionGlobal[ErrorOr](valid.withCommitPosition(-1L).withPreparePosition(-1L)) shouldEqual
-        InvalidInput("commit must be >= 0, but is -1").asLeft
+      mkPositionGlobal[ErrorOr](valid1.withCommitPosition(-2L).withPreparePosition(-1L)) shouldEqual
+        InvalidInput("commit must be >= prepare, but 18446744073709551614 < 18446744073709551615").asLeft
 
     }
 
     "mkStreamPosition" >> {
 
-      val re    = s.ReadResp.ReadEvent.RecordedEvent()
-      val valid = re.withStreamRevision(1L)
+      val re = s.ReadResp.ReadEvent.RecordedEvent()
 
       // Happy Path
-      mkStreamPosition[ErrorOr](valid) shouldEqual
-        StreamPosition.exact(1L).asRight
+      mkStreamPosition[ErrorOr](re.withStreamRevision(1L)) shouldEqual StreamPosition(1L).asRight
+      mkStreamPosition[ErrorOr](re.withStreamRevision(-1L)) shouldEqual StreamPosition.Exact(ULong.MaxValue).asRight
 
-      // Invalid
-      mkStreamPosition[ErrorOr](valid.withStreamRevision(-2L)) shouldEqual
-        InvalidInput("value must be >= 0, but is -2").asLeft
     }
 
     "mkEvent" >> {
@@ -455,12 +451,12 @@ class StreamsMappingSpec extends mutable.Specification {
       }
 
       val sid = sec.StreamId(streamId).unsafe
-      val sp  = sec.StreamPosition.exact(revision)
+      val sp  = sec.StreamPosition(revision)
       val et  = sec.EventType(eventType).unsafe
       val ed  = sec.EventData(et, JUUID.fromString(id), data, customMeta, sec.ContentType.Json)
 
       val lsid = sec.StreamId(linkStreamId).unsafe
-      val lsp  = sec.StreamPosition.exact(linkRevision)
+      val lsp  = sec.StreamPosition(linkRevision)
       val let  = sec.EventType.LinkTo
       val led  = sec.EventData(let, JUUID.fromString(linkId), linkData, linkCustomMeta, sec.ContentType.Binary)
 
@@ -556,7 +552,7 @@ class StreamsMappingSpec extends mutable.Specification {
 
       val sid = sec.StreamId(streamId).unsafe
       val et  = sec.EventType(eventType).unsafe
-      val sp  = sec.StreamPosition.exact(revision)
+      val sp  = sec.StreamPosition(revision)
       val ed  = sec.EventData(et, JUUID.fromString(id), data, customMeta, sec.ContentType.Binary)
 
       val streamRecordedEvent =
@@ -589,8 +585,9 @@ class StreamsMappingSpec extends mutable.Specification {
       mkCheckpoint[ErrorOr](s.ReadResp.Checkpoint(1L, 1L)) shouldEqual
         Checkpoint(sec.LogPosition.exact(1L, 1L)).asRight
 
-      mkCheckpoint[ErrorOr](s.ReadResp.Checkpoint(-1L, 1L)) shouldEqual
-        ProtoResultError("Invalid position for Checkpoint: commit must be >= 0, but is -1").asLeft
+      mkCheckpoint[ErrorOr](s.ReadResp.Checkpoint(-1L, 0L)) shouldEqual
+        Checkpoint(sec.LogPosition.Exact.create(ULong.MaxValue, ULong.MinValue)).asRight
+
     }
 
     "mkCheckpointOrEvent" >> {
@@ -607,9 +604,9 @@ class StreamsMappingSpec extends mutable.Specification {
       val recordedEvent = s.ReadResp.ReadEvent
         .RecordedEvent()
         .withStreamIdentifier(event.streamId.stringValue.toStreamIdentifer)
-        .withStreamRevision(event.streamPosition.value)
-        .withCommitPosition(event.logPosition.commit)
-        .withPreparePosition(event.logPosition.prepare)
+        .withStreamRevision(event.streamPosition.value.toLong)
+        .withCommitPosition(event.logPosition.commit.toLong)
+        .withPreparePosition(event.logPosition.prepare.toLong)
         .withData(event.eventData.data.toByteString)
         .withCustomMetadata(event.eventData.metadata.toByteString)
         .withId(UUID().withString(event.eventData.eventId.toString))
@@ -682,7 +679,7 @@ class StreamsMappingSpec extends mutable.Specification {
       val successNoStream = Success().withNoStream(empty)
 
       test(s.AppendResp().withSuccess(successRevOne)) shouldEqual
-        WriteResult(sec.StreamPosition.exact(1L), sec.LogPosition.exact(1L, 1L)).asRight
+        WriteResult(sec.StreamPosition(1L), sec.LogPosition.exact(1L, 1L)).asRight
 
       test(s.AppendResp().withSuccess(successNoStream)) shouldEqual
         ProtoResultError("Did not expect NoStream when using NonEmptyList").asLeft
@@ -715,9 +712,9 @@ class StreamsMappingSpec extends mutable.Specification {
         )
 
       def testExpected(ero: ExpectedRevisionOption, expected: StreamState) =
-        test(mkExpected(ero)) shouldEqual WrongExpectedState(sid, expected, sec.StreamPosition.exact(2L)).asLeft
+        test(mkExpected(ero)) shouldEqual WrongExpectedState(sid, expected, sec.StreamPosition(2L)).asLeft
 
-      testExpected(wreExpectedOne, sec.StreamPosition.exact(1L))
+      testExpected(wreExpectedOne, sec.StreamPosition(1L))
       testExpected(wreExpectedNoStream, sec.StreamState.NoStream)
       testExpected(wreExpectedAny, sec.StreamState.Any)
       testExpected(wreExpectedStreamExists, sec.StreamState.StreamExists)
@@ -730,9 +727,9 @@ class StreamsMappingSpec extends mutable.Specification {
         )
 
       def testCurrent(cro: CurrentRevisionOption, actual: StreamState) =
-        test(mkCurrent(cro)) shouldEqual WrongExpectedState(sid, sec.StreamPosition.exact(1L), actual).asLeft
+        test(mkCurrent(cro)) shouldEqual WrongExpectedState(sid, sec.StreamPosition(1L), actual).asLeft
 
-      testCurrent(wreCurrentRevTwo, sec.StreamPosition.exact(2L))
+      testCurrent(wreCurrentRevTwo, sec.StreamPosition(2L))
       testCurrent(wreCurrentNoStream, sec.StreamState.NoStream)
       test(mkCurrent(wreCurrentEmpty)) shouldEqual ProtoResultError("CurrentRevisionOption is missing").asLeft
 

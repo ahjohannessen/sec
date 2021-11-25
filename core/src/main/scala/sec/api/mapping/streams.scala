@@ -42,8 +42,9 @@ private[sec] object streams {
     val uuidOption: ReadReq.Options.UUIDOption = ReadReq.Options.UUIDOption().withStructured(empty)
 
     val mapLogPosition: LogPosition => ReadReq.Options.AllOptions.AllOption = {
-      case LogPosition.Exact(c, p) => ReadReq.Options.AllOptions.AllOption.Position(ReadReq.Options.Position(c, p))
-      case LogPosition.End         => ReadReq.Options.AllOptions.AllOption.End(empty)
+      case LogPosition.Exact(c, p) =>
+        ReadReq.Options.AllOptions.AllOption.Position(ReadReq.Options.Position(c.toLong, p.toLong))
+      case LogPosition.End => ReadReq.Options.AllOptions.AllOption.End(empty)
     }
 
     val mapLogPositionOpt: Option[LogPosition] => ReadReq.Options.AllOptions.AllOption = {
@@ -52,7 +53,7 @@ private[sec] object streams {
     }
 
     val mapStreamPosition: StreamPosition => ReadReq.Options.StreamOptions.RevisionOption = {
-      case StreamPosition.Exact(nr) => ReadReq.Options.StreamOptions.RevisionOption.Revision(nr)
+      case StreamPosition.Exact(nr) => ReadReq.Options.StreamOptions.RevisionOption.Revision(nr.toLong)
       case StreamPosition.End       => ReadReq.Options.StreamOptions.RevisionOption.End(empty)
     }
 
@@ -177,7 +178,7 @@ private[sec] object streams {
     def mkDeleteReq(streamId: StreamId, expectedState: StreamState): DeleteReq = {
 
       val mapDeleteExpected: StreamState => DeleteReq.Options.ExpectedStreamRevision = {
-        case StreamPosition.Exact(v)  => DeleteReq.Options.ExpectedStreamRevision.Revision(v)
+        case StreamPosition.Exact(v)  => DeleteReq.Options.ExpectedStreamRevision.Revision(v.toLong)
         case StreamState.NoStream     => DeleteReq.Options.ExpectedStreamRevision.NoStream(empty)
         case StreamState.StreamExists => DeleteReq.Options.ExpectedStreamRevision.StreamExists(empty)
         case StreamState.Any          => DeleteReq.Options.ExpectedStreamRevision.Any(empty)
@@ -188,7 +189,7 @@ private[sec] object streams {
     def mkTombstoneReq(streamId: StreamId, expectedState: StreamState): TombstoneReq = {
 
       val mapTombstoneExpected: StreamState => TombstoneReq.Options.ExpectedStreamRevision = {
-        case StreamPosition.Exact(v)  => TombstoneReq.Options.ExpectedStreamRevision.Revision(v)
+        case StreamPosition.Exact(v)  => TombstoneReq.Options.ExpectedStreamRevision.Revision(v.toLong)
         case StreamState.NoStream     => TombstoneReq.Options.ExpectedStreamRevision.NoStream(empty)
         case StreamState.StreamExists => TombstoneReq.Options.ExpectedStreamRevision.StreamExists(empty)
         case StreamState.Any          => TombstoneReq.Options.ExpectedStreamRevision.Any(empty)
@@ -199,7 +200,7 @@ private[sec] object streams {
     def mkAppendHeaderReq(streamId: StreamId, expectedState: StreamState): AppendReq = {
 
       val mapAppendExpected: StreamState => AppendReq.Options.ExpectedStreamRevision = {
-        case StreamPosition.Exact(v)  => AppendReq.Options.ExpectedStreamRevision.Revision(v)
+        case StreamPosition.Exact(v)  => AppendReq.Options.ExpectedStreamRevision.Revision(v.toLong)
         case StreamState.NoStream     => AppendReq.Options.ExpectedStreamRevision.NoStream(empty)
         case StreamState.StreamExists => AppendReq.Options.ExpectedStreamRevision.StreamExists(empty)
         case StreamState.Any          => AppendReq.Options.ExpectedStreamRevision.Any(empty)
@@ -231,7 +232,7 @@ private[sec] object streams {
       LogPosition(e.commitPosition, e.preparePosition).liftTo[F]
 
     def mkStreamPosition[F[_]: ApplicativeThrow](e: ReadResp.ReadEvent.RecordedEvent): F[StreamPosition.Exact] =
-      StreamPosition(e.streamRevision).liftTo[F]
+      StreamPosition(e.streamRevision).pure[F]
 
     def mkCheckpoint[F[_]: ApplicativeThrow](c: ReadResp.Checkpoint): F[Checkpoint] =
       LogPosition(c.commitPosition, c.preparePosition)
@@ -327,7 +328,7 @@ private[sec] object streams {
         }
 
         val streamPositionExact: Either[Throwable, StreamPosition.Exact] = s.value.currentRevisionOption match {
-          case Success.CurrentRevisionOption.CurrentRevision(v) => StreamPosition.exact(v).asRight
+          case Success.CurrentRevisionOption.CurrentRevision(v) => StreamPosition(v).asRight
           case Success.CurrentRevisionOption.NoStream(_) => error("Did not expect NoStream when using NonEmptyList")
           case Success.CurrentRevisionOption.Empty       => error("CurrentRevisionOption is missing")
         }
@@ -339,7 +340,7 @@ private[sec] object streams {
       def wrongExpectedStreamState(w: Result.WrongExpectedVersion) = {
 
         val expected: Either[Throwable, StreamState] = w.value.expectedRevisionOption match {
-          case ExpectedRevisionOption.ExpectedRevision(v)     => StreamPosition.exact(v).asRight
+          case ExpectedRevisionOption.ExpectedRevision(v)     => StreamPosition(v).asRight
           case ExpectedRevisionOption.ExpectedNoStream(_)     => StreamState.NoStream.asRight
           case ExpectedRevisionOption.ExpectedAny(_)          => StreamState.Any.asRight
           case ExpectedRevisionOption.ExpectedStreamExists(_) => StreamState.StreamExists.asRight
@@ -347,7 +348,7 @@ private[sec] object streams {
         }
 
         val actual: Either[Throwable, StreamState] = w.value.currentRevisionOption match {
-          case CurrentRevisionOption.CurrentRevision(v) => StreamPosition.exact(v).asRight
+          case CurrentRevisionOption.CurrentRevision(v) => StreamPosition(v).asRight
           case CurrentRevisionOption.CurrentNoStream(_) => StreamState.NoStream.asRight
           case CurrentRevisionOption.Empty              => error("CurrentRevisionOption is missing")
         }

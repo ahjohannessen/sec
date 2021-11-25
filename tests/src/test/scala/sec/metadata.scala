@@ -52,7 +52,7 @@ class StreamMetadataSpec extends Specification {
       maxAge         = MaxAge(1000.seconds).unsafe.some,
       maxCount       = None,
       cacheControl   = CacheControl(12.hours).unsafe.some,
-      truncateBefore = StreamPosition.exact(1000L).some,
+      truncateBefore = StreamPosition(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
     )
 
@@ -92,7 +92,7 @@ class MetaStateSpec extends Specification {
     val expectedMap = Map(
       "$maxAge"       -> ms.maxAge.map(_.value.toSeconds).asJson,
       "$maxCount"     -> ms.maxCount.map(_.value).asJson,
-      "$tb"           -> ms.truncateBefore.map(_.value).asJson,
+      "$tb"           -> ms.truncateBefore.map(_.value.toLong).asJson,
       "$acl"          -> ms.acl.asJson,
       "$cacheControl" -> ms.cacheControl.map(_.value.toSeconds).asJson
     )
@@ -121,14 +121,14 @@ class MetaStateSpec extends Specification {
       maxAge         = None,
       maxCount       = MaxCount(50).toOption,
       cacheControl   = CacheControl(12.hours).toOption,
-      truncateBefore = StreamPosition.exact(1000L).some,
+      truncateBefore = StreamPosition(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
     ).render shouldEqual s"""
        |MetaState:
        |  max-age         = n/a
        |  max-count       = 50 events
        |  cache-control   = 12 hours
-       |  truncate-before = 1000L
+       |  truncate-before = 1000
        |  access-list     = read: [a, b], write: [], delete: [], meta-read: [], meta-write: []
        |""".stripMargin
 

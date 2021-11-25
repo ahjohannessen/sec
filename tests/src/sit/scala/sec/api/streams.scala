@@ -354,7 +354,7 @@ class StreamsSuite extends SnSpec {
 
       val streamPrefix                                       = s"streams_subscribe_to_stream_${genIdentifier}_"
       val fromBeginning: Option[StreamPosition]              = Option.empty
-      val fromStreamPosition: Long => Option[StreamPosition] = r => StreamPosition.exact(r).some
+      val fromStreamPosition: Long => Option[StreamPosition] = r => StreamPosition(r).some
       val fromEnd: Option[StreamPosition]                    = StreamPosition.End.some
 
       "works when stream does not exist prior to subscribing" >> {
@@ -588,7 +588,8 @@ class StreamsSuite extends SnSpec {
                 es.dropRight(1).map(_.eventData) shouldEqual events.toList
                 ts.streamId shouldEqual id.metaId
                 ts.eventData.eventType shouldEqual EventType.StreamMetadata
-                decodeJson(ts.record.eventData).map(_.state.truncateBefore.map(_.value) should beSome(Long.MaxValue))
+                decodeJson(ts.record.eventData)
+                  .map(_.state.truncateBefore.map(_.value) should beSome(ULong(Long.MaxValue)))
               } else {
                 es.dropRight(1).map(_.eventData) shouldEqual events.toList
                 ts.streamId shouldEqual id
@@ -751,11 +752,11 @@ class StreamsSuite extends SnSpec {
         }
 
         "reading single event from arbitrary stream position" >> {
-          readData(id, exact(7), Forwards, 1).map(_.lastOption shouldEqual events.get(7))
+          readData(id, StreamPosition(7), Forwards, 1).map(_.lastOption shouldEqual events.get(7))
         }
 
         "reading from arbitrary stream position" >> {
-          readData(id, exact(3L), Forwards, 2).map(_ shouldEqual events.toList.slice(3, 5))
+          readData(id, StreamPosition(3L), Forwards, 2).map(_ shouldEqual events.toList.slice(3, 5))
         }
 
         "max count is respected" >> {
@@ -821,11 +822,11 @@ class StreamsSuite extends SnSpec {
         }
 
         "reading single event from arbitrary stream position" >> {
-          readData(id, StreamPosition.exact(20), Backwards, 1).map(_.lastOption shouldEqual events.get(20))
+          readData(id, StreamPosition(20), Backwards, 1).map(_.lastOption shouldEqual events.get(20))
         }
 
         "reading from arbitrary stream position" >> {
-          readData(id, StreamPosition.exact(3L), Backwards, 2).map(_ shouldEqual events.toList.slice(2, 4).reverse)
+          readData(id, StreamPosition(3L), Backwards, 2).map(_ shouldEqual events.toList.slice(2, 4).reverse)
         }
 
         "max count is respected" >> {
@@ -898,7 +899,7 @@ class StreamsSuite extends SnSpec {
           write >>= { first =>
             write.map { second =>
               first.streamPosition shouldEqual second.streamPosition
-              first.streamPosition shouldEqual StreamPosition.exact(3L)
+              first.streamPosition shouldEqual StreamPosition(3L)
             }
           }
 
@@ -911,7 +912,7 @@ class StreamsSuite extends SnSpec {
           val events = Nel.of(event, List.fill(5)(event): _*)
           val write  = streams.appendToStream(id, StreamState.Any, events)
 
-          write.map(_.streamPosition shouldEqual StreamPosition.exact(5))
+          write.map(_.streamPosition shouldEqual StreamPosition(5))
         }
 
       }
@@ -928,7 +929,7 @@ class StreamsSuite extends SnSpec {
 
           write >>= { first =>
             write.map { second =>
-              first.streamPosition shouldEqual StreamPosition.exact(5)
+              first.streamPosition shouldEqual StreamPosition(5)
               second.streamPosition shouldEqual secondExpectedState
             }
           }
@@ -940,7 +941,7 @@ class StreamsSuite extends SnSpec {
         }
 
         "no stream then next expected stream state is correct" >> {
-          test(StreamState.NoStream, StreamPosition.exact(5))
+          test(StreamState.NoStream, StreamPosition(5))
         }
 
       }
@@ -970,7 +971,7 @@ class StreamsSuite extends SnSpec {
         }
 
         "with incorrect expected stream state" >> {
-          test(StreamPosition.exact(5))
+          test(StreamPosition(5))
         }
 
       }
@@ -992,19 +993,19 @@ class StreamsSuite extends SnSpec {
         }
 
         "works with correct expected stream state" >> {
-          test(StreamPosition.Start).map(_ shouldEqual StreamPosition.exact(1))
+          test(StreamPosition.Start).map(_ shouldEqual StreamPosition(1))
         }
 
         "works with any expected stream state" >> {
-          test(StreamState.Any).map(_ shouldEqual StreamPosition.exact(1))
+          test(StreamState.Any).map(_ shouldEqual StreamPosition(1))
         }
 
         "works with stream exists expected stream state" >> {
-          test(StreamState.StreamExists).map(_ shouldEqual StreamPosition.exact(1))
+          test(StreamState.StreamExists).map(_ shouldEqual StreamPosition(1))
         }
 
         "raises with incorrect expected stream state" >> {
-          val expected = StreamPosition.exact(1L)
+          val expected = StreamPosition(1L)
           test(expected).attempt.map {
             _ should beLike { case Left(WrongExpectedState(_, `expected`, StreamPosition.Start)) => ok }
           }
@@ -1021,7 +1022,7 @@ class StreamsSuite extends SnSpec {
 
         prepare >> streams
           .appendToStream(id, StreamState.StreamExists, genEvents(1))
-          .map(_.streamPosition shouldEqual StreamPosition.exact(5))
+          .map(_.streamPosition shouldEqual StreamPosition(5))
 
       }
 
@@ -1058,7 +1059,7 @@ class StreamsSuite extends SnSpec {
 
         val id       = genStreamId(s"${streamPrefix}multiple_events_at_once_")
         val events   = genEvents(100)
-        val expected = StreamPosition.exact(99)
+        val expected = StreamPosition(99)
 
         streams.appendToStream(id, StreamState.NoStream, events).map(_.streamPosition shouldEqual expected)
 
@@ -1087,7 +1088,7 @@ class StreamsSuite extends SnSpec {
           def run(st: StreamState)(data: Nel[EventData]) =
             streams.appendToStream(id, st, data).as(ok)
 
-          (equal >>= run(StreamState.NoStream)) >> (lessThan >>= run(StreamPosition.exact(1)))
+          (equal >>= run(StreamState.NoStream)) >> (lessThan >>= run(StreamPosition(1)))
 
         }
 
@@ -1150,7 +1151,7 @@ class StreamsSuite extends SnSpec {
 
           for {
             _ <- streams.appendToStream(id, StreamState.NoStream, events)
-            _ <- streams.appendToStream(id, StreamPosition.exact(5), Nel.one(events.head))
+            _ <- streams.appendToStream(id, StreamPosition(5), Nel.one(events.head))
             e <- streams.readStreamForwards(id, maxCount = events.size + 2L).compile.toList
 
           } yield e.size shouldEqual events.size + 1
@@ -1163,11 +1164,11 @@ class StreamsSuite extends SnSpec {
           val events = genEvents(6)
           val result = for {
             _ <- streams.appendToStream(id, StreamState.NoStream, events)
-            _ <- streams.appendToStream(id, StreamPosition.exact(6), Nel.one(events.head))
+            _ <- streams.appendToStream(id, StreamPosition(6), Nel.one(events.head))
           } yield ()
 
           result.attempt.map {
-            _ should beLeft(WrongExpectedState(id, StreamPosition.exact(6), StreamPosition.exact(5)))
+            _ should beLeft(WrongExpectedState(id, StreamPosition(6), StreamPosition(5)))
           }
         }
 
@@ -1178,11 +1179,11 @@ class StreamsSuite extends SnSpec {
 
           val result = for {
             _ <- streams.appendToStream(id, StreamState.NoStream, events)
-            _ <- streams.appendToStream(id, StreamPosition.exact(4), Nel.one(events.head))
+            _ <- streams.appendToStream(id, StreamPosition(4), Nel.one(events.head))
           } yield ()
 
           result.attempt.map {
-            _ should beLeft(WrongExpectedState(id, StreamPosition.exact(4), StreamPosition.exact(5)))
+            _ should beLeft(WrongExpectedState(id, StreamPosition(4), StreamPosition(5)))
           }
         }
 
@@ -1285,7 +1286,7 @@ class StreamsSuite extends SnSpec {
 
           streams.appendToStream(id, StreamState.NoStream, first) >> {
             streams.appendToStream(id, StreamState.NoStream, second).attempt.map {
-              _ should beLeft(WrongExpectedState(id, StreamState.NoStream, StreamPosition.exact(1L)))
+              _ should beLeft(WrongExpectedState(id, StreamState.NoStream, StreamPosition(1L)))
             }
           }
         }
@@ -1395,15 +1396,13 @@ class StreamsSuite extends SnSpec {
           } yield {
 
             wr1.streamPosition shouldEqual StreamPosition.Start
-            wr2.streamPosition shouldEqual StreamPosition.exact(3)
+            wr2.streamPosition shouldEqual StreamPosition(3)
 
             evt.size shouldEqual 3
             evt.map(_.eventData).toNel shouldEqual afterEvents.some
-            evt.map(_.streamPosition) shouldEqual List(StreamPosition.exact(1),
-                                                       StreamPosition.exact(2),
-                                                       StreamPosition.exact(3))
+            evt.map(_.streamPosition) shouldEqual List(StreamPosition(1), StreamPosition(2), StreamPosition(3))
 
-            tbm should beSome(MetaStreams.Result(StreamPosition.exact(1), StreamPosition.exact(1).some))
+            tbm should beSome(MetaStreams.Result(StreamPosition(1), StreamPosition(1).some))
 
           }
 
@@ -1432,30 +1431,28 @@ class StreamsSuite extends SnSpec {
         val metadata = StreamMetadata.empty
           .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
           .withMaxCount(MaxCount(100).unsafe)
-          .withTruncateBefore(StreamPosition.exact(Long.MaxValue))
+          .withTruncateBefore(StreamPosition(Long.MaxValue))
           .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
 
         for {
           swr <- streams.appendToStream(id, StreamState.NoStream, beforeEvents)
           mwr <- metaStreams.setMetadata(id, StreamState.NoStream, metadata)
-          _   <- streams.appendToStream(id, StreamPosition.exact(1), afterEvents)
+          _   <- streams.appendToStream(id, StreamPosition(1), afterEvents)
           _ <- IO.sleep(1.second) // Workaround for ES github issue #1744
           events <- streams.readStreamForwards(id, maxCount = 3).compile.toList
           meta   <- metaStreams.getMetadata(id)
 
         } yield {
 
-          swr.streamPosition shouldEqual StreamPosition.exact(1)
+          swr.streamPosition shouldEqual StreamPosition(1)
           mwr.streamPosition shouldEqual StreamPosition.Start
 
           events.size shouldEqual afterEvents.size
-          events.map(_.streamPosition) shouldEqual List(StreamPosition.exact(2),
-                                                        StreamPosition.exact(3),
-                                                        StreamPosition.exact(4))
+          events.map(_.streamPosition) shouldEqual List(StreamPosition(2), StreamPosition(3), StreamPosition(4))
 
           meta.fold(ko) { m =>
-            m.streamPosition shouldEqual StreamPosition.exact(1)
-            m.data shouldEqual metadata.withTruncateBefore(StreamPosition.exact(2))
+            m.streamPosition shouldEqual StreamPosition(1)
+            m.data shouldEqual metadata.withTruncateBefore(StreamPosition(2))
           }
         }
 
@@ -1472,9 +1469,9 @@ class StreamsSuite extends SnSpec {
           wr3 <- streams.appendToStream(id, StreamState.NoStream, genEvents(1)).attempt
         } yield {
 
-          wr1.streamPosition shouldEqual StreamPosition.exact(1)
-          wr2.streamPosition shouldEqual StreamPosition.exact(4)
-          wr3 should beLeft(WrongExpectedState(id, StreamState.NoStream, StreamPosition.exact(4L)))
+          wr1.streamPosition shouldEqual StreamPosition(1)
+          wr2.streamPosition shouldEqual StreamPosition(4)
+          wr3 should beLeft(WrongExpectedState(id, StreamState.NoStream, StreamPosition(4L)))
         }
 
       }
@@ -1495,17 +1492,17 @@ class StreamsSuite extends SnSpec {
           tbr    <- metaStreams.getTruncateBefore(id)
         } yield {
 
-          wr0.streamPosition shouldEqual StreamPosition.exact(1)
-          wr1.streamPosition shouldEqual StreamPosition.exact(4)
-          wr2.streamPosition shouldEqual StreamPosition.exact(6)
+          wr0.streamPosition shouldEqual StreamPosition(1)
+          wr1.streamPosition shouldEqual StreamPosition(4)
+          wr2.streamPosition shouldEqual StreamPosition(6)
 
           events.size shouldEqual 5
           events.map(_.eventData) shouldEqual events1.concatNel(events2).toList
-          events.map(_.streamPosition) shouldEqual (2L to 6L).map(StreamPosition.exact).toList
+          events.map(_.streamPosition) shouldEqual (2L to 6L).map(StreamPosition(_)).toList
 
           tbr.fold(ko) { result =>
-            result.data should beSome(StreamPosition.exact(2))
-            result.streamPosition shouldEqual StreamPosition.exact(1)
+            result.data should beSome(StreamPosition(2))
+            result.streamPosition shouldEqual StreamPosition(1)
 
           }
         }
@@ -1519,7 +1516,7 @@ class StreamsSuite extends SnSpec {
         val metadata = StreamMetadata.empty
           .withMaxCount(MaxCount(100).unsafe)
           .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
-          .withTruncateBefore(StreamPosition.exact(Long.MaxValue))
+          .withTruncateBefore(StreamPosition(Long.MaxValue))
           .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
 
         for {
@@ -1529,14 +1526,14 @@ class StreamsSuite extends SnSpec {
           meta <- metaStreams.getMetadata(id)
         } yield {
 
-          mw.streamPosition shouldEqual StreamPosition.exact(1)
+          mw.streamPosition shouldEqual StreamPosition(1)
 
           read should beLike { case Left(e: StreamNotFound) =>
             e.streamId shouldEqual id.stringValue
           }
 
           meta.fold(ko) { m =>
-            m.streamPosition shouldEqual StreamPosition.exact(2)
+            m.streamPosition shouldEqual StreamPosition(2)
             m.data shouldEqual metadata.withTruncateBefore(StreamPosition.Start)
           }
         }
@@ -1561,12 +1558,12 @@ class StreamsSuite extends SnSpec {
           meta <- metaStreams.getMetadata(id)
         } yield {
 
-          sw1.streamPosition shouldEqual StreamPosition.exact(1)
-          mw1.streamPosition shouldEqual StreamPosition.exact(1)
+          sw1.streamPosition shouldEqual StreamPosition(1)
+          mw1.streamPosition shouldEqual StreamPosition(1)
           read.size shouldEqual 0
 
           meta.fold(ko) { m =>
-            m.data shouldEqual metadata.withTruncateBefore(StreamPosition.exact(events.size.toLong))
+            m.data shouldEqual metadata.withTruncateBefore(StreamPosition(events.size.toLong))
           }
         }
 
