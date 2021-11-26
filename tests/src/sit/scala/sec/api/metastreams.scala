@@ -33,7 +33,7 @@ class MetaStreamsSuite extends SnSpec {
   "MetaStreams" should {
 
     import StreamState.NoStream
-    import StreamPosition.{exact, Start}
+    import StreamPosition.Start
 
     val mkStreamId: String => StreamId.Id =
       usecase => genStreamId(s"meta_streams_${genIdentifier}_$usecase")
@@ -66,13 +66,13 @@ class MetaStreamsSuite extends SnSpec {
       val meta1 = StreamMetadata.empty
         .withMaxCount(MaxCount(17).unsafe)
         .withMaxAge(MaxAge(1.day).unsafe)
-        .withTruncateBefore(exact(10))
+        .withTruncateBefore(StreamPosition(10))
         .withCacheControl(CacheControl(3.days).unsafe)
 
       val meta2 = StreamMetadata.empty
         .withMaxCount(MaxCount(37).unsafe)
         .withMaxAge(MaxAge(12.hours).unsafe)
-        .withTruncateBefore(exact(24))
+        .withTruncateBefore(StreamPosition(24))
         .withCacheControl(CacheControl(36.hours).unsafe)
 
       "using expected stream state no stream for first write and exact for second write" >> {
@@ -86,7 +86,7 @@ class MetaStreamsSuite extends SnSpec {
           mr2 <- metaStreams.getMetadata(sid)
         } yield {
           wr1.streamPosition shouldEqual Start
-          wr2.streamPosition shouldEqual exact(1L)
+          wr2.streamPosition shouldEqual StreamPosition(1L)
           mr1 should beSome(Result(wr1.streamPosition, meta1))
           mr2 should beSome(Result(wr2.streamPosition, meta2))
         }
@@ -103,7 +103,7 @@ class MetaStreamsSuite extends SnSpec {
           mr2 <- metaStreams.getMetadata(sid)
         } yield {
           mr1 should beSome(Result(Start, meta1))
-          mr2 should beSome(Result(exact(1L), meta2))
+          mr2 should beSome(Result(StreamPosition(1L), meta2))
         }
 
       }
@@ -113,8 +113,8 @@ class MetaStreamsSuite extends SnSpec {
 
       val sid = mkStreamId("set_metadata_with_wrong_expected_revision_raises")
 
-      metaStreams.setMetadata(sid, exact(2), StreamMetadata.empty).attempt.map {
-        _ should beLeft(WrongExpectedState(sid.metaId, exact(2), StreamState.NoStream))
+      metaStreams.setMetadata(sid, StreamPosition(2), StreamMetadata.empty).attempt.map {
+        _ should beLeft(WrongExpectedState(sid.metaId, StreamPosition(2), StreamState.NoStream))
       }
     }
 
@@ -133,7 +133,7 @@ class MetaStreamsSuite extends SnSpec {
           ma1 should beNone
           wr1.streamPosition shouldEqual Start
           ma2 should beSome(Result(Start, Some(MaxAge(1.day).unsafe)))
-          wr2.streamPosition shouldEqual exact(1L)
+          wr2.streamPosition shouldEqual StreamPosition(1L)
           ma3 should beSome(Result(wr2.streamPosition, None))
         }
       }
@@ -151,7 +151,7 @@ class MetaStreamsSuite extends SnSpec {
           ma1 should beNone
           wr1.streamPosition shouldEqual Start
           ma2 should beSome(Result(Start, Some(MaxCount(10).unsafe)))
-          wr2.streamPosition shouldEqual exact(1L)
+          wr2.streamPosition shouldEqual StreamPosition(1L)
           ma3 should beSome(Result(wr2.streamPosition, None))
         }
       }
@@ -169,7 +169,7 @@ class MetaStreamsSuite extends SnSpec {
           ma1 should beNone
           wr1.streamPosition shouldEqual Start
           ma2 should beSome(Result(Start, Some(CacheControl(20.days).unsafe)))
-          wr2.streamPosition shouldEqual exact(1L)
+          wr2.streamPosition shouldEqual StreamPosition(1L)
           ma3 should beSome(Result(wr2.streamPosition, None))
         }
       }
@@ -188,7 +188,7 @@ class MetaStreamsSuite extends SnSpec {
           ma1 should beNone
           wr1.streamPosition shouldEqual Start
           ma2 should beSome(Result(Start, Some(rr)))
-          wr2.streamPosition shouldEqual exact(1L)
+          wr2.streamPosition shouldEqual StreamPosition(1L)
           ma3 should beSome(Result(wr2.streamPosition, None))
         }
       }
@@ -205,8 +205,8 @@ class MetaStreamsSuite extends SnSpec {
         } yield {
           ma1 should beNone
           wr1.streamPosition shouldEqual Start
-          ma2 should beSome(Result(Start, Some(exact(100L))))
-          wr2.streamPosition shouldEqual exact(1L)
+          ma2 should beSome(Result(Start, Some(StreamPosition(100L))))
+          wr2.streamPosition shouldEqual StreamPosition(1L)
           ma3 should beSome(Result(wr2.streamPosition, None))
         }
       }
@@ -225,7 +225,7 @@ class MetaStreamsSuite extends SnSpec {
           ma1 should beNone
           wr1.streamPosition shouldEqual Start
           ma2 should beSome(Result(Start, Some(foo)))
-          wr2.streamPosition shouldEqual exact(1L)
+          wr2.streamPosition shouldEqual StreamPosition(1L)
           ma3 should beSome(Result(wr2.streamPosition, None))
         }
 

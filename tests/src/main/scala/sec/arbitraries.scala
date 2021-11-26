@@ -56,9 +56,11 @@ object arbitraries {
 // StreamPosition, LogPosition, PositionInfo.Global & StreamState
 //======================================================================================================================
 
-  implicit val arbStreamPositionExact: Arbitrary[StreamPosition.Exact] = Arbitrary[StreamPosition.Exact](
-    Gen.chooseNum(0L, Long.MaxValue).map(StreamPosition.Exact(_).leftMap(require(false, _)).toOption.get)
-  )
+  implicit val ulong: Arbitrary[ULong] =
+    Arbitrary(arbitrary[Long].map(new ULong(_)))
+
+  implicit val arbStreamPositionExact: Arbitrary[StreamPosition.Exact] =
+    Arbitrary[StreamPosition.Exact](arbitrary(ulong).map(StreamPosition.Exact(_)))
 
   implicit val arbStreamPosition: Arbitrary[StreamPosition] =
     Arbitrary[StreamPosition](Gen.oneOf(List(StreamPosition.End, sampleOf[StreamPosition.Exact])))
@@ -275,7 +277,7 @@ object arbitraries {
       val zdt  = sampleOf[ZonedDateTime]
 
       data.zipWithIndex.map { case (ed, i) =>
-        val position = StreamPosition.exact(i.toLong)
+        val position = StreamPosition(i.toLong)
         val created  = zdt.plusSeconds(i.toLong)
         sec.EventRecord[PositionInfo.Local](sid, position, ed, created)
       }

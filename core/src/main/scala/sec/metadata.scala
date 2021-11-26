@@ -216,7 +216,7 @@ private[sec] object MetaState {
         Codec.from(cfd.emap(CacheControl(_).leftMap(_.msg)), cfd.contramap(_.value))
 
       implicit val codecForStreamPositionExact: Codec[StreamPosition.Exact] =
-        Codec.from(dl.map(StreamPosition.exact), el.contramap(_.value))
+        Codec.from(dl.map(StreamPosition(_)), el.contramap(_.value.toLong))
 
       //
 
@@ -262,7 +262,7 @@ private[sec] object MetaState {
        |  max-age         = ${ms.maxAge.map(MaxAge.render).getOrElse("n/a")}
        |  max-count       = ${ms.maxCount.map(MaxCount.render).getOrElse("n/a")}
        |  cache-control   = ${ms.cacheControl.map(CacheControl.render).getOrElse("n/a")}
-       |  truncate-before = ${ms.truncateBefore.map(e => s"${e.value}L").getOrElse("n/a")}
+       |  truncate-before = ${ms.truncateBefore.map(e => s"${e.value.render}").getOrElse("n/a")}
        |  access-list     = ${ms.acl.map(StreamAcl.render).getOrElse("n/a")}
        |""".stripMargin
   }

@@ -36,14 +36,14 @@ class EventSpec extends Specification {
 
   val er: EventRecord[PositionInfo.Global] = sec.EventRecord[PositionInfo.Global](
     StreamId("abc-1234").unsafe,
-    PositionInfo.Global(StreamPosition.exact(5L), LogPosition.exact(42L, 42L)),
+    PositionInfo.Global(StreamPosition(5L), LogPosition.exact(42L, 42L)),
     EventData("et", sampleOf[ju.UUID], bv("abc"), ContentType.Binary).unsafe,
     sampleOf[ZonedDateTime]
   )
 
   val link: EventRecord[PositionInfo.Global] = sec.EventRecord[PositionInfo.Global](
     StreamId.system("ce-abc").unsafe,
-    PositionInfo.Global(StreamPosition.exact(10L), LogPosition.exact(1337L, 1337L)),
+    PositionInfo.Global(StreamPosition(10L), LogPosition.exact(1337L, 1337L)),
     EventData(EventType.LinkTo, sampleOf[ju.UUID], bv("5@abc-1234"), ContentType.Binary),
     sampleOf[ZonedDateTime]
   )

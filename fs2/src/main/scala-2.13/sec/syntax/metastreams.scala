@@ -90,6 +90,6 @@ final class MetaStreamsOps[F[_]: MonadThrow](val ms: MetaStreams[F]) {
     *   [[InvalidInput]] exception is raised for invalid input value.
     */
   def setTruncateBefore(id: Id, expectedState: StreamState, truncateBefore: Long): F[WriteResult] =
-    StreamPosition(truncateBefore).liftTo[F] >>= (ms.setTruncateBefore(id, expectedState, _))
+    ms.setTruncateBefore(id, expectedState, StreamPosition(truncateBefore))
 
 }

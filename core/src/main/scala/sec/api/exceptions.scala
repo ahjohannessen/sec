@@ -19,8 +19,6 @@ package api
 
 import scala.util.control.NoStackTrace
 
-import cats.syntax.all._
-
 object exceptions {
 
   sealed abstract class EsException private[sec] (
@@ -85,10 +83,10 @@ object exceptions {
     def adaptOrFallback(e: WrongExpectedVersion, sid: StreamId, expected: StreamState): Throwable = {
 
       def mkException(actual: StreamState) = WrongExpectedState(sid, expected, actual)
-      def noStream                         = mkException(StreamState.NoStream).some
-      def mkExact(a: Long)                 = StreamPosition.Exact(a).toOption.map(mkException)
+      def noStream                         = mkException(StreamState.NoStream)
+      def mkExact(a: Long)                 = mkException(StreamPosition(a))
 
-      e.actual.fold(noStream)(mkExact).getOrElse(e)
+      e.actual.fold(noStream)(mkExact)
     }
 
     implicit final class WrongExpectedVersionOps(val e: WrongExpectedVersion) extends AnyVal {
