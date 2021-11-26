@@ -56,15 +56,14 @@ In @libName@ a stream position is an ADT called `StreamPosition` with two varian
 a `Long` and `StreamPosition.End` that is an object representing the end of a stream.
 
 A `StreamPosition` that you can create is `Exact` and this is done with `StreamPosition.apply` that returns an 
-`Either[InvalidInput, Exact]`. Examples of `StreamPosition` construction:
+`Exact`. Examples of `StreamPosition` construction:
 
 ```scala mdoc:silent
 import sec.StreamPosition
 
-StreamPosition.Start // Exact(0L)
-StreamPosition(1L)   // Right(Exact(1L))
+StreamPosition.Start // Exact(0)
+StreamPosition(1L)   // Exact(1)
 StreamPosition.End   // End
-StreamPosition(-1L)  // Left(InvalidInput("value must be >= 0, but is -1"))
 ```
 
 One use case where you need to construct a `StreamPosition` is when you to store a pointer of the last processed 
@@ -83,17 +82,23 @@ A `LogPosition` that you can create from `Long` values is `Exact`, this is done 
 ```scala mdoc:silent
 import sec.LogPosition
 
-LogPosition.Start    // Exact(0L, 0L)
+LogPosition.Start    // Exact(0, 0)
 LogPosition.End      // End
-LogPosition(1L, 1L)  // Right(Exact(1L, 1L))
-LogPosition(-1L, 0L) // Left(InvalidInput("commit must be >= 0, but is -1"))
-LogPosition(0L, -1L) // Left(InvalidInput("prepare must be >= 0, but is -1"))
+LogPosition(1L, 1L)  // Right(Exact(1, 1))
 LogPosition(0L, 1L)  // Left(InvalidInput("commit must be >= prepare, but 0 < 1"))
 ``` 
 
 Cases where you construct a `LogPosition` is similar to that of `StreamPosition`, maintaining a pointer of last 
 processed event. However, here you keep a pointer to the global log, `StreamId.All`, instead of an individual 
 stream.
+
+### A note on `Long` usage in positions
+
+@esdb@ uses `uint64` that Java does not have a corresponding type for. In order to work around that fact @libName@ has a
+type called `ULong` that is able to represent `uint64` by wrapping a regular `Long` and use this for `StreamPosition.Exact` 
+and `LogPosition.Exact`. As @libName@ provides an instance of `cats.Order` for `ULong` it is possible to compare positions larger than `Long.MaxValue` as well as positions in `[0, Long.MaxValue]`.
+
+Moreover, this means that you can store a `LogPosition.Exact` pointer for your read model by using `toLong` on its `ULong` values. The `ULong.toLong` method might yield negative values, this is fine as when `LogPosition.Exact` is constructed again it has an `cats.Order` instance that works for all numbers in `uint64`.
 
 ### StreamState
  
