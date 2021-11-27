@@ -431,7 +431,7 @@ object Streams {
   private[sec] def subscriptionAllPipe[F[_]: MonadThrow](
     log: Logger[F]
   ): Pipe[F, ReadResp, AllEvent] =
-    _.through(subConfirmationPipe(log)).through(readAllEventPipe)
+    _.filterNot(_.content.isCheckpoint).through(subConfirmationPipe(log)).through(readAllEventPipe)
 
   private[sec] def subscriptionStreamPipe[F[_]: MonadThrow](
     log: Logger[F]
