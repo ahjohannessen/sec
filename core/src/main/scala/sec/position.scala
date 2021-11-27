@@ -129,6 +129,8 @@ object LogPosition {
   sealed abstract case class Exact(commit: ULong, prepare: ULong) extends LogPosition
   object Exact {
 
+    val MaxValue: Exact = create(ULong.MaxValue, ULong.MaxValue)
+
     private[sec] def create(commit: ULong, prepare: ULong): Exact =
       new Exact(commit, prepare) {}
 

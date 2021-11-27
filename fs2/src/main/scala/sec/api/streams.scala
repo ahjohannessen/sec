@@ -441,7 +441,12 @@ object Streams {
   private[sec] def subAllFilteredPipe[F[_]: MonadThrow](
     log: Logger[F]
   ): Pipe[F, ReadResp, Either[Checkpoint, AllEvent]] =
-    _.through(subConfirmationPipe(log)).through(_.evalMap(mkCheckpointOrEvent[F]).unNone)
+    // Defensive filtering to guard against ESDB emitting checkpoints 
+    // with `LogPosition.Exact.MaxValue`, i.e. end of stream.
+    _.through(subConfirmationPipe(log)).through(_.evalMap(mkCheckpointOrEvent[F]).unNone).collect {
+      case r @ Right(_)                               => r
+      case l @ Left(v) if v != Checkpoint.endOfStream => l
+    }
 
   private[sec] def withRetry[F[_]: Temporal, T: Order, O](
     from: T,

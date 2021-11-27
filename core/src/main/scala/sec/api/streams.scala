@@ -17,12 +17,29 @@
 package sec
 package api
 
+import cats.Order
+import cats.syntax.all._
+
 /** Checkpoint result used with server-side filtering in EventStoreDB. Contains the [[LogPosition.Exact]] when the
   * checkpoint was made.
   */
 final case class Checkpoint(
   logPosition: LogPosition.Exact
 )
+
+object Checkpoint {
+
+  val endOfStream: Checkpoint =
+    Checkpoint(LogPosition.Exact.MaxValue)
+
+  implicit final class CheckpointOps(val c: Checkpoint) extends AnyVal {
+    def isEndOfStream: Boolean = c === endOfStream
+  }
+
+  implicit val orderForCheckpoint: Order[Checkpoint] =
+    Order.by(_.logPosition)
+
+}
 
 /** The current last [[StreamPosition.Exact]] of the stream appended to and its corresponding [[LogPosition.Exact]] in
   * the transaction log.
