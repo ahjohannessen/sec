@@ -212,14 +212,14 @@ class StreamsSuite extends SnSpec {
           _    <- Stream.eval(writeBefore)
           _    <- Stream.eval(writeRandom(100))
           _    <- Stream.sleep[IO](1.second)
-          data <- subscribe.concurrently(Stream.eval(writeAfter).delayBy(1.second))
+          data <- subscribe.concurrently(Stream.eval(writeRandom(100) *> writeAfter).delayBy(1.second))
         } yield data
 
         result.compile.toList.map { r =>
           val (c, e) = r.partitionMap(identity)
           e.size shouldEqual expected.size
           e.map(_.eventData).toNel should beSome(expected)
-          c.nonEmpty should beTrue
+          c.filterNot(_.isEndOfStream).nonEmpty should beTrue
         }
       }
 
@@ -1043,7 +1043,8 @@ class StreamsSuite extends SnSpec {
           val st = mkSnakeCase(expectedState.render)
           val id = genStreamId(s"${streamPrefix}stream_exists_and_deleted_${st}_")
 
-          streams.delete(id, StreamState.NoStream) >>
+          streams.appendToStream(id, StreamState.NoStream, genEvents(1)) >>
+            streams.delete(id, expectedState) >>
             streams.appendToStream(id, expectedState, genEvents(1))
         }
 
@@ -1311,14 +1312,6 @@ class StreamsSuite extends SnSpec {
           streams.delete(id, expectedState).void
         }
 
-        "works with no stream expected stream state" >> {
-          run(StreamState.NoStream).as(ok)
-        }
-
-        "works with any expected stream state" >> {
-          run(StreamState.Any).as(ok)
-        }
-
         "raises with wrong expected stream state" >> {
           run(StreamPosition.Start).attempt.map {
             _ should beLike { case Left(WrongExpectedState(_, StreamPosition.Start, StreamState.NoStream)) => ok }
@@ -1520,21 +1513,19 @@ class StreamsSuite extends SnSpec {
           .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
 
         for {
-          _    <- streams.delete(id, StreamState.NoStream)
+          _    <- streams.appendToStream(id, StreamState.NoStream, genEvents(1))
+          _    <- streams.delete(id, StreamState.StreamExists)
           mw   <- metaStreams.setMetadata(id, StreamPosition.Start, metadata)
           read <- streams.readStreamForwards(id, maxCount = 1).compile.toList.attempt
           meta <- metaStreams.getMetadata(id)
         } yield {
 
           mw.streamPosition shouldEqual StreamPosition(1)
-
-          read should beLike { case Left(e: StreamNotFound) =>
-            e.streamId shouldEqual id.stringValue
-          }
+          read shouldEqual Right(Nil)
 
           meta.fold(ko) { m =>
             m.streamPosition shouldEqual StreamPosition(2)
-            m.data shouldEqual metadata.withTruncateBefore(StreamPosition.Start)
+            m.data shouldEqual metadata.withTruncateBefore(StreamPosition(1))
           }
         }
 
