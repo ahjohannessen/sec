@@ -150,7 +150,8 @@ class ClusterWatchSpec extends Specification with Retries with TestInstances wit
       val watch    = ClusterWatch.create[IO](readFn, options, cache, log)
 
       def test(expected: Int) = {
-        ec.tick(options.retryDelay)
+        ec.tick()
+        ec.advanceAndTick(options.retryDelay)
         val valueF = countRef.get.unsafeToFuture()
         ec.tick()
         valueF.value.get.toOption.get shouldEqual expected

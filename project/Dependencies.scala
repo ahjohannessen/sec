@@ -5,8 +5,8 @@ object Dependencies {
 
   object versions {
 
-    val catsCore          = "2.6.1"
-    val catsEffect        = "3.2.9"
+    val catsCore          = "2.7.0"
+    val catsEffect        = "3.3.0"
     val fs2               = "3.2.2"
     val log4cats          = "2.1.1"
     val logback           = "1.2.7"
@@ -16,7 +16,7 @@ object Dependencies {
     val grpc              = "1.42.1"
     val disciplineSpecs2  = "1.3.1"
     val specs2            = "4.13.1"
-    val catsEffectTesting = "1.3.0"
+    val catsEffectTesting = "1.4.0"
     val tsConfig          = "1.4.1"
 
   }

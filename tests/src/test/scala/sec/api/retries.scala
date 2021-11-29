@@ -88,10 +88,11 @@ class RetriesSpec extends Specification with TestInstances with CatsEffect {
       val action = test(IO.raiseError[Int](Oops), config)
 
       action.value should beNone
-      ec.tick(99.millis)
+      ec.advanceAndTick(99.millis)
 
       action.value should beNone
-      ec.tick(1.millis)
+      ec.advance(1.millis)
+      ec.tickAll()
 
       action.value.map(_.toEither) should beSome(Oops.asLeft)
     }
@@ -111,7 +112,8 @@ class RetriesSpec extends Specification with TestInstances with CatsEffect {
       val action = test(IO.raiseError[Int](Oops), config)
 
       action.value should beNone
-      ec.tick(1.second)
+      ec.advance(1.second)
+      ec.tickAll()
 
       action.value.map(_.toEither) should beSome(Oops.asLeft)
     }
@@ -131,13 +133,14 @@ class RetriesSpec extends Specification with TestInstances with CatsEffect {
       val action = test(IO.raiseError[Int](Oops), config)
 
       action.value should beNone
-      ec.tick(100.millis)
+      ec.advanceAndTick(100.millis)
 
       action.value should beNone
-      ec.tick(300.millis)
+      ec.advanceAndTick(300.millis)
 
       action.value should beNone
-      ec.tick(900.millis)
+      ec.advance(900.millis)
+      ec.tickAll()
 
       action.value.map(_.toEither) should beSome(Oops.asLeft)
     }
@@ -156,7 +159,8 @@ class RetriesSpec extends Specification with TestInstances with CatsEffect {
 
       val action = test(IO.raiseError[Int](Oops), config)
 
-      ec.tick(500.millis)
+      ec.advance(500.millis)
+      ec.tickAll()
 
       action.value.map(_.toEither) shouldEqual Oops.asLeft.some
     }
@@ -176,14 +180,16 @@ class RetriesSpec extends Specification with TestInstances with CatsEffect {
       val action1 = test(IO.sleep(101.millis) *> IO[Int](1), config)
 
       action1.value should beNone
-      ec.tick(300.millis)
+      ec.advance(300.millis)
+      ec.tickAll()
 
       action1.value.map(_.toEither) shouldEqual retries.Timeout(100.millis).asLeft.some
 
       val action2 = test(IO.sleep(99.millis) *> IO[Int](1), config)
 
       action2.value should beNone
-      ec.tick(99.millis)
+      ec.advance(99.millis)
+      ec.tickAll()
       action2.value.map(_.toEither) should beSome(1.asRight)
 
     }
@@ -223,7 +229,8 @@ class RetriesSpec extends Specification with TestInstances with CatsEffect {
       val action = test(IO.raiseError[Int](Oops), config, log = logger)
 
       action.value should beNone
-      ec.tick(1.second)
+      ec.advance(1.second)
+      ec.tickAll()
 
       action.value.map(_.toEither) should beSome(Oops.asLeft)
 
