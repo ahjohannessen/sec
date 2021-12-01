@@ -18,7 +18,7 @@ package sec
 package api
 package mapping
 
-import cats.{ApplicativeThrow, MonadThrow}
+import cats.{Applicative, ApplicativeThrow, MonadThrow}
 import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.all._
 import com.eventstore.dbclient.proto.shared._
@@ -152,6 +152,7 @@ private[sec] object streams {
         .withResolveLinks(resolveLinkTos)
         .withNoFilter(empty)
         .withUuidOption(uuidOption)
+        .withControlOption(ReadReq.Options.ControlOption(1))
 
       ReadReq().withOptions(options)
     }
@@ -171,6 +172,7 @@ private[sec] object streams {
         .withResolveLinks(resolveLinkTos)
         .withNoFilter(empty)
         .withUuidOption(uuidOption)
+        .withControlOption(ReadReq.Options.ControlOption(1))
 
       ReadReq().withOptions(options)
     }
@@ -231,7 +233,7 @@ private[sec] object streams {
     def mkLogPosition[F[_]: ApplicativeThrow](e: ReadResp.ReadEvent.RecordedEvent): F[LogPosition.Exact] =
       LogPosition(e.commitPosition, e.preparePosition).liftTo[F]
 
-    def mkStreamPosition[F[_]: ApplicativeThrow](e: ReadResp.ReadEvent.RecordedEvent): F[StreamPosition.Exact] =
+    def mkStreamPosition[F[_]: Applicative](e: ReadResp.ReadEvent.RecordedEvent): F[StreamPosition.Exact] =
       StreamPosition(e.streamRevision).pure[F]
 
     def mkCheckpoint[F[_]: ApplicativeThrow](c: ReadResp.Checkpoint): F[Checkpoint] =
