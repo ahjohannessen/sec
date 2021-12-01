@@ -23,7 +23,7 @@ import java.util.{UUID => JUUID}
 
 import cats.data.NonEmptyList
 import cats.syntax.all._
-import com.eventstore.dbclient.proto.shared.{Empty, UUID}
+import com.eventstore.dbclient.proto.shared.{AllStreamPosition, Empty, UUID}
 import com.eventstore.dbclient.proto.{streams => s}
 import org.specs2._
 import scodec.bits.ByteVector
@@ -31,10 +31,11 @@ import sec.api.exceptions.{StreamNotFound, WrongExpectedState}
 import sec.api.mapping.implicits._
 import sec.api.mapping.shared._
 import sec.api.mapping.streams.{incoming, outgoing}
+import sec.arbitraries._
 import sec.helpers.implicits._
 import sec.helpers.text.encodeToBV
 
-class StreamsMappingSpec extends mutable.Specification {
+class StreamsMappingSpec extends mutable.Specification with ScalaCheck {
 
   def bv(data: String): ByteVector =
     encodeToBV(data).unsafe
@@ -476,10 +477,12 @@ class StreamsMappingSpec extends mutable.Specification {
         EventRecord(sid, sec.PositionInfo.Global(sp, sec.LogPosition.exact(commit, prepare)), ed, created)
 
       val linkAllEventRecord =
-        sec.EventRecord(lsid,
-                        sec.PositionInfo.Global(lsp, sec.LogPosition.exact(linkCommit, linkPrepare)),
-                        led,
-                        linkCreated)
+        sec.EventRecord(
+          lsid,
+          sec.PositionInfo.Global(lsp, sec.LogPosition.exact(linkCommit, linkPrepare)),
+          led,
+          linkCreated
+        )
 
       test(allEventRecord, linkAllEventRecord, mkPositionGlobal[ErrorOr])
 
@@ -593,8 +596,6 @@ class StreamsMappingSpec extends mutable.Specification {
     }
 
     "mkCheckpointOrEvent" >> {
-
-      import arbitraries._
 
       val created     = Instant.EPOCH.atZone(ZoneOffset.UTC)
       val event       = sampleOfGen(eventGen.allEventRecordOne).copy(created = created)
@@ -756,6 +757,108 @@ class StreamsMappingSpec extends mutable.Specification {
 
       mkTombstoneResult[ErrorOr](s.TombstoneResp().withNoPosition(empty)) shouldEqual
         ProtoResultError("Required value TombstoneResp.PositionOptions.Position missing or invalid.").asLeft
+    }
+
+    "mkStreamMessageNotFound" >> {
+
+      val sn  = s.ReadResp.StreamNotFound()
+      val sni = sn.withStreamIdentifier("abc".toStreamIdentifer)
+
+      mkStreamMessageNotFound[ErrorOr](sn) shouldEqual
+        ProtoResultError("Required value StreamIdentifer missing or invalid.").asLeft
+
+      mkStreamMessageNotFound[ErrorOr](sni) shouldEqual
+        StreamMessage.NotFound(StreamId("abc").unsafe).asRight
+    }
+
+    "mkStreamMessageEvent" >> {
+
+      val created     = Instant.EPOCH.atZone(ZoneOffset.UTC)
+      val event       = sampleOfGen(eventGen.streamEventRecordOne).copy(created = created)
+      val eventData   = event.eventData
+      val eventType   = sec.EventType.eventTypeToString(event.eventData.eventType)
+      val contentType = eventData.contentType.fold(Binary, Json)
+      val metadata    = Map(ContentType -> contentType, Type -> eventType, Created -> created.getNano().toString)
+
+      val recordedEvent = s.ReadResp.ReadEvent
+        .RecordedEvent()
+        .withStreamIdentifier(event.streamId.stringValue.toStreamIdentifer)
+        .withStreamRevision(event.streamPosition.value.toLong)
+        .withData(event.eventData.data.toByteString)
+        .withCustomMetadata(event.eventData.metadata.toByteString)
+        .withId(UUID().withString(event.eventData.eventId.toString))
+        .withMetadata(metadata)
+
+      // Sanity checks, see mkEvent for more coverage.
+
+      mkStreamMessageEvent[ErrorOr](s.ReadResp.ReadEvent().withEvent(recordedEvent)) shouldEqual
+        StreamMessage.Event(event).some.asRight
+
+      mkStreamMessageEvent[ErrorOr](s.ReadResp.ReadEvent()) shouldEqual
+        Option.empty[StreamMessage.Event].asRight
+    }
+
+    "mkStreamMessageFirst" >> {
+      prop { (v: Long) =>
+        mkStreamMessageFirst[ErrorOr](v) shouldEqual StreamMessage.FirstStreamPosition(StreamPosition(v)).asRight
+      }
+    }
+
+    "mkStreamMessageLast" >> {
+      prop { (v: Long) =>
+        mkStreamMessageLast[ErrorOr](v) shouldEqual StreamMessage.LastStreamPosition(StreamPosition(v)).asRight
+      }
+    }
+
+    "mkAllMessageEvent" >> {
+
+      val created     = Instant.EPOCH.atZone(ZoneOffset.UTC)
+      val event       = sampleOfGen(eventGen.allEventRecordOne).copy(created = created)
+      val eventData   = event.eventData
+      val eventType   = sec.EventType.eventTypeToString(event.eventData.eventType)
+      val contentType = eventData.contentType.fold(Binary, Json)
+      val metadata    = Map(ContentType -> contentType, Type -> eventType, Created -> created.getNano().toString)
+
+      val recordedEvent = s.ReadResp.ReadEvent
+        .RecordedEvent()
+        .withStreamIdentifier(event.streamId.stringValue.toStreamIdentifer)
+        .withStreamRevision(event.streamPosition.value.toLong)
+        .withCommitPosition(event.logPosition.commit.toLong)
+        .withPreparePosition(event.logPosition.prepare.toLong)
+        .withData(event.eventData.data.toByteString)
+        .withCustomMetadata(event.eventData.metadata.toByteString)
+        .withId(UUID().withString(event.eventData.eventId.toString))
+        .withMetadata(metadata)
+
+      // Sanity checks, see mkEvent for more coverage.
+
+      mkAllMessageEvent[ErrorOr](s.ReadResp.ReadEvent().withEvent(recordedEvent)) shouldEqual
+        AllMessage.Event(event).some.asRight
+
+      mkAllMessageEvent[ErrorOr](s.ReadResp.ReadEvent()) shouldEqual
+        Option.empty[AllMessage.Event].asRight
+    }
+
+    "mkAllMessageLast" >> {
+
+      // Happy Path
+      prop { (c: ULong, p: ULong) =>
+        (p <= c) ==> {
+          mkAllMessageLast[ErrorOr](AllStreamPosition(c.toLong, p.toLong)).shouldEqual(
+            AllMessage.LastAllStreamPosition(LogPosition.exact(c.toLong, p.toLong)).asRight
+          )
+        }
+      }
+
+      // Bad LogPosition
+      prop { (c: ULong, p: ULong) =>
+        (p > c) ==> {
+          mkAllMessageLast[ErrorOr](AllStreamPosition(c.toLong, p.toLong)).shouldEqual(
+            InvalidInput(s"commit must be >= prepare, but $c < $p").asLeft
+          )
+        }
+      }
+
     }
 
   }

@@ -112,7 +112,7 @@ class VersionSpec extends Specification with Discipline with ScalaCheck {
   "ULong" >> {
 
     "n >= 0" >> {
-      prop((n: ULong) => n >= ULong.MinValue == true)
+      prop((n: ULong) => n >= ULong.MinValue)
     }
 
     "a < b" >> {
