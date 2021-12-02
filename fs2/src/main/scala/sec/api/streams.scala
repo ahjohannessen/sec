@@ -364,8 +364,8 @@ object Streams {
     val mkReq: StreamPosition => ReadReq =
       mkReadStreamReq(streamId, _, direction, maxCount, resolveLinkTos)
 
-    val read: StreamPosition => Stream[F, StreamEvent] = e =>
-      f(mkReq(e)).through(streamNotFoundPipe).through(readStreamEventPipe)
+    val read: StreamPosition => Stream[F, StreamEvent] =
+      sp => f(mkReq(sp)).through(readStreamEventPipe)
 
     val fn: StreamEvent => StreamPosition = _.record.streamPosition
 
@@ -407,13 +407,13 @@ object Streams {
 //======================================================================================================================
 
   private[sec] def readAllEventPipe[F[_]: MonadThrow]: Pipe[F, ReadResp, AllEvent] =
-    _.evalMap(reqReadAll[F]).unNone
+    _.filter(_.content.isEvent).evalMap(reqReadAll[F]).unNone
 
   private[sec] def readStreamEventPipe[F[_]: MonadThrow]: Pipe[F, ReadResp, StreamEvent] =
-    _.evalMap(reqReadStream[F]).unNone
-
-  private[sec] def streamNotFoundPipe[F[_]: MonadThrow]: Pipe[F, ReadResp, ReadResp] =
-    _.evalMap(failStreamNotFound[F])
+    _.filter(rr => rr.content.isEvent || rr.content.isStreamNotFound)
+      .evalMap(failStreamNotFound[F])
+      .evalMap(reqReadStream[F])
+      .unNone
 
   private[sec] def subConfirmationPipe[F[_]: MonadThrow](logger: Logger[F]): Pipe[F, ReadResp, ReadResp] = in => {
 
@@ -436,7 +436,7 @@ object Streams {
   private[sec] def subscriptionStreamPipe[F[_]: MonadThrow](
     log: Logger[F]
   ): Pipe[F, ReadResp, StreamEvent] =
-    _.through(subConfirmationPipe(log)).through(readStreamEventPipe)
+    _.through(subConfirmationPipe(log)).evalMap(reqReadStream[F]).unNone
 
   private[sec] def subAllFilteredPipe[F[_]: MonadThrow](
     log: Logger[F]

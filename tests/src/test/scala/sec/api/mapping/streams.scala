@@ -214,6 +214,7 @@ class StreamsMappingSpec extends mutable.Specification {
               .withResolveLinks(rlt)
               .withNoFilter(empty)
               .withUuidOption(uuidOption)
+              .withControlOption(s.ReadReq.Options.ControlOption(compatibility = 1))
           )
 
       for {
@@ -239,6 +240,7 @@ class StreamsMappingSpec extends mutable.Specification {
               .withResolveLinks(rlt)
               .withNoFilter(empty)
               .withUuidOption(uuidOption)
+              .withControlOption(s.ReadReq.Options.ControlOption(compatibility = 1))
           )
 
       for {
