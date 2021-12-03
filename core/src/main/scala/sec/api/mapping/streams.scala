@@ -377,6 +377,28 @@ private[sec] object streams {
         .map(p => TombstoneResult(LogPosition.exact(p.commitPosition, p.preparePosition)))
         .require[F]("TombstoneResp.PositionOptions.Position")
 
+    // ====================================================================================================================
+    // Detailed Message types
+    // ====================================================================================================================
+
+    def mkStreamMessageNotFound[F[_]: MonadThrow](p: ReadResp.StreamNotFound): F[StreamMessage.NotFound] =
+      p.streamIdentifier.require[F]("StreamIdentifer") >>= { mkStreamId[F](_).map(StreamMessage.NotFound(_)) }
+
+    def mkStreamMessageEvent[F[_]: MonadThrow](p: ReadResp.ReadEvent): F[Option[StreamMessage.Event]] =
+      mkEvent(p, mkStreamPosition[F]).map(_.map(StreamMessage.Event(_)))
+
+    def mkStreamMessageFirst[F[_]: Applicative](v: Long): F[StreamMessage.FirstStreamPosition] =
+      StreamMessage.FirstStreamPosition(StreamPosition(v)).pure[F]
+
+    def mkStreamMessageLast[F[_]: Applicative](v: Long): F[StreamMessage.LastStreamPosition] =
+      StreamMessage.LastStreamPosition(StreamPosition(v)).pure[F]
+
+    def mkAllMessageEvent[F[_]: MonadThrow](p: ReadResp.ReadEvent): F[Option[AllMessage.Event]] =
+      mkEvent(p, mkPositionGlobal[F]).map(_.map(AllMessage.Event(_)))
+
+    def mkAllMessageLast[F[_]: ApplicativeThrow](p: AllStreamPosition): F[AllMessage.LastAllStreamPosition] =
+      LogPosition(p.commitPosition, p.preparePosition).liftTo[F].map(AllMessage.LastAllStreamPosition(_))
+
   }
 
 }

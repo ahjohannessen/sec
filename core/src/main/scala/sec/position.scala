@@ -30,7 +30,7 @@ import cats.{Eq, Order}
   *   - [[StreamPosition.Exact]] The stream exists and its last written stream position is expected to be an exact
   *     value.
   *
-  * 122Use Cases122
+  * ==Use Cases==
   *
   * When you write to a stream for the first time you provide [[StreamState.NoStream]]. In order to decide if
   * [[StreamState.NoStream]] is required you can try to read from the stream and if the read operation raises

@@ -19,6 +19,7 @@ package api
 
 import cats.Order
 import cats.syntax.all._
+import exceptions.StreamNotFound
 
 /** Checkpoint result used with server-side filtering in EventStoreDB. Contains the [[LogPosition.Exact]] when the
   * checkpoint was made.
@@ -67,3 +68,93 @@ final case class TombstoneResult(
 final private[sec] case class SubscriptionConfirmation(
   id: String
 )
+
+// ====================================================================================================================
+// Reads messages
+// ====================================================================================================================
+
+/** [[StreamMessage]] represents different kind of messages that you get when reading from a stream.
+  *
+  * There are four variants:
+  *
+  *   - [[StreamMessage.Event]] A regular [[StreamEvent]].
+  *   - [[StreamMessage.FirstStreamPosition]] The first position of a stream.
+  *   - [[StreamMessage.LastStreamPosition]] The last position of a stream.
+  *   - [[StreamMessage.NotFound]] Representing a stream that was not found.
+  */
+sealed trait StreamMessage
+object StreamMessage {
+
+  final case class Event(event: StreamEvent) extends StreamMessage
+  final case class FirstStreamPosition(position: StreamPosition) extends StreamMessage
+  final case class LastStreamPosition(position: StreamPosition) extends StreamMessage
+  final case class NotFound(streamId: StreamId) extends StreamMessage
+  object NotFound {
+    implicit final class NotFoundOps(val nf: NotFound) extends AnyVal {
+      def toException: StreamNotFound = StreamNotFound(nf.streamId.render)
+    }
+  }
+
+  //
+
+  implicit final class StreamMessageOps(val sm: StreamMessage) extends AnyVal {
+
+    def fold[A](
+      eFn: Event => A,
+      fpFn: FirstStreamPosition => A,
+      lpFn: LastStreamPosition => A,
+      nfFn: NotFound => A
+    ): A = sm match {
+      case x: Event               => eFn(x)
+      case x: FirstStreamPosition => fpFn(x)
+      case x: LastStreamPosition  => lpFn(x)
+      case x: NotFound            => nfFn(x)
+    }
+
+    def event: Option[Event]               = fold(_.some, _ => none, _ => none, _ => none)
+    def first: Option[FirstStreamPosition] = fold(_ => none, _.some, _ => none, _ => none)
+    def last: Option[LastStreamPosition]   = fold(_ => none, _ => none, _.some, _ => none)
+    def notFound: Option[NotFound]         = fold(_ => none, _ => none, _ => none, _.some)
+
+    def isEvent: Boolean    = event.isDefined
+    def isFirst: Boolean    = first.isDefined
+    def isLast: Boolean     = last.isDefined
+    def isNotFound: Boolean = notFound.isDefined
+
+  }
+
+}
+
+/** [[AllMessage]] represents different kind of messages that you get when reading from the global stream.
+  *
+  * There are two variants:
+  *
+  *   - [[AllMessage.Event]] A regular [[AllEvent]].
+  *   - [[AllMessage.LastAllStreamPosition]] The last position in the global, [[sec.StreamId.All]], stream.
+  */
+sealed trait AllMessage
+object AllMessage {
+
+  final case class Event(event: AllEvent) extends AllMessage
+  final case class LastAllStreamPosition(position: LogPosition) extends AllMessage
+
+  //
+
+  implicit final class AllMessageOps(val am: AllMessage) extends AnyVal {
+
+    def fold[A](
+      eFn: Event => A,
+      lpFn: LastAllStreamPosition => A
+    ): A = am match {
+      case x: Event                 => eFn(x)
+      case x: LastAllStreamPosition => lpFn(x)
+    }
+
+    def event: Option[Event]                = fold(_.some, _ => none)
+    def last: Option[LastAllStreamPosition] = fold(_ => none, _.some)
+
+    def isEvent: Boolean = event.isDefined
+    def isLast: Boolean  = last.isDefined
+  }
+
+}

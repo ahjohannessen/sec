@@ -1621,5 +1621,123 @@ class StreamsSuite extends SnSpec {
 
     // ==================================================================================================================
 
+    "messageReads" >> {
+
+      val reads = streams.messageReads
+
+      "readStream" >> {
+
+        import StreamState._
+        import StreamPosition._
+
+        val streamPrefix = s"reads_read_stream_messages_${genIdentifier}_"
+
+        "backwards" >> {
+
+          "stream not found" >> {
+
+            val id = genStreamId(s"${streamPrefix}backwards_not_found_")
+
+            reads
+              .readStream(id, End, Backwards, 32, false)
+              .compile
+              .lastOrError
+              .map(_.isNotFound shouldEqual true)
+          }
+
+          "stream found" >> {
+
+            val id     = genStreamId(s"${streamPrefix}backwards_found_")
+            val events = genEvents(32)
+            val write  = streams.appendToStream(id, NoStream, events)
+
+            write >>
+              reads
+                .readStream(id, End, Backwards, 32, false)
+                .compile
+                .toList
+                .map { ms =>
+
+                  val readEvents   = ms.collect { case StreamMessage.Event(e) => e }
+                  val lastPosition = ms.lastOption.collect { case StreamMessage.LastStreamPosition(l) => l }
+
+                  ms.size shouldEqual 33
+                  readEvents.size shouldEqual 32
+                  readEvents.map(_.eventData).reverse shouldEqual events.toList
+                  lastPosition shouldEqual StreamPosition(31).some
+                }
+
+          }
+
+        }
+
+        "forwards" >> {
+
+          "stream not found" >> {
+
+            val id = genStreamId(s"${streamPrefix}forwards_not_found_")
+
+            reads
+              .readStream(id, Start, Forwards, 32, false)
+              .compile
+              .lastOrError
+              .map(_.isNotFound shouldEqual true)
+          }
+
+          "stream found" >> {
+
+            val id     = genStreamId(s"${streamPrefix}forwards_found_")
+            val events = genEvents(32)
+            val write  = streams.appendToStream(id, NoStream, events)
+            val read   = reads.readStream(id, Start, Forwards, 32, false).compile.toList
+            val result = write >> read
+
+            result.map { ms =>
+
+              val readEvents   = ms.collect { case StreamMessage.Event(e) => e }
+              val lastPosition = ms.lastOption.collect { case StreamMessage.LastStreamPosition(l) => l }
+
+              ms.size shouldEqual 33
+              readEvents.size shouldEqual 32
+              readEvents.map(_.eventData) shouldEqual events.toList
+              readEvents.headOption.map(_.streamPosition) shouldEqual Start.some
+              readEvents.lastOption.map(_.streamPosition) shouldEqual StreamPosition(31).some
+              lastPosition shouldEqual StreamPosition(31).some
+            }
+
+          }
+
+          "stream found truncated" >> {
+
+            val id       = genStreamId(s"${streamPrefix}forwards_found_truncated")
+            val events   = genEvents(64)
+            val write    = streams.appendToStream(id, NoStream, events)
+            val truncate = client.metaStreams.setTruncateBefore(id, NoStream, 32L)
+            val read     = reads.readStream(id, Start, Forwards, 64, false).compile.toList
+            val result   = write >> truncate >> read
+
+            result.map { ms =>
+
+              val firstPosition = ms.headOption.collect { case StreamMessage.FirstStreamPosition(f) => f }
+              val readEvents    = ms.collect { case StreamMessage.Event(e) => e }
+              val lastPosition  = ms.lastOption.collect { case StreamMessage.LastStreamPosition(l) => l }
+
+              ms.size shouldEqual 34
+              firstPosition shouldEqual StreamPosition(32).some
+              readEvents.size shouldEqual 32
+              readEvents.map(_.eventData) shouldEqual events.toList.drop(32)
+              readEvents.headOption.map(_.streamPosition) shouldEqual StreamPosition(32).some
+              readEvents.lastOption.map(_.streamPosition) shouldEqual StreamPosition(63).some
+              lastPosition shouldEqual StreamPosition(63).some
+            }
+
+          }
+
+        }
+
+      }
+
+    }
+
   }
 }
