@@ -47,7 +47,7 @@ trait Reads[F[_]] {
     * @return
     *   a [[Stream]] that emits [[AllMessage]] values.
     */
-  def readAll(
+  def readAllMessages(
     from: LogPosition,
     direction: Direction,
     maxCount: Long,
@@ -69,7 +69,7 @@ trait Reads[F[_]] {
     * @return
     *   a [[Stream]] that emits [[StreamMessage]] values.
     */
-  def readStream(
+  def readStreamMessages(
     streamId: StreamId,
     from: StreamPosition,
     direction: Direction,
@@ -89,7 +89,7 @@ object Reads {
     val readHandle: ReadReq => Stream[F, ReadResp] =
       client.read(_, mkCtx(None))
 
-    def readAll(
+    def readAllMessages(
       from: LogPosition,
       direction: Direction,
       maxCount: Long,
@@ -98,7 +98,7 @@ object Reads {
       ReadAll(from, direction, maxCount, resolveLinkTos, readHandle).run
         .through(ReadAll.messagePipe[F])
 
-    def readStream(
+    def readStreamMessages(
       streamId: StreamId,
       from: StreamPosition,
       direction: Direction,

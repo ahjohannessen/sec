@@ -256,7 +256,7 @@ object Streams {
     ): Stream[F, AllEvent] = {
 
       val read: LogPosition => Stream[F, AllEvent] = messageReads
-        .readAll(_, direction, maxCount, resolveLinkTos)
+        .readAllMessages(_, direction, maxCount, resolveLinkTos)
         .mapFilter(_.event.map(_.event))
 
       withRetry[F, LogPosition, AllEvent](from, read, _.record.logPosition, opts, "readAll", direction)
@@ -271,7 +271,7 @@ object Streams {
     ): Stream[F, StreamEvent] = {
 
       val read: StreamPosition => Stream[F, StreamEvent] = messageReads
-        .readStream(streamId, _, direction, maxCount, resolveLinkTos)
+        .readStreamMessages(streamId, _, direction, maxCount, resolveLinkTos)
         .evalTap(sm => sm.notFound.fold(sm.pure[F])(_.toException.raiseError))
         .mapFilter(_.event.map(_.event))
 
