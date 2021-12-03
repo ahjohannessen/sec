@@ -216,9 +216,14 @@ inThisBuild(
         name     = Some("Regular tests"),
         commands = List("compileTests", "tests/test")
       ),
-      WorkflowStep.Sbt(
-        name     = Some("Single node integration tests"),
-        commands = List("tests / Sit / test"),
+      WorkflowStep.Use(
+        UseRef.Public("nick-invision", "retry", "v2"),
+        name = Some("Single node integration tests"),
+        params = Map(
+          "timeout_minutes" -> "20",
+          "max_attempts"    -> "3",
+          "command"         -> "sbt ++${{ matrix.scala }} 'tests / Sit / test'"
+        ),
         env = Map(
           "SEC_SIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_SIT_AUTHORITY"  -> "es.sec.local"
@@ -240,9 +245,14 @@ inThisBuild(
           "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
         )
       ),
-      WorkflowStep.Sbt(
-        name     = Some("Cluster integration tests"),
-        commands = List("tests / Cit / test"),
+      WorkflowStep.Use(
+        UseRef.Public("nick-invision", "retry", "v2"),
+        name = Some("Cluster integration tests"),
+        params = Map(
+          "timeout_minutes" -> "10",
+          "max_attempts"    -> "3",
+          "command"         -> "sbt ++${{ matrix.scala }} 'tests / Cit / test'"
+        ),
         env = Map(
           "SEC_CIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_CIT_AUTHORITY"  -> "es.sec.local"
