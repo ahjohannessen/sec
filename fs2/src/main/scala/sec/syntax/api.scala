@@ -17,6 +17,6 @@
 package sec
 package syntax
 
-trait ApiSyntax extends StreamsSyntax with MetaStreamsSyntax
+trait ApiSyntax extends StreamsSyntax with ReadsSyntax with MetaStreamsSyntax
 
 object api extends ApiSyntax

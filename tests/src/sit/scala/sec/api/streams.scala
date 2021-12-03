@@ -1639,7 +1639,7 @@ class StreamsSuite extends SnSpec {
             val id = genStreamId(s"${streamPrefix}backwards_not_found_")
 
             reads
-              .readStream(id, End, Backwards, 32, false)
+              .readStreamMessagesBackwards(id, End, 32)
               .compile
               .lastOrError
               .map(_.isNotFound shouldEqual true)
@@ -1653,7 +1653,7 @@ class StreamsSuite extends SnSpec {
 
             write >>
               reads
-                .readStream(id, End, Backwards, 32, false)
+                .readStreamMessagesBackwards(id, End, 32)
                 .compile
                 .toList
                 .map { ms =>
@@ -1678,7 +1678,7 @@ class StreamsSuite extends SnSpec {
             val id = genStreamId(s"${streamPrefix}forwards_not_found_")
 
             reads
-              .readStream(id, Start, Forwards, 32, false)
+              .readStreamMessagesForwards(id, Start, 32)
               .compile
               .lastOrError
               .map(_.isNotFound shouldEqual true)
@@ -1689,7 +1689,7 @@ class StreamsSuite extends SnSpec {
             val id     = genStreamId(s"${streamPrefix}forwards_found_")
             val events = genEvents(32)
             val write  = streams.appendToStream(id, NoStream, events)
-            val read   = reads.readStream(id, Start, Forwards, 32, false).compile.toList
+            val read   = reads.readStreamMessagesForwards(id, Start, 32).compile.toList
             val result = write >> read
 
             result.map { ms =>
@@ -1713,7 +1713,7 @@ class StreamsSuite extends SnSpec {
             val events   = genEvents(64)
             val write    = streams.appendToStream(id, NoStream, events)
             val truncate = client.metaStreams.setTruncateBefore(id, NoStream, 32L)
-            val read     = reads.readStream(id, Start, Forwards, 64, false).compile.toList
+            val read     = reads.readStreamMessagesForwards(id, Start, 64).compile.toList
             val result   = write >> truncate >> read
 
             result.map { ms =>
