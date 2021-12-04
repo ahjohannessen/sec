@@ -37,8 +37,7 @@ import sec.helpers.text.encodeToBV
 
 class StreamsMappingSpec extends mutable.Specification with ScalaCheck {
 
-  def bv(data: String): ByteVector =
-    encodeToBV(data).unsafe
+  import StreamsMappingSpec._
 
   "outgoing" >> {
 
@@ -376,58 +375,13 @@ class StreamsMappingSpec extends mutable.Specification with ScalaCheck {
 
     "mkEvent" >> {
 
-      val streamId   = "abc-3"
-      val revision   = 1L
-      val commit     = 1L
-      val prepare    = 1L
-      val id         = "e5390fcb-48bd-4895-bcc3-01629cca2af6"
-      val eventType  = "eventtype"
-      val data       = ByteVector.encodeUtf8("""{ "data": "data" }""").leftMap(_.getMessage()).unsafe
-      val customMeta = ByteVector.empty
-      val created    = Instant.EPOCH.atZone(ZoneOffset.UTC)
-      val metadata   = Map(ContentType -> Json, Type -> eventType, Created -> created.getNano().toString)
-
-      val eventProto =
-        s.ReadResp.ReadEvent
-          .RecordedEvent()
-          .withStreamIdentifier(streamId.toStreamIdentifer)
-          .withStreamRevision(revision)
-          .withCommitPosition(commit)
-          .withPreparePosition(prepare)
-          .withData(data.toByteString)
-          .withCustomMetadata(customMeta.toByteString)
-          .withId(UUID().withString(id))
-          .withMetadata(metadata)
-
-      val linkStreamId   = "abc"
-      val linkRevision   = 2L
-      val linkCommit     = 10L
-      val linkPrepare    = 10L
-      val linkId         = "b8f5ed88-5aa1-49a6-85d6-c173556436ae"
-      val linkEventType  = EventType.LinkTo.stringValue
-      val linkData       = bv(s"$revision@$streamId")
-      val linkCustomMeta = ByteVector.empty
-      val linkCreated    = Instant.EPOCH.atZone(ZoneOffset.UTC)
-      val linkMetadata   = Map(ContentType -> Binary, Type -> linkEventType, Created -> linkCreated.getNano().toString)
-
-      val linkProto = s.ReadResp.ReadEvent
-        .RecordedEvent()
-        .withStreamIdentifier(linkStreamId.toStreamIdentifer)
-        .withStreamRevision(linkRevision)
-        .withCommitPosition(linkCommit)
-        .withPreparePosition(linkPrepare)
-        .withData(linkData.toByteString)
-        .withCustomMetadata(linkCustomMeta.toByteString)
-        .withId(UUID().withString(linkId))
-        .withMetadata(linkMetadata)
-
       def test[P <: PositionInfo](
         er: EventRecord[P],
         lr: EventRecord[P],
+        eventProto: s.ReadResp.ReadEvent.RecordedEvent,
+        linkProto: s.ReadResp.ReadEvent.RecordedEvent,
         mkPos: s.ReadResp.ReadEvent.RecordedEvent => ErrorOr[P]
       ) = {
-
-        // /
 
         val readEvent = s.ReadResp.ReadEvent()
 
@@ -453,38 +407,15 @@ class StreamsMappingSpec extends mutable.Specification with ScalaCheck {
 
       }
 
-      val sid = sec.StreamId(streamId).unsafe
-      val sp  = sec.StreamPosition(revision)
-      val et  = sec.EventType(eventType).unsafe
-      val ed  = sec.EventData(et, JUUID.fromString(id), data, customMeta, sec.ContentType.Json)
-
-      val lsid = sec.StreamId(linkStreamId).unsafe
-      val lsp  = sec.StreamPosition(linkRevision)
-      val let  = sec.EventType.LinkTo
-      val led  = sec.EventData(let, JUUID.fromString(linkId), linkData, linkCustomMeta, sec.ContentType.Binary)
-
       //
 
-      val streamEventRecord =
-        EventRecord(sid, sp, ed, created)
+      val sel = mkStreamEventAndLink
 
-      val linkStreamEventRecord =
-        sec.EventRecord(lsid, lsp, led, linkCreated)
+      test(sel.event, sel.link, sel.eventProto, sel.linkProto, mkStreamPosition[ErrorOr])
 
-      test(streamEventRecord, linkStreamEventRecord, mkStreamPosition[ErrorOr])
+      val ael = mkAllEventAndLink
 
-      val allEventRecord =
-        EventRecord(sid, sec.PositionInfo.Global(sp, sec.LogPosition.exact(commit, prepare)), ed, created)
-
-      val linkAllEventRecord =
-        sec.EventRecord(
-          lsid,
-          sec.PositionInfo.Global(lsp, sec.LogPosition.exact(linkCommit, linkPrepare)),
-          led,
-          linkCreated
-        )
-
-      test(allEventRecord, linkAllEventRecord, mkPositionGlobal[ErrorOr])
+      test(ael.event, ael.link, ael.eventProto, ael.linkProto, mkPositionGlobal[ErrorOr])
 
     }
 
@@ -812,28 +743,10 @@ class StreamsMappingSpec extends mutable.Specification with ScalaCheck {
 
     "mkAllMessageEvent" >> {
 
-      val created     = Instant.EPOCH.atZone(ZoneOffset.UTC)
-      val event       = sampleOfGen(eventGen.allEventRecordOne).copy(created = created)
-      val eventData   = event.eventData
-      val eventType   = sec.EventType.eventTypeToString(event.eventData.eventType)
-      val contentType = eventData.contentType.fold(Binary, Json)
-      val metadata    = Map(ContentType -> contentType, Type -> eventType, Created -> created.getNano().toString)
+      val ael = mkAllEventAndLink
 
-      val recordedEvent = s.ReadResp.ReadEvent
-        .RecordedEvent()
-        .withStreamIdentifier(event.streamId.stringValue.toStreamIdentifer)
-        .withStreamRevision(event.streamPosition.value.toLong)
-        .withCommitPosition(event.logPosition.commit.toLong)
-        .withPreparePosition(event.logPosition.prepare.toLong)
-        .withData(event.eventData.data.toByteString)
-        .withCustomMetadata(event.eventData.metadata.toByteString)
-        .withId(UUID().withString(event.eventData.eventId.toString))
-        .withMetadata(metadata)
-
-      // Sanity checks, see mkEvent for more coverage.
-
-      mkAllMessageEvent[ErrorOr](s.ReadResp.ReadEvent().withEvent(recordedEvent)) shouldEqual
-        AllMessage.Event(event).some.asRight
+      mkAllMessageEvent[ErrorOr](s.ReadResp.ReadEvent().withEvent(ael.eventProto)) shouldEqual
+        AllMessage.Event(ael.event).some.asRight
 
       mkAllMessageEvent[ErrorOr](s.ReadResp.ReadEvent()) shouldEqual
         Option.empty[AllMessage.Event].asRight
@@ -861,5 +774,165 @@ class StreamsMappingSpec extends mutable.Specification with ScalaCheck {
 
     }
 
+    "AllResult" >> {
+
+      "fromWire" >> {
+
+        val rsp = s.ReadResp()
+        val run = AllResult.fromWire[ErrorOr] _
+
+        /** Empty */
+
+        run(rsp) shouldEqual
+          ProtoResultError(s"Unexpected response for AllResult: Empty").asLeft
+
+        /** Confirmation */
+
+        prop { (id: String) =>
+          run(rsp.withConfirmation(s.ReadResp.SubscriptionConfirmation(id))) shouldEqual
+            AllResult.ConfirmationR(SubscriptionConfirmation(id)).asRight
+        }
+
+        /** LastPositionR & CheckpointR */
+
+        // Valid
+        prop { (c: ULong, p: ULong) =>
+          (p <= c) ==> {
+
+            run(rsp.withCheckpoint(s.ReadResp.Checkpoint(c.toLong, p.toLong))) shouldEqual
+              AllResult.CheckpointR(Checkpoint(sec.LogPosition.exact(1L, 1L))).asRight
+
+            run(rsp.withLastAllStreamPosition(AllStreamPosition(c.toLong, p.toLong))).shouldEqual(
+              AllResult.LastPositionR(LogPosition.exact(c.toLong, p.toLong)).asRight
+            )
+          }
+        }
+
+        // Invalid
+        prop { (c: ULong, p: ULong) =>
+          (p > c) ==> {
+
+            run(rsp.withCheckpoint(s.ReadResp.Checkpoint(c.toLong, p.toLong))) shouldEqual
+              ProtoResultError(s"Invalid position for Checkpoint: commit must be >= prepare, but $c < $p").asLeft
+
+            run(rsp.withLastAllStreamPosition(AllStreamPosition(c.toLong, p.toLong))).shouldEqual(
+              ProtoResultError(s"commit must be >= prepare, but $c < $p").asLeft
+            )
+          }
+        }
+
+        /** EventR */
+
+        val ael = mkAllEventAndLink
+        val re  = s.ReadResp.ReadEvent()
+
+        // Event & No Link => EventRecord
+        run(rsp.withEvent(re.withEvent(ael.eventProto))) shouldEqual
+          AllResult.EventR(ael.event.some).asRight
+
+        // Event & Link => ResolvedEvent
+        run(rsp.withEvent(re.withEvent(ael.eventProto).withLink(ael.linkProto))) shouldEqual
+          AllResult.EventR(ResolvedEvent(ael.event, ael.link).some).asRight
+
+        // No Event & No Link => None
+        run(rsp.withEvent(re)) shouldEqual
+          AllResult.EventR(None).asRight
+
+        // No Event & Link, i.e. link to deleted event => None
+        run(rsp.withEvent(re.withLink(ael.linkProto))) shouldEqual
+          AllResult.EventR(None).asRight
+
+      }
+    }
+
   }
+}
+
+object StreamsMappingSpec {
+
+  import grpc.constants.Metadata.{ContentType, ContentTypes, Created, Type}
+  import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
+
+  def bv(data: String): ByteVector =
+    encodeToBV(data).unsafe
+
+  final case class EventAndLink[P <: PositionInfo](
+    event: EventRecord[P],
+    eventProto: s.ReadResp.ReadEvent.RecordedEvent,
+    link: EventRecord[P],
+    linkProto: s.ReadResp.ReadEvent.RecordedEvent
+  )
+
+  def mkStreamEventAndLink: EventAndLink[PositionInfo.Local] =
+    mkEventAndLink[PositionInfo.Local]((sp, _, _) => sp)
+
+  def mkAllEventAndLink: EventAndLink[PositionInfo.Global] =
+    mkEventAndLink[PositionInfo.Global]((sp, c, p) => sec.PositionInfo.Global(sp, sec.LogPosition.exact(c, p)))
+
+  private def mkEventAndLink[P <: PositionInfo](
+    mkPosition: (StreamPosition.Exact, Long, Long) => P
+  ): EventAndLink[P] = {
+
+    val streamId   = "abc-3"
+    val revision   = 1L
+    val commit     = 1L
+    val prepare    = 1L
+    val id         = "e5390fcb-48bd-4895-bcc3-01629cca2af6"
+    val eventType  = "eventtype"
+    val data       = ByteVector.encodeUtf8("""{ "data": "data" }""").leftMap(_.getMessage()).unsafe
+    val customMeta = ByteVector.empty
+    val created    = Instant.EPOCH.atZone(ZoneOffset.UTC)
+    val metadata   = Map(ContentType -> Json, Type -> eventType, Created -> created.getNano().toString)
+
+    val eventProto =
+      s.ReadResp.ReadEvent
+        .RecordedEvent()
+        .withStreamIdentifier(streamId.toStreamIdentifer)
+        .withStreamRevision(revision)
+        .withCommitPosition(commit)
+        .withPreparePosition(prepare)
+        .withData(data.toByteString)
+        .withCustomMetadata(customMeta.toByteString)
+        .withId(UUID().withString(id))
+        .withMetadata(metadata)
+
+    val linkStreamId   = "abc"
+    val linkRevision   = 2L
+    val linkCommit     = 10L
+    val linkPrepare    = 10L
+    val linkId         = "b8f5ed88-5aa1-49a6-85d6-c173556436ae"
+    val linkEventType  = EventType.LinkTo.stringValue
+    val linkData       = bv(s"$revision@$streamId")
+    val linkCustomMeta = ByteVector.empty
+    val linkCreated    = Instant.EPOCH.atZone(ZoneOffset.UTC)
+    val linkMetadata   = Map(ContentType -> Binary, Type -> linkEventType, Created -> linkCreated.getNano().toString)
+
+    val linkProto = s.ReadResp.ReadEvent
+      .RecordedEvent()
+      .withStreamIdentifier(linkStreamId.toStreamIdentifer)
+      .withStreamRevision(linkRevision)
+      .withCommitPosition(linkCommit)
+      .withPreparePosition(linkPrepare)
+      .withData(linkData.toByteString)
+      .withCustomMetadata(linkCustomMeta.toByteString)
+      .withId(UUID().withString(linkId))
+      .withMetadata(linkMetadata)
+
+    val sid = sec.StreamId(streamId).unsafe
+    val sp  = sec.StreamPosition(revision)
+    val et  = sec.EventType(eventType).unsafe
+    val ed  = sec.EventData(et, JUUID.fromString(id), data, customMeta, sec.ContentType.Json)
+
+    val lsid = sec.StreamId(linkStreamId).unsafe
+    val lsp  = sec.StreamPosition(linkRevision)
+    val let  = sec.EventType.LinkTo
+    val led  = sec.EventData(let, JUUID.fromString(linkId), linkData, linkCustomMeta, sec.ContentType.Binary)
+
+    val eventRecord = EventRecord(sid, mkPosition(sp, commit, prepare), ed, created)
+    val linkRecord  = sec.EventRecord(lsid, mkPosition(lsp, linkCommit, linkPrepare), led, linkCreated)
+
+    EventAndLink(eventRecord, eventProto, linkRecord, linkProto)
+
+  }
+
 }

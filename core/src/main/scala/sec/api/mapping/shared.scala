@@ -21,9 +21,8 @@ package mapping
 import java.util.{UUID => JUUID}
 import cats.{ApplicativeThrow, MonadThrow}
 import cats.syntax.all._
-import com.eventstore.dbclient.proto.shared.{StreamIdentifier, UUID}
+import com.eventstore.dbclient.proto.shared.{AllStreamPosition, StreamIdentifier, UUID}
 import com.google.protobuf.ByteString
-import sec.StreamId
 
 private[sec] object shared {
 
@@ -62,6 +61,11 @@ private[sec] object shared {
   implicit final class StreamIdentifierOps(val v: StreamIdentifier) extends AnyVal {
     def utf8[F[_]](implicit F: ApplicativeThrow[F]): F[String] =
       F.catchNonFatal(Option(v.streamName.toStringUtf8()).getOrElse(""))
+  }
+
+  implicit final class AllStreamPositionOps(val v: AllStreamPosition) extends AnyVal {
+    def toLogPosition: Either[InvalidInput, LogPosition.Exact] =
+      LogPosition(v.commitPosition, v.preparePosition)
   }
 
   //
