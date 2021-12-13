@@ -378,8 +378,6 @@ private[sec] object streams {
         .require[F]("TombstoneResp.PositionOptions.Position")
 
     // ====================================================================================================================
-    // Detailed Message types
-    // ====================================================================================================================
 
     def mkStreamMessageNotFound[F[_]: MonadThrow](p: ReadResp.StreamNotFound): F[StreamMessage.NotFound] =
       p.streamIdentifier.require[F]("StreamIdentifer") >>= { mkStreamId[F](_).map(StreamMessage.NotFound(_)) }
@@ -398,6 +396,110 @@ private[sec] object streams {
 
     def mkAllMessageLast[F[_]: ApplicativeThrow](p: AllStreamPosition): F[AllMessage.LastAllStreamPosition] =
       LogPosition(p.commitPosition, p.preparePosition).liftTo[F].map(AllMessage.LastAllStreamPosition(_))
+
+    // ======================================================================================================================
+
+    sealed trait AllResult
+    object AllResult {
+
+      import ReadResp.{Content => c}
+
+      final case class EventR(event: Option[AllEvent]) extends AllResult
+      final case class CheckpointR(checkpoint: Checkpoint) extends AllResult
+      final case class ConfirmationR(confirmation: SubscriptionConfirmation) extends AllResult
+      final case class LastPositionR(position: LogPosition) extends AllResult
+
+      def fromWire[F[_]](p: ReadResp)(implicit F: MonadThrow[F]): F[AllResult] = p.content match {
+        case c.Event(v)        => mkEvent[F, PositionInfo.Global](v, mkPositionGlobal[F]).map(EventR(_))
+        case c.Checkpoint(v)   => mkCheckpoint[F](v).map(CheckpointR(_))
+        case c.Confirmation(v) => F.pure(ConfirmationR(SubscriptionConfirmation(v.subscriptionId)))
+        case c.LastAllStreamPosition(v) =>
+          v.toLogPosition.leftMap(e => ProtoResultError(e.msg)).liftTo[F].map(LastPositionR(_))
+        case m => F.raiseError(ProtoResultError(s"Unexpected response for AllResult: $m"))
+      }
+
+      //
+
+      implicit final class AllResultOps(val ar: AllResult) extends AnyVal {
+
+        def fold[A](
+          eventFn: EventR => A,
+          checkpointFn: CheckpointR => A,
+          confirmationFn: ConfirmationR => A,
+          lastPositionFn: LastPositionR => A
+        ): A = ar match {
+          case x: EventR        => eventFn(x)
+          case x: CheckpointR   => checkpointFn(x)
+          case x: ConfirmationR => confirmationFn(x)
+          case x: LastPositionR => lastPositionFn(x)
+        }
+
+        def toAllMessage: Option[AllMessage] = fold(
+          _.event.map(AllMessage.Event(_)),
+          _ => none,
+          _ => none,
+          x => AllMessage.LastAllStreamPosition(x.position).some
+        )
+
+      }
+
+    }
+
+    sealed trait StreamResult
+    object StreamResult {
+
+      import ReadResp.{Content => c}
+
+      final case class EventR(event: Option[StreamEvent]) extends StreamResult
+      final case class CheckpointR(checkpoint: Checkpoint) extends StreamResult
+      final case class ConfirmationR(confirmation: SubscriptionConfirmation) extends StreamResult
+      final case class StreamNotFoundR(streamId: StreamId) extends StreamResult
+      final case class FirstPositionR(position: StreamPosition) extends StreamResult
+      final case class LastPositionR(position: StreamPosition) extends StreamResult
+
+      def fromWire[F[_]](p: ReadResp)(implicit F: MonadThrow[F]): F[StreamResult] = p.content match {
+
+        case c.Event(v)               => mkEvent(v, mkStreamPosition[F]).map(EventR(_))
+        case c.Confirmation(v)        => F.pure(ConfirmationR(SubscriptionConfirmation(v.subscriptionId)))
+        case c.Checkpoint(v)          => mkCheckpoint[F](v).map(CheckpointR(_))
+        case c.StreamNotFound(v)      => mkStreamId[F](v.streamIdentifier).map(StreamNotFoundR(_))
+        case c.FirstStreamPosition(v) => F.pure(FirstPositionR(StreamPosition(v)))
+        case c.LastStreamPosition(v)  => F.pure(LastPositionR(StreamPosition(v)))
+        case m                        => F.raiseError(ProtoResultError(s"Unexpected response: $m"))
+      }
+
+      //
+
+      implicit final class StreamResultOps(val sr: StreamResult) extends AnyVal {
+
+        def fold[A](
+          eventFn: EventR => A,
+          checkpointFn: CheckpointR => A,
+          confirmationFn: ConfirmationR => A,
+          streamNotFoundFn: StreamNotFoundR => A,
+          firstPositonFn: FirstPositionR => A,
+          lastPositionFn: LastPositionR => A
+        ): A = sr match {
+          case x: EventR          => eventFn(x)
+          case x: CheckpointR     => checkpointFn(x)
+          case x: ConfirmationR   => confirmationFn(x)
+          case x: StreamNotFoundR => streamNotFoundFn(x)
+          case x: FirstPositionR  => firstPositonFn(x)
+          case x: LastPositionR   => lastPositionFn(x)
+        }
+
+        def toStreamMessage: Option[StreamMessage] = fold(
+          _.event.map(StreamMessage.Event(_)),
+          _ => none,
+          _ => none,
+          x => StreamMessage.NotFound(x.streamId).some,
+          x => StreamMessage.FirstStreamPosition(x.position).some,
+          x => StreamMessage.LastStreamPosition(x.position).some
+        )
+
+      }
+
+    }
 
   }
 

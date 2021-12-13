@@ -18,11 +18,9 @@ package sec
 package api
 package streams
 
-import cats.MonadThrow
-import cats.data.OptionT
 import cats.syntax.all._
 import cats.effect.Temporal
-import fs2.{Pipe, Stream}
+import fs2.Stream
 import com.eventstore.dbclient.proto.streams._
 import sec.api.mapping.streams.{incoming => mi}
 import sec.api.mapping.streams.{outgoing => mo}
@@ -86,8 +84,11 @@ object Reads {
     mkCtx: Option[UserCredentials] => C
   ): Reads[F] = new Reads[F] {
 
-    val readHandle: ReadReq => Stream[F, ReadResp] =
-      client.read(_, mkCtx(None))
+    val readAll: ReadReq => Stream[F, mi.AllResult] =
+      client.read(_, mkCtx(None)).evalMap(mi.AllResult.fromWire[F])
+
+    val readStream: ReadReq => Stream[F, mi.StreamResult] =
+      client.read(_, mkCtx(None)).evalMap(mi.StreamResult.fromWire[F])
 
     def readAllMessages(
       from: LogPosition,
@@ -95,8 +96,8 @@ object Reads {
       maxCount: Long,
       resolveLinkTos: Boolean
     ): Stream[F, AllMessage] =
-      ReadAll(from, direction, maxCount, resolveLinkTos, readHandle).run
-        .through(ReadAll.messagePipe[F])
+      ReadAll(from, direction, maxCount, resolveLinkTos, readAll).run
+        .mapFilter(_.toAllMessage)
 
     def readStreamMessages(
       streamId: StreamId,
@@ -105,8 +106,8 @@ object Reads {
       maxCount: Long,
       resolveLinkTos: Boolean
     ): Stream[F, StreamMessage] =
-      ReadStream(streamId, from, direction, maxCount, resolveLinkTos, readHandle).run
-        .through(ReadStream.messagePipe[F])
+      ReadStream(streamId, from, direction, maxCount, resolveLinkTos, readStream).run
+        .mapFilter(_.toStreamMessage)
 
   }
 
@@ -119,35 +120,22 @@ final private[api] case class ReadAll[F[_]](
   direction: Direction,
   maxCount: Long,
   resolveLinkTos: Boolean,
-  handle: ReadReq => Stream[F, ReadResp]
+  handle: ReadReq => Stream[F, mi.AllResult]
 )
 
 private[api] object ReadAll {
 
   implicit final class ReadAllOps[F[_]](val ra: ReadAll[F]) extends AnyVal {
 
-    def isValid: Boolean                      = ra.maxCount > 0L
-    def withFrom(lp: LogPosition): ReadAll[F] = ra.copy(from = lp)
+    def withFrom(lp: LogPosition): ReadAll[F] =
+      ra.copy(from = lp)
 
-    def toReadReq: ReadReq =
-      mo.mkReadAllReq(ra.from, ra.direction, ra.maxCount, ra.resolveLinkTos)
+    def run: Stream[F, mi.AllResult] = {
+      val valid = ra.maxCount > 0L
+      val req   = mo.mkReadAllReq(ra.from, ra.direction, ra.maxCount, ra.resolveLinkTos)
+      if (valid) ra.handle(req) else Stream.empty
+    }
 
-    def run: Stream[F, ReadResp] =
-      if (isValid) ra.handle(ra.toReadReq) else Stream.empty
-
-    def runFrom(lp: LogPosition): Stream[F, ReadResp] =
-      ra.withFrom(lp).run
-
-  }
-
-  //
-
-  def messagePipe[F[_]: MonadThrow]: Pipe[F, ReadResp, AllMessage] = _.evalMapFilter { r =>
-
-    val e  = OptionT(r.content.event.flatTraverse(mi.mkAllMessageEvent[F](_))).widen[AllMessage]
-    val lp = OptionT(r.content.lastAllStreamPosition.traverse(mi.mkAllMessageLast[F])).widen[AllMessage]
-
-    (e <+> lp).value
   }
 
 }
@@ -158,39 +146,22 @@ final private[api] case class ReadStream[F[_]](
   direction: Direction,
   maxCount: Long,
   resolveLinkTos: Boolean,
-  handle: ReadReq => Stream[F, ReadResp]
+  handle: ReadReq => Stream[F, mi.StreamResult]
 )
 
 private[api] object ReadStream {
 
   implicit final class ReadStreamOps[F[_]](val rs: ReadStream[F]) extends AnyVal {
 
-    def isValid: Boolean =
-      rs.direction.fold(rs.from =!= StreamPosition.End, true) && rs.maxCount > 0L
-
     def withFrom(sp: StreamPosition): ReadStream[F] =
       rs.copy(from = sp)
 
-    def toReadReq: ReadReq =
-      mo.mkReadStreamReq(rs.streamId, rs.from, rs.direction, rs.maxCount, rs.resolveLinkTos)
+    def run: Stream[F, mi.StreamResult] = {
+      val valid = rs.direction.fold(rs.from =!= StreamPosition.End, true) && rs.maxCount > 0L
+      val req   = mo.mkReadStreamReq(rs.streamId, rs.from, rs.direction, rs.maxCount, rs.resolveLinkTos)
+      if (valid) rs.handle(req) else Stream.empty
+    }
 
-    def run: Stream[F, ReadResp] =
-      if (isValid) rs.handle(rs.toReadReq) else Stream.empty
-
-    def runFrom(sp: StreamPosition): Stream[F, ReadResp] =
-      rs.withFrom(sp).run
-  }
-
-  //
-
-  def messagePipe[F[_]: MonadThrow]: Pipe[F, ReadResp, StreamMessage] = _.evalMapFilter { r =>
-
-    val e  = OptionT(r.content.event.flatTraverse(mi.mkStreamMessageEvent[F](_))).widen[StreamMessage]
-    val nf = OptionT(r.content.streamNotFound.traverse(mi.mkStreamMessageNotFound[F])).widen[StreamMessage]
-    val fp = OptionT(r.content.firstStreamPosition.traverse(mi.mkStreamMessageFirst[F])).widen[StreamMessage]
-    val lp = OptionT(r.content.lastStreamPosition.traverse(mi.mkStreamMessageLast[F])).widen[StreamMessage]
-
-    (e <+> fp <+> lp <+> nf).value
   }
 
 }

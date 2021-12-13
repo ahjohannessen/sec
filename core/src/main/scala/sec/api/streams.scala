@@ -70,8 +70,6 @@ final private[sec] case class SubscriptionConfirmation(
 )
 
 // ====================================================================================================================
-// Reads messages
-// ====================================================================================================================
 
 /** [[StreamMessage]] represents different kind of messages that you get when reading from a stream.
   *
