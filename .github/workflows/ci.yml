@@ -24,7 +24,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [3.1.0, 2.13.7]
+        scala: [3.1.0, 2.13.8]
         java: [temurin@17]
     runs-on: ${{ matrix.os }}
     steps:
@@ -53,7 +53,7 @@ jobs:
           key: ${{ runner.os }}-sbt-cache-v2-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Start Single Node
-        if: contains(matrix.scala, '2.13.7')
+        if: contains(matrix.scala, '2.13.8')
         env:
           SEC_GENCERT_CERTS_ROOT: ${{ github.workspace }}
         run: |
@@ -65,14 +65,14 @@ jobs:
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
       - name: Compile docs
-        if: contains(matrix.scala, '2.13.7')
+        if: contains(matrix.scala, '2.13.8')
         run: sbt ++${{ matrix.scala }} compileDocs
 
       - name: Regular tests
         run: sbt ++${{ matrix.scala }} compileTests tests/test
 
       - name: Single node integration tests
-        if: contains(matrix.scala, '2.13.7')
+        if: contains(matrix.scala, '2.13.8')
         env:
           SEC_SIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_SIT_AUTHORITY: es.sec.local
@@ -83,14 +83,14 @@ jobs:
           command: sbt ++${{ matrix.scala }} 'tests / Sit / test'
 
       - name: Stop Single Node
-        if: always() && contains(matrix.scala, '2.13.7')
+        if: always() && contains(matrix.scala, '2.13.8')
         run: |
           pushd .docker
           ./single-node.sh down
           popd
 
       - name: Start Cluster Nodes
-        if: contains(matrix.scala, '2.13.7')
+        if: contains(matrix.scala, '2.13.8')
         env:
           SEC_GENCERT_CERTS_ROOT: ${{ github.workspace }}
         run: |
@@ -99,7 +99,7 @@ jobs:
           popd
 
       - name: Cluster integration tests
-        if: contains(matrix.scala, '2.13.7')
+        if: contains(matrix.scala, '2.13.8')
         env:
           SEC_CIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_CIT_AUTHORITY: es.sec.local
@@ -110,7 +110,7 @@ jobs:
           command: sbt ++${{ matrix.scala }} 'tests / Cit / test'
 
       - name: Stop Cluster Nodes
-        if: always() && contains(matrix.scala, '2.13.7')
+        if: always() && contains(matrix.scala, '2.13.8')
         run: |
           pushd .docker
           ./cluster.sh down
@@ -132,7 +132,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [2.13.7]
+        scala: [2.13.8]
         java: [temurin@17]
     runs-on: ${{ matrix.os }}
     steps:
@@ -170,12 +170,12 @@ jobs:
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (2.13.7)
+      - name: Download target directories (2.13.8)
         uses: actions/download-artifact@v2
         with:
-          name: target-${{ matrix.os }}-2.13.7-${{ matrix.java }}
+          name: target-${{ matrix.os }}-2.13.8-${{ matrix.java }}
 
-      - name: Inflate target directories (2.13.7)
+      - name: Inflate target directories (2.13.8)
         run: |
           tar xf targets.tar
           rm targets.tar
@@ -190,7 +190,7 @@ jobs:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
         run: sbt ++${{ matrix.scala }} ci-release
 
-      - if: contains(matrix.scala, '2.13.7') && github.ref == 'refs/heads/main'
+      - if: contains(matrix.scala, '2.13.8') && github.ref == 'refs/heads/main'
         env:
           GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
         run: sbt ++${{ matrix.scala }} docs/docusaurusPublishGhpages
