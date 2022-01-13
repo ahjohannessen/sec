@@ -15,7 +15,7 @@ object Dependencies {
     val scalaPb           = scalapb.compiler.Version.scalapbVersion
     val grpc              = "1.43.2"
     val disciplineSpecs2  = "1.3.1"
-    val specs2            = "4.13.1"
+    val specs2            = "4.13.2"
     val catsEffectTesting = "1.4.0"
     val tsConfig          = "1.4.1"
 
