@@ -18,55 +18,76 @@ package sec
 package api
 package grpc
 
-import org.specs2._
+class MarshallingSuite extends SecSuite {
 
-class MarshallingSpec extends mutable.Specification {
+  test("NumericAsciiMarshallers") {
 
-  "NumericAsciiMarshallers" >> {
+    // Happy Path
 
-    // / Happy Path
+    assertEquals(IntMarshaller.toAsciiString(Int.MinValue), "-2147483648")
+    assertEquals(IntMarshaller.parseAsciiString("-2147483648"), Int.MinValue)
+    assertEquals(IntMarshaller.toAsciiString(0), "0")
+    assertEquals(IntMarshaller.parseAsciiString("0"), 0)
+    assertEquals(IntMarshaller.toAsciiString(-0), "0")
+    assertEquals(IntMarshaller.parseAsciiString("-0"), 0)
+    assertEquals(IntMarshaller.toAsciiString(Int.MaxValue), "2147483647")
+    assertEquals(IntMarshaller.parseAsciiString("2147483647"), Int.MaxValue)
 
-    IntMarshaller.toAsciiString(Int.MinValue) shouldEqual "-2147483648"
-    IntMarshaller.parseAsciiString("-2147483648") shouldEqual Int.MinValue
-    IntMarshaller.toAsciiString(0) shouldEqual "0"
-    IntMarshaller.parseAsciiString("0") shouldEqual 0
-    IntMarshaller.toAsciiString(-0) shouldEqual "0"
-    IntMarshaller.parseAsciiString("-0") shouldEqual 0
-    IntMarshaller.toAsciiString(Int.MaxValue) shouldEqual "2147483647"
-    IntMarshaller.parseAsciiString("2147483647") shouldEqual Int.MaxValue
+    assertEquals(LongMarshaller.toAsciiString(Long.MinValue), "-9223372036854775808")
+    assertEquals(LongMarshaller.parseAsciiString("-9223372036854775808"), Long.MinValue)
+    assertEquals(LongMarshaller.toAsciiString(0L), "0")
+    assertEquals(LongMarshaller.parseAsciiString("0"), 0L)
+    assertEquals(LongMarshaller.toAsciiString(-0L), "0")
+    assertEquals(LongMarshaller.parseAsciiString("-0"), 0L)
+    assertEquals(LongMarshaller.toAsciiString(Long.MaxValue), "9223372036854775807")
+    assertEquals(LongMarshaller.parseAsciiString("9223372036854775807"), Long.MaxValue)
 
-    LongMarshaller.toAsciiString(Long.MinValue) shouldEqual "-9223372036854775808"
-    LongMarshaller.parseAsciiString("-9223372036854775808") shouldEqual Long.MinValue
-    LongMarshaller.toAsciiString(0L) shouldEqual "0"
-    LongMarshaller.parseAsciiString("0") shouldEqual 0L
-    LongMarshaller.toAsciiString(-0L) shouldEqual "0"
-    LongMarshaller.parseAsciiString("-0") shouldEqual 0L
-    LongMarshaller.toAsciiString(Long.MaxValue) shouldEqual "9223372036854775807"
-    LongMarshaller.parseAsciiString("9223372036854775807") shouldEqual Long.MaxValue
+    // Sad Path
 
-    // / Sad Path
+    assertEquals(InvalidInput("Blackie Lawless", "WASP").getMessage(), "Could not parse Blackie Lawless to WASP")
 
-    InvalidInput("Blackie Lawless", "WASP").getMessage() shouldEqual "Could not parse Blackie Lawless to WASP"
+    interceptMessage[InvalidInput]("Could not parse -2147483649 to Int")(
+      IntMarshaller.parseAsciiString("-2147483649")
+    )
 
-    IntMarshaller.parseAsciiString("-2147483649") should throwAn(InvalidInput("-2147483649", "Int"))
-    IntMarshaller.parseAsciiString("Chuck Norris") should throwAn(InvalidInput("Chuck Norris", "Int"))
-    IntMarshaller.parseAsciiString("2147483648") should throwAn(InvalidInput("2147483648", "Int"))
+    interceptMessage[InvalidInput]("Could not parse Chuck Norris to Int")(
+      IntMarshaller.parseAsciiString("Chuck Norris")
+    )
 
-    LongMarshaller.parseAsciiString("-9223372036854775809") should throwAn(InvalidInput("-9223372036854775809", "Long"))
-    LongMarshaller.parseAsciiString("Johnny Cash") should throwAn(InvalidInput("Johnny Cash", "Long"))
-    LongMarshaller.parseAsciiString("9223372036854775808") should throwAn(InvalidInput("9223372036854775808", "Long"))
+    interceptMessage[InvalidInput]("Could not parse 2147483648 to Int")(
+      IntMarshaller.parseAsciiString("2147483648")
+    )
+
+    interceptMessage[InvalidInput]("Could not parse -9223372036854775809 to Long")(
+      LongMarshaller.parseAsciiString("-9223372036854775809")
+    )
+
+    interceptMessage[InvalidInput]("Could not parse Johnny Cash to Long")(
+      LongMarshaller.parseAsciiString("Johnny Cash")
+    )
+
+    interceptMessage[InvalidInput]("Could not parse 9223372036854775808 to Long")(
+      LongMarshaller.parseAsciiString("9223372036854775808")
+    )
+
   }
 
-  "StringMarshaller" >> {
-    StringMarshaller.toAsciiString("Willie Nelson") shouldEqual "Willie Nelson"
-    StringMarshaller.parseAsciiString("Waylon Jennings") shouldEqual "Waylon Jennings"
+  test("StringMarshaller") {
+    assertEquals(StringMarshaller.toAsciiString("Willie Nelson"), "Willie Nelson")
+    assertEquals(StringMarshaller.parseAsciiString("Waylon Jennings"), "Waylon Jennings")
   }
 
-  "UserCredentialsMarshaller" >> {
-    UserCredentialsMarshaller.toAsciiString(
-      UserCredentials.unsafe("Kris", "Kristofferson")) shouldEqual "Basic S3JpczpLcmlzdG9mZmVyc29u"
-    UserCredentialsMarshaller.parseAsciiString(
-      "Basic S3JpczpLcmlzdG9mZmVyc29u") shouldEqual UserCredentialsMarshaller.decodingNotSupported
+  test("UserCredentialsMarshaller") {
+
+    assertEquals(
+      UserCredentialsMarshaller.toAsciiString(UserCredentials.unsafe("Kris", "Kristofferson")),
+      "Basic S3JpczpLcmlzdG9mZmVyc29u"
+    )
+
+    assertEquals(
+      UserCredentialsMarshaller.parseAsciiString("Basic S3JpczpLcmlzdG9mZmVyc29u"),
+      UserCredentialsMarshaller.decodingNotSupported
+    )
   }
 
 }

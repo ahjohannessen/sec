@@ -19,27 +19,26 @@ package tsc
 
 import java.io.File
 import scala.concurrent.duration._
-import org.specs2.mutable.Specification
 import com.typesafe.config._
 import cats.data.NonEmptySet
 import org.typelevel.log4cats.noop.NoOpLogger
 import sec.tsc.config._
 import sec.api._
 
-class ConfigSpec extends Specification {
+class ConfigSuite extends SecSuite {
 
-  "mkSingleNodeBuilder" >> {
+  group("mkSingleNodeBuilder") {
 
-    "no config" >> {
+    test("no config") {
 
       val builder = mkSingleNodeBuilder[ErrorOr](Options.default, ConfigFactory.parseString(""))
 
-      builder.authority should beNone
-      builder.endpoint shouldEqual Endpoint("127.0.0.1", 2113)
+      assertEquals(builder.authority, None)
+      assertEquals(builder.endpoint, Endpoint("127.0.0.1", 2113))
 
     }
 
-    "config" >> {
+    test("config") {
 
       val cfg =
         ConfigFactory.parseString("""
@@ -50,12 +49,12 @@ class ConfigSpec extends Specification {
 
       val builder = mkSingleNodeBuilder[ErrorOr](Options.default, cfg)
 
-      builder.authority should beSome("example.org")
-      builder.endpoint shouldEqual Endpoint("10.0.0.2", 12113)
+      assertEquals(builder.authority, Some("example.org"))
+      assertEquals(builder.endpoint, Endpoint("10.0.0.2", 12113))
 
     }
 
-    "partial config" >> {
+    test("partial config") {
 
       val cfg1 =
         ConfigFactory.parseString("""
@@ -71,24 +70,27 @@ class ConfigSpec extends Specification {
           .resolve()
 
       val builder1 = mkSingleNodeBuilder[ErrorOr](Options.default, cfg1)
-      builder1.authority should beNone
-      builder1.endpoint shouldEqual Endpoint("10.0.0.3", 2113)
+      assertEquals(builder1.authority, None)
+      assertEquals(builder1.endpoint, Endpoint("10.0.0.3", 2113))
 
       val builder2 = mkSingleNodeBuilder[ErrorOr](Options.default, cfg2)
-      builder2.authority should beNone
-      builder2.endpoint shouldEqual Endpoint("10.0.0.3", 2113)
+      assertEquals(builder2.authority, None)
+      assertEquals(builder2.endpoint, Endpoint("10.0.0.3", 2113))
 
     }
 
   }
 
-  "mkClusterBuilder" >> {
+  group("mkClusterBuilder") {
 
-    "no config" >> {
-      mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, ConfigFactory.parseString("")) should beNone
+    test("no config") {
+      assertEquals(
+        mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, ConfigFactory.parseString("")),
+        None
+      )
     }
 
-    "config" >> {
+    test("config") {
 
       val cfg = ConfigFactory.parseString(
         """
@@ -99,18 +101,21 @@ class ConfigSpec extends Specification {
 
       val builder = mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg)
 
-      builder.fold(ko) { b =>
-        b.authority shouldEqual "example.org"
-        b.seed shouldEqual NonEmptySet.of(
-          Endpoint("127.0.0.1", 2113),
-          Endpoint("127.0.0.2", 2213),
-          Endpoint("127.0.0.3", 2113)
+      builder.fold(fail("Expected some ClusterBuilder")) { b =>
+        assertEquals(b.authority, "example.org")
+        assertEquals(
+          b.seed,
+          NonEmptySet.of(
+            Endpoint("127.0.0.1", 2113),
+            Endpoint("127.0.0.2", 2213),
+            Endpoint("127.0.0.3", 2113)
+          )
         )
       }
 
     }
 
-    "partial config" >> {
+    test("partial config") {
 
       val cfg1 = ConfigFactory.parseString(
         """
@@ -125,31 +130,31 @@ class ConfigSpec extends Specification {
             |""".stripMargin
       )
 
-      mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg1) should beNone
-      mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg2) should beNone
+      assertEquals(mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg1), None)
+      assertEquals(mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg2), None)
 
     }
 
   }
 
-  "mkBuilder" >> {
+  group("mkBuilder") {
 
-    "no config" >> {
+    test("no config") {
 
       mkBuilder[ErrorOr](ConfigFactory.parseString(""), NoOpLogger[ErrorOr]) match {
-        case Left(e) => ko(e.getMessage)
+        case Left(e) => fail(e.getMessage, e)
         case Right(either) =>
           either match {
-            case Left(_) => ko("did not expect cluster builder")
+            case Left(_) => fail("did not expect cluster builder")
             case Right(s) =>
-              s.authority should beNone
-              s.endpoint shouldEqual Endpoint("127.0.0.1", 2113)
+              assertEquals(s.authority, None)
+              assertEquals(s.endpoint, Endpoint("127.0.0.1", 2113))
           }
       }
 
     }
 
-    "single node config" >> {
+    test("single node config") {
 
       val cfg =
         ConfigFactory.parseString("""
@@ -158,19 +163,19 @@ class ConfigSpec extends Specification {
           |""".stripMargin)
 
       mkBuilder[ErrorOr](cfg, NoOpLogger[ErrorOr]) match {
-        case Left(e) => ko(e.getMessage)
+        case Left(e) => fail(e.getMessage, e)
         case Right(either) =>
           either match {
-            case Left(_) => ko("did not expect cluster builder")
+            case Left(_) => fail("did not expect cluster builder")
             case Right(s) =>
-              s.authority should beSome("example.org")
-              s.endpoint shouldEqual Endpoint("10.0.0.2", 2113)
+              assertEquals(s.authority, Some("example.org"))
+              assertEquals(s.endpoint, Endpoint("10.0.0.2", 2113))
           }
       }
 
     }
 
-    "cluster config" >> {
+    test("cluster config") {
 
       val cfg = ConfigFactory.parseString(
         """
@@ -180,16 +185,19 @@ class ConfigSpec extends Specification {
       )
 
       mkBuilder[ErrorOr](cfg, NoOpLogger[ErrorOr]) match {
-        case Left(e) => ko(e.getMessage)
+        case Left(e) => fail(e.getMessage, e)
         case Right(either) =>
           either match {
-            case Right(_) => ko("did not expect single node builder")
+            case Right(_) => fail("did not expect single node builder")
             case Left(c) =>
-              c.authority shouldEqual "example.org"
-              c.seed shouldEqual NonEmptySet.of(
-                Endpoint("127.0.0.1", 2113),
-                Endpoint("127.0.0.2", 2113),
-                Endpoint("127.0.0.3", 2113)
+              assertEquals(c.authority, "example.org")
+              assertEquals(
+                c.seed,
+                NonEmptySet.of(
+                  Endpoint("127.0.0.1", 2113),
+                  Endpoint("127.0.0.2", 2113),
+                  Endpoint("127.0.0.3", 2113)
+                )
               )
           }
       }
@@ -198,13 +206,13 @@ class ConfigSpec extends Specification {
 
   }
 
-  "mkOptions" >> {
+  group("mkOptions") {
 
-    "no config" >> {
-      mkOptions[ErrorOr](ConfigFactory.parseString("")) should beRight(Options.default)
+    test("no config") {
+      assertEquals(mkOptions[ErrorOr](ConfigFactory.parseString("")), Right(Options.default))
     }
 
-    "config" >> {
+    test("config") {
 
       val cfg = ConfigFactory.parseString(
         """
@@ -242,19 +250,19 @@ class ConfigSpec extends Specification {
         .withOperationsRetryBackoffFactor(2)
         .withOperationsRetryMaxAttempts(1000)
 
-      mkOptions[ErrorOr](cfg) shouldEqual Right(expected)
+      assertEquals(mkOptions[ErrorOr](cfg), Right(expected))
 
     }
 
   }
 
-  "mkClusterOptions" >> {
+  group("mkClusterOptions") {
 
-    "no config" >> {
-      mkClusterOptions[ErrorOr](ConfigFactory.parseString("")) should beRight(ClusterOptions.default)
+    test("no config") {
+      assertEquals(mkClusterOptions[ErrorOr](ConfigFactory.parseString("")), Right(ClusterOptions.default))
     }
 
-    "config" >> {
+    test("config") {
 
       val cfg = ConfigFactory.parseString(
         """
@@ -287,7 +295,7 @@ class ConfigSpec extends Specification {
         .withNotificationInterval(150.millis)
         .withReadTimeout(2.seconds)
 
-      mkClusterOptions[ErrorOr](cfg) should beRight(expected)
+      assertEquals(mkClusterOptions[ErrorOr](cfg), Right(expected))
 
     }
 

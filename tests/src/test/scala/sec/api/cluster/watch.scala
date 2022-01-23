@@ -22,32 +22,27 @@ import java.time.ZonedDateTime
 import java.{util => ju}
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
+import cats.Id
 import cats.data.{NonEmptyList => Nel}
 import cats.effect._
 import cats.effect.testkit._
-// import cats.effect.testing.specs2.CatsEffect
 import cats.syntax.all._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.scalacheck.Gen
-import org.specs2.specification.Retries
-import org.specs2.matcher.MatchResult
-import org.specs2.mutable.Specification
 import sec.api.exceptions.ServerUnavailable
 import sec.arbitraries._
 
-class ClusterWatchSpec extends Specification with Retries with TestInstances with CatsEffect {
-
-  override def sleep: Duration = 500.millis
+class ClusterWatchSuite extends SecEffectSuite with TestInstances {
 
   import ClusterWatch.Cache
 
-  "ClusterWatch" should {
+  group("ClusterWatch") {
 
     val mkLog: IO[Logger[IO]] = Slf4jLogger.fromName[IO]("cluster-watch-spec")
 
-    "only emit changes in cluster info" >> {
+    test("only emit changes in cluster info") {
 
       val options = ClusterOptions.default
         .withMaxDiscoverAttempts(1.some)
@@ -84,15 +79,15 @@ class ClusterWatchSpec extends Specification with Retries with TestInstances wit
       } yield (changes, store)
 
       val x = result.map { case (changes, store) =>
-        changes.take(4).compile.toList.map(_ shouldEqual List(ci1, ci2, ci4, ci5)) >>
-          store.get.map(_.lastOption shouldEqual ci5.some)
+        assertIO(changes.take(4).compile.toList, List(ci1, ci2, ci4, ci5)) >>
+          assertIO(store.get.map(_.lastOption), ci5.some)
       }
 
       x.use(a => a)
 
     }
 
-    "retry retriable errors until discovery attempts used" >> {
+    test("retry retriable errors until discovery attempts used") {
 
       val maxAttempts = 5
 
@@ -103,7 +98,7 @@ class ClusterWatchSpec extends Specification with Retries with TestInstances wit
         .withReadTimeout(50.millis)
         .withNotificationInterval(50.millis)
 
-      def test(err: Throwable, count: Int): IO[MatchResult[Any]] = {
+      def test(err: Throwable, count: Int): IO[Unit] = {
 
         val result = for {
           readCountRef <- Stream.eval(Ref.of[IO, Int](0))
@@ -118,7 +113,7 @@ class ClusterWatchSpec extends Specification with Retries with TestInstances wit
           count <- Stream.eval(readCountRef.get)
         } yield count
 
-        result.compile.lastOrError.map(_ shouldEqual count)
+        assertIO(result.compile.lastOrError, count)
 
       }
 
@@ -128,10 +123,7 @@ class ClusterWatchSpec extends Specification with Retries with TestInstances wit
 
     }
 
-    "retry retriable error using retry delay for backoff" >> {
-
-      val ec: TestContext     = TestContext()
-      implicit val tc: Ticker = Ticker(ec)
+    test("retry retriable error using retry delay for backoff") {
 
       val options = ClusterOptions.default
         .withMaxDiscoverAttempts(2.some)
@@ -142,29 +134,55 @@ class ClusterWatchSpec extends Specification with Retries with TestInstances wit
 
       val error = sampleOfGen(Gen.oneOf(ServerUnavailable("Oh Noes"), new TimeoutException("Oh Noes")))
 
-      val countRef = Ref[IO].of(0).unsafeRunSync()(cats.effect.unsafe.implicits.global)
-      val storeRef = Ref[IO].of(List.empty[ClusterInfo]).unsafeRunSync()(cats.effect.unsafe.implicits.global)
-      val cache    = recordingCache(storeRef)
-      val readFn   = countRef.update(_ + 1) *> IO.raiseError(error) *> IO(ClusterInfo(Set.empty))
-      val log      = mkLog.unsafeRunSync()(cats.effect.unsafe.implicits.global)
-      val watch    = ClusterWatch.create[IO](readFn, options, cache, log)
+      val program: Resource[IO, Ref[IO, Int]] = for {
+        counterRef <- Resource.eval(IO.ref(0))
+        storeRef   <- Resource.eval(IO.ref(List.empty[ClusterInfo]))
+        cache       = recordingCache(storeRef)
+        readFn      = counterRef.update(_ + 1) *> IO.raiseError(error) *> IO.pure(ClusterInfo(Set.empty))
+        log        <- Resource.eval(mkLog)
+        _          <- ClusterWatch.create[IO](readFn, options, cache, log)
+      } yield counterRef
 
-      def test(expected: Int) = {
-        ec.tick()
-        ec.advanceAndTick(options.retryDelay)
-        val valueF = countRef.get.unsafeToFuture()
-        ec.tick()
-        valueF.value.get.toOption.get shouldEqual expected
+      TestControl.execute(program.allocated) >>= { control =>
+
+        def assertCount(
+          outcome: Option[Outcome[Id, Throwable, (Ref[IO, Int], IO[Unit])]],
+          expected: Int
+        ): IO[Unit] =
+          assertIO(succeededOrFail(outcome)._1.get, expected)
+
+        for {
+          _ <- control.tick
+
+          _  <- control.advanceAndTick(options.retryDelay)
+          r1 <- control.results
+          _  <- assertCount(r1, 1)
+
+          _  <- control.advanceAndTick(options.retryDelay)
+          r2 <- control.results
+          _  <- assertCount(r2, 2)
+
+          _  <- control.advanceAndTick(options.retryDelay)
+          r3 <- control.results
+          _  <- assertCount(r3, 3)
+
+          _  <- control.advanceAndTick(options.retryDelay)
+          r4 <- control.results
+          _  <- assertCount(r4, 3) // retries used
+
+          shutdown <- succeededOrFail(r4)._2.attempt
+
+        } yield shutdown
+
       }
 
-      val _ = watch.allocated[ClusterWatch[IO]].unsafeRunAndForget()
-
-      test(1)
-      test(2)
-      test(3)
-      test(3) // retries used
     }
 
+  }
+
+  def succeededOrFail[A](outcome: Option[Outcome[Id, Throwable, A]]): A = outcome match {
+    case Some(_ @Outcome.Succeeded(a)) => a
+    case other                         => fail(s"Expected Succeeded! Got $other")
   }
 
   def recordingCache(ref: Ref[IO, List[ClusterInfo]]): Cache[IO] = new Cache[IO] {

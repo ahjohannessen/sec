@@ -17,18 +17,16 @@
 package sec
 package api
 
-class GossipSuite extends SnSpec {
+class GossipSuite extends SnSuite {
 
-  sequential
-
-  "Gossip" should {
-
-    "read" >> {
-
-      gossip.read.map(_.members.headOption should beLike {
-        case Some(MemberInfo(_, _, VNodeState.Leader, true, Endpoint("127.0.0.1", 2113))) => ok
+  test("read") {
+    gossip.read
+      .map(_.members.headOption)
+      .map(_.fold(fail("Expected member info")) { mi =>
+        assertEquals(mi.state, VNodeState.Leader)
+        assert(mi.isAlive)
+        assertEquals(mi.httpEndpoint, Endpoint("127.0.0.1", 2113))
       })
-    }
   }
 
 }

@@ -17,19 +17,22 @@
 package sec
 package api
 
-import org.specs2.mutable.Specification
+class UserCredentialsSpec extends SecSuite {
 
-class UserCredentialsSpec extends Specification {
+  test("UserCredentials.apply") {
 
-  "UserCredentials.apply" >> {
-    UserCredentials("hello", "world") should beRight(UserCredentials.unsafe("hello", "world"))
+    assertEquals(UserCredentials("hello", "world"), Right(UserCredentials.unsafe("hello", "world")))
 
-    UserCredentials("", "world") should beLeft(InvalidInput("username is empty"))
-    UserCredentials("hello", "") should beLeft(InvalidInput("password is empty"))
+    assertEquals(UserCredentials("", "world"), Left(InvalidInput("username is empty")))
+    assertEquals(UserCredentials("hello", ""), Left(InvalidInput("password is empty")))
 
-    UserCredentials("hell:o", "world") should beLeft(InvalidInput("username cannot contain characters [':']"))
-    UserCredentials("hello", "worl:d") should beLeft(InvalidInput("password cannot contain characters [':']"))
+    assertEquals(UserCredentials("hell:o", "world"), Left(InvalidInput("username cannot contain characters [':']")))
+    assertEquals(UserCredentials("hello", "worl:d"), Left(InvalidInput("password cannot contain characters [':']")))
 
-    UserCredentials("hello", "world").map(_.toString) should beRight("UserCredentials(username = hello, password = 🤐)")
+    assertEquals(
+      UserCredentials("hello", "world").map(_.toString),
+      Right("UserCredentials(username = hello, password = 🤐)")
+    )
+
   }
 }

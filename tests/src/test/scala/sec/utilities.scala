@@ -17,27 +17,25 @@
 package sec
 
 import scala.concurrent.duration._
-
-import org.specs2.mutable.Specification
 import sec.utilities._
 
-class UtilitiesSpec extends Specification {
+class UtilitiesSuite extends SecSuite {
 
-  "guardNonEmpty" >> {
-    guardNonEmpty("x")(null) should beLeft("x cannot be empty")
-    guardNonEmpty("x")("") should beLeft("x cannot be empty")
-    guardNonEmpty("x")("wohoo") should beRight("wohoo")
+  group("guardNonEmpty") {
+    assertEquals(guardNonEmpty("x")(null), Left("x cannot be empty"))
+    assertEquals(guardNonEmpty("x")(""), Left("x cannot be empty"))
+    assertEquals(guardNonEmpty("x")("wohoo"), Right("wohoo"))
   }
 
-  "guardNotStartsWith" >> {
-    guardNotStartsWith("$")("$") should beLeft("value must not start with $, but is $")
-    guardNotStartsWith("$")("a$") should beRight("a$")
+  group("guardNotStartsWith") {
+    assertEquals(guardNotStartsWith("$")("$"), Left("value must not start with $, but is $"))
+    assertEquals(guardNotStartsWith("$")("a$"), Right("a$"))
   }
 
-  "format duration" >> {
-    format(150.millis) shouldEqual "150.0ms"
-    format(1001.millis) shouldEqual "1.001s"
-    format(4831.millis) shouldEqual "4.831s"
+  group("format duration") {
+    assertEquals(format(150.millis), "150.0ms")
+    assertEquals(format(1001.millis), "1.001s")
+    assertEquals(format(4831.millis), "4.831s")
   }
 
 }

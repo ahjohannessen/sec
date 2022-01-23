@@ -23,14 +23,12 @@ import cats.data.NonEmptySet
 import cats.effect._
 import org.typelevel.log4cats.Logger
 import helpers.endpoint.endpointFrom
-import org.specs2.specification.Retries
 
-trait CSpec extends ClientSpec with Retries {
-  override def sleep: Duration                       = 500.millis
-  final val makeResource: Resource[IO, EsClient[IO]] = CSpec.mkClient[IO](log)
+trait CSuite extends ClientSuite {
+  final val makeResource: Resource[IO, EsClient[IO]] = CSuite.mkClient[IO](log)
 }
 
-object CSpec {
+object CSuite {
 
   final private val certsFolder = new File(sys.env.getOrElse("SEC_CIT_CERTS_PATH", BuildInfo.certsPath))
   final private val ca          = new File(certsFolder, "ca/ca.crt")

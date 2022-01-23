@@ -18,11 +18,9 @@ package sec
 
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.{util => ju}
-
 import scala.annotation.tailrec
 import scala.collection.immutable.{Nil, SortedSet}
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
-
 import cats.data.NonEmptyList
 import cats.implicits._
 import org.scalacheck.Arbitrary.arbitrary
@@ -30,7 +28,6 @@ import org.scalacheck._
 import scodec.bits.ByteVector
 import sec.api._
 import sec.helpers.implicits._
-
 import StreamState.{Any, NoStream, StreamExists}
 
 object arbitraries {
