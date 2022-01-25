@@ -19,29 +19,23 @@ package api
 
 import cats.kernel.laws.discipline._
 import org.scalacheck._
-import org.specs2.mutable.Specification
-import org.typelevel.discipline.specs2.mutable.Discipline
-import sec.api.Direction._
 
-class DirectionSpec extends Specification with Discipline {
+class DirectionSpec extends SecDisciplineSuite {
+  import Direction._
 
-  "Direction" >> {
+  group("Ops") {
 
-    "Ops" >> {
-
-      "fold" >> {
-        Forwards.fold(ok, ko)
-        Backwards.fold(ko, ok)
-      }
-
+    test("fold") {
+      assert(Forwards.fold(true, false))
+      assert(Backwards.fold(false, true))
     }
 
-    "Eq" >> {
-      implicit val arb: Arbitrary[Direction] = Arbitrary(Gen.oneOf(Forwards, Backwards))
-      implicit val cogen: Cogen[Direction]   = Cogen[String].contramap[Direction](_.toString)
-      checkAll("Direction", EqTests[Direction].eqv)
-    }
+  }
 
+  test("Eq") {
+    implicit val arb: Arbitrary[Direction] = Arbitrary(Gen.oneOf(Forwards, Backwards))
+    implicit val cogen: Cogen[Direction]   = Cogen[String].contramap[Direction](_.toString)
+    checkAll("Direction", EqTests[Direction].eqv)
   }
 
 }

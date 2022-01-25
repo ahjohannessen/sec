@@ -17,7 +17,6 @@
 package sec
 
 import java.util.regex.Pattern
-
 import cats.syntax.all._
 import scodec.bits.ByteVector
 import sec.api.Endpoint
@@ -33,7 +32,7 @@ object helpers {
     }
 
     implicit final class ErrorOrOps[A](val inner: ErrorOr[A]) extends AnyVal {
-      def unsafe: A = inner.toOption.get
+      def unsafe: A = inner.leftMap(t => require(false, t.getMessage)).toOption.get
     }
 
     implicit final class BooleanOps(val b: Boolean) extends AnyVal {

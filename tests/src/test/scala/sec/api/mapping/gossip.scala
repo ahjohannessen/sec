@@ -20,18 +20,20 @@ package mapping
 
 import java.time.{Instant, ZoneOffset}
 import java.util.{UUID => JUUID}
-
 import cats.syntax.all._
 import com.eventstore.dbclient.proto.shared.UUID
 import com.eventstore.dbclient.proto.{gossip => g}
-import org.specs2._
 import sec.api.mapping.gossip._
 
-import VNodeState._
+class GossipMappingSuite extends SecSuite {
+  import VNodeState._
 
-class GossipMappingSpec extends mutable.Specification {
+  test("mkVNodeState") {
 
-  "mkVNodeState" >> {
+    assertEquals(
+      mkVNodeState(g.MemberInfo.VNodeState.Unrecognized(-1)),
+      "Unrecognized state value -1".asLeft
+    )
 
     val expectations = Map[g.MemberInfo.VNodeState, VNodeState](
       g.MemberInfo.VNodeState.Initializing       -> Initializing,
@@ -52,14 +54,13 @@ class GossipMappingSpec extends mutable.Specification {
       g.MemberInfo.VNodeState.ResigningLeader    -> ResigningLeader
     )
 
-    expectations
-      .map { case (p, d) => mkVNodeState(p) shouldEqual d.asRight }
-      .reduce(_ and _)
+    expectations.map { case (p, d) =>
+      assertEquals(mkVNodeState(p), d.asRight)
+    }
 
-    mkVNodeState(g.MemberInfo.VNodeState.Unrecognized(-1)) shouldEqual "Unrecognized state value -1".asLeft
   }
 
-  "mkMemberInfo" >> {
+  test("mkMemberInfo") {
 
     val instanceId = "e5390fcb-48bd-4895-bcc3-01629cca2af6"
     val timestamp  = Instant.EPOCH.atZone(ZoneOffset.UTC)
@@ -77,23 +78,32 @@ class GossipMappingSpec extends mutable.Specification {
       .withHttpEndPoint(g.EndPoint(address, port))
 
     // Happy Path
-    mkMemberInfo[ErrorOr](memberInfo) shouldEqual
+    assertEquals(
+      mkMemberInfo[ErrorOr](memberInfo),
       MemberInfo(JUUID.fromString(instanceId), timestamp, Leader, alive, Endpoint(address, port)).asRight
+    )
 
     // Missing instanceId
-    mkMemberInfo[ErrorOr](memberInfo.copy(instanceId = None)) shouldEqual
+    assertEquals(
+      mkMemberInfo[ErrorOr](memberInfo.copy(instanceId = None)),
       ProtoResultError("Required value instanceId missing or invalid.").asLeft
+    )
 
     // Bad VNodeState
-    mkMemberInfo[ErrorOr](memberInfo.withState(g.MemberInfo.VNodeState.Unrecognized(-1))) shouldEqual
+    assertEquals(
+      mkMemberInfo[ErrorOr](memberInfo.withState(g.MemberInfo.VNodeState.Unrecognized(-1))),
       ProtoResultError("Unrecognized state value -1").asLeft
+    )
 
     // Missing Endpoint
-    mkMemberInfo[ErrorOr](memberInfo.copy(httpEndPoint = None)) shouldEqual
+    assertEquals(
+      mkMemberInfo[ErrorOr](memberInfo.copy(httpEndPoint = None)),
       ProtoResultError("Required value httpEndpoint missing or invalid.").asLeft
+    )
+
   }
 
-  "mkClusterInfo" >> {
+  test("mkClusterInfo") {
 
     val instanceId = "e5390fcb-48bd-4895-bcc3-01629cca2af6"
     val timestamp  = Instant.EPOCH.atZone(ZoneOffset.UTC)
@@ -110,11 +120,17 @@ class GossipMappingSpec extends mutable.Specification {
       .withIsAlive(alive)
       .withHttpEndPoint(g.EndPoint(address, port))
 
-    mkClusterInfo[ErrorOr](g.ClusterInfo().withMembers(List(member))) should beRight(
-      ClusterInfo(Set(MemberInfo(JUUID.fromString(instanceId), timestamp, Leader, alive, Endpoint(address, port))))
+    assertEquals(
+      mkClusterInfo[ErrorOr](g.ClusterInfo().withMembers(List(member))),
+      ClusterInfo(
+        Set(MemberInfo(JUUID.fromString(instanceId), timestamp, Leader, alive, Endpoint(address, port)))
+      ).asRight
     )
 
-    mkClusterInfo[ErrorOr](g.ClusterInfo().withMembers(Nil)) should beRight(ClusterInfo(Set.empty))
+    assertEquals(
+      mkClusterInfo[ErrorOr](g.ClusterInfo().withMembers(Nil)),
+      ClusterInfo(Set.empty).asRight
+    )
 
   }
 

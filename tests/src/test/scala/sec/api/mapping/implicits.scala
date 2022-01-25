@@ -20,30 +20,38 @@ package mapping
 
 import cats.syntax.all._
 import com.google.protobuf.ByteString
-import org.specs2._
 import scodec.bits.ByteVector
 import sec.api.mapping.implicits._
+import java.nio.charset.CharacterCodingException
 
-class ImplicitsSpec extends mutable.Specification {
+class ImplicitsSuite extends SecSuite {
 
-  "OptionOps.require" >> {
-    Option.empty[Int].require[ErrorOr]("test") should beLike {
-      case Left(ProtoResultError("Required value test missing or invalid.")) => ok
-    }
+  test("OptionOps.require") {
+    assertEquals(
+      Option.empty[Int].require[ErrorOr]("test"),
+      Left(ProtoResultError("Required value test missing or invalid."))
+    )
 
-    Option.empty[Int].require[ErrorOr]("test", details = "Oh Noes!".some) should beLike {
-      case Left(ProtoResultError("Required value test missing or invalid. Oh Noes!")) => ok
-    }
+    assertEquals(
+      Option.empty[Int].require[ErrorOr]("test", details = "Oh Noes!".some),
+      Left(ProtoResultError("Required value test missing or invalid. Oh Noes!"))
+    )
 
-    Option(1).require[ErrorOr]("test") should beRight(1)
+    assertEquals(Option(1).require[ErrorOr]("test"), Right(1))
   }
 
-  "ByteVectorOps.toByteString" >> {
-    ByteVector.encodeUtf8("abc").map(_.toByteString) should beRight(ByteString.copyFromUtf8("abc"))
+  test("ByteVectorOps.toByteString") {
+    assertEquals(
+      ByteVector.encodeUtf8("abc").map(_.toByteString),
+      Right(ByteString.copyFromUtf8("abc"))
+    )
   }
 
-  "ByteStringOps.toByteVector" >> {
-    ByteString.copyFromUtf8("abc").toByteVector.asRight shouldEqual ByteVector.encodeUtf8("abc")
+  test("ByteStringOps.toByteVector") {
+    assertEquals(
+      ByteString.copyFromUtf8("abc").toByteVector.asRight[CharacterCodingException],
+      ByteVector.encodeUtf8("abc")
+    )
   }
 
 }

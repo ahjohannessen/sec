@@ -19,11 +19,11 @@ package api
 
 import scala.concurrent.duration._
 
-class ClusterSuite extends CSpec {
+class ClusterSuite extends CSuite {
 
-  "Cluster" should {
+  group("Cluster") {
 
-    "be reachable" >> {
+    test("reachabilty") {
 
       fs2.Stream
         .eval(gossip.read)
@@ -34,7 +34,10 @@ class ClusterSuite extends CSpec {
         .compile
         .lastOrError
         .map(_.members)
-        .map(m => (m.size mustEqual 3) and (m.forall(_.isAlive) should beTrue))
+        .map { m =>
+          assertEquals(m.size, 3)
+          assert(m.forall(_.isAlive))
+        }
 
     }
 

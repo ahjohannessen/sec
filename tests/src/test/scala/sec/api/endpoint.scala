@@ -19,22 +19,17 @@ package api
 
 import cats.kernel.laws.discipline._
 import org.scalacheck._
-import org.specs2.mutable.Specification
-import org.typelevel.discipline.specs2.mutable.Discipline
 import sec.arbitraries._
 
-class EndpointSpec extends Specification with Discipline {
+class EndpointSuite extends SecDisciplineSuite {
 
-  "Endpoint" >> {
+  test("order") {
+    implicit val cogen: Cogen[Endpoint] = Cogen[String].contramap[Endpoint](_.toString)
+    checkAll("Endpoint", OrderTests[Endpoint].order)
+  }
 
-    "order" >> {
-      implicit val cogen: Cogen[Endpoint] = Cogen[String].contramap[Endpoint](_.toString)
-      checkAll("Endpoint", OrderTests[Endpoint].order)
-    }
-
-    "render" >> {
-      Endpoint("127.0.0.1", 2113).render shouldEqual "127.0.0.1:2113"
-    }
+  test("render") {
+    assertEquals(Endpoint("127.0.0.1", 2113).render, "127.0.0.1:2113")
   }
 
 }

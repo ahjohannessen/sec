@@ -68,15 +68,13 @@ lazy val tsc = project
 lazy val SingleNodeITest = config("sit") extend Test
 lazy val ClusterITest    = config("cit") extend Test
 
-lazy val integrationSettings = Defaults.testSettings
-
 lazy val tests = project
   .in(file("tests"))
   .enablePlugins(BuildInfoPlugin, AutomateHeaderPlugin)
   .configs(SingleNodeITest, ClusterITest)
   .settings(commonSettings)
-  .settings(inConfig(SingleNodeITest)(integrationSettings ++ scalafixConfigSettings(SingleNodeITest)))
-  .settings(inConfig(ClusterITest)(integrationSettings ++ scalafixConfigSettings(ClusterITest)))
+  .settings(inConfig(SingleNodeITest)(Defaults.testSettings))
+  .settings(inConfig(ClusterITest)(Defaults.testSettings))
   .settings(
     logBuffered := false,
     parallelExecution := true,
@@ -84,36 +82,18 @@ lazy val tests = project
     buildInfoPackage := "sec",
     buildInfoKeys := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
     Test / headerSources ++= (SingleNodeITest / sources).value ++ (ClusterITest / sources).value,
-    libraryDependencies := {
-      if (isScala3.value)
-        compileM(
-          specs2.cross(CrossVersion.for3Use2_13),
-          specs2ScalaCheck.cross(CrossVersion.for3Use2_13),
-          specs2Cats.cross(CrossVersion.for3Use2_13),
-          catsEffectTesting.cross(CrossVersion.for3Use2_13),
-          disciplineSpecs2,
-          catsLaws,
-          catsEffectTestkit,
-          log4catsSlf4j,
-          log4catsTesting,
-          logback
-        ).map(
-          _.exclude("org.typelevel", "cats-effect_2.13")
-            .exclude("org.scalacheck", "scalacheck_2.13")
-            .exclude("org.typelevel", "cats-core_2.13"))
-      else
-        compileM(catsEffect,
-                 specs2,
-                 specs2ScalaCheck,
-                 specs2Cats,
-                 catsEffectTesting,
-                 disciplineSpecs2,
-                 catsLaws,
-                 catsEffectTestkit,
-                 log4catsSlf4j,
-                 log4catsTesting,
-                 logback)
-    }
+    libraryDependencies :=
+      compileM(
+        catsLaws,
+        scalaCheck,
+        munit,
+        munitEffect,
+        munitDiscipline,
+        catsEffectTestkit,
+        log4catsSlf4j,
+        log4catsTesting,
+        logback
+      )
   )
   .dependsOn(core, `fs2-netty`)
 
@@ -175,12 +155,6 @@ inThisBuild(
       "-doc-source-url",
       "https://github.com/ahjohannessen/sec/blob/v" + version.value + "€{FILE_PATH}.scala"
     )
-// TODO: Include when Scala 3.0 is supported
-//,
-//    scalafixDependencies += scalafixOrganizeImports,
-//    semanticdbEnabled := true,
-//    semanticdbVersion := scalafixSemanticdb.revision,
-//    scalafixOnCompile := sys.env.get("CI").fold(true)(_ => false)
   )
 )
 

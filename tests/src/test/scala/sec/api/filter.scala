@@ -18,29 +18,33 @@ package sec
 package api
 
 import scala.util.matching.Regex
-
 import cats.data.NonEmptyList
 import cats.syntax.all._
 import org.scalacheck._
-import org.specs2.ScalaCheck
-import org.specs2.mutable.Specification
+import org.scalacheck.Prop.forAll
 
-import EventFilter._
+class EventFilterSuite extends SecDisciplineSuite {
 
-class EventFilterSpec extends Specification with ScalaCheck {
+  import EventFilter._
 
-  "EventFilter" >> {
+  group("EventFilter") {
 
     implicit val arbKind: Arbitrary[Kind]   = Arbitrary(Gen.oneOf[Kind](ByStreamId, ByEventType))
     implicit val arbRegex: Arbitrary[Regex] = Arbitrary(Gen.oneOf("^ctx1__.*".r, "^[^$].*".r))
 
-    "prefix" >> prop { (k: Kind, fst: String, rest: List[String]) =>
-      prefix(k, fst, rest: _*) shouldEqual
-        EventFilter(k, NonEmptyList(PrefixFilter(fst), rest.map(x => PrefixFilter(x))).asLeft)
+    property("prefix") {
+      forAll { (k: Kind, fst: String, rest: List[String]) =>
+        assertEquals(
+          prefix(k, fst, rest: _*),
+          EventFilter(k, NonEmptyList(PrefixFilter(fst), rest.map(x => PrefixFilter(x))).asLeft)
+        )
+      }
     }
 
-    "regex" >> prop { (k: Kind, filter: Regex) =>
-      regex(k, filter.pattern.toString) shouldEqual EventFilter(k, RegexFilter(filter).asRight)
+    property("regex") {
+      forAll { (k: Kind, filter: Regex) =>
+        assertEquals(regex(k, filter.pattern.toString), EventFilter(k, RegexFilter(filter).asRight))
+      }
     }
 
   }

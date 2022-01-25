@@ -20,19 +20,17 @@ import java.lang.{Long => JLong}
 import cats.syntax.all._
 import cats.kernel.laws.discipline._
 import org.scalacheck._
-import org.specs2.mutable.Specification
-import org.specs2.ScalaCheck
-import org.typelevel.discipline.specs2.mutable.Discipline
+import org.scalacheck.Prop.forAll
 import sec.arbitraries._
 
-class VersionSpec extends Specification with Discipline with ScalaCheck {
+class VersionSuite extends SecDisciplineSuite {
 
-  "StreamState" >> {
+  group("StreamState") {
 
-    "render" >> {
+    test("render") {
 
       def test(ss: StreamState, expected: String) =
-        ss.render shouldEqual expected
+        assertEquals(ss.render, expected)
 
       test(StreamState.NoStream, "NoStream")
       test(StreamState.Any, "Any")
@@ -40,125 +38,125 @@ class VersionSpec extends Specification with Discipline with ScalaCheck {
       test(StreamPosition.Start, "Exact(0)")
     }
 
-    "Eq" >> {
+    test("Eq") {
       implicit val cogen: Cogen[StreamState] = Cogen[String].contramap[StreamState](_.render)
       checkAll("StreamState", EqTests[StreamState].eqv)
     }
   }
 
-  "StreamPosition" >> {
+  group("StreamPosition") {
 
-    "apply" >> {
-      StreamPosition(0L) shouldEqual StreamPosition.Exact(ULong(0L))
-      StreamPosition(1L) shouldEqual StreamPosition.Exact(ULong(1L))
-      StreamPosition(-1L) shouldEqual StreamPosition.Exact(ULong.MaxValue)
+    test("apply") {
+      assertEquals(StreamPosition(0L), StreamPosition.Exact(ULong(0L)))
+      assertEquals(StreamPosition(1L), StreamPosition.Exact(ULong(1L)))
+      assertEquals(StreamPosition(-1L), StreamPosition.Exact(ULong.MaxValue))
     }
 
-    "render" >> {
-      (StreamPosition.Start: StreamPosition).render shouldEqual "0"
-      (StreamPosition.End: StreamPosition).render shouldEqual "end"
+    test("render") {
+      assertEquals((StreamPosition.Start: StreamPosition).render, "0")
+      assertEquals((StreamPosition.End: StreamPosition).render, "end")
     }
 
-    "Order" >> {
+    test("Order") {
       implicit val cogen: Cogen[StreamPosition] = Cogen[String].contramap[StreamPosition](_.render)
       checkAll("StreamPosition", OrderTests[StreamPosition].order)
     }
   }
 
-  "LogPosition" >> {
+  group("LogPosition") {
 
-    "apply" >> {
-      LogPosition(0L, 0L) should beRight(LogPosition.exact(0L, 0L))
-      LogPosition(1L, 0L) should beRight(LogPosition.exact(1L, 0L))
-      LogPosition(1L, 1L) should beRight(LogPosition.exact(1L, 1L))
-      LogPosition(-1L, -1L) should beRight(LogPosition.Exact.create(ULong.MaxValue, ULong.MaxValue))
-      LogPosition(0L, 1L) should beLeft(InvalidInput("commit must be >= prepare, but 0 < 1"))
+    test("apply") {
+      assertEquals(LogPosition(0L, 0L), Right(LogPosition.exact(0L, 0L)))
+      assertEquals(LogPosition(1L, 0L), Right(LogPosition.exact(1L, 0L)))
+      assertEquals(LogPosition(1L, 1L), Right(LogPosition.exact(1L, 1L)))
+      assertEquals(LogPosition(-1L, -1L), Right(LogPosition.Exact.create(ULong.MaxValue, ULong.MaxValue)))
+      assertEquals(LogPosition(0L, 1L), Left(InvalidInput("commit must be >= prepare, but 0 < 1")))
     }
 
-    "render" >> {
-      (LogPosition.Start: LogPosition).render shouldEqual "(c = 0, p = 0)"
-      (LogPosition.End: LogPosition).render shouldEqual "end"
+    test("render") {
+      assertEquals((LogPosition.Start: LogPosition).render, "(c = 0, p = 0)")
+      assertEquals((LogPosition.End: LogPosition).render, "end")
     }
 
-    "Order" >> {
+    test("Order") {
       implicit val cogen: Cogen[LogPosition] = Cogen[String].contramap[LogPosition](_.render)
       checkAll("LogPosition", OrderTests[LogPosition].order)
     }
   }
 
-  "PositionInfo" >> {
+  group("PositionInfo") {
 
-    "renderPosition" >> {
+    test("renderPosition") {
 
       val stream = StreamPosition(1L)
       val all    = PositionInfo.Global(stream, LogPosition.exact(2L, 3L))
 
-      (stream: PositionInfo).renderPosition shouldEqual "stream: 1"
-      (all: PositionInfo).renderPosition shouldEqual "log: (c = 2, p = 3), stream: 1"
+      assertEquals((stream: PositionInfo).renderPosition, "stream: 1")
+      assertEquals((all: PositionInfo).renderPosition, "log: (c = 2, p = 3), stream: 1")
     }
 
-    "streamPosition" >> {
+    test("streamPosition") {
 
       val stream = StreamPosition(1L)
       val all    = PositionInfo.Global(stream, LogPosition.exact(2L, 3L))
 
-      (stream: PositionInfo).streamPosition shouldEqual StreamPosition(1L)
-      (all: PositionInfo).streamPosition shouldEqual StreamPosition(1L)
+      assertEquals((stream: PositionInfo).streamPosition, StreamPosition(1L))
+      assertEquals((all: PositionInfo).streamPosition, StreamPosition(1L))
 
     }
 
   }
 
-  "ULong" >> {
+  group("ULong") {
 
-    "n >= 0" >> {
-      prop((n: ULong) => n >= ULong.MinValue)
+    property("n >= 0") {
+      forAll((n: ULong) => n >= ULong.MinValue)
     }
 
-    "a < b" >> {
-      prop((a: ULong, b: ULong) => a < b == a.toBigInt < b.toBigInt)
+    property("a < b") {
+      forAll((a: ULong, b: ULong) => a < b == a.toBigInt < b.toBigInt)
     }
 
-    "a <= b" >> {
-      prop((a: ULong, b: ULong) => a <= b == a.toBigInt <= b.toBigInt)
+    property("a <= b") {
+      forAll((a: ULong, b: ULong) => a <= b == a.toBigInt <= b.toBigInt)
     }
 
-    "a > b" >> {
-      prop((a: ULong, b: ULong) => a > b == a.toBigInt > b.toBigInt)
+    property("a > b") {
+      forAll((a: ULong, b: ULong) => a > b == a.toBigInt > b.toBigInt)
     }
 
-    "a >= b" >> {
-      prop((a: ULong, b: ULong) => a >= b == a.toBigInt >= b.toBigInt)
+    property("a >= b") {
+      forAll((a: ULong, b: ULong) => a >= b == a.toBigInt >= b.toBigInt)
     }
 
-    "MaxValue / MinValue" >> {
-      ULong.MaxValue shouldEqual ULong(-1)
-      ULong.MinValue shouldEqual ULong(0)
+    test("MaxValue / MinValue") {
+      assertEquals(ULong.MaxValue, ULong(-1))
+      assertEquals(ULong.MinValue, ULong(0))
     }
 
-    "toLong" >> {
-      ULong.MaxValue.toLong shouldEqual -1
-      ULong.MinValue.toLong shouldEqual 0
+    test("toLong") {
+      assertEquals(ULong.MaxValue.toLong, -1L)
+      assertEquals(ULong.MinValue.toLong, 0L)
     }
 
-    "toBigInt" >> {
-      ULong.MaxValue.toBigInt shouldEqual BigInt("18446744073709551615")
-      ULong.MinValue.toBigInt shouldEqual BigInt(0)
+    test("toBigInt") {
+      assertEquals(ULong.MaxValue.toBigInt, BigInt("18446744073709551615"))
+      assertEquals(ULong.MinValue.toBigInt, BigInt(0))
     }
 
-    "n.toBigInt == BigInt(Long.toUnsignedString(n.toLong))" >> {
-      prop((n: ULong) => n.toBigInt == BigInt(JLong.toUnsignedString(n.toLong)))
+    property("n.toBigInt == BigInt(Long.toUnsignedString(n.toLong))") {
+      forAll((n: ULong) => n.toBigInt == BigInt(JLong.toUnsignedString(n.toLong)))
     }
 
-    "n.render" >> {
-      prop((n: ULong) => n.render == n.toBigInt.toString)
+    property("n.render") {
+      forAll((n: ULong) => n.render == n.toBigInt.toString)
     }
 
-    "n.toString = n.toBigInt.toString" >> {
-      prop((n: ULong) => n.toString == n.toBigInt.toString)
+    property("n.toString = n.toBigInt.toString") {
+      forAll((n: ULong) => n.toString == n.toBigInt.toString)
     }
 
-    "Order" >> {
+    test("Order") {
       implicit val cogen: Cogen[ULong] = Cogen[BigInt].contramap[ULong](_.toBigInt)
       checkAll("ULong", OrderTests[ULong].order)
     }

@@ -19,9 +19,7 @@ package sec
 import java.time.ZonedDateTime
 import java.util.UUID
 import java.{util => ju}
-
 import cats.syntax.all._
-import org.specs2.mutable.Specification
 import scodec.bits.ByteVector
 import sec.arbitraries._
 import sec.helpers.implicits._
@@ -29,7 +27,7 @@ import sec.helpers.text.encodeToBV
 
 //======================================================================================================================
 
-class EventSpec extends Specification {
+class EventSuite extends SecSuite {
 
   private def bv(data: String): ByteVector =
     ByteVector.encodeUtf8(data).leftMap(_.getMessage).unsafe
@@ -50,40 +48,40 @@ class EventSpec extends Specification {
 
   val re: ResolvedEvent[PositionInfo.Global] = ResolvedEvent(er, link)
 
-  // /
+  //
 
-  "EventOps" >> {
+  group("EventOps") {
 
-    "fold" >> {
-      er.fold(_ => ok, _ => ko)
-      re.fold(_ => ko, _ => ok)
+    test("fold") {
+      assert(er.fold(_ => true, _ => false))
+      assert(re.fold(_ => false, _ => true))
     }
 
     def testCommon[P <: PositionInfo](er: EventRecord[P], re: ResolvedEvent[P]) = {
 
-      "streamId" >> {
-        (er: Event[P]).streamId shouldEqual er.streamId
-        (re: Event[P]).streamId shouldEqual er.streamId
+      test("streamId") {
+        assertEquals((er: Event[P]).streamId, er.streamId)
+        assertEquals((re: Event[P]).streamId, er.streamId)
       }
 
-      "streamPosition" >> {
-        (er: Event[P]).streamPosition shouldEqual er.streamPosition
-        (re: Event[P]).streamPosition shouldEqual er.streamPosition
+      test("streamPosition") {
+        assertEquals((er: Event[P]).streamPosition, er.streamPosition)
+        assertEquals((re: Event[P]).streamPosition, er.streamPosition)
       }
 
-      "eventData" >> {
-        (er: Event[P]).eventData shouldEqual er.eventData
-        (re: Event[P]).eventData shouldEqual er.eventData
+      test("eventData") {
+        assertEquals((er: Event[P]).eventData, er.eventData)
+        assertEquals((re: Event[P]).eventData, er.eventData)
       }
 
-      "record" >> {
-        (er: Event[P]).record shouldEqual er
-        (re: Event[P]).record shouldEqual re.link
+      test("record") {
+        assertEquals((er: Event[P]).record, er)
+        assertEquals((re: Event[P]).record, re.link)
       }
 
-      "created" >> {
-        (er: Event[P]).created shouldEqual er.created
-        (re: Event[P]).created shouldEqual er.created
+      test("created") {
+        assertEquals((er: Event[P]).created, er.created)
+        assertEquals((re: Event[P]).created, er.created)
       }
     }
 
@@ -94,16 +92,16 @@ class EventSpec extends Specification {
               link     = re.link.copy(position = re.link.position.streamPosition))
     )
 
-    "logPosition" >> {
-      (er: Event[PositionInfo.Global]).logPosition shouldEqual er.logPosition
-      (re: Event[PositionInfo.Global]).logPosition shouldEqual er.logPosition
+    test("logPosition") {
+      assertEquals((er: Event[PositionInfo.Global]).logPosition, er.logPosition)
+      assertEquals((re: Event[PositionInfo.Global]).logPosition, er.logPosition)
     }
 
-  }
+    test("render") {
 
-  "render" >> {
-
-    er.render shouldEqual s"""
+      assertEquals(
+        er.render,
+        s"""
         |EventRecord(
         |  streamId = ${er.streamId.render},
         |  eventId  = ${er.eventData.eventId},
@@ -114,13 +112,19 @@ class EventSpec extends Specification {
         |  created  = ${er.created}
         |)
         |""".stripMargin
+      )
 
-    re.render shouldEqual s"""
+      assertEquals(
+        re.render,
+        s"""
         |ResolvedEvent(
         |  event = ${re.event.render},
         |  link  = ${re.link.render}
         |)
         |""".stripMargin
+      )
+
+    }
 
   }
 
@@ -128,56 +132,58 @@ class EventSpec extends Specification {
 
 //======================================================================================================================
 
-class EventTypeSpec extends Specification {
+class EventTypeSuite extends SecSuite {
 
   val normal: EventType = EventType.Normal.unsafe("user")
   val system: EventType = EventType.System.unsafe("system")
 
-  "apply" >> {
-    EventType("") should beLeft(InvalidInput("Event type name cannot be empty"))
-    EventType("$users") should beLeft(InvalidInput("value must not start with $, but is $users"))
-    EventType("users") should beRight(EventType.normal("users").unsafe)
+  test("apply") {
+    assertEquals(EventType(""), Left(InvalidInput("Event type name cannot be empty")))
+    assertEquals(EventType("$users"), Left(InvalidInput("value must not start with $, but is $users")))
+    assertEquals(EventType("users"), Right(EventType.normal("users").unsafe))
   }
 
-  "eventTypeToString" >> {
-    EventType.eventTypeToString(EventType.StreamDeleted) shouldEqual "$streamDeleted"
-    EventType.eventTypeToString(EventType.StatsCollected) shouldEqual "$statsCollected"
-    EventType.eventTypeToString(EventType.LinkTo) shouldEqual "$>"
-    EventType.eventTypeToString(EventType.StreamReference) shouldEqual "$@"
-    EventType.eventTypeToString(EventType.StreamMetadata) shouldEqual "$metadata"
-    EventType.eventTypeToString(EventType.Settings) shouldEqual "$settings"
-    EventType.eventTypeToString(normal) shouldEqual "user"
-    EventType.eventTypeToString(system) shouldEqual s"$$system"
+  test("eventTypeToString") {
+    assertEquals(EventType.eventTypeToString(EventType.StreamDeleted), "$streamDeleted")
+    assertEquals(EventType.eventTypeToString(EventType.StatsCollected), "$statsCollected")
+    assertEquals(EventType.eventTypeToString(EventType.LinkTo), "$>")
+    assertEquals(EventType.eventTypeToString(EventType.StreamReference), "$@")
+    assertEquals(EventType.eventTypeToString(EventType.StreamMetadata), "$metadata")
+    assertEquals(EventType.eventTypeToString(EventType.Settings), "$settings")
+    assertEquals(EventType.eventTypeToString(normal), "user")
+    assertEquals(EventType.eventTypeToString(system), s"$$system")
   }
 
-  "stringToEventType" >> {
-    EventType.stringToEventType("$streamDeleted") shouldEqual EventType.StreamDeleted.asRight
-    EventType.stringToEventType("$statsCollected") shouldEqual EventType.StatsCollected.asRight
-    EventType.stringToEventType("$>") shouldEqual EventType.LinkTo.asRight
-    EventType.stringToEventType("$@") shouldEqual EventType.StreamReference.asRight
-    EventType.stringToEventType("$metadata") shouldEqual EventType.StreamMetadata.asRight
-    EventType.stringToEventType("$settings") shouldEqual EventType.Settings.asRight
-    EventType.stringToEventType(normal.stringValue) should beRight(normal)
-    EventType.stringToEventType(system.stringValue) should beRight(system)
+  test("stringToEventType") {
+    assertEquals(EventType.stringToEventType("$streamDeleted"), EventType.StreamDeleted.asRight)
+    assertEquals(EventType.stringToEventType("$statsCollected"), EventType.StatsCollected.asRight)
+    assertEquals(EventType.stringToEventType("$>"), EventType.LinkTo.asRight)
+    assertEquals(EventType.stringToEventType("$@"), EventType.StreamReference.asRight)
+    assertEquals(EventType.stringToEventType("$metadata"), EventType.StreamMetadata.asRight)
+    assertEquals(EventType.stringToEventType("$settings"), EventType.Settings.asRight)
+    assertEquals(EventType.stringToEventType(normal.stringValue), Right(normal))
+    assertEquals(EventType.stringToEventType(system.stringValue), Right(system))
   }
 
-  "render" >> {
-    val et = sampleOf[EventType]
-    et.render shouldEqual et.stringValue
-  }
+  group("EventTypeOps") {
 
-  "EventTypeOps" >> {
-    "stringValue" >> {
+    test("render") {
       val et = sampleOf[EventType]
-      et.stringValue shouldEqual EventType.eventTypeToString(et)
+      assertEquals(et.render, et.stringValue)
     }
+
+    test("stringValue") {
+      val et = sampleOf[EventType]
+      assertEquals(et.stringValue, EventType.eventTypeToString(et))
+    }
+
   }
 
 }
 
 //======================================================================================================================
 
-class EventDataSpec extends Specification {
+class EventDataSuite extends SecSuite {
 
   import ContentType.{Binary, Json}
 
@@ -193,19 +199,31 @@ class EventDataSpec extends Specification {
   val dataBinary: ByteVector = encode("data")
   val metaBinary: ByteVector = encode("meta")
 
-  "apply" >> {
+  test("apply") {
 
     val errEmpty = InvalidInput("Event type name cannot be empty")
     val errStart = InvalidInput("value must not start with $, but is $system")
 
     def testCommon(data: ByteVector, meta: ByteVector, ct: ContentType) = {
 
-      EventData("", id, data, ct) should beLeft(errEmpty)
-      EventData("", id, data, meta, ct) should beLeft(errEmpty)
-      EventData("$system", id, data, ct) should beLeft(errStart)
-      EventData("$system", id, data, meta, ct) should beLeft(errStart)
-      EventData(et, id, data, ct) should beLike { case EventData(`et`, `id`, `data`, `bve`, `ct`) => ok }
-      EventData(et, id, data, meta, ct) should beLike { case EventData(`et`, `id`, `data`, `meta`, `ct`) => ok }
+      assertEquals(EventData("", id, data, ct), Left(errEmpty))
+      assertEquals(EventData("", id, data, meta, ct), Left(errEmpty))
+      assertEquals(EventData("$system", id, data, ct), Left(errStart))
+      assertEquals(EventData("$system", id, data, meta, ct), Left(errStart))
+
+      val ed1 = EventData(et, id, data, ct)
+
+      ed1 match {
+        case ed @ EventData(`et`, `id`, `data`, `bve`, `ct`) => assertEquals(ed1, ed)
+        case other                                           => fail(s"Did not expect $other")
+      }
+
+      val ed2 = EventData(et, id, data, meta, ct)
+
+      ed2 match {
+        case ed @ EventData(`et`, `id`, `data`, `meta`, `ct`) => assertEquals(ed2, ed)
+        case other                                            => fail(s"Did not expect $other")
+      }
     }
 
     // /
@@ -214,15 +232,15 @@ class EventDataSpec extends Specification {
     testCommon(dataBinary, metaBinary, Binary)
   }
 
-  "EventData" >> {
+  group("EventData") {
 
-    "render" >> {
-      EventData.render(bve, Json) shouldEqual "Json(empty)"
-      EventData.render(bve, Binary) shouldEqual "Binary(empty)"
-      EventData.render(encode("""{ "link" : "1@a" }"""), Json) shouldEqual """{ "link" : "1@a" }"""
-      EventData.render(encode("a"), Binary) shouldEqual "Binary(1 bytes, 0x61)"
-      EventData.render(encode("a" * 31), Binary) shouldEqual s"Binary(31 bytes, 0x${"61" * 31})"
-      EventData.render(encode("a" * 32), Binary) shouldEqual "Binary(32 bytes, #-547736941)"
+    test("render") {
+      assertEquals(EventData.render(bve, Json), "Json(empty)")
+      assertEquals(EventData.render(bve, Binary), "Binary(empty)")
+      assertEquals(EventData.render(encode("""{ "link" : "1@a" }"""), Json), """{ "link" : "1@a" }""")
+      assertEquals(EventData.render(encode("a"), Binary), "Binary(1 bytes, 0x61)")
+      assertEquals(EventData.render(encode("a" * 31), Binary), s"Binary(31 bytes, 0x${"61" * 31})")
+      assertEquals(EventData.render(encode("a" * 32), Binary), "Binary(32 bytes, #-547736941)")
     }
 
   }
@@ -231,30 +249,30 @@ class EventDataSpec extends Specification {
 
 //======================================================================================================================
 
-class ContentTypeSpec extends Specification {
+class ContentTypeSuite extends SecSuite {
 
   import ContentType._
 
-  "render" >> {
-    (Binary: ContentType).render shouldEqual "Binary"
-    (Json: ContentType).render shouldEqual "Json"
+  test("render") {
+    assertEquals((Binary: ContentType).render, "Binary")
+    assertEquals((Json: ContentType).render, "Json")
   }
 
-  "ContentTypeOps" >> {
+  group("ContentTypeOps") {
 
-    "fold" >> {
-      Binary.fold("b", "j") shouldEqual "b"
-      Json.fold("b", "j") shouldEqual "j"
+    test("fold") {
+      assertEquals(Binary.fold("b", "j"), "b")
+      assertEquals(Json.fold("b", "j"), "j")
     }
 
-    "isJson" >> {
-      Json.isJson should beTrue
-      Binary.isJson should beFalse
+    test("isJson") {
+      assert(Json.isJson)
+      assertNot(Binary.isJson)
     }
 
-    "isBinary" >> {
-      Binary.isBinary should beTrue
-      Json.isBinary should beFalse
+    test("isBinary") {
+      assert(Binary.isBinary)
+      assertNot(Json.isBinary)
     }
 
   }

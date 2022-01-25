@@ -20,14 +20,13 @@ package grpc
 
 import cats.syntax.all._
 import io.grpc.{Metadata, Status, StatusRuntimeException}
-import org.specs2._
 import sec.api.exceptions._
 import sec.api.grpc.constants.{Exceptions => ce}
 import sec.api.grpc.convert.{convertToEs, keys => k}
 
-class ConvertSpec extends mutable.Specification {
+class ConvertSuite extends SecSuite {
 
-  "convertToEs" >> {
+  test("convertToEs") {
 
     val ek       = k.exception
     val streamId = "streamId"
@@ -50,144 +49,201 @@ class ConvertSpec extends mutable.Specification {
       convertToEs(fn(meta(f)))
     }
 
-    convert { m =>
-      m.put(ek, ce.AccessDenied)
-    } shouldEqual AccessDenied.some
+    assertEquals(
+      convert(_.put(ek, ce.AccessDenied)),
+      AccessDenied.some
+    )
 
-    convert { m =>
-      m.put(ek, ce.InvalidTransaction)
-    } shouldEqual InvalidTransaction.some
+    assertEquals(
+      convert(_.put(ek, ce.InvalidTransaction)),
+      InvalidTransaction.some
+    )
 
-    convert { m =>
-      m.put(ek, ce.MaximumAppendSizeExceeded)
-      m.put(k.maximumAppendSize, 4096)
-    } should beSome(MaximumAppendSizeExceeded(4096.some))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.MaximumAppendSizeExceeded)
+        m.put(k.maximumAppendSize, 4096)
+      },
+      Some(MaximumAppendSizeExceeded(4096.some))
+    )
 
-    convert { m =>
-      m.put(ek, ce.MaximumAppendSizeExceeded)
-      m.put(Metadata.Key.of(ce.MaximumAppendSize, StringMarshaller), "a")
-    } should beSome(MaximumAppendSizeExceeded(None))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.MaximumAppendSizeExceeded)
+        m.put(Metadata.Key.of(ce.MaximumAppendSize, StringMarshaller), "a")
+      },
+      Some(MaximumAppendSizeExceeded(None))
+    )
 
-    convert { m =>
-      m.put(ek, ce.StreamDeleted)
-      m.put(k.streamName, streamId)
-    } should beSome(StreamDeleted(streamId))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.StreamDeleted)
+        m.put(k.streamName, streamId)
+      },
+      Some(StreamDeleted(streamId))
+    )
 
-    convert { m =>
-      m.put(ek, ce.StreamDeleted)
-    } should beSome(StreamDeleted(unknown))
+    assertEquals(
+      convert(_.put(ek, ce.StreamDeleted)),
+      Some(StreamDeleted(unknown))
+    )
 
-    convert { m =>
-      m.put(ek, ce.WrongExpectedVersion)
-      m.put(k.streamName, streamId)
-      m.put(k.actualVersion, 1L)
-      m.put(k.expectedVersion, 2L)
-    } should beSome(WrongExpectedVersion(streamId, 2L.some, 1L.some))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.WrongExpectedVersion)
+        m.put(k.streamName, streamId)
+        m.put(k.actualVersion, 1L)
+        m.put(k.expectedVersion, 2L)
+      },
+      Some(WrongExpectedVersion(streamId, 2L.some, 1L.some))
+    )
 
-    convert { m =>
-      m.put(ek, ce.WrongExpectedVersion)
-      m.put(k.streamName, streamId)
-      m.put(Metadata.Key.of(ce.ActualVersion, StringMarshaller), "a")
-      m.put(Metadata.Key.of(ce.ExpectedVersion, StringMarshaller), "b")
-    } should beSome(WrongExpectedVersion(streamId, None, None))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.WrongExpectedVersion)
+        m.put(k.streamName, streamId)
+        m.put(Metadata.Key.of(ce.ActualVersion, StringMarshaller), "a")
+        m.put(Metadata.Key.of(ce.ExpectedVersion, StringMarshaller), "b")
+      },
+      Some(WrongExpectedVersion(streamId, None, None))
+    )
 
-    convert { m =>
-      m.put(ek, ce.WrongExpectedVersion)
-      m.put(k.actualVersion, 1L)
-      m.put(k.expectedVersion, 2L)
-    } should beSome(WrongExpectedVersion(unknown, 2L.some, 1L.some))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.WrongExpectedVersion)
+        m.put(k.actualVersion, 1L)
+        m.put(k.expectedVersion, 2L)
+      },
+      Some(WrongExpectedVersion(unknown, 2L.some, 1L.some))
+    )
 
-    convert { m =>
-      m.put(ek, ce.NotLeader)
-      m.put(k.leaderEndpointHost, "127.0.0.1")
-      m.put(k.leaderEndpointPort, 2113)
-    } should beSome(NotLeader("127.0.0.1".some, 2113.some))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.NotLeader)
+        m.put(k.leaderEndpointHost, "127.0.0.1")
+        m.put(k.leaderEndpointPort, 2113)
+      },
+      Some(NotLeader("127.0.0.1".some, 2113.some))
+    )
 
-    convert { m =>
-      m.put(ek, ce.NotLeader)
-      m.put(k.leaderEndpointHost, "127.0.0.1")
-      m.put(Metadata.Key.of(ce.LeaderEndpointPort, StringMarshaller), "b")
-    } should beSome(NotLeader("127.0.0.1".some, None))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.NotLeader)
+        m.put(k.leaderEndpointHost, "127.0.0.1")
+        m.put(Metadata.Key.of(ce.LeaderEndpointPort, StringMarshaller), "b")
+      },
+      Some(NotLeader("127.0.0.1".some, None))
+    )
 
-    convert { m =>
-      m.put(ek, ce.StreamNotFound)
-      m.put(k.streamName, streamId)
-    } should beSome(StreamNotFound(streamId))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.StreamNotFound)
+        m.put(k.streamName, streamId)
+      },
+      Some(StreamNotFound(streamId))
+    )
 
-    convert { m =>
-      m.put(ek, ce.StreamNotFound)
-    } should beSome(StreamNotFound(unknown))
+    assertEquals(
+      convert(_.put(ek, ce.StreamNotFound)),
+      Some(StreamNotFound(unknown))
+    )
 
-    convert { m =>
-      m.put(ek, ce.PersistentSubscriptionFailed)
-      m.put(k.streamName, streamId)
-      m.put(k.groupName, groupId)
-      m.put(k.reason, reason)
-    } should beSome(PersistentSubscription.Failed(streamId, groupId, reason))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.PersistentSubscriptionFailed)
+        m.put(k.streamName, streamId)
+        m.put(k.groupName, groupId)
+        m.put(k.reason, reason)
+      },
+      Some(PersistentSubscription.Failed(streamId, groupId, reason))
+    )
 
-    convert { m =>
-      m.put(ek, ce.PersistentSubscriptionFailed)
-    } should beSome(PersistentSubscription.Failed(unknown, unknown, unknown))
+    assertEquals(
+      convert(_.put(ek, ce.PersistentSubscriptionFailed)),
+      Some(PersistentSubscription.Failed(unknown, unknown, unknown))
+    )
 
-    convert { m =>
-      m.put(ek, ce.PersistentSubscriptionDoesNotExist)
-      m.put(k.streamName, streamId)
-      m.put(k.groupName, groupId)
-    } should beSome(PersistentSubscription.NotFound(streamId, groupId))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.PersistentSubscriptionDoesNotExist)
+        m.put(k.streamName, streamId)
+        m.put(k.groupName, groupId)
+      },
+      Some(PersistentSubscription.NotFound(streamId, groupId))
+    )
 
-    convert { m =>
-      m.put(ek, ce.PersistentSubscriptionDoesNotExist)
-    } should beSome(PersistentSubscription.NotFound(unknown, unknown))
+    assertEquals(
+      convert(_.put(ek, ce.PersistentSubscriptionDoesNotExist)),
+      Some(PersistentSubscription.NotFound(unknown, unknown))
+    )
 
-    convert { m =>
-      m.put(ek, ce.PersistentSubscriptionExists)
-      m.put(k.streamName, streamId)
-      m.put(k.groupName, groupId)
-    } should beSome(PersistentSubscription.Exists(streamId, groupId))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.PersistentSubscriptionExists)
+        m.put(k.streamName, streamId)
+        m.put(k.groupName, groupId)
+      },
+      Some(PersistentSubscription.Exists(streamId, groupId))
+    )
 
-    convert { m =>
-      m.put(ek, ce.PersistentSubscriptionExists)
-    } should beSome(PersistentSubscription.Exists(unknown, unknown))
+    assertEquals(
+      convert(_.put(ek, ce.PersistentSubscriptionExists)),
+      Some(PersistentSubscription.Exists(unknown, unknown))
+    )
 
-    convert { m =>
-      m.put(ek, ce.MaximumSubscribersReached)
-      m.put(k.streamName, streamId)
-      m.put(k.groupName, groupId)
-    } should beSome(PersistentSubscription.MaximumSubscribersReached(streamId, groupId))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.MaximumSubscribersReached)
+        m.put(k.streamName, streamId)
+        m.put(k.groupName, groupId)
+      },
+      Some(PersistentSubscription.MaximumSubscribersReached(streamId, groupId))
+    )
 
-    convert { m =>
-      m.put(ek, ce.MaximumSubscribersReached)
-    } should beSome(PersistentSubscription.MaximumSubscribersReached(unknown, unknown))
+    assertEquals(
+      convert(_.put(ek, ce.MaximumSubscribersReached)),
+      Some(PersistentSubscription.MaximumSubscribersReached(unknown, unknown))
+    )
 
-    convert { m =>
-      m.put(ek, ce.PersistentSubscriptionDropped)
-      m.put(k.streamName, streamId)
-      m.put(k.groupName, groupId)
-    } should beSome(PersistentSubscription.Dropped(streamId, groupId))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.PersistentSubscriptionDropped)
+        m.put(k.streamName, streamId)
+        m.put(k.groupName, groupId)
+      },
+      Some(PersistentSubscription.Dropped(streamId, groupId))
+    )
 
-    convert { m =>
-      m.put(ek, ce.PersistentSubscriptionDropped)
-    } should beSome(PersistentSubscription.Dropped(unknown, unknown))
+    assertEquals(
+      convert(_.put(ek, ce.PersistentSubscriptionDropped)),
+      Some(PersistentSubscription.Dropped(unknown, unknown))
+    )
 
-    convert { m =>
-      m.put(ek, ce.UserNotFound)
-      m.put(k.loginName, user)
-    } should beSome(UserNotFound(user))
+    assertEquals(
+      convert { m =>
+        m.put(ek, ce.UserNotFound)
+        m.put(k.loginName, user)
+      },
+      Some(UserNotFound(user))
+    )
 
-    convert { m =>
-      m.put(ek, ce.UserNotFound)
-    } should beSome(UserNotFound(unknown))
+    assertEquals(
+      convert(_.put(ek, ce.UserNotFound)),
+      Some(UserNotFound(unknown))
+    )
 
     // / Unknown Exception Key
 
-    convert { m =>
-      m.put(ek, "not-handled")
-    } should beSome(UnknownError("Exception key: not-handled"))
+    assertEquals(
+      convert(_.put(ek, "not-handled")),
+      Some(UnknownError("Exception key: not-handled"))
+    )
 
     // / From Status Codes & Causes
 
-    convertToEs(Status.UNAVAILABLE.withDescription("Oops").asRuntimeException()) should beSome(
-      ServerUnavailable("UNAVAILABLE: Oops")
+    assertEquals(
+      convertToEs(Status.UNAVAILABLE.withDescription("Oops").asRuntimeException()),
+      Some(ServerUnavailable("UNAVAILABLE: Oops"))
     )
 
   }

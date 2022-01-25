@@ -21,242 +21,252 @@ import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 import cats.effect._
 import cats.effect.testkit._
-// import cats.effect.testing.specs2.CatsEffect
 import cats.syntax.all._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
 import org.typelevel.log4cats.testing.TestingLogger
-import org.specs2.mutable.Specification
+import sec.api.retries.RetryConfig
 
-class RetriesSpec extends Specification with TestInstances with CatsEffect {
+class RetriesSuite extends SecEffectSuite with TestInstances {
 
-  import RetriesSpec.Oops
-  import sec.api.retries.{retry => _, _}
+  import RetriesSuite.Oops
 
-  override val Timeout: Duration = 1.second
+  override def munitTimeout: Duration = 1.second
 
-  "retries" >> {
+  def run[A](
+    action: IO[A],
+    retryConfig: RetryConfig,
+    log: Logger[IO] = NoOpLogger.impl[IO],
+    retryOn: Throwable => Boolean = _ => true
+  ): IO[A] = retries.retry(action, "retry-suite", retryConfig, log)(retryOn)
 
-    def test[A](
-      action: IO[A],
-      retryConfig: RetryConfig,
-      log: Logger[IO] = NoOpLogger.impl[IO],
-      retryOn: Throwable => Boolean = _ => true
-    )(implicit TC: TestContext) = {
-      implicit val ticker: Ticker = Ticker(TC)
-      retries.retry[IO, A](action, "retry-spec", retryConfig, log)(retryOn).unsafeToFuture()
+  //
+
+  test("immediate success") {
+
+    val config = RetryConfig(
+      delay         = 100.millis,
+      maxDelay      = 500.millis,
+      backoffFactor = 1,
+      maxAttempts   = 1,
+      timeout       = None
+    )
+
+    var attempts = 0
+    val action: IO[Int] = IO {
+      attempts += 1
+      attempts
     }
 
-    // /
+    TestControl.executeEmbed(run(action, config)).map(assertEquals(_, 1))
 
-    "immediate success" >> {
-      implicit val ec: TestContext = TestContext()
+  }
 
-      val config = RetryConfig(
-        delay         = 100.millis,
-        maxDelay      = 500.millis,
-        backoffFactor = 1,
-        maxAttempts   = 1,
-        timeout       = None
-      )
+  test("delay") {
 
-      var attempts = 0
-      val action: IO[Int] = IO {
-        attempts += 1
-        attempts
-      }
+    val config = RetryConfig(
+      delay         = 100.millis,
+      maxDelay      = 500.millis,
+      backoffFactor = 1,
+      maxAttempts   = 1,
+      timeout       = None
+    )
 
-      val result = test(action, config)
+    val action = run(IO.raiseError[Int](Oops), config)
 
-      ec.tick()
-
-      result.value.map(_.toEither) should beSome(Right(1))
-    }
-
-    "delay" >> {
-
-      implicit val ec: TestContext = TestContext()
-
-      val config = RetryConfig(
-        delay         = 100.millis,
-        maxDelay      = 500.millis,
-        backoffFactor = 1,
-        maxAttempts   = 1,
-        timeout       = None
-      )
-
-      val action = test(IO.raiseError[Int](Oops), config)
-
-      action.value should beNone
-      ec.advanceAndTick(99.millis)
-
-      action.value should beNone
-      ec.advance(1.millis)
-      ec.tickAll()
-
-      action.value.map(_.toEither) should beSome(Oops.asLeft)
-    }
-
-    "maxDelay" >> {
-
-      implicit val ec: TestContext = TestContext()
-
-      val config = RetryConfig(
-        delay         = 100.millis,
-        maxDelay      = 100.millis,
-        backoffFactor = 1,
-        maxAttempts   = 10,
-        timeout       = None
-      )
-
-      val action = test(IO.raiseError[Int](Oops), config)
-
-      action.value should beNone
-      ec.advance(1.second)
-      ec.tickAll()
-
-      action.value.map(_.toEither) should beSome(Oops.asLeft)
-    }
-
-    "backoffFactor" >> {
-
-      implicit val ec: TestContext = TestContext()
-
-      val config = RetryConfig(
-        delay         = 100.millis,
-        maxDelay      = 10.second,
-        backoffFactor = 3,
-        maxAttempts   = 3,
-        timeout       = None
-      )
-
-      val action = test(IO.raiseError[Int](Oops), config)
-
-      action.value should beNone
-      ec.advanceAndTick(100.millis)
-
-      action.value should beNone
-      ec.advanceAndTick(300.millis)
-
-      action.value should beNone
-      ec.advance(900.millis)
-      ec.tickAll()
-
-      action.value.map(_.toEither) should beSome(Oops.asLeft)
-    }
-
-    "maxAttempts" >> {
-
-      implicit val ec: TestContext = TestContext()
-
-      val config = RetryConfig(
-        delay         = 100.millis,
-        maxDelay      = 500.millis,
-        backoffFactor = 1,
-        maxAttempts   = 5,
-        timeout       = None
-      )
-
-      val action = test(IO.raiseError[Int](Oops), config)
-
-      ec.advance(500.millis)
-      ec.tickAll()
-
-      action.value.map(_.toEither) shouldEqual Oops.asLeft.some
-    }
-
-    "timeout" >> {
-
-      implicit val ec: TestContext = TestContext()
-
-      val config = RetryConfig(
-        delay         = 100.millis,
-        maxDelay      = 1.second,
-        backoffFactor = 1,
-        maxAttempts   = 1,
-        timeout       = Some(100.millis)
-      )
-
-      val action1 = test(IO.sleep(101.millis) *> IO[Int](1), config)
-
-      action1.value should beNone
-      ec.advance(300.millis)
-      ec.tickAll()
-
-      action1.value.map(_.toEither) shouldEqual retries.Timeout(100.millis).asLeft.some
-
-      val action2 = test(IO.sleep(99.millis) *> IO[Int](1), config)
-
-      action2.value should beNone
-      ec.advance(99.millis)
-      ec.tickAll()
-      action2.value.map(_.toEither) should beSome(1.asRight)
-
-    }
-
-    "retryOn" >> {
-
-      implicit val ec: TestContext = TestContext()
-
-      val config = RetryConfig(
-        delay         = 100.millis,
-        maxDelay      = 100.millis,
-        backoffFactor = 2,
-        maxAttempts   = 10,
-        timeout       = None
-      )
-
-      val action = test(IO.raiseError[Int](Oops), config, retryOn = _ => false)
-
-      ec.tick()
-
-      action.value.map(_.toEither) should beSome(Oops.asLeft)
-    }
-
-    "logs" >> {
-
-      implicit val ec: TestContext = TestContext()
-
-      val config = RetryConfig(
-        delay         = 100.millis,
-        maxDelay      = 100.millis,
-        backoffFactor = 1,
-        maxAttempts   = 10,
-        timeout       = None
-      )
-
-      val logger = TestingLogger.impl[IO](warnEnabled = true, errorEnabled = true)
-      val action = test(IO.raiseError[Int](Oops), config, log = logger)
-
-      action.value should beNone
-      ec.advance(1.second)
-      ec.tickAll()
-
-      action.value.map(_.toEither) should beSome(Oops.asLeft)
-
-      logger.logged.map { logs =>
-
-        val warnings = logs.collect { case w: TestingLogger.WARN => w }
-        val errors   = logs.collect { case e: TestingLogger.ERROR => e }
-
-        val expectedWarnings = (1 until 10).map(i =>
-          TestingLogger.WARN(s"retry-spec failed, attempt $i of 10, retrying in 100.0ms - Oops", None))
-
-        val expectedErrors = List(TestingLogger.ERROR(s"retry-spec failed after 10 attempts - Oops", None))
-
-        warnings.size shouldEqual 9
-        errors.size shouldEqual 1
-
-        warnings.toList shouldEqual expectedWarnings.toList
-        errors.toList shouldEqual expectedErrors
-
-      }
+    TestControl.execute(action) >>= { control =>
+      for {
+        _  <- assertNoResult(control)
+        _  <- control.advanceAndTick(99.millis)
+        _  <- assertNoResult(control)
+        _  <- control.advance(1.millis)
+        _  <- control.tickAll
+        r1 <- assertOutcome(control)
+      } yield assert(r1.fold(false, _ == Oops, _ => false))
     }
 
   }
 
+  test("maxDelay") {
+
+    val config = RetryConfig(
+      delay         = 100.millis,
+      maxDelay      = 100.millis,
+      backoffFactor = 1,
+      maxAttempts   = 10,
+      timeout       = None
+    )
+
+    val action = run(IO.raiseError[Int](Oops), config)
+
+    TestControl.execute(action) >>= { control =>
+      for {
+        _  <- assertNoResult(control)
+        _  <- control.advanceAndTick(1.second)
+        _  <- control.tickAll
+        r1 <- assertOutcome(control)
+      } yield assert(r1.fold(false, _ == Oops, _ => false))
+
+    }
+
+  }
+
+  test("backoffFactor") {
+
+    val config = RetryConfig(
+      delay         = 100.millis,
+      maxDelay      = 10.second,
+      backoffFactor = 3,
+      maxAttempts   = 3,
+      timeout       = None
+    )
+
+    val action = run(IO.raiseError[Int](Oops), config)
+
+    TestControl.execute(action) >>= { control =>
+      for {
+        _  <- assertNoResult(control)
+        _  <- control.advanceAndTick(100.millis)
+        _  <- assertNoResult(control)
+        _  <- control.advanceAndTick(300.millis)
+        _  <- assertNoResult(control)
+        _  <- control.advanceAndTick(900.millis)
+        _  <- control.tickAll
+        r1 <- assertOutcome(control)
+      } yield assert(r1.fold(false, _ == Oops, _ => false))
+
+    }
+
+  }
+
+  test("maxAttempts") {
+
+    val config = RetryConfig(
+      delay         = 100.millis,
+      maxDelay      = 500.millis,
+      backoffFactor = 1,
+      maxAttempts   = 5,
+      timeout       = None
+    )
+
+    val action = run(IO.raiseError[Int](Oops), config)
+
+    TestControl.execute(action) >>= { control =>
+      for {
+        _  <- control.advance(500.millis)
+        _  <- control.tickAll
+        r1 <- assertOutcome(control)
+      } yield assert(r1.fold(false, _ == Oops, _ => false))
+    }
+  }
+
+  test("timeout") {
+
+    val config = RetryConfig(
+      delay         = 100.millis,
+      maxDelay      = 1.second,
+      backoffFactor = 1,
+      maxAttempts   = 1,
+      timeout       = Some(100.millis)
+    )
+
+    val action1 = run(IO.sleep(101.millis) *> IO[Int](1), config)
+
+    val t1 = TestControl.execute(action1) >>= { control =>
+      for {
+        _  <- assertNoResult(control)
+        _  <- control.advance(300.millis)
+        _  <- control.tickAll
+        r1 <- assertOutcome(control)
+      } yield assert(r1.fold(false, _ == retries.Timeout(100.millis), _ => false))
+    }
+
+    val action2 = run(IO.sleep(99.millis) *> IO[Int](1), config)
+
+    val t2 = TestControl.execute(action2) >>= { control =>
+      for {
+        _  <- assertNoResult(control)
+        _  <- control.advance(99.millis)
+        _  <- control.tickAll
+        r1 <- assertOutcome(control)
+      } yield assert(r1.fold(false, _ => false, _ == 1))
+    }
+
+    t1 *> t2
+  }
+
+  test("retryOn") {
+
+    val config = RetryConfig(
+      delay         = 100.millis,
+      maxDelay      = 100.millis,
+      backoffFactor = 2,
+      maxAttempts   = 10,
+      timeout       = None
+    )
+
+    val action = run(IO.raiseError[Int](Oops), config, retryOn = _ => false)
+
+    TestControl.execute(action) >>= { control =>
+      for {
+        _  <- control.tick
+        r1 <- assertOutcome(control)
+      } yield assert(r1.fold(false, _ == Oops, _ => false))
+    }
+
+  }
+
+  test("logs") {
+
+    val config = RetryConfig(
+      delay         = 100.millis,
+      maxDelay      = 100.millis,
+      backoffFactor = 1,
+      maxAttempts   = 10,
+      timeout       = None
+    )
+
+    val logger = TestingLogger.impl[IO](warnEnabled = true, errorEnabled = true)
+    val action = run(IO.raiseError[Int](Oops), config, log = logger)
+
+    val t1 = TestControl.execute(action) >>= { control =>
+      for {
+        _  <- assertNoResult(control)
+        _  <- control.advance(1.second)
+        _  <- control.tickAll
+        r1 <- assertOutcome(control)
+      } yield assert(r1.fold(false, _ == Oops, _ => false))
+    }
+
+    val t2 = logger.logged.map { logs =>
+
+      val warnings = logs.collect { case w: TestingLogger.WARN => w }
+      val errors   = logs.collect { case e: TestingLogger.ERROR => e }
+
+      val expectedWarnings = (1 until 10).map(i =>
+        TestingLogger.WARN(s"retry-suite failed, attempt $i of 10, retrying in 100.0ms - Oops", None))
+
+      val expectedErrors = List(TestingLogger.ERROR(s"retry-suite failed after 10 attempts - Oops", None))
+
+      assertEquals(warnings.size, 9)
+      assertEquals(errors.size, 1)
+
+      assertEquals(warnings.toList, expectedWarnings.toList)
+      assertEquals(errors.toList, expectedErrors)
+
+    }
+
+    t1 *> t2
+  }
+
+  def assertNoResult[A](control: TestControl[A]): IO[Unit] =
+    assertIOBoolean(control.results.map(_.isEmpty))
+
+  def assertOutcome[A](control: TestControl[A]): IO[Outcome[cats.Id, Throwable, A]] =
+    control.results.map(_.fold(fail("Expected some result"))(identity))
+
 }
 
-object RetriesSpec {
+object RetriesSuite {
   case object Oops extends RuntimeException("Oops") with NoStackTrace
 }

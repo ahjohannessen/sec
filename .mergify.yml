@@ -22,9 +22,9 @@ pull_request_rules:
       - author=scala-steward
       - status-success~=Build and Test \(ubuntu-latest, 2\.13\.\d{1}.+\)
       - status-success~=Build and Test \(ubuntu-latest, 3\.\d{1}\.\d{1}.+\)
-      - body~=labels:.*semver-patch.*
+      - body~=labels:(.*-patch.*)|(.*-minor.*)
     actions:
       queue:
-        method: merge
+        method: rebase
         name: default
       delete_head_branch: {}

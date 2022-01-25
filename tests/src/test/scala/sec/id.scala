@@ -19,91 +19,90 @@ package sec
 import cats.kernel.laws.discipline._
 import cats.syntax.all._
 import org.scalacheck._
-import org.specs2.mutable.Specification
-import org.typelevel.discipline.specs2.mutable.Discipline
 import sec.arbitraries._
 
-class StreamIdSpec extends Specification with Discipline {
+class StreamIdSuite extends SecDisciplineSuite {
 
   val normal: StreamId.Normal = StreamId.Normal.unsafe("normal")
   val system: StreamId.System = StreamId.System.unsafe("system")
 
-  "apply" >> {
-    StreamId("") should beLeft(InvalidInput("name cannot be empty"))
-    StreamId("$$meta") should beLeft(InvalidInput("value must not start with $$, but is $$meta"))
-    StreamId("$users") shouldEqual StreamId.system("users")
-    StreamId("users") shouldEqual StreamId.normal("users")
-    StreamId("$all") shouldEqual StreamId.All.asRight
-    StreamId("$settings") shouldEqual StreamId.Settings.asRight
-    StreamId("$stats") shouldEqual StreamId.Stats.asRight
-    StreamId("$scavenges") shouldEqual StreamId.Scavenges.asRight
-    StreamId("$streams") shouldEqual StreamId.Streams.asRight
+  test("apply") {
+    assertEquals(StreamId(""), Left(InvalidInput("name cannot be empty")))
+    assertEquals(StreamId("$$meta"), Left(InvalidInput("value must not start with $$, but is $$meta")))
+    assertEquals(StreamId("$users").leftMap(_.msg), StreamId.system("users"))
+    assertEquals(StreamId("users").leftMap(_.msg), StreamId.normal("users"))
+    assertEquals(StreamId("$all"), StreamId.All.asRight)
+    assertEquals(StreamId("$settings"), StreamId.Settings.asRight)
+    assertEquals(StreamId("$stats"), StreamId.Stats.asRight)
+    assertEquals(StreamId("$scavenges"), StreamId.Scavenges.asRight)
+    assertEquals(StreamId("$streams"), StreamId.Streams.asRight)
   }
 
-  "streamIdToString" >> {
-    StreamId.streamIdToString(StreamId.All) shouldEqual "$all"
-    StreamId.streamIdToString(StreamId.Settings) shouldEqual "$settings"
-    StreamId.streamIdToString(StreamId.Stats) shouldEqual "$stats"
-    StreamId.streamIdToString(StreamId.Scavenges) shouldEqual "$scavenges"
-    StreamId.streamIdToString(StreamId.Streams) shouldEqual "$streams"
-    StreamId.streamIdToString(system) shouldEqual s"$$system"
-    StreamId.streamIdToString(normal) shouldEqual "normal"
-    StreamId.streamIdToString(system.metaId) shouldEqual "$$$system"
-    StreamId.streamIdToString(normal.metaId) shouldEqual "$$normal"
+  test("streamIdToString") {
+    assertEquals(StreamId.streamIdToString(StreamId.All), "$all")
+    assertEquals(StreamId.streamIdToString(StreamId.Settings), "$settings")
+    assertEquals(StreamId.streamIdToString(StreamId.Stats), "$stats")
+    assertEquals(StreamId.streamIdToString(StreamId.Scavenges), "$scavenges")
+    assertEquals(StreamId.streamIdToString(StreamId.Streams), "$streams")
+    assertEquals(StreamId.streamIdToString(system), s"$$system")
+    assertEquals(StreamId.streamIdToString(normal), "normal")
+    assertEquals(StreamId.streamIdToString(system.metaId), "$$$system")
+    assertEquals(StreamId.streamIdToString(normal.metaId), "$$normal")
   }
 
-  "stringToStreamId" >> {
-    StreamId.stringToStreamId("$$normal") shouldEqual normal.metaId.asRight
-    StreamId.stringToStreamId("$$$system") shouldEqual system.metaId.asRight
-    StreamId.stringToStreamId("$all") shouldEqual StreamId.All.asRight
-    StreamId.stringToStreamId("$settings") shouldEqual StreamId.Settings.asRight
-    StreamId.stringToStreamId("$stats") shouldEqual StreamId.Stats.asRight
-    StreamId.stringToStreamId("$scavenges") shouldEqual StreamId.Scavenges.asRight
-    StreamId.stringToStreamId("$streams") shouldEqual StreamId.Streams.asRight
-    StreamId.stringToStreamId(system.stringValue) should beRight(system)
-    StreamId.stringToStreamId(normal.stringValue) should beRight(normal)
+  test("stringToStreamId") {
+    assertEquals(StreamId.stringToStreamId("$$normal"), normal.metaId.asRight)
+    assertEquals(StreamId.stringToStreamId("$$$system"), system.metaId.asRight)
+    assertEquals(StreamId.stringToStreamId("$all"), StreamId.All.asRight)
+    assertEquals(StreamId.stringToStreamId("$settings"), StreamId.Settings.asRight)
+    assertEquals(StreamId.stringToStreamId("$stats"), StreamId.Stats.asRight)
+    assertEquals(StreamId.stringToStreamId("$scavenges"), StreamId.Scavenges.asRight)
+    assertEquals(StreamId.stringToStreamId("$streams"), StreamId.Streams.asRight)
+    assertEquals(StreamId.stringToStreamId(system.stringValue), Right(system))
+    assertEquals(StreamId.stringToStreamId(normal.stringValue), Right(normal))
   }
 
-  "render" >> {
+  test("render") {
     val sid = sampleOf[StreamId]
-    sid.render shouldEqual sid.stringValue
+    assertEquals(sid.render, sid.stringValue)
   }
 
-  "StreamIdOps" >> {
+  group("StreamIdOps") {
 
-    "fold" >> {
-      normal.fold(_ => true, _ => false, _ => false) should beTrue
-      system.fold(_ => false, _ => true, _ => false) should beTrue
-      List(normal, system).map(_.metaId.fold(_ => false, _ => false, _ => true)).forall(identity) should beTrue
+    test("fold") {
+      assert(normal.fold(_ => true, _ => false, _ => false))
+      assert(system.fold(_ => false, _ => true, _ => false))
+      assert(List(normal, system).map(_.metaId.fold(_ => false, _ => false, _ => true)).forall(identity))
     }
 
-    "stringValue" >> {
+    test("stringValue") {
       val sid = sampleOf[StreamId]
-      sid.stringValue shouldEqual StreamId.streamIdToString(sid)
+      assertEquals(sid.stringValue, StreamId.streamIdToString(sid))
     }
 
-    "isNormalStream" >> {
-      normal.isNormal should beTrue
-      system.isNormal should beFalse
-      List(normal, system).map(_.metaId.isNormal).forall(identity) should beFalse
+    test("isNormalStream") {
+      assert(normal.isNormal)
+      assertNot(system.isNormal)
+      assertNot(List(normal, system).map(_.metaId.isNormal).forall(identity))
     }
 
-    "isSystemOrMeta" >> {
-      normal.isSystemOrMeta should beFalse
-      system.isSystemOrMeta should beTrue
-      List(normal, system).map(_.metaId.isSystemOrMeta).forall(identity) should beTrue
+    test("isSystemOrMeta") {
+      assertNot(normal.isSystemOrMeta)
+      assert(system.isSystemOrMeta)
+      assert(List(normal, system).map(_.metaId.isSystemOrMeta).forall(identity))
     }
 
   }
 
-  "IdOps" >> {
-    "meta" >> {
+  group("IdOps") {
+
+    test("meta") {
       val id = sampleOf[StreamId.Id]
-      id.metaId shouldEqual StreamId.MetaId(id)
+      assertEquals(id.metaId, StreamId.MetaId(id))
     }
   }
 
-  "Eq" >> {
+  test("Eq") {
     implicit val cogen: Cogen[StreamId] = Cogen[String].contramap[StreamId](_.stringValue)
     checkAll("StreamId", EqTests[StreamId].eqv)
   }
