@@ -6,7 +6,7 @@ object Dependencies {
   object versions {
 
     val catsCore   = "2.7.0"
-    val catsEffect = "3.3.4"
+    val catsEffect = "3.3.5"
     val fs2        = "3.2.4"
     val log4cats   = "2.2.0"
     val logback    = "1.2.10"
