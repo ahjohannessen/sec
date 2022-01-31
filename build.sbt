@@ -7,7 +7,7 @@ ThisBuild / assumedVersionScheme := VersionScheme.Always
 ThisBuild / evictionErrorLevel := Level.Info
 
 lazy val Scala2   = "2.13.8"
-lazy val Scala3   = "3.1.0"
+lazy val Scala3   = "3.1.1"
 lazy val isScala3 = Def.setting[Boolean](scalaVersion.value.startsWith("3."))
 
 lazy val sec = project
