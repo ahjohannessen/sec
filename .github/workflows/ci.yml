@@ -15,8 +15,11 @@ on:
     tags: [v*]
 
 env:
+  PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+  SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+  SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+  PGP_SECRET: ${{ secrets.PGP_SECRET }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  JABBA_INDEX: 'https://github.com/typelevel/jdk-index/raw/main/index.json'
 
 jobs:
   build:
@@ -62,14 +65,14 @@ jobs:
           popd
 
       - name: Check that workflows are up to date
-        run: sbt ++${{ matrix.scala }} githubWorkflowCheck
+        run: sbt '++${{ matrix.scala }}' 'project /' githubWorkflowCheck
 
       - name: Compile docs
         if: contains(matrix.scala, '2.13.8')
-        run: sbt ++${{ matrix.scala }} compileDocs
+        run: sbt '++${{ matrix.scala }}' compileDocs
 
       - name: Regular tests
-        run: sbt ++${{ matrix.scala }} compileTests tests/test
+        run: sbt '++${{ matrix.scala }}' compileTests tests/test
 
       - name: Single node integration tests
         if: contains(matrix.scala, '2.13.8')
@@ -106,7 +109,7 @@ jobs:
         uses: nick-invision/retry@v2
         with:
           timeout_minutes: 10
-          max_attempts: 3
+          max_attempts: 10
           command: sbt ++${{ matrix.scala }} 'tests / Cit / test'
 
       - name: Stop Cluster Nodes
@@ -116,19 +119,25 @@ jobs:
           ./cluster.sh down
           popd
 
+      - name: Make target directories
+        if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
+        run: mkdir -p sec-docs/target tests/target fs2-netty/target target fs2/target tsc/target core/target project/target
+
       - name: Compress target directories
+        if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
         run: tar cf targets.tar sec-docs/target tests/target fs2-netty/target target fs2/target tsc/target core/target project/target
 
       - name: Upload target directories
+        if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
         uses: actions/upload-artifact@v2
         with:
-          name: target-${{ matrix.os }}-${{ matrix.scala }}-${{ matrix.java }}
+          name: target-${{ matrix.os }}-${{ matrix.java }}-${{ matrix.scala }}
           path: targets.tar
 
   publish:
     name: Publish Artifacts
     needs: [build]
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -163,7 +172,7 @@ jobs:
       - name: Download target directories (3.1.1)
         uses: actions/download-artifact@v2
         with:
-          name: target-${{ matrix.os }}-3.1.1-${{ matrix.java }}
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.1.1
 
       - name: Inflate target directories (3.1.1)
         run: |
@@ -173,22 +182,28 @@ jobs:
       - name: Download target directories (2.13.8)
         uses: actions/download-artifact@v2
         with:
-          name: target-${{ matrix.os }}-2.13.8-${{ matrix.java }}
+          name: target-${{ matrix.os }}-${{ matrix.java }}-2.13.8
 
       - name: Inflate target directories (2.13.8)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - env:
-          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          PGP_SECRET: ${{ secrets.PGP_SECRET }}
-        run: sbt ++${{ matrix.scala }} ci-release
+      - name: Import signing key
+        if: env.PGP_SECRET != '' && env.PGP_PASSPHRASE == ''
+        run: echo $PGP_SECRET | base64 -d | gpg --import
+
+      - name: Import signing key and strip passphrase
+        if: env.PGP_SECRET != '' && env.PGP_PASSPHRASE != ''
+        run: |
+          echo "$PGP_SECRET" | base64 -d > /tmp/signing-key.gpg
+          echo "$PGP_PASSPHRASE" | gpg --pinentry-mode loopback --passphrase-fd 0 --import /tmp/signing-key.gpg
+          (echo "$PGP_PASSPHRASE"; echo; echo) | gpg --command-fd 0 --pinentry-mode loopback --change-passphrase $(gpg --list-secret-keys --with-colons 2> /dev/null | grep '^sec:' | cut --delimiter ':' --fields 5 | tail -n 1)
+
+      - name: Publish
+        run: sbt '++${{ matrix.scala }}' tlRelease
 
       - if: contains(matrix.scala, '2.13.8') && github.ref == 'refs/heads/main'
         env:
           GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
-        run: sbt ++${{ matrix.scala }} docs/docusaurusPublishGhpages
+        run: sbt '++${{ matrix.scala }}' docs/docusaurusPublishGhpages

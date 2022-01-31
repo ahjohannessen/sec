@@ -3,17 +3,12 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 Global / lintUnusedKeysOnLoad := false
 
-ThisBuild / assumedVersionScheme := VersionScheme.Always
-ThisBuild / evictionErrorLevel := Level.Info
-
-lazy val Scala2   = "2.13.8"
-lazy val Scala3   = "3.1.1"
-lazy val isScala3 = Def.setting[Boolean](scalaVersion.value.startsWith("3."))
+lazy val Scala2 = "2.13.8"
+lazy val Scala3 = "3.1.1"
 
 lazy val sec = project
   .in(file("."))
-  .settings(publish / skip := true)
-  .dependsOn(core, `fs2-core`, `fs2-netty`, tsc, tests, docs)
+  .enablePlugins(NoPublishPlugin)
   .aggregate(core, `fs2-core`, `fs2-netty`, tsc, tests, docs)
 
 //==== Core ============================================================================================================
@@ -70,7 +65,7 @@ lazy val ClusterITest    = config("cit") extend Test
 
 lazy val tests = project
   .in(file("tests"))
-  .enablePlugins(BuildInfoPlugin, AutomateHeaderPlugin)
+  .enablePlugins(BuildInfoPlugin, AutomateHeaderPlugin, NoPublishPlugin)
   .configs(SingleNodeITest, ClusterITest)
   .settings(commonSettings)
   .settings(inConfig(SingleNodeITest)(Defaults.testSettings))
@@ -78,7 +73,6 @@ lazy val tests = project
   .settings(
     logBuffered := false,
     parallelExecution := true,
-    publish / skip := true,
     buildInfoPackage := "sec",
     buildInfoKeys := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
     Test / headerSources ++= (SingleNodeITest / sources).value ++ (ClusterITest / sources).value,
@@ -101,10 +95,9 @@ lazy val tests = project
 
 lazy val docs = project
   .in(file("sec-docs"))
-  .enablePlugins(MdocPlugin, DocusaurusPlugin)
+  .enablePlugins(MdocPlugin, DocusaurusPlugin, NoPublishPlugin)
   .dependsOn(`fs2-netty`)
   .settings(
-    publish / skip := true,
     moduleName := "sec-docs",
     mdocIn := file("docs"),
     mdocVariables := Map(
@@ -120,10 +113,7 @@ lazy val docs = project
 
 lazy val commonSettings = Seq(
   scalacOptions ++= {
-    if (isScala3.value) Seq("-source:3.0-migration") else Nil
-  },
-  scalacOptions ++= {
-    if (isScala3.value) Seq("-Xtarget:8") else Seq("-target:8")
+    if (tlIsScala3.value) Seq("-Xtarget:8") else Seq("-target:8")
   },
   Compile / doc / scalacOptions ~=
     (_.filterNot(_ == "-Xfatal-warnings"))
@@ -133,28 +123,14 @@ inThisBuild(
   List(
     scalaVersion := Scala2,
     crossScalaVersions := Seq(Scala3, Scala2),
+    tlBaseVersion := "0.19",
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
     organizationName := "Scala EventStoreDB Client",
-    homepage := Some(url("https://github.com/ahjohannessen/sec")),
-    scmInfo := Some(ScmInfo(url("https://github.com/ahjohannessen/sec"), "git@github.com:ahjohannessen/sec.git")),
     startYear := Some(2020),
-    licenses += (("Apache-2.0", url("http://www.apache.org/licenses/"))),
-    developers := List(
-      Developer(
-        "ahjohannessen",
-        "Alex Henning Johannessen",
-        "ahjohannessen@gmail.com",
-        url("https://github.com/ahjohannessen")
-      )),
-    shellPrompt := Prompt.enrichedShellPrompt,
-    (Compile / doc / scalacOptions) ++= Seq(
-      "-groups",
-      "-sourcepath",
-      (LocalRootProject / baseDirectory).value.getAbsolutePath,
-      "-doc-source-url",
-      "https://github.com/ahjohannessen/sec/blob/v" + version.value + "€{FILE_PATH}.scala"
-    )
+    developers +=
+      tlGitHubDev("ahjohannessen", "Alex Henning Johannessen"),
+    shellPrompt := Prompt.enrichedShellPrompt
   )
 )
 
@@ -168,10 +144,8 @@ val docsOnMain                      = "github.ref == 'refs/heads/main'"
 
 inThisBuild(
   List(
-    githubWorkflowEnv += ("JABBA_INDEX" -> "https://github.com/typelevel/jdk-index/raw/main/index.json"),
-    githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17")),
-    githubWorkflowTargetTags += "v*",
     githubWorkflowTargetBranches := Seq("main"),
+    githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17")),
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
@@ -224,7 +198,7 @@ inThisBuild(
         name = Some("Cluster integration tests"),
         params = Map(
           "timeout_minutes" -> "10",
-          "max_attempts"    -> "3",
+          "max_attempts"    -> "10",
           "command"         -> "sbt ++${{ matrix.scala }} 'tests / Cit / test'"
         ),
         env = Map(
@@ -239,21 +213,7 @@ inThisBuild(
         cond     = Some(s"always() && ${scalaCondition(Scala2)}")
       )
     ),
-    githubWorkflowPublishTargetBranches := Seq(
-      RefPredicate.Equals(Ref.Branch("main")),
-      RefPredicate.StartsWith(Ref.Tag("v"))
-    ),
-    githubWorkflowPublish := Seq(
-      WorkflowStep.Sbt(
-        List("ci-release"),
-        env = Map(
-          "PGP_PASSPHRASE"    -> "${{ secrets.PGP_PASSPHRASE }}",
-          "PGP_SECRET"        -> "${{ secrets.PGP_SECRET }}",
-          "SONATYPE_PASSWORD" -> "${{ secrets.SONATYPE_PASSWORD }}",
-          "SONATYPE_USERNAME" -> "${{ secrets.SONATYPE_USERNAME }}",
-          "GIT_DEPLOY_KEY"    -> "${{ secrets.GIT_DEPLOY_KEY }}"
-        )
-      ),
+    githubWorkflowPublish ++= Seq(
       WorkflowStep.Sbt(
         List("docs/docusaurusPublishGhpages"),
         env = Map(
