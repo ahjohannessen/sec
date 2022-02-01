@@ -125,6 +125,7 @@ inThisBuild(
   List(
     scalaVersion := Scala2,
     crossScalaVersions := Seq(Scala3, Scala2),
+    versionScheme := Some("early-semver"),
     tlBaseVersion := "0.19",
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
