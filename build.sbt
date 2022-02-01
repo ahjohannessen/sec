@@ -104,7 +104,7 @@ lazy val docs = project
     mdocIn := file("docs"),
     mdocVariables := Map(
       "libName"       -> "sec",
-      "libVersion"    -> version.value.takeWhile(_ != '+'), // strip off the SNAPSHOT business
+      "libVersion"    -> version.value.takeWhile(c => !(c == '+' || c == '-')), // strip off the SNAPSHOT business
       "libGithubRepo" -> "https://github.com/ahjohannessen/sec",
       "grpcVersion"   -> versions.grpc,
       "esdb"          -> "EventStoreDB"
