@@ -218,6 +218,11 @@ inThisBuild(
     ),
     githubWorkflowPublish ++= Seq(
       WorkflowStep.Sbt(
+        name     = Some("Compile docs"),
+        commands = List("compileDocs"),
+        cond     = Some(scalaCondition(Scala2))
+      ),
+      WorkflowStep.Sbt(
         List("docs/docusaurusPublishGhpages"),
         env = Map(
           "GIT_DEPLOY_KEY" -> "${{ secrets.GIT_DEPLOY_KEY }}"

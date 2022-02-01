@@ -203,6 +203,10 @@ jobs:
       - name: Publish
         run: sbt '++${{ matrix.scala }}' tlRelease
 
+      - name: Compile docs
+        if: contains(matrix.scala, '2.13.8')
+        run: sbt '++${{ matrix.scala }}' compileDocs
+
       - if: contains(matrix.scala, '2.13.8') && github.ref == 'refs/heads/main'
         env:
           GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
