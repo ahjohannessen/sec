@@ -9,7 +9,7 @@ lazy val Scala3 = "3.1.1"
 lazy val sec = project
   .in(file("."))
   .enablePlugins(NoPublishPlugin)
-  .aggregate(core, `fs2-core`, `fs2-netty`, tsc, tests, docs)
+  .aggregate(core, `fs2-core`, `fs2-netty`, tsc, tests)
 
 //==== Core ============================================================================================================
 
@@ -98,6 +98,8 @@ lazy val docs = project
   .enablePlugins(MdocPlugin, DocusaurusPlugin, NoPublishPlugin)
   .dependsOn(`fs2-netty`)
   .settings(
+    scalaVersion := Scala2,
+    crossScalaVersions := Nil,
     moduleName := "sec-docs",
     mdocIn := file("docs"),
     mdocVariables := Map(
