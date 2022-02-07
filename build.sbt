@@ -127,6 +127,7 @@ inThisBuild(
     crossScalaVersions := Seq(Scala3, Scala2),
     versionScheme := Some("early-semver"),
     tlBaseVersion := "0.19",
+    tlSonatypeUseLegacyHost := false,
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
     organizationName := "Scala EventStoreDB Client",
