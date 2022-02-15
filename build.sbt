@@ -21,7 +21,7 @@ lazy val core = project
     name := "sec-core",
     libraryDependencies ++=
       compileM(grpcApi, grpcStub, grpcProtobuf, grpcCore) ++
-        compileM(cats, scodecBits, circe, scalaPb),
+        compileM(cats, scodecBits, unum, circe, scalaPb),
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
     Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (Compile / sourceManaged).value)
   )

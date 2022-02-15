@@ -425,7 +425,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
       // Happy Path
       assertEquals(mkStreamPosition[ErrorOr](re.withStreamRevision(1L)), StreamPosition(1L).asRight)
-      assertEquals(mkStreamPosition[ErrorOr](re.withStreamRevision(-1L)), StreamPosition.Exact(ULong.MaxValue).asRight)
+      assertEquals(mkStreamPosition[ErrorOr](re.withStreamRevision(-1L)), StreamPosition.Exact(ULong.max).asRight)
 
     }
 
@@ -601,7 +601,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
       assertEquals(
         mkCheckpoint[ErrorOr](s.ReadResp.Checkpoint(-1L, 0L)),
-        Checkpoint(sec.LogPosition.Exact.create(ULong.MaxValue, ULong.MinValue)).asRight
+        Checkpoint(sec.LogPosition.Exact.create(ULong.max, ULong.min)).asRight
       )
     }
 
