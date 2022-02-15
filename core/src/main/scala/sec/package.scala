@@ -24,4 +24,7 @@ package object sec {
   private[sec] type Attempt[T] = Either[String, T]
   private[sec] type ErrorOr[T] = Either[Throwable, T]
 
+  type ULong = unum.ULong
+  val ULong = unum.ULong
+
 }

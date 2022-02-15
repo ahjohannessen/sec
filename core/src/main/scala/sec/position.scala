@@ -16,7 +16,6 @@
 
 package sec
 
-import java.lang.{Long => JLong}
 import cats.syntax.all._
 import cats.{Eq, Order}
 
@@ -79,7 +78,7 @@ object StreamState {
 sealed trait StreamPosition
 object StreamPosition {
 
-  val Start: Exact = Exact(ULong.MinValue)
+  val Start: Exact = Exact(ULong.min)
 
   final case class Exact(value: ULong) extends StreamPosition with StreamState with PositionInfo
   object Exact {
@@ -129,7 +128,7 @@ object LogPosition {
   sealed abstract case class Exact(commit: ULong, prepare: ULong) extends LogPosition
   object Exact {
 
-    val MaxValue: Exact = create(ULong.MaxValue, ULong.MaxValue)
+    val MaxValue: Exact = create(ULong.max, ULong.max)
 
     private[sec] def create(commit: ULong, prepare: ULong): Exact =
       new Exact(commit, prepare) {}
@@ -212,33 +211,4 @@ object PositionInfo {
 
   }
 
-}
-
-//======================================================================================================================
-
-object ULong {
-
-  val MinValue: ULong = ULong(0L)
-  val MaxValue: ULong = ULong(-1L)
-
-  def apply(n: Long): ULong = new ULong(n)
-
-  //
-
-  implicit val orderForULong: Order[ULong] =
-    Order.from[ULong]((x, y) => JLong.compareUnsigned(x.signed, y.signed))
-
-  implicit val orderingForULong: Ordering[ULong] =
-    orderForULong.toOrdering
-
-  implicit final class ULongOps(val u: ULong) {
-    def toLong: Long     = u.signed
-    def render: String   = JLong.toUnsignedString(u.signed)
-    def toBigInt: BigInt = BigInt(JLong.toUnsignedString(u.signed))
-  }
-
-}
-
-final class ULong(val signed: Long) extends AnyVal {
-  override def toString: String = JLong.toUnsignedString(signed)
 }
