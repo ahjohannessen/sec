@@ -9,7 +9,7 @@ object Dependencies {
     val catsEffect = "3.3.6"
     val fs2        = "3.2.5"
     val log4cats   = "2.2.0"
-    val logback    = "1.2.10"
+    val logback    = "1.2.11"
     val scodecBits = "1.1.30"
     val unum       = "1.0.0"
     val circe      = "0.14.1"
