@@ -30,7 +30,6 @@ import sec.api._
 import sec.helpers.implicits._
 import StreamState.{Any, NoStream, StreamExists}
 
-@nowarn("cat=unused-nowarn")
 object arbitraries {
 
   final def sampleOf[T](implicit ev: Arbitrary[T]): T =
