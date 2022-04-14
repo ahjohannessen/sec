@@ -18,7 +18,7 @@ package sec
 
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.{util => ju}
-import scala.annotation.tailrec
+import scala.annotation._
 import scala.collection.immutable.{Nil, SortedSet}
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import cats.data.NonEmptyList
@@ -207,6 +207,7 @@ object arbitraries {
     val genMeta: Gen[Boolean]   = Gen.oneOf(true, false)
     val genCT: Gen[ContentType] = Gen.oneOf(ContentType.Binary, ContentType.Json)
 
+    @nowarn("cat=deprecation")
     def eventDataN(n: Int, etPrefix: String): Gen[List[EventData]] =
       for {
         gm         <- genMeta
