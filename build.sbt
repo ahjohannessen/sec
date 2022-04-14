@@ -115,7 +115,7 @@ lazy val docs = project
 
 lazy val commonSettings = Seq(
   scalacOptions ++= {
-    if (tlIsScala3.value) Seq("-Xtarget:8") else Seq("-target:8")
+    if (tlIsScala3.value) Seq("-Xtarget:8") else Seq("-target:8", "-Ywarn-unused:-nowarn") // todo: fix arbitraries
   },
   Compile / doc / scalacOptions ~=
     (_.filterNot(_ == "-Xfatal-warnings"))
