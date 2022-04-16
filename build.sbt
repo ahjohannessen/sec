@@ -1,3 +1,5 @@
+import com.typesafe.tools.mima.core._
+import com.typesafe.tools.mima.core.ProblemFilters._
 import Dependencies._
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
@@ -25,6 +27,13 @@ lazy val core = project
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
     Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (Compile / sourceManaged).value)
   )
+  .settings(
+    mimaBinaryIssueFilters ++= Seq(
+      // Generated code not for end users
+      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.scalaDescriptor"),
+      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor")
+    )
+  )
 
 //==== FS2 =============================================================================================================
 
@@ -39,6 +48,15 @@ lazy val `fs2-core` = project
         compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser),
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf")
+  )
+  .settings(
+    mimaBinaryIssueFilters ++= Seq(
+      // Generated code not for end users
+      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.grpc.ServiceCompanion.scalaDescriptor"),
+      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.grpc.ServiceCompanion.javaDescriptor"),
+      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.scalaDescriptor"),
+      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor")
+    )
   )
   .dependsOn(core)
 
