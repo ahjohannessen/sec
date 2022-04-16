@@ -5,8 +5,9 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 Global / lintUnusedKeysOnLoad := false
 
-lazy val Scala2 = "2.13.8"
-lazy val Scala3 = "3.1.2"
+lazy val Scala2       = "2.13.8"
+lazy val Scala3       = "3.1.2"
+lazy val Scala3Output = "3.1.1"
 
 lazy val sec = project
   .in(file("."))
@@ -132,6 +133,12 @@ lazy val docs = project
 //==== Common ==========================================================================================================
 
 lazy val commonSettings = Seq(
+  scalaOutputVersion := {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((3, _)) => Scala3Output
+      case _            => scalaVersion.value
+    }
+  },
   scalacOptions ++= {
     if (tlIsScala3.value) Seq("-Xtarget:8") else Seq("-target:8")
   },
