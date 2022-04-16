@@ -211,7 +211,7 @@ object arbitraries {
       for {
         gm         <- genMeta
         ct         <- genCT
-        idAndTypes <- Gen.infiniteStream(eventIdAndType(etPrefix)).flatMap(_.take(n).toList)
+        idAndTypes <- Gen.infiniteLazyList(eventIdAndType(etPrefix)).flatMap(_.take(n).toList)
         gen        <- idAndTypes
         (id, et)    = gen
         data        = dataBV(id, ct)
