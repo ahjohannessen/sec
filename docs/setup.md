@@ -18,11 +18,11 @@ docker run -it --rm --name es-node \
 -e EVENTSTORE_GOSSIP_ON_SINGLE_NODE=True \
 -e EVENTSTORE_DISCOVER_VIA_DNS=False \
 -e EVENTSTORE_START_STANDARD_PROJECTIONS=True \
-eventstore/eventstore:20.6.1-bionic
+eventstore/eventstore:21.10.2-bionic
 ```
 
 The above is enough to get something up and running for the purpose of exploration and learning. Consult the 
-@esdb@ [docs](https://developers.eventstore.com/server/20.6/server/installation/) for more details on
+@esdb@ [docs](https://developers.eventstore.com/server/v21.10/configuration.html#configuration-options) for more details on
 configuration for production setup.
 
 ### Scala Setup
