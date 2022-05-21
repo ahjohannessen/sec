@@ -6,7 +6,7 @@ x-common-variables: &common-variables
 services:
 
   es1:
-    image: eventstore/eventstore:21.10.0-bionic
+    image: "$EVENTSTORE_DB_IMAGE"
     env_file:
       - ./shared.env
     environment:
@@ -22,9 +22,10 @@ services:
         ipv4_address: "$SEC_ESC_1_IP"
     depends_on:
       - cert-gen
+    restart: on-failure:10
 
   es2:
-    image: eventstore/eventstore:21.10.0-bionic
+    image: "$EVENTSTORE_DB_IMAGE"
     env_file:
       - ./shared.env
     environment:
@@ -40,9 +41,10 @@ services:
         ipv4_address: "$SEC_ESC_2_IP"
     depends_on:
       - cert-gen
+    restart: on-failure:10
 
   es3:
-    image: eventstore/eventstore:21.10.0-bionic
+    image: "$EVENTSTORE_DB_IMAGE"
     env_file:
       - ./shared.env
     environment:
@@ -58,6 +60,7 @@ services:
         ipv4_address: "$SEC_ESC_3_IP"
     depends_on:
       - cert-gen
+    restart: on-failure:10
 
 networks:
   es_cluster_network:
