@@ -84,7 +84,7 @@ object exceptions {
 
       def mkException(actual: StreamState) = WrongExpectedState(sid, expected, actual)
       def noStream                         = mkException(StreamState.NoStream)
-      def mkExact(a: Long)                 = mkException(StreamPosition(a))
+      def mkExact(a: Long)                 = if (a == -1) noStream else mkException(StreamPosition(a))
 
       e.actual.fold(noStream)(mkExact)
     }
