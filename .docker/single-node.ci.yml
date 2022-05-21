@@ -2,12 +2,11 @@ version: '3.8'
 services:
 
   es:
-    image: eventstore/eventstore:21.10.0-bionic
+    image: "$EVENTSTORE_DB_IMAGE"
     env_file:
       - ./shared.env
     environment:
       - EVENTSTORE_MEM_DB=True
-      - EVENTSTORE_GOSSIP_ON_SINGLE_NODE=True
       - EVENTSTORE_START_STANDARD_PROJECTIONS=True
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
@@ -18,6 +17,7 @@ services:
         ipv4_address: "$SEC_ESS_IP"
     depends_on:
       - cert-gen
+    restart: on-failure:10
 
 networks:
   es_single_network:
