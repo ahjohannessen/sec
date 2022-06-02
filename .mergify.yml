@@ -19,7 +19,7 @@ pull_request_rules:
 
   - name: Automatically merge scala-steward's PRs
     conditions:
-      - author=scala-steward
+      - author=scala-steward-ahjohannessen
       - status-success~=Build and Test \(ubuntu-latest, 2\.13\.\d{1}.+\)
       - status-success~=Build and Test \(ubuntu-latest, 3\.\d{1}\.\d{1}.+\)
       - body~=labels:(.*-patch.*)|(.*-minor.*)
