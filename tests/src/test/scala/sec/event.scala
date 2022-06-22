@@ -210,20 +210,9 @@ class EventDataSuite extends SecSuite {
       assertEquals(EventData("", id, data, meta, ct), Left(errEmpty))
       assertEquals(EventData("$system", id, data, ct), Left(errStart))
       assertEquals(EventData("$system", id, data, meta, ct), Left(errStart))
+      assertEquals(EventData(et, id, data, ct), EventData(et, id, data, bve, ct))
+      assertEquals(EventData(et, id, data, meta, ct), EventData(et, id, data, meta, ct))
 
-      val ed1 = EventData(et, id, data, ct)
-
-      ed1 match {
-        case ed @ EventData(`et`, `id`, `data`, `bve`, `ct`) => assertEquals(ed1, ed)
-        case other                                           => fail(s"Did not expect $other")
-      }
-
-      val ed2 = EventData(et, id, data, meta, ct)
-
-      ed2 match {
-        case ed @ EventData(`et`, `id`, `data`, `meta`, `ct`) => assertEquals(ed2, ed)
-        case other                                            => fail(s"Did not expect $other")
-      }
     }
 
     // /
