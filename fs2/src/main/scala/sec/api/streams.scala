@@ -27,7 +27,7 @@ import cats.syntax.all._
 import com.eventstore.dbclient.proto.streams._
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.log4cats.Logger
-import sec.api.exceptions.WrongExpectedVersion
+import sec.api.exceptions.{ResubscriptionRequired, WrongExpectedVersion}
 import sec.api.mapping.streams.incoming._
 import sec.api.mapping.streams.outgoing._
 import sec.api.streams._
@@ -228,25 +228,28 @@ object Streams {
     private val delete = client.delete(_, ctx)
     private val tomb   = client.tombstone(_, ctx)
 
+    private val subscriptionOpts: Opts[F] =
+      opts.copy(retryOn = th => opts.retryOn(th) || th.isInstanceOf[ResubscriptionRequired])
+
     def subscribeToAll(
       exclusiveFrom: Option[LogPosition],
       resolveLinkTos: Boolean
     ): Stream[F, AllEvent] =
-      subscribeToAll0[F](exclusiveFrom, resolveLinkTos, opts)(read)
+      subscribeToAll0[F](exclusiveFrom, resolveLinkTos, subscriptionOpts)(read)
 
     def subscribeToAll(
       exclusiveFrom: Option[LogPosition],
       filterOptions: SubscriptionFilterOptions,
       resolveLinkTos: Boolean
     ): Stream[F, Either[Checkpoint, AllEvent]] =
-      subscribeToAll0[F](exclusiveFrom, filterOptions, resolveLinkTos, opts)(read)
+      subscribeToAll0[F](exclusiveFrom, filterOptions, resolveLinkTos, subscriptionOpts)(read)
 
     def subscribeToStream(
       streamId: StreamId,
       exclusiveFrom: Option[StreamPosition],
       resolveLinkTos: Boolean
     ): Stream[F, StreamEvent] =
-      subscribeToStream0[F](streamId, exclusiveFrom, resolveLinkTos, opts)(read)
+      subscribeToStream0[F](streamId, exclusiveFrom, resolveLinkTos, subscriptionOpts)(read)
 
     def readAll(
       from: LogPosition,
