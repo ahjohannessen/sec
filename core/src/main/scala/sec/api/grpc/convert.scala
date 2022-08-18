@@ -78,12 +78,19 @@ private[sec] object convert {
       case unknown                          => UnknownError(s"Exception key: $unknown")
     }
 
-    reified orElse serverUnavailable(ex)
+    reified orElse serverUnavailable(ex) orElse resubscriptionRequired(ex)
   }
 
   val serverUnavailable: StatusRuntimeException => Option[ServerUnavailable] = { ex =>
     val cause = Option(ex.getCause()).fold("")(c => s", cause: ${c.getMessage}")
     Option.when(ex.getStatus.getCode == Status.Code.UNAVAILABLE)(ServerUnavailable(s"${ex.getMessage}$cause"))
+  }
+
+  val resubscriptionRequired: StatusRuntimeException => Option[ResubscriptionRequired] = { ex =>
+    val isAborted        = ex.getStatus.getCode == Status.Code.ABORTED
+    val msg              = Option(ex.getMessage).getOrElse("")
+    val isResubscription = msg.contains("resubscription required")
+    Option.when(isAborted && isResubscription)(ResubscriptionRequired(msg))
   }
 
 //======================================================================================================================

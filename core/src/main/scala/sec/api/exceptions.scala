@@ -34,6 +34,7 @@ object exceptions {
   final case class StreamNotFound(streamId: String) extends EsException(s"Event stream '$streamId' was not found.")
   final case class UnknownError(msg: String) extends EsException(msg)
   final case class ServerUnavailable(msg: String) extends EsException(msg)
+  final case class ResubscriptionRequired(msg: String) extends EsException(msg)
 
   final case class NotLeader(
     host: Option[String],

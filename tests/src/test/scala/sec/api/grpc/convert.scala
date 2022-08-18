@@ -246,5 +246,18 @@ class ConvertSuite extends SecSuite {
       Some(ServerUnavailable("UNAVAILABLE: Oops"))
     )
 
+    assertEquals(
+      convertToEs(
+        Status.ABORTED
+          .withDescription(
+            "Operation timed out: Consumer too slow to handle event while live. Client resubscription required.")
+          .asRuntimeException()
+      ),
+      Some(
+        ResubscriptionRequired(
+          "ABORTED: Operation timed out: Consumer too slow to handle event while live. Client resubscription required.")
+      )
+    )
+
   }
 }
