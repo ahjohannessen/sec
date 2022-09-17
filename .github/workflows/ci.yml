@@ -75,7 +75,7 @@ jobs:
           popd
 
       - name: Check that workflows are up to date
-        run: sbt '++${{ matrix.scala }}' 'project /' githubWorkflowCheck
+        run: sbt githubWorkflowCheck
 
       - name: Compile docs
         if: contains(matrix.scala, '2.13.8')
