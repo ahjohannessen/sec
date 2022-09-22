@@ -5,7 +5,7 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 Global / lintUnusedKeysOnLoad := false
 
-lazy val Scala2 = "2.13.8"
+lazy val Scala2 = "2.13.9"
 lazy val Scala3 = "3.2.0"
 
 lazy val sec = project
@@ -132,9 +132,7 @@ lazy val docs = project
 //==== Common ==========================================================================================================
 
 lazy val commonSettings = Seq(
-  scalacOptions ++= {
-    if (tlIsScala3.value) Seq("-Xtarget:8") else Seq("-target:8")
-  },
+  scalacOptions ++= Seq("-release:8"),
   Compile / doc / scalacOptions ~=
     (_.filterNot(_ == "-Xfatal-warnings"))
 )
