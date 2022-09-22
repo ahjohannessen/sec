@@ -5,7 +5,7 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 Global / lintUnusedKeysOnLoad := false
 
-lazy val Scala2 = "2.13.8"
+lazy val Scala2 = "2.13.9"
 lazy val Scala3 = "3.2.0"
 
 lazy val sec = project
@@ -132,9 +132,7 @@ lazy val docs = project
 //==== Common ==========================================================================================================
 
 lazy val commonSettings = Seq(
-  scalacOptions ++= {
-    if (tlIsScala3.value) Seq("-Xtarget:8") else Seq("-target:8")
-  },
+  scalacOptions ++= Seq("-release:8"),
   Compile / doc / scalacOptions ~=
     (_.filterNot(_ == "-Xfatal-warnings"))
 )
@@ -167,7 +165,7 @@ val docsOnMain                      = "github.ref == 'refs/heads/main'"
 inThisBuild(
   List(
     githubWorkflowTargetBranches := Seq("main"),
-    githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17")),
+    githubWorkflowJavaVersions := Seq(JavaSpec.temurin("19")),
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
