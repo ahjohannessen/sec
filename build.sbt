@@ -5,7 +5,7 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 Global / lintUnusedKeysOnLoad := false
 
-lazy val Scala2 = "2.13.9"
+lazy val Scala2 = "2.13.10"
 lazy val Scala3 = "3.2.0"
 
 lazy val sec = project
@@ -43,11 +43,13 @@ lazy val `fs2-core` = project
   .settings(commonSettings)
   .settings(
     name := "sec-fs2",
-    libraryDependencies ++=
-      compileM(grpcApi, grpcStub, grpcProtobuf, grpcCore) ++
-        compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser),
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf")
+  )
+  .settings(
+    libraryDependencies ++=
+      compileM(grpcApi, grpcStub, grpcProtobuf, grpcCore) ++
+        compileM(cats, catsEffect, fs2, log4cats, log4catsNoop, scodecBits, circe, circeParser)
   )
   .settings(
     mimaBinaryIssueFilters ++= Seq(
