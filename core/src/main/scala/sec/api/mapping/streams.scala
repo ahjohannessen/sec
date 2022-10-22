@@ -18,10 +18,13 @@ package sec
 package api
 package mapping
 
+import java.util.{UUID => JUUID}
+import java.time.ZonedDateTime
+import java.util.concurrent.TimeoutException
 import cats.{Applicative, ApplicativeThrow, MonadThrow}
 import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.all._
-import com.eventstore.dbclient.proto.shared._
+import com.eventstore.dbclient.proto.{shared => pshared}
 import com.eventstore.dbclient.proto.streams._
 import sec.api.exceptions._
 import sec.api.grpc.constants.Metadata.{ContentType, ContentTypes, Created, Type}
@@ -37,7 +40,7 @@ private[sec] object streams {
 
   object outgoing {
 
-    val empty: Empty = Empty()
+    val empty: pshared.Empty = pshared.Empty()
 
     val uuidOption: ReadReq.Options.UUIDOption = ReadReq.Options.UUIDOption().withStructured(empty)
 
@@ -221,6 +224,66 @@ private[sec] object streams {
       }
   }
 
+  def mkBatchAppendHeader(
+    streamId: StreamId,
+    expectedState: StreamState,
+    deadline: Option[ZonedDateTime]
+  ): BatchAppendReq.Options = {
+
+    import com.google.protobuf.timestamp.Timestamp
+
+    val empty = com.google.protobuf.empty.Empty()
+
+    val mapExpectedStreamPosition: StreamState => BatchAppendReq.Options.ExpectedStreamPosition = {
+      case StreamPosition.Exact(v)  => BatchAppendReq.Options.ExpectedStreamPosition.StreamPosition(v.toLong)
+      case StreamState.NoStream     => BatchAppendReq.Options.ExpectedStreamPosition.NoStream(empty)
+      case StreamState.StreamExists => BatchAppendReq.Options.ExpectedStreamPosition.StreamExists(empty)
+      case StreamState.Any          => BatchAppendReq.Options.ExpectedStreamPosition.Any(empty)
+    }
+
+    val dl = deadline.map(_.toInstant())
+
+    val req = BatchAppendReq
+      .Options()
+      .withStreamIdentifier(streamId.sid.esSid)
+      .withExpectedStreamPosition(mapExpectedStreamPosition(expectedState))
+
+    dl.fold(req)(i => req.withDeadline(Timestamp.of(i.getEpochSecond, i.getNano)))
+
+  }
+
+  def mkBatchAppendProposal(e: EventData): BatchAppendReq.ProposedMessage = {
+
+    val id         = mkUuid(e.eventId)
+    val customMeta = e.metadata.toByteString
+    val data       = e.data.toByteString
+    val ct         = e.contentType.fold(ContentTypes.ApplicationOctetStream, ContentTypes.ApplicationJson)
+    val meta       = Map(Type -> EventType.eventTypeToString(e.eventType), ContentType -> ct)
+
+    BatchAppendReq.ProposedMessage(id.some, meta, customMeta, data)
+
+  }
+
+  def mkHeaderReq(
+    correlationId: JUUID,
+    streamId: StreamId,
+    expectedState: StreamState,
+    deadline: Option[ZonedDateTime]
+  ): BatchAppendReq =
+    BatchAppendReq()
+      .withCorrelationId(mkUuid(correlationId))
+      .withOptions(mkBatchAppendHeader(streamId, expectedState, deadline))
+
+  def mkProposalsReq(
+    correlationId: JUUID,
+    data: List[BatchAppendReq.ProposedMessage],
+    isFinal: Boolean
+  ): BatchAppendReq =
+    BatchAppendReq()
+      .withCorrelationId(mkUuid(correlationId))
+      .withProposedMessages(data)
+      .withIsFinal(isFinal)
+
 //======================================================================================================================
 //                                                     Incoming
 //======================================================================================================================
@@ -318,21 +381,18 @@ private[sec] object streams {
       import AppendResp.WrongExpectedVersion.ExpectedRevisionOption
       import AppendResp.WrongExpectedVersion.CurrentRevisionOption
 
-      def error[T](msg: String): Either[Throwable, T] =
-        ProtoResultError(msg).asLeft[T]
-
       def success(s: Result.Success) = {
 
         val logPositionExact: Either[Throwable, LogPosition.Exact] = s.value.positionOption match {
           case Success.PositionOption.Position(p)   => LogPosition.exact(p.commitPosition, p.preparePosition).asRight
-          case Success.PositionOption.NoPosition(_) => error("Did not expect NoPosition when using NonEmptyList")
-          case Success.PositionOption.Empty         => error("PositionOption is missing")
+          case Success.PositionOption.NoPosition(_) => mkError("Did not expect NoPosition when using NonEmptyList")
+          case Success.PositionOption.Empty         => mkError("PositionOption is missing")
         }
 
         val streamPositionExact: Either[Throwable, StreamPosition.Exact] = s.value.currentRevisionOption match {
           case Success.CurrentRevisionOption.CurrentRevision(v) => StreamPosition(v).asRight
-          case Success.CurrentRevisionOption.NoStream(_) => error("Did not expect NoStream when using NonEmptyList")
-          case Success.CurrentRevisionOption.Empty       => error("CurrentRevisionOption is missing")
+          case Success.CurrentRevisionOption.NoStream(_) => mkError("Did not expect NoStream when using NonEmptyList")
+          case Success.CurrentRevisionOption.Empty       => mkError("CurrentRevisionOption is missing")
         }
 
         (streamPositionExact, logPositionExact).mapN((r, p) => WriteResult(r, p))
@@ -346,13 +406,13 @@ private[sec] object streams {
           case ExpectedRevisionOption.ExpectedNoStream(_)     => StreamState.NoStream.asRight
           case ExpectedRevisionOption.ExpectedAny(_)          => StreamState.Any.asRight
           case ExpectedRevisionOption.ExpectedStreamExists(_) => StreamState.StreamExists.asRight
-          case ExpectedRevisionOption.Empty                   => error("ExpectedRevisionOption is missing")
+          case ExpectedRevisionOption.Empty                   => mkError("ExpectedRevisionOption is missing")
         }
 
         val actual: Either[Throwable, StreamState] = w.value.currentRevisionOption match {
           case CurrentRevisionOption.CurrentRevision(v) => StreamPosition(v).asRight
           case CurrentRevisionOption.CurrentNoStream(_) => StreamState.NoStream.asRight
-          case CurrentRevisionOption.Empty              => error("CurrentRevisionOption is missing")
+          case CurrentRevisionOption.Empty              => mkError("CurrentRevisionOption is missing")
         }
 
         (expected, actual).mapN((e, a) => WrongExpectedState(sid, e, a))
@@ -361,11 +421,78 @@ private[sec] object streams {
       val result: Either[Throwable, WriteResult] = ar.result match {
         case s: Result.Success              => success(s)
         case w: Result.WrongExpectedVersion => wrongExpectedStreamState(w) >>= (_.asLeft[WriteResult])
-        case Result.Empty                   => error("Result is missing")
+        case Result.Empty                   => mkError("Result is missing")
       }
 
       result.liftTo[F]
     }
+
+    def mkBatchWriteResult[F[_]](bar: BatchAppendResp)(implicit F: MonadThrow[F]): F[WriteResult] = {
+
+      import BatchAppendResp._
+      import com.google.rpc._
+
+      def success(s: Success): Either[Throwable, WriteResult] = {
+
+        val logPositionExact: Either[Throwable, LogPosition.Exact] = s.positionOption match {
+          case Success.PositionOption.Position(p)   => LogPosition.exact(p.commitPosition, p.preparePosition).asRight
+          case Success.PositionOption.NoPosition(_) => mkError("Did not expect NoPosition when using NonEmptyList")
+          case Success.PositionOption.Empty         => mkError("PositionOption is missing")
+        }
+
+        val streamPositionExact: Either[Throwable, StreamPosition.Exact] = s.currentRevisionOption match {
+          case Success.CurrentRevisionOption.CurrentRevision(v) => StreamPosition(v).asRight
+          case Success.CurrentRevisionOption.NoStream(_) => mkError("Did not expect NoStream when using NonEmptyList")
+          case Success.CurrentRevisionOption.Empty       => mkError("CurrentRevisionOption is missing")
+        }
+
+        (streamPositionExact, logPositionExact).mapN((r, p) => WriteResult(r, p))
+      }
+
+      def failure(f: Status): F[WriteResult] = {
+
+        def raise(t: Throwable): F[WriteResult] =
+          F.raiseError[WriteResult](t)
+
+        def mkUnknown(msg: String): UnknownError =
+          UnknownError(s"code: ${f.code.name} - message: $msg")
+
+        def handleWrongExpectedVersion(wev: pshared.WrongExpectedVersion): F[WriteResult] =
+          mkStreamId[F](bar.streamIdentifier) >>= { mkWrongExpectedStreamState[F](_, wev) >>= raise }
+
+        def handleStreamDeleted(sd: pshared.StreamDeleted): F[WriteResult] =
+          mkStreamDeleted[F](sd) >>= raise
+
+        f.details.fold(raise(mkUnknown(f.message))) { v =>
+          if (v.is[pshared.WrongExpectedVersion])
+            handleWrongExpectedVersion(v.unpack[pshared.WrongExpectedVersion])
+          else if (v.is[pshared.StreamDeleted])
+            handleStreamDeleted(v.unpack[pshared.StreamDeleted])
+          else if (v.is[pshared.AccessDenied])
+            raise(AccessDenied)
+          else if (v.is[pshared.Timeout])
+            raise(new TimeoutException()) // DeadlineExceded - we have operations retry timeout.
+          else if (v.is[pshared.Unknown])
+            raise(mkUnknown(f.message))
+          else if (v.is[pshared.InvalidTransaction])
+            raise(InvalidTransaction)
+          else if (v.is[pshared.MaximumAppendSizeExceeded])
+            raise(mkMaximumAppendSizeExceeded(v.unpack[pshared.MaximumAppendSizeExceeded]))
+          else if (v.is[pshared.BadRequest])
+            raise(mkUnknown(v.unpack[pshared.BadRequest].message))
+          else
+            raise(mkUnknown(f.message))
+        }
+      }
+
+      bar.result match {
+        case BatchAppendResp.Result.Error(value) => failure(value)
+        case BatchAppendResp.Result.Success(v)   => success(v).liftTo[F]
+        case BatchAppendResp.Result.Empty        => mkError("Result is missing").liftTo[F]
+      }
+    }
+
+    ///
 
     def mkDeleteResult[F[_]: ApplicativeThrow](dr: DeleteResp): F[DeleteResult] =
       dr.positionOption.position
@@ -394,7 +521,7 @@ private[sec] object streams {
     def mkAllMessageEvent[F[_]: MonadThrow](p: ReadResp.ReadEvent): F[Option[AllMessage.Event]] =
       mkEvent(p, mkPositionGlobal[F]).map(_.map(AllMessage.Event(_)))
 
-    def mkAllMessageLast[F[_]: ApplicativeThrow](p: AllStreamPosition): F[AllMessage.LastAllStreamPosition] =
+    def mkAllMessageLast[F[_]: ApplicativeThrow](p: pshared.AllStreamPosition): F[AllMessage.LastAllStreamPosition] =
       LogPosition(p.commitPosition, p.preparePosition).liftTo[F].map(AllMessage.LastAllStreamPosition(_))
 
     // ======================================================================================================================
