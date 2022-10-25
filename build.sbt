@@ -32,7 +32,8 @@ lazy val core = project
     mimaBinaryIssueFilters ++= Seq(
       // Generated code not for end users
       ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.scalaDescriptor"),
-      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor")
+      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.shared.*")
     )
   )
 
@@ -56,7 +57,10 @@ lazy val `fs2-core` = project
       ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.grpc.ServiceCompanion.scalaDescriptor"),
       ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.grpc.ServiceCompanion.javaDescriptor"),
       ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.scalaDescriptor"),
-      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor")
+      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor"),
+      //
+      ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.shared.*"),
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("com.eventstore.dbclient.proto.streams.*")
     )
   )
   .dependsOn(core)
