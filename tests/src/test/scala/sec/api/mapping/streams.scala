@@ -23,7 +23,7 @@ import java.util.{UUID => JUUID}
 import cats.data.NonEmptyList
 import cats.syntax.all._
 import org.scalacheck.Prop._
-import com.eventstore.dbclient.proto.shared.{AllStreamPosition, Empty, UUID}
+import com.eventstore.dbclient.proto.{shared => ps}
 import com.eventstore.dbclient.proto.{streams => s}
 import scodec.bits.ByteVector
 import sec.api.exceptions.{StreamNotFound, WrongExpectedState}
@@ -44,7 +44,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
     import s.ReadReq.Options.AllOptions.AllOption
     import s.ReadReq.Options.StreamOptions.RevisionOption
 
-    val empty = Empty()
+    val empty = ps.Empty()
 
     //
 
@@ -346,22 +346,6 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
       import grpc.constants.Metadata.{ContentType, ContentTypes, Type}
       import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
 
-      def json(nr: Int): EventData = {
-        val id = JUUID.randomUUID()
-        val et = s"et-$nr"
-        val da = bv(s"""{ "data" : "$nr" }""")
-        val md = bv(s"""{ "meta" : "$nr" }""")
-        sec.EventData(et, id, da, md, sec.ContentType.Json).unsafe
-      }
-
-      def binary(nr: Int): EventData = {
-        val id = JUUID.randomUUID()
-        val et = s"et-$nr"
-        val da = bv(s"data@$nr")
-        val md = bv(s"meta@$nr")
-        sec.EventData(et, id, da, md, sec.ContentType.Binary).unsafe
-      }
-
       def test(nel: NonEmptyList[EventData]) = {
         assertEquals(
           mkAppendProposalsReq(nel),
@@ -379,10 +363,71 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
         )
       }
 
-      test(NonEmptyList.of(json(0)))
-      test(NonEmptyList.of(json(0), json(1)))
-      test(NonEmptyList.of(binary(0)))
-      test(NonEmptyList.of(binary(0), binary(1)))
+      test(NonEmptyList.of(mkJson(0)))
+      test(NonEmptyList.of(mkJson(0), mkJson(1)))
+      test(NonEmptyList.of(mkBinary(0)))
+      test(NonEmptyList.of(mkBinary(0), mkBinary(1)))
+    }
+
+    test("mkBatchAppendHeader") {
+
+      import s.BatchAppendReq.Options.ExpectedStreamPosition
+      import com.google.protobuf.timestamp.Timestamp
+
+      val empty    = com.google.protobuf.empty.Empty()
+      val streamId = sec.StreamId("abc").unsafe
+
+      def test(
+        streamState: sec.StreamState,
+        deadline: Option[Instant],
+        esp: ExpectedStreamPosition,
+        exdl: Option[Timestamp]
+      ) =
+        assertEquals(
+          mkBatchAppendHeader(streamId, streamState, deadline),
+          s.BatchAppendReq
+            .Options(deadline = exdl)
+            .withStreamIdentifier(streamId.sid.esSid)
+            .withExpectedStreamPosition(esp)
+        )
+
+      def run(time: Option[(Instant, Timestamp)]) = {
+
+        val dl = time.map(_._1)
+        val ts = time.map(_._2)
+
+        test(sec.StreamPosition(0L), dl, ExpectedStreamPosition.StreamPosition(0L), ts)
+        test(sec.StreamState.NoStream, dl, ExpectedStreamPosition.NoStream(empty), ts)
+        test(sec.StreamState.StreamExists, dl, ExpectedStreamPosition.StreamExists(empty), ts)
+        test(sec.StreamState.Any, dl, ExpectedStreamPosition.Any(empty), ts)
+
+      }
+
+      run(none)
+      run((Instant.ofEpochSecond(1666817112, 513208000), Timestamp.of(1666817112, 513208000)).some)
+    }
+
+    test("mkBatchAppendProposal") {
+
+      import grpc.constants.Metadata.{ContentType, ContentTypes, Type}
+      import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
+
+      def test(e: sec.EventData) =
+        assertEquals(
+          mkBatchAppendProposal(e),
+          s.BatchAppendReq
+            .ProposedMessage()
+            .withId(mkUuid(e.eventId))
+            .withMetadata(Map(Type -> e.eventType.stringValue, ContentType -> e.contentType.fold(Binary, Json)))
+            .withData(e.data.toByteString)
+            .withCustomMetadata(e.metadata.toByteString)
+        )
+
+      test(mkJson(0))
+      test(mkJson(1))
+      test(mkBinary(0))
+      test(mkBinary(1))
+
     }
 
   }
@@ -393,7 +438,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
     import grpc.constants.Metadata.{ContentType, ContentTypes, Created, Type}
     import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
 
-    val empty = Empty()
+    val empty = ps.Empty()
 
     test("mkPositionAll") {
 
@@ -507,13 +552,13 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
         // Missing UUID
         assertEquals(
-          mkEventRecord[ErrorOr, P](recordedEvent.withId(UUID().withValue(UUID.Value.Empty)), mkPos),
+          mkEventRecord[ErrorOr, P](recordedEvent.withId(ps.UUID().withValue(ps.UUID.Value.Empty)), mkPos),
           ProtoResultError("UUID is missing").asLeft
         )
 
         // Bad UUID
         assertEquals(
-          mkEventRecord[ErrorOr, P](recordedEvent.withId(UUID().withString("invalid")), mkPos),
+          mkEventRecord[ErrorOr, P](recordedEvent.withId(ps.UUID().withString("invalid")), mkPos),
           ProtoResultError("Invalid UUID string: invalid").asLeft
         )
 
@@ -574,7 +619,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
           .withStreamRevision(revision)
           .withData(data.toByteString)
           .withCustomMetadata(customMeta.toByteString)
-          .withId(UUID().withString(id))
+          .withId(ps.UUID().withString(id))
           .withMetadata(metadata)
 
       val streamEventRecord =
@@ -622,7 +667,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
         .withPreparePosition(event.logPosition.prepare.toLong)
         .withData(event.eventData.data.toByteString)
         .withCustomMetadata(event.eventData.metadata.toByteString)
-        .withId(UUID().withString(event.eventData.eventId.toString))
+        .withId(ps.UUID().withString(event.eventData.eventId.toString))
         .withMetadata(metadata)
 
       val checkpoint = s.ReadResp.Checkpoint(1L, 1L)
@@ -696,35 +741,35 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
       import s.AppendResp.WrongExpectedVersion.ExpectedRevisionOption
       import s.AppendResp.WrongExpectedVersion.CurrentRevisionOption
 
-      val sid: StreamId.Id                           = sec.StreamId("abc").unsafe
-      val test: s.AppendResp => ErrorOr[WriteResult] = mkWriteResult[ErrorOr](sid, _)
+      val sid: StreamId.Id                               = sec.StreamId("abc").unsafe
+      val mkResult: s.AppendResp => ErrorOr[WriteResult] = mkWriteResult[ErrorOr](sid, _)
 
       val successRevOne   = Success().withCurrentRevision(1L).withPosition(s.AppendResp.Position(1L, 1L))
       val successRevEmpty = Success().withCurrentRevisionOption(Success.CurrentRevisionOption.Empty)
       val successNoStream = Success().withNoStream(empty)
 
       assertEquals(
-        test(s.AppendResp().withSuccess(successRevOne)),
+        mkResult(s.AppendResp().withSuccess(successRevOne)),
         WriteResult(sec.StreamPosition(1L), sec.LogPosition.exact(1L, 1L)).asRight
       )
 
       assertEquals(
-        test(s.AppendResp().withSuccess(successNoStream)),
+        mkResult(s.AppendResp().withSuccess(successNoStream)),
         ProtoResultError("Did not expect NoStream when using NonEmptyList").asLeft
       )
 
       assertEquals(
-        test(s.AppendResp().withSuccess(successRevEmpty)),
+        mkResult(s.AppendResp().withSuccess(successRevEmpty)),
         ProtoResultError("CurrentRevisionOption is missing").asLeft
       )
 
       assertEquals(
-        test(s.AppendResp().withSuccess(successRevOne.withNoPosition(empty))),
+        mkResult(s.AppendResp().withSuccess(successRevOne.withNoPosition(empty))),
         ProtoResultError("Did not expect NoPosition when using NonEmptyList").asLeft
       )
 
       assertEquals(
-        test(s.AppendResp().withSuccess(successRevOne.withPositionOption(Success.PositionOption.Empty))),
+        mkResult(s.AppendResp().withSuccess(successRevOne.withPositionOption(Success.PositionOption.Empty))),
         ProtoResultError("PositionOption is missing").asLeft
       )
 
@@ -747,14 +792,14 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
         )
 
       def testExpected(ero: ExpectedRevisionOption, expected: StreamState) =
-        assertEquals(test(mkExpected(ero)), WrongExpectedState(sid, expected, sec.StreamPosition(2L)).asLeft)
+        assertEquals(mkResult(mkExpected(ero)), WrongExpectedState(sid, expected, sec.StreamPosition(2L)).asLeft)
 
       testExpected(wreExpectedOne, sec.StreamPosition(1L))
       testExpected(wreExpectedNoStream, sec.StreamState.NoStream)
       testExpected(wreExpectedAny, sec.StreamState.Any)
       testExpected(wreExpectedStreamExists, sec.StreamState.StreamExists)
 
-      assertEquals(test(mkExpected(wreExpectedEmpty)), ProtoResultError("ExpectedRevisionOption is missing").asLeft)
+      assertEquals(mkResult(mkExpected(wreExpectedEmpty)), ProtoResultError("ExpectedRevisionOption is missing").asLeft)
 
       def mkCurrent(c: CurrentRevisionOption) = s
         .AppendResp()
@@ -763,15 +808,140 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
         )
 
       def testCurrent(cro: CurrentRevisionOption, actual: StreamState) =
-        assertEquals(test(mkCurrent(cro)), WrongExpectedState(sid, sec.StreamPosition(1L), actual).asLeft)
+        assertEquals(mkResult(mkCurrent(cro)), WrongExpectedState(sid, sec.StreamPosition(1L), actual).asLeft)
 
       testCurrent(wreCurrentRevTwo, sec.StreamPosition(2L))
       testCurrent(wreCurrentNoStream, sec.StreamState.NoStream)
-      assertEquals(test(mkCurrent(wreCurrentEmpty)), ProtoResultError("CurrentRevisionOption is missing").asLeft)
+      assertEquals(mkResult(mkCurrent(wreCurrentEmpty)), ProtoResultError("CurrentRevisionOption is missing").asLeft)
 
       //
 
-      assertEquals(test(s.AppendResp().withResult(Result.Empty)), ProtoResultError("Result is missing").asLeft)
+      assertEquals(mkResult(s.AppendResp().withResult(Result.Empty)), ProtoResultError("Result is missing").asLeft)
+
+    }
+
+    test("mkBatchWriteResult") {
+
+      import com.google.rpc._
+      import com.google.protobuf.any.Any
+
+      val empty = com.google.protobuf.empty.Empty()
+      val bar   = s.BatchAppendResp()
+      val suc   = s.BatchAppendResp.Success()
+
+      // Success Path
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](bar.withSuccess(suc)),
+        ProtoResultError("CurrentRevisionOption is missing").asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](bar.withSuccess(suc.withNoStream(empty))),
+        ProtoResultError("Did not expect NoStream when using NonEmptyList").asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](bar.withSuccess(suc.withCurrentRevision(0L))),
+        ProtoResultError("PositionOption is missing").asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](bar.withSuccess(suc.withCurrentRevision(0L).withNoPosition(empty))),
+        ProtoResultError("Did not expect NoPosition").asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](
+          bar.withSuccess(suc.withCurrentRevision(0L).withPosition(ps.AllStreamPosition(1L, 1L)))
+        ),
+        WriteResult(StreamPosition(0L), LogPosition.exact(1L, 1L)).asRight
+      )
+
+      // Error & Empty Path
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](bar),
+        ProtoResultError("Result is missing").asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](bar.withError(Status.of(Code.INVALID_ARGUMENT, "Oopsie", None))),
+        exceptions.UnknownError("code: INVALID_ARGUMENT - message: Oopsie").asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](
+          bar
+            .withStreamIdentifier("abc".toStreamIdentifer)
+            .withError(
+              Status.of(
+                Code.ALREADY_EXISTS,
+                "WrongExpectedVersion",
+                Any.pack(ps.WrongExpectedVersion().withExpectedStreamPosition(1L).withCurrentStreamRevision(2L)).some))
+        ),
+        exceptions.WrongExpectedState(sec.StreamId("abc").unsafe, StreamPosition(1L), StreamPosition(2L)).asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](
+          bar.withError(Status.of(Code.NOT_FOUND, "StreamDeleted", Any.pack(ps.StreamDeleted(None)).some))
+        ),
+        exceptions.StreamDeleted("<unknown>").asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](
+          bar.withError(Status.of(Code.PERMISSION_DENIED, "AccessDenied", Any.pack(ps.AccessDenied()).some))
+        ),
+        exceptions.AccessDenied.asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](
+          bar.withError(Status.of(Code.DEADLINE_EXCEEDED, "Timeout", Any.pack(ps.Timeout()).some))
+        ).leftMap(_.getMessage),
+        "Timeout - code: DEADLINE_EXCEEDED - message: Timeout".asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](
+          bar.withError(Status.of(Code.UNKNOWN, "Unknown", Any.pack(ps.Unknown()).some))
+        ),
+        exceptions.UnknownError("code: UNKNOWN - message: Unknown").asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](
+          bar.withError(
+            Status.of(Code.FAILED_PRECONDITION, "InvalidTransaction", Any.pack(ps.InvalidTransaction()).some))
+        ),
+        exceptions.InvalidTransaction.asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](
+          bar.withError(
+            Status.of(Code.INVALID_ARGUMENT,
+                      "MaximumAppendSizeExceeded",
+                      Any.pack(ps.MaximumAppendSizeExceeded(1024)).some))
+        ),
+        exceptions.MaximumAppendSizeExceeded(1024.some).asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](
+          bar.withError(Status.of(Code.INVALID_ARGUMENT, "BadRequest", Any.pack(ps.BadRequest("Oh Noes!")).some))
+        ),
+        exceptions.UnknownError("code: INVALID_ARGUMENT - message: Oh Noes!").asLeft
+      )
+
+      assertEquals(
+        mkBatchWriteResult[ErrorOr](
+          bar.withError(Status.of(Code.INVALID_ARGUMENT, "BR", Any.pack("abc".toStreamIdentifer).some))
+        ),
+        exceptions.UnknownError("code: INVALID_ARGUMENT - message: BR").asLeft
+      )
 
     }
 
@@ -831,7 +1001,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
         .withStreamRevision(event.streamPosition.value.toLong)
         .withData(event.eventData.data.toByteString)
         .withCustomMetadata(event.eventData.metadata.toByteString)
-        .withId(UUID().withString(event.eventData.eventId.toString))
+        .withId(ps.UUID().withString(event.eventData.eventId.toString))
         .withMetadata(metadata)
 
       // Sanity checks, see mkEvent for more coverage.
@@ -878,14 +1048,14 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
       val p1 = forAll { (c: ULong, p: ULong) =>
         (p <= c) ==> {
-          mkAllMessageLast[ErrorOr](AllStreamPosition(c.toLong, p.toLong)) ==
+          mkAllMessageLast[ErrorOr](ps.AllStreamPosition(c.toLong, p.toLong)) ==
             AllMessage.LastAllStreamPosition(LogPosition.exact(c.toLong, p.toLong)).asRight
         }
       }
 
       val p2 = forAll { (c: ULong, p: ULong) =>
         (p > c) ==> {
-          mkAllMessageLast[ErrorOr](AllStreamPosition(c.toLong, p.toLong)) ==
+          mkAllMessageLast[ErrorOr](ps.AllStreamPosition(c.toLong, p.toLong)) ==
             InvalidInput(s"commit must be >= prepare, but $c < $p").asLeft
         }
       }
@@ -938,14 +1108,14 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
         val valid = forAll { (c: ULong, p: ULong) =>
           (p <= c) ==> {
-            run(rsp.withLastAllStreamPosition(AllStreamPosition(c.toLong, p.toLong))) ==
+            run(rsp.withLastAllStreamPosition(ps.AllStreamPosition(c.toLong, p.toLong))) ==
               AllResult.LastPositionR(LogPosition.exact(c.toLong, p.toLong)).asRight
           }
         }
 
         val invalid = forAll { (c: ULong, p: ULong) =>
           (p > c) ==> {
-            run(rsp.withLastAllStreamPosition(AllStreamPosition(c.toLong, p.toLong))) ==
+            run(rsp.withLastAllStreamPosition(ps.AllStreamPosition(c.toLong, p.toLong))) ==
               ProtoResultError(s"commit must be >= prepare, but $c < $p").asLeft
           }
         }
@@ -1036,7 +1206,7 @@ object StreamsMappingSuite {
         .withPreparePosition(prepare)
         .withData(data.toByteString)
         .withCustomMetadata(customMeta.toByteString)
-        .withId(UUID().withString(id))
+        .withId(ps.UUID().withString(id))
         .withMetadata(metadata)
 
     val linkStreamId   = "abc"
@@ -1058,7 +1228,7 @@ object StreamsMappingSuite {
       .withPreparePosition(linkPrepare)
       .withData(linkData.toByteString)
       .withCustomMetadata(linkCustomMeta.toByteString)
-      .withId(UUID().withString(linkId))
+      .withId(ps.UUID().withString(linkId))
       .withMetadata(linkMetadata)
 
     val sid = sec.StreamId(streamId).unsafe
@@ -1076,6 +1246,24 @@ object StreamsMappingSuite {
 
     EventAndLink(eventRecord, eventProto, linkRecord, linkProto)
 
+  }
+
+  ///
+
+  def mkJson(nr: Int): EventData = {
+    val id = JUUID.fromString("e5390fcb-48bd-4895-bcc3-01629cca2af6")
+    val et = s"et-$nr"
+    val da = bv(s"""{ "data" : "$nr" }""")
+    val md = bv(s"""{ "meta" : "$nr" }""")
+    sec.EventData(et, id, da, md, sec.ContentType.Json).unsafe
+  }
+
+  def mkBinary(nr: Int): EventData = {
+    val id = JUUID.fromString("b8f5ed88-5aa1-49a6-85d6-c173556436ae")
+    val et = s"et-$nr"
+    val da = bv(s"data@$nr")
+    val md = bv(s"meta@$nr")
+    sec.EventData(et, id, da, md, sec.ContentType.Binary).unsafe
   }
 
 }
