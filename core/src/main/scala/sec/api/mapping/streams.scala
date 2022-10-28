@@ -19,7 +19,7 @@ package api
 package mapping
 
 import java.util.{UUID => JUUID}
-import java.time.ZonedDateTime
+import java.time.Instant
 import java.util.concurrent.TimeoutException
 import cats.{Applicative, ApplicativeThrow, MonadThrow}
 import cats.data.{NonEmptyList, OptionT}
@@ -222,67 +222,65 @@ private[sec] object streams {
         val meta       = Map(Type -> EventType.eventTypeToString(e.eventType), ContentType -> ct)
         AppendReq().withProposedMessage(AppendReq.ProposedMessage(id.some, meta, customMeta, data))
       }
-  }
 
-  def mkBatchAppendHeader(
-    streamId: StreamId,
-    expectedState: StreamState,
-    deadline: Option[ZonedDateTime]
-  ): BatchAppendReq.Options = {
+    def mkBatchAppendHeader(
+      streamId: StreamId,
+      expectedState: StreamState,
+      deadline: Option[Instant]
+    ): BatchAppendReq.Options = {
 
-    import com.google.protobuf.timestamp.Timestamp
+      import com.google.protobuf.timestamp.Timestamp
 
-    val empty = com.google.protobuf.empty.Empty()
+      val empty = com.google.protobuf.empty.Empty()
 
-    val mapExpectedStreamPosition: StreamState => BatchAppendReq.Options.ExpectedStreamPosition = {
-      case StreamPosition.Exact(v)  => BatchAppendReq.Options.ExpectedStreamPosition.StreamPosition(v.toLong)
-      case StreamState.NoStream     => BatchAppendReq.Options.ExpectedStreamPosition.NoStream(empty)
-      case StreamState.StreamExists => BatchAppendReq.Options.ExpectedStreamPosition.StreamExists(empty)
-      case StreamState.Any          => BatchAppendReq.Options.ExpectedStreamPosition.Any(empty)
+      val mapExpectedStreamPosition: StreamState => BatchAppendReq.Options.ExpectedStreamPosition = {
+        case StreamPosition.Exact(v)  => BatchAppendReq.Options.ExpectedStreamPosition.StreamPosition(v.toLong)
+        case StreamState.NoStream     => BatchAppendReq.Options.ExpectedStreamPosition.NoStream(empty)
+        case StreamState.StreamExists => BatchAppendReq.Options.ExpectedStreamPosition.StreamExists(empty)
+        case StreamState.Any          => BatchAppendReq.Options.ExpectedStreamPosition.Any(empty)
+      }
+
+      val req = BatchAppendReq
+        .Options()
+        .withStreamIdentifier(streamId.sid.esSid)
+        .withExpectedStreamPosition(mapExpectedStreamPosition(expectedState))
+
+      deadline.fold(req)(i => req.withDeadline(Timestamp.of(i.getEpochSecond, i.getNano)))
+
     }
 
-    val dl = deadline.map(_.toInstant())
+    def mkBatchAppendProposal(e: EventData): BatchAppendReq.ProposedMessage = {
 
-    val req = BatchAppendReq
-      .Options()
-      .withStreamIdentifier(streamId.sid.esSid)
-      .withExpectedStreamPosition(mapExpectedStreamPosition(expectedState))
+      val id         = mkUuid(e.eventId)
+      val customMeta = e.metadata.toByteString
+      val data       = e.data.toByteString
+      val ct         = e.contentType.fold(ContentTypes.ApplicationOctetStream, ContentTypes.ApplicationJson)
+      val meta       = Map(Type -> EventType.eventTypeToString(e.eventType), ContentType -> ct)
 
-    dl.fold(req)(i => req.withDeadline(Timestamp.of(i.getEpochSecond, i.getNano)))
+      BatchAppendReq.ProposedMessage(id.some, meta, customMeta, data)
 
+    }
+
+    def mkHeaderReq(
+      correlationId: JUUID,
+      streamId: StreamId,
+      expectedState: StreamState,
+      deadline: Option[Instant]
+    ): BatchAppendReq =
+      BatchAppendReq()
+        .withCorrelationId(mkUuid(correlationId))
+        .withOptions(mkBatchAppendHeader(streamId, expectedState, deadline))
+
+    def mkProposalsReq(
+      correlationId: JUUID,
+      data: List[BatchAppendReq.ProposedMessage],
+      isFinal: Boolean
+    ): BatchAppendReq =
+      BatchAppendReq()
+        .withCorrelationId(mkUuid(correlationId))
+        .withProposedMessages(data)
+        .withIsFinal(isFinal)
   }
-
-  def mkBatchAppendProposal(e: EventData): BatchAppendReq.ProposedMessage = {
-
-    val id         = mkUuid(e.eventId)
-    val customMeta = e.metadata.toByteString
-    val data       = e.data.toByteString
-    val ct         = e.contentType.fold(ContentTypes.ApplicationOctetStream, ContentTypes.ApplicationJson)
-    val meta       = Map(Type -> EventType.eventTypeToString(e.eventType), ContentType -> ct)
-
-    BatchAppendReq.ProposedMessage(id.some, meta, customMeta, data)
-
-  }
-
-  def mkHeaderReq(
-    correlationId: JUUID,
-    streamId: StreamId,
-    expectedState: StreamState,
-    deadline: Option[ZonedDateTime]
-  ): BatchAppendReq =
-    BatchAppendReq()
-      .withCorrelationId(mkUuid(correlationId))
-      .withOptions(mkBatchAppendHeader(streamId, expectedState, deadline))
-
-  def mkProposalsReq(
-    correlationId: JUUID,
-    data: List[BatchAppendReq.ProposedMessage],
-    isFinal: Boolean
-  ): BatchAppendReq =
-    BatchAppendReq()
-      .withCorrelationId(mkUuid(correlationId))
-      .withProposedMessages(data)
-      .withIsFinal(isFinal)
 
 //======================================================================================================================
 //                                                     Incoming
@@ -436,7 +434,7 @@ private[sec] object streams {
 
         val logPositionExact: Either[Throwable, LogPosition.Exact] = s.positionOption match {
           case Success.PositionOption.Position(p)   => LogPosition.exact(p.commitPosition, p.preparePosition).asRight
-          case Success.PositionOption.NoPosition(_) => mkError("Did not expect NoPosition when using NonEmptyList")
+          case Success.PositionOption.NoPosition(_) => mkError("Did not expect NoPosition")
           case Success.PositionOption.Empty         => mkError("PositionOption is missing")
         }
 
@@ -471,7 +469,7 @@ private[sec] object streams {
           else if (v.is[pshared.AccessDenied])
             raise(AccessDenied)
           else if (v.is[pshared.Timeout])
-            raise(new TimeoutException()) // DeadlineExceded - we have operations retry timeout.
+            raise(new TimeoutException(s"Timeout - code: ${f.code.name} - message: ${f.message}"))
           else if (v.is[pshared.Unknown])
             raise(mkUnknown(f.message))
           else if (v.is[pshared.InvalidTransaction])
@@ -486,8 +484,8 @@ private[sec] object streams {
       }
 
       bar.result match {
-        case BatchAppendResp.Result.Error(value) => failure(value)
         case BatchAppendResp.Result.Success(v)   => success(v).liftTo[F]
+        case BatchAppendResp.Result.Error(value) => failure(value)
         case BatchAppendResp.Result.Empty        => mkError("Result is missing").liftTo[F]
       }
     }
