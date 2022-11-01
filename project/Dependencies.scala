@@ -29,6 +29,7 @@ object Dependencies {
   val cats         = "org.typelevel"           %% "cats-core"         % versions.catsCore
   val catsEffect   = "org.typelevel"           %% "cats-effect"       % versions.catsEffect
   val fs2          = "co.fs2"                  %% "fs2-core"          % versions.fs2
+  val fs2Io        = "co.fs2"                  %% "fs2-io"            % versions.fs2
   val log4cats     = "org.typelevel"           %% "log4cats-core"     % versions.log4cats
   val log4catsNoop = "org.typelevel"           %% "log4cats-noop"     % versions.log4cats
   val unum         = "io.github.ahjohannessen" %% "unum"              % versions.unum

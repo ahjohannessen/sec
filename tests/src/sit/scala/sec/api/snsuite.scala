@@ -48,10 +48,11 @@ trait SnSuite extends ClientSuite {
 object SnSuite {
 
   final private val certsFolder = new File(sys.env.getOrElse("SEC_SIT_CERTS_PATH", BuildInfo.certsPath))
-  final private val cert        = new File(certsFolder, "ca/ca.crt")
-  final private val authority   = sys.env.getOrElse("SEC_SIT_AUTHORITY", "es.sec.local")
-  final private val address     = sys.env.getOrElse("SEC_SIT_HOST_ADDRESS", "127.0.0.1")
-  final private val port        = sys.env.get("SEC_SIT_HOST_PORT").flatMap(_.toIntOption).getOrElse(2113)
+  final val cert                = new File(certsFolder, "ca/ca.crt")
+
+  final private val authority = sys.env.getOrElse("SEC_SIT_AUTHORITY", "es.sec.local")
+  final private val address   = sys.env.getOrElse("SEC_SIT_HOST_ADDRESS", "127.0.0.1")
+  final private val port      = sys.env.get("SEC_SIT_HOST_PORT").flatMap(_.toIntOption).getOrElse(2113)
 
   //
 

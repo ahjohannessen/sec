@@ -19,8 +19,9 @@ package tsc
 
 import java.io.File
 import scala.concurrent.duration._
-import com.typesafe.config._
 import cats.data.NonEmptySet
+import cats.syntax.all._
+import com.typesafe.config._
 import org.typelevel.log4cats.noop.NoOpLogger
 import sec.tsc.config._
 import sec.api._
@@ -251,6 +252,44 @@ class ConfigSuite extends SecSuite {
         .withOperationsRetryMaxAttempts(1000)
 
       assertEquals(mkOptions[ErrorOr](cfg), Right(expected))
+
+    }
+
+    test("config/certificate") {
+
+      val cfg1 = ConfigFactory.parseString(
+        """
+          | sec {
+          |   certificate-path = "path/to/certificate"
+          |   certificate-b64  = "cTaciKkQb2IAgPPfl1OdE3ErJtHyRXNbLAcI0ISciS4="
+          | }
+          |""".stripMargin
+      )
+
+      assertEquals(
+        mkOptions[ErrorOr](cfg1),
+        Options.default.withSecureMode(new File("path/to/certificate")).asRight
+      )
+
+      val cfg2 = ConfigFactory.parseString(
+        """sec.certificate-b64 = "cTaciKkQb2IAgPPfl1OdE3ErJtHyRXNbLAcI0ISciS4=""""
+      )
+
+      assertEquals(
+        mkOptions[ErrorOr](cfg2),
+        Options.default.withSecureMode("cTaciKkQb2IAgPPfl1OdE3ErJtHyRXNbLAcI0ISciS4=").asRight
+      )
+
+      val cfg3 = ConfigFactory.parseString(
+        """
+          | sec {
+          |   certificate-path = ""
+          |   certificate-b64 = ""
+          | }
+          |""".stripMargin
+      )
+
+      assertEquals(mkOptions[ErrorOr](cfg3), Options.default.withInsecureMode.asRight)
 
     }
 
