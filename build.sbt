@@ -33,7 +33,11 @@ lazy val core = project
       // Generated code not for end users
       ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.scalaDescriptor"),
       ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.shared.*")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.shared.*"),
+      // Package private
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("sec.api.ConnectionMode#Secure.*"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("sec.api.ConnectionMode#Secure.*"),
+      ProblemFilters.exclude[MissingTypesProblem]("sec.api.ConnectionMode$Secure$")
     )
   )
 
