@@ -16,10 +16,11 @@
 
 package sec.api
 
-import java.io.File
+import java.io.{File, InputStream}
 import scala.concurrent.duration._
 import cats.syntax.all._
 import cats.effect.{Resource, Sync}
+import scodec.bits.ByteVector
 import io.grpc._
 import sec.api.ConnectionMode._
 
@@ -27,18 +28,28 @@ private[sec] object channel {
 
   def mkCredentials[F[_]: Sync](cm: ConnectionMode): F[Option[ChannelCredentials]] = {
 
-    def make(cert: File): F[ChannelCredentials] = Sync[F].blocking {
-      TlsChannelCredentials.newBuilder().trustManager(cert).build()
+    def from(cert: Either[File, InputStream]): F[ChannelCredentials] = Sync[F].blocking {
+      val builder = TlsChannelCredentials.newBuilder()
+      cert.fold(builder.trustManager, builder.trustManager).build()
     }
+
+    def fromFile(cert: File): F[ChannelCredentials] = from(cert.asLeft)
+
+    def fromB64(cert: CertB64): F[ChannelCredentials] = ByteVector
+      .fromBase64Descriptive(cert.value)
+      .map(_.toInputStream)
+      .leftMap(new IllegalArgumentException(_))
+      .liftTo[F]
+      .flatMap(is => from(is.asRight))
 
     cm match {
       case Insecure     => none[ChannelCredentials].pure[F]
-      case Secure(cert) => make(cert).map(_.some)
+      case Secure(cert) => cert.fold(fromFile, fromB64).map(_.some)
     }
 
   }
 
-  // /
+  //
 
   def resource[F[_]: Sync](acquire: => ManagedChannel, shutdownAwait: FiniteDuration): Resource[F, ManagedChannel] = {
     resourceWithShutdown[F](acquire) { ch =>

@@ -40,12 +40,12 @@ private[sec] object config {
   private val clPath   = s"$rootPath.cluster"
   private val coPath   = s"$clPath.options"
 
-  // /
+  //
 
   private val getAuthority: Config => Option[String] = cfg =>
     cfg.option(s"$rootPath.authority", _.getString).filter(_.trim.nonEmpty)
 
-  // /
+  //
 
   def mkClient[F[_]: Async, MCB <: ManagedChannelBuilder[MCB]](
     mcb: ChannelBuilderParams => F[MCB],
@@ -62,7 +62,7 @@ private[sec] object config {
       case Right(s) => s.build(mcb)
     }
 
-  // /
+  //
 
   def mkBuilder[F[_]: MonadThrow](
     cfg: Config,
@@ -118,16 +118,27 @@ private[sec] object config {
 
   }
 
-  // /
+  //
 
   def mkOptions[F[_]: ApplicativeThrow](cfg: Config): F[Options] = {
 
-    val certificate: Endo[Options] = o =>
-      cfg
+    val certificate: Endo[Options] = o => {
+
+      val certFile: Option[File] = cfg
         .option(s"$rootPath.certificate-path", _.getString)
         .filter(_.trim.nonEmpty)
         .map(new File(_))
-        .fold(o.withInsecureMode)(o.withSecureMode)
+
+      val certBase64: Option[String] = cfg
+        .option(s"$rootPath.certificate-b64", _.getString)
+        .filter(_.trim.nonEmpty)
+
+      val cert: Option[Either[File, String]] =
+        certFile.map(_.asLeft).orElse(certBase64.map(_.asRight))
+
+      cert.fold(o.withInsecureMode)(_.fold(o.withSecureMode, o.withSecureMode))
+
+    }
 
     val credentials: Endo[Options] = o =>
       (cfg.option(s"$rootPath.username", _.getString), cfg.option(s"$rootPath.password", _.getString))
@@ -154,7 +165,7 @@ private[sec] object config {
 
   }
 
-  // /
+  //
 
   def mkClusterOptions[F[_]: ApplicativeThrow](cfg: Config): F[ClusterOptions] = {
 

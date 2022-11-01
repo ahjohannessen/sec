@@ -101,6 +101,7 @@ lazy val tests = project
     Test / headerSources ++= (SingleNodeITest / sources).value ++ (ClusterITest / sources).value,
     libraryDependencies :=
       compileM(
+        fs2Io,
         catsLaws,
         scalaCheck,
         munit,

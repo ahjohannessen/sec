@@ -52,6 +52,7 @@ private[sec] object Options {
       o.copy(operationOptions = fn(o.operationOptions))
 
     def withSecureMode(cert: File): Options                         = o.copy(connectionMode = Secure(cert))
+    def withSecureMode(certBase64: String): Options                 = o.copy(connectionMode = Secure(certBase64))
     def withInsecureMode: Options                                   = o.copy(connectionMode = Insecure)
     def withConnectionName(name: String): Options                   = o.copy(connectionName = name)
     def withCredentials(creds: Option[UserCredentials]): Options    = o.copy(credentials = creds)
@@ -70,8 +71,15 @@ private[sec] object Options {
 
 sealed private[sec] trait ConnectionMode
 private[sec] object ConnectionMode {
+
+  final case class CertB64(value: String) extends AnyVal
+
   case object Insecure extends ConnectionMode
-  final case class Secure(cert: File) extends ConnectionMode
+  final case class Secure(cert: Either[File, CertB64]) extends ConnectionMode
+  object Secure {
+    def apply(file: File): Secure     = Secure(file.asLeft)
+    def apply(base64: String): Secure = Secure(CertB64(base64).asRight)
+  }
 }
 
 //======================================================================================================================
@@ -156,6 +164,7 @@ private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]] {
   private[sec] def modOptions(fn: Options => Options): B
 
   def withCertificate(value: File): B                       = modOptions(_.withSecureMode(value))
+  def withCertificate(base64: String): B                    = modOptions(_.withSecureMode(base64))
   def withConnectionName(value: String): B                  = modOptions(_.withConnectionName(value))
   def withCredentials(value: Option[UserCredentials]): B    = modOptions(_.withCredentials(value))
   def withChannelShutdownAwait(value: FiniteDuration): B    = modOptions(_.withChannelShutdownAwait(value))
