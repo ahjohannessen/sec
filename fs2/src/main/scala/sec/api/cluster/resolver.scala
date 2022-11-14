@@ -57,7 +57,7 @@ private[sec] object Resolver {
     seed: NonEmptySet[Endpoint],
     updates: Stream[F, ClusterInfo],
     log: Logger[F]
-  ): Resource[F, Resolver[F]] = Dispatcher[F] >>= { d =>
+  ): Resource[F, Resolver[F]] = Dispatcher.parallel[F] >>= { d =>
     Notifier.gossip[F](seed, updates, log).map(Resolver[F](authority, _, d))
   }
 
@@ -66,7 +66,7 @@ private[sec] object Resolver {
     np: NodePreference,
     updates: Stream[F, ClusterInfo],
     log: Logger[F]
-  ): Resource[F, Resolver[F]] = Dispatcher[F] >>= { d =>
+  ): Resource[F, Resolver[F]] = Dispatcher.parallel[F] >>= { d =>
     Notifier.bestNodes[F](np, updates, log).map(Resolver[F](authority, _, d))
   }
 
