@@ -79,10 +79,10 @@ jobs:
 
       - name: Compile docs
         if: contains(matrix.scala, '2.13.10')
-        run: sbt '++${{ matrix.scala }}' compileDocs
+        run: sbt '++ ${{ matrix.scala }}' compileDocs
 
       - name: Regular tests
-        run: sbt '++${{ matrix.scala }}' compileTests tests/test
+        run: sbt '++ ${{ matrix.scala }}' compileTests tests/test
 
       - name: Single node integration tests
         if: contains(matrix.scala, '2.13.10')
@@ -220,13 +220,13 @@ jobs:
           (echo "$PGP_PASSPHRASE"; echo; echo) | gpg --command-fd 0 --pinentry-mode loopback --change-passphrase $(gpg --list-secret-keys --with-colons 2> /dev/null | grep '^sec:' | cut --delimiter ':' --fields 5 | tail -n 1)
 
       - name: Publish
-        run: sbt '++${{ matrix.scala }}' tlRelease
+        run: sbt '++ ${{ matrix.scala }}' tlRelease
 
       - name: Compile docs
         if: contains(matrix.scala, '2.13.10')
-        run: sbt '++${{ matrix.scala }}' compileDocs
+        run: sbt '++ ${{ matrix.scala }}' compileDocs
 
       - if: contains(matrix.scala, '2.13.10') && github.ref == 'refs/heads/main'
         env:
           GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
-        run: sbt '++${{ matrix.scala }}' docs/docusaurusPublishGhpages
+        run: sbt '++ ${{ matrix.scala }}' docs/docusaurusPublishGhpages
