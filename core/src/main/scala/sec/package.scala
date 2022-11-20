@@ -16,11 +16,6 @@
 
 package object sec {
 
-  type AllEvent    = sec.Event[PositionInfo.Global]
-  type StreamEvent = sec.Event[PositionInfo.Local]
-
-  // /
-
   private[sec] type Attempt[T] = Either[String, T]
   private[sec] type ErrorOr[T] = Either[Throwable, T]
 

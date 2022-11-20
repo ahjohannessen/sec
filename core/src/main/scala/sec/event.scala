@@ -29,19 +29,15 @@ import sec.utilities.{guardNonEmpty, guardNotStartsWith}
   *
   *   - [[EventRecord]] An event in an event stream.
   *   - [[ResolvedEvent]] A special event that contains a link and a linked event record.
-  *
-  * @tparam P
-  *   Tells whether the event is retrieved from the global stream [[PositionInfo.Global]] or from an individual stream
-  *   [[PositionInfo.Local]].
   */
-sealed trait Event[P <: PositionInfo]
+sealed trait Event
 object Event {
 
-  implicit final class EventOps[P <: PositionInfo](val e: Event[P]) extends AnyVal {
+  implicit final class EventOps(val e: Event) extends AnyVal {
 
-    def fold[A](f: EventRecord[P] => A, g: ResolvedEvent[P] => A): A = e match {
-      case er: EventRecord[P]   => f(er)
-      case re: ResolvedEvent[P] => g(re)
+    def fold[A](f: EventRecord => A, g: ResolvedEvent => A): A = e match {
+      case er: EventRecord   => f(er)
+      case re: ResolvedEvent => g(re)
     }
 
     /** The stream identifier of the stream the event belongs to.
@@ -51,7 +47,12 @@ object Event {
     /** The stream position of the event in its stream.
       */
     def streamPosition: StreamPosition.Exact =
-      e.fold(_.position.streamPosition, _.event.position.streamPosition)
+      e.fold(_.streamPosition, _.event.streamPosition)
+
+    /** The position of the event in the global stream.
+      */
+    def logPosition: LogPosition.Exact =
+      e.fold(_.logPosition, _.event.logPosition)
 
     /** The payload of the event.
       */
@@ -60,7 +61,7 @@ object Event {
     /** The actual event record of this event. There are two options. Either the record points to a normal event or a
       * resolved event.
       */
-    def record: EventRecord[P] = e.fold(identity, _.link)
+    def record: EventRecord = e.fold(identity, _.link)
 
     /** The creation date of the event in [[java.time.ZonedDateTime]].
       */
@@ -69,45 +70,42 @@ object Event {
     def render: String = fold(EventRecord.render, ResolvedEvent.render)
   }
 
-  implicit final class AllEventOps(val e: AllEvent) extends AnyVal {
-
-    /** The position of the event in the global stream.
-      */
-    def logPosition: LogPosition.Exact = e.fold(_.position.log, _.event.position.log)
-  }
-
 }
 
 /** An event persisted in an event stream.
   *
   * @param streamId
   *   the stream identifier of the stream the event belongs to.
-  * @param position
-  *   the position information about of the event.
+  * @param streamPosition
+  *   The stream position of the event in its stream.
+  * @param logPosition
+  *   The position of the event in the global stream.
   * @param eventData
   *   the payload of the event.
   * @param created
   *   the creation date of the event in [[java.time.ZonedDateTime]].
   */
-final case class EventRecord[P <: PositionInfo](
+final case class EventRecord(
   streamId: StreamId,
-  position: P,
+  streamPosition: StreamPosition.Exact,
+  logPosition: LogPosition.Exact,
   eventData: EventData,
   created: ZonedDateTime
-) extends Event[P]
+) extends Event
 
 object EventRecord {
 
-  def render[P <: PositionInfo](er: EventRecord[P]): String =
+  def render(er: EventRecord): String =
     s"""
        |EventRecord(
-       |  streamId = ${er.streamId.render},
-       |  eventId  = ${er.eventData.eventId},
-       |  type     = ${er.eventData.eventType.render},
-       |  position = ${er.position.renderPosition},
-       |  data     = ${er.eventData.renderData},
-       |  metadata = ${er.eventData.renderMetadata},
-       |  created  = ${er.created}
+       |  streamId       = ${er.streamId.render},
+       |  eventId        = ${er.eventData.eventId},
+       |  type           = ${er.eventData.eventType.render},
+       |  streamPosition = ${er.streamPosition.value.render},
+       |  logPosition    = ${er.logPosition.render},
+       |  data           = ${er.eventData.renderData},
+       |  metadata       = ${er.eventData.renderMetadata},
+       |  created        = ${er.created}
        |)
        |""".stripMargin
 
@@ -121,14 +119,14 @@ object EventRecord {
   * @param link
   *   the link event to the resolved event.
   */
-final case class ResolvedEvent[P <: PositionInfo](
-  event: EventRecord[P],
-  link: EventRecord[P]
-) extends Event[P]
+final case class ResolvedEvent(
+  event: EventRecord,
+  link: EventRecord
+) extends Event
 
 object ResolvedEvent {
 
-  def render[P <: PositionInfo](re: ResolvedEvent[P]): String =
+  def render(re: ResolvedEvent): String =
     s"""
        |ResolvedEvent(
        |  event = ${EventRecord.render(re.event)},

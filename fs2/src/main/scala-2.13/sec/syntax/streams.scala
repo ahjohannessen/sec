@@ -33,11 +33,11 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * @param exclusiveFrom
     *   position to start from. Use [[None]] to subscribe from the beginning.
     * @return
-    *   a [[Stream]] that emits [[AllEvent]] values.
+    *   a [[Stream]] that emits [[Event]] values.
     */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition]
-  ): Stream[F, AllEvent] =
+  ): Stream[F, Event] =
     s.subscribeToAll(exclusiveFrom, resolveLinkTos = false)
 
   /** Subscribes to the global stream, [[StreamId.All]] using a subscription filter without resolving
@@ -48,13 +48,13 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * @param filterOptions
     *   to use when subscribing - See [[sec.api.SubscriptionFilterOptions]].
     * @return
-    *   a [[Stream]] that emits either [[Checkpoint]] or [[AllEvent]] values. How frequent [[Checkpoint]] is emitted
+    *   a [[Stream]] that emits either [[Checkpoint]] or [[Event]] values. How frequent [[Checkpoint]] is emitted
     *   depends on [[filterOptions]].
     */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
     filterOptions: SubscriptionFilterOptions
-  ): Stream[F, Either[Checkpoint, AllEvent]] =
+  ): Stream[F, Either[Checkpoint, Event]] =
     s.subscribeToAll(exclusiveFrom, filterOptions, resolveLinkTos = false)
 
   /** Subscribes to an individual stream without resolving [[EventType.LinkTo]] events.
@@ -64,12 +64,12 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * @param exclusiveFrom
     *   stream position to start from. Use [[None]] to subscribe from the beginning.
     * @return
-    *   a [[Stream]] that emits [[StreamEvent]] values.
+    *   a [[Stream]] that emits [[Event]] values.
     */
   def subscribeToStream(
     streamId: StreamId,
     exclusiveFrom: Option[StreamPosition]
-  ): Stream[F, StreamEvent] =
+  ): Stream[F, Event] =
     s.subscribeToStream(streamId, exclusiveFrom, resolveLinkTos = false)
 
   // / Read
@@ -83,13 +83,13 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[AllEvent]] values.
+    *   a [[Stream]] that emits [[Event]] values.
     */
   def readAllForwards(
     from: LogPosition = LogPosition.Start,
     maxCount: Long = Long.MaxValue,
     resolveLinkTos: Boolean = false
-  ): Stream[F, AllEvent] =
+  ): Stream[F, Event] =
     s.readAll(from, Direction.Forwards, maxCount, resolveLinkTos)
 
   /** Read events backwards from the global stream, [[sec.StreamId.All]].
@@ -101,13 +101,13 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[AllEvent]] values.
+    *   a [[Stream]] that emits [[Event]] values.
     */
   def readAllBackwards(
     from: LogPosition = LogPosition.End,
     maxCount: Long = Long.MaxValue,
     resolveLinkTos: Boolean = false
-  ): Stream[F, AllEvent] =
+  ): Stream[F, Event] =
     s.readAll(from, Direction.Backwards, maxCount, resolveLinkTos)
 
   /** Read events forwards from an individual stream. A [[sec.api.exceptions.StreamNotFound]] is raised when the stream
@@ -122,14 +122,14 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[StreamEvent]] values.
+    *   a [[Stream]] that emits [[Event]] values.
     */
   def readStreamForwards(
     streamId: StreamId,
     from: StreamPosition = StreamPosition.Start,
     maxCount: Long = Long.MaxValue,
     resolveLinkTos: Boolean = false
-  ): Stream[F, StreamEvent] =
+  ): Stream[F, Event] =
     s.readStream(streamId, from, Direction.Forwards, maxCount, resolveLinkTos)
 
   /** Read events backwards from an individual stream. A [[sec.api.exceptions.StreamNotFound]] is raised when the stream
@@ -144,14 +144,14 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[StreamEvent]] values.
+    *   a [[Stream]] that emits [[Event]] values.
     */
   def readStreamBackwards(
     streamId: StreamId,
     from: StreamPosition = StreamPosition.End,
     maxCount: Long = Long.MaxValue,
     resolveLinkTos: Boolean = false
-  ): Stream[F, StreamEvent] =
+  ): Stream[F, Event] =
     s.readStream(streamId, from, Direction.Backwards, maxCount, resolveLinkTos)
 
 }
