@@ -81,27 +81,4 @@ class VersionSuite extends SecDisciplineSuite {
     }
   }
 
-  group("PositionInfo") {
-
-    test("renderPosition") {
-
-      val stream = StreamPosition(1L)
-      val all    = PositionInfo.Global(stream, LogPosition.exact(2L, 3L))
-
-      assertEquals((stream: PositionInfo).renderPosition, "stream: 1")
-      assertEquals((all: PositionInfo).renderPosition, "log: (c = 2, p = 3), stream: 1")
-    }
-
-    test("streamPosition") {
-
-      val stream = StreamPosition(1L)
-      val all    = PositionInfo.Global(stream, LogPosition.exact(2L, 3L))
-
-      assertEquals((stream: PositionInfo).streamPosition, StreamPosition(1L))
-      assertEquals((all: PositionInfo).streamPosition, StreamPosition(1L))
-
-    }
-
-  }
-
 }

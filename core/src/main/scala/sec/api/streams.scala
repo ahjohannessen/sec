@@ -75,7 +75,7 @@ final private[sec] case class SubscriptionConfirmation(
   *
   * There are four variants:
   *
-  *   - [[StreamMessage.Event]] A regular [[StreamEvent]].
+  *   - [[StreamMessage.StreamEvent]] A regular [[Event]].
   *   - [[StreamMessage.FirstStreamPosition]] The first position of a stream.
   *   - [[StreamMessage.LastStreamPosition]] The last position of a stream.
   *   - [[StreamMessage.NotFound]] Representing a stream that was not found.
@@ -83,7 +83,7 @@ final private[sec] case class SubscriptionConfirmation(
 sealed trait StreamMessage
 object StreamMessage {
 
-  final case class Event(event: StreamEvent) extends StreamMessage
+  final case class StreamEvent(event: Event) extends StreamMessage
   final case class FirstStreamPosition(position: StreamPosition) extends StreamMessage
   final case class LastStreamPosition(position: StreamPosition) extends StreamMessage
   final case class NotFound(streamId: StreamId) extends StreamMessage
@@ -98,18 +98,18 @@ object StreamMessage {
   implicit final class StreamMessageOps(val sm: StreamMessage) extends AnyVal {
 
     def fold[A](
-      eFn: Event => A,
+      seFn: StreamEvent => A,
       fpFn: FirstStreamPosition => A,
       lpFn: LastStreamPosition => A,
       nfFn: NotFound => A
     ): A = sm match {
-      case x: Event               => eFn(x)
+      case x: StreamEvent         => seFn(x)
       case x: FirstStreamPosition => fpFn(x)
       case x: LastStreamPosition  => lpFn(x)
       case x: NotFound            => nfFn(x)
     }
 
-    def event: Option[Event]               = fold(_.some, _ => none, _ => none, _ => none)
+    def event: Option[StreamEvent]         = fold(_.some, _ => none, _ => none, _ => none)
     def first: Option[FirstStreamPosition] = fold(_ => none, _.some, _ => none, _ => none)
     def last: Option[LastStreamPosition]   = fold(_ => none, _ => none, _.some, _ => none)
     def notFound: Option[NotFound]         = fold(_ => none, _ => none, _ => none, _.some)
@@ -127,13 +127,13 @@ object StreamMessage {
   *
   * There are two variants:
   *
-  *   - [[AllMessage.Event]] A regular [[AllEvent]].
+  *   - [[AllMessage.AllEvent]] A regular [[Event]].
   *   - [[AllMessage.LastAllStreamPosition]] The last position in the global, [[sec.StreamId.All]], stream.
   */
 sealed trait AllMessage
 object AllMessage {
 
-  final case class Event(event: AllEvent) extends AllMessage
+  final case class AllEvent(event: Event) extends AllMessage
   final case class LastAllStreamPosition(position: LogPosition) extends AllMessage
 
   //
@@ -141,14 +141,14 @@ object AllMessage {
   implicit final class AllMessageOps(val am: AllMessage) extends AnyVal {
 
     def fold[A](
-      eFn: Event => A,
+      aeFn: AllEvent => A,
       lpFn: LastAllStreamPosition => A
     ): A = am match {
-      case x: Event                 => eFn(x)
+      case x: AllEvent              => aeFn(x)
       case x: LastAllStreamPosition => lpFn(x)
     }
 
-    def event: Option[Event]                = fold(_.some, _ => none)
+    def event: Option[AllEvent]             = fold(_.some, _ => none)
     def last: Option[LastAllStreamPosition] = fold(_ => none, _.some)
 
     def isEvent: Boolean = event.isDefined

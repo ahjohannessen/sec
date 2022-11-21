@@ -288,9 +288,6 @@ private[sec] object streams {
 
   object incoming {
 
-    def mkPositionGlobal[F[_]: ApplicativeThrow](e: ReadResp.ReadEvent.RecordedEvent): F[PositionInfo.Global] =
-      (mkStreamPosition[F](e), mkLogPosition[F](e)).mapN(PositionInfo.Global.apply)
-
     def mkLogPosition[F[_]: ApplicativeThrow](e: ReadResp.ReadEvent.RecordedEvent): F[LogPosition.Exact] =
       LogPosition(e.commitPosition, e.preparePosition).liftTo[F]
 
@@ -303,11 +300,10 @@ private[sec] object streams {
         .leftMap(error => ProtoResultError(s"Invalid position for Checkpoint: ${error.msg}"))
         .liftTo[F]
 
-    def mkCheckpointOrEvent[F[_]: MonadThrow](re: ReadResp): F[Option[Either[Checkpoint, AllEvent]]] = {
+    def mkCheckpointOrEvent[F[_]: MonadThrow](re: ReadResp): F[Option[Either[Checkpoint, Event]]] = {
 
-      val mkEvt      = mkEvent[F, PositionInfo.Global](_, mkPositionGlobal[F])
-      val event      = OptionT(re.content.event.flatTraverse(mkEvt).nested.map(_.asRight[Checkpoint]).value)
-      val checkpoint = OptionT(re.content.checkpoint.traverse(mkCheckpoint[F]).nested.map(_.asLeft[AllEvent]).value)
+      val event      = OptionT(re.content.event.flatTraverse(mkEvent[F]).nested.map(_.asRight[Checkpoint]).value)
+      val checkpoint = OptionT(re.content.checkpoint.traverse(mkCheckpoint[F]).nested.map(_.asLeft[Event]).value)
 
       (event <+> checkpoint).value
     }
@@ -318,16 +314,8 @@ private[sec] object streams {
     def failStreamNotFound[F[_]: MonadThrow](rr: ReadResp): F[ReadResp] =
       rr.content.streamNotFound.fold(rr.pure[F])(mkStreamNotFound[F](_) >>= (_.raiseError[F, ReadResp]))
 
-    def reqReadAll[F[_]: MonadThrow](rr: ReadResp): F[Option[AllEvent]] =
-      reqReadEvent(rr, mkPositionGlobal[F])
-
-    def reqReadStream[F[_]: MonadThrow](rr: ReadResp): F[Option[StreamEvent]] =
-      reqReadEvent(rr, mkStreamPosition[F])
-
-    def reqReadEvent[F[_]: MonadThrow, P <: PositionInfo](
-      rr: ReadResp,
-      mkPos: ReadResp.ReadEvent.RecordedEvent => F[P]): F[Option[Event[P]]] =
-      rr.content.event.require[F]("ReadEvent") >>= (mkEvent[F, P](_, mkPos))
+    def reqReadEvent[F[_]: MonadThrow](rr: ReadResp): F[Option[Event]] =
+      rr.content.event.require[F]("ReadEvent") >>= (mkEvent[F])
 
     def reqConfirmation[F[_]: ApplicativeThrow](rr: ReadResp): F[SubscriptionConfirmation] =
       rr.content.confirmation
@@ -335,22 +323,18 @@ private[sec] object streams {
         .require[F]("SubscriptionConfirmation", details = s"Got ${rr.content} instead".some)
         .map(SubscriptionConfirmation(_))
 
-    def mkEvent[F[_]: MonadThrow, P <: PositionInfo](
-      re: ReadResp.ReadEvent,
-      mkPos: ReadResp.ReadEvent.RecordedEvent => F[P]
-    ): F[Option[Event[P]]] =
-      re.event.traverse(e => mkEventRecord[F, P](e, mkPos)) >>= { eOpt =>
+    def mkEvent[F[_]: MonadThrow](re: ReadResp.ReadEvent): F[Option[Event]] =
+      re.event.traverse(mkEventRecord[F]) >>= { eOpt =>
         re.link
-          .traverse(e => mkEventRecord[F, P](e, mkPos))
-          .map(lOpt => eOpt.map(er => lOpt.fold[Event[P]](er)(ResolvedEvent[P](er, _))))
+          .traverse(mkEventRecord[F])
+          .map(lOpt => eOpt.map(er => lOpt.fold[Event](er)(ResolvedEvent(er, _))))
       }
 
-    def mkEventRecord[F[_]: MonadThrow, P <: PositionInfo](
-      e: ReadResp.ReadEvent.RecordedEvent,
-      mkPos: ReadResp.ReadEvent.RecordedEvent => F[P]): F[EventRecord[P]] = {
+    def mkEventRecord[F[_]: MonadThrow](e: ReadResp.ReadEvent.RecordedEvent): F[EventRecord] = {
 
       val streamId    = mkStreamId[F](e.streamIdentifier)
-      val position    = mkPos(e)
+      val position    = mkStreamPosition[F](e)
+      val logPosition = mkLogPosition[F](e)
       val data        = e.data.toByteVector
       val customMeta  = e.customMetadata.toByteVector
       val eventId     = e.id.require[F]("UUID") >>= mkJuuid[F]
@@ -359,7 +343,8 @@ private[sec] object streams {
       val created     = e.metadata.get(Created).flatMap(_.toLongOption).require[F](Created) >>= fromTicksSinceEpoch[F]
       val eventData   = (eventType, eventId, contentType).mapN((t, i, ct) => EventData(t, i, data, customMeta, ct))
 
-      (streamId, position, eventData, created).mapN((id, p, ed, c) => sec.EventRecord(id, p, ed, c))
+      (streamId, position, logPosition, eventData, created).mapN((id, p, lp, ed, c) =>
+        sec.EventRecord(id, p, lp, ed, c))
 
     }
 
@@ -507,8 +492,8 @@ private[sec] object streams {
     def mkStreamMessageNotFound[F[_]: MonadThrow](p: ReadResp.StreamNotFound): F[StreamMessage.NotFound] =
       p.streamIdentifier.require[F]("StreamIdentifer") >>= { mkStreamId[F](_).map(StreamMessage.NotFound(_)) }
 
-    def mkStreamMessageEvent[F[_]: MonadThrow](p: ReadResp.ReadEvent): F[Option[StreamMessage.Event]] =
-      mkEvent(p, mkStreamPosition[F]).map(_.map(StreamMessage.Event(_)))
+    def mkStreamMessageEvent[F[_]: MonadThrow](p: ReadResp.ReadEvent): F[Option[StreamMessage.StreamEvent]] =
+      mkEvent[F](p).map(_.map(StreamMessage.StreamEvent(_)))
 
     def mkStreamMessageFirst[F[_]: Applicative](v: Long): F[StreamMessage.FirstStreamPosition] =
       StreamMessage.FirstStreamPosition(StreamPosition(v)).pure[F]
@@ -516,8 +501,8 @@ private[sec] object streams {
     def mkStreamMessageLast[F[_]: Applicative](v: Long): F[StreamMessage.LastStreamPosition] =
       StreamMessage.LastStreamPosition(StreamPosition(v)).pure[F]
 
-    def mkAllMessageEvent[F[_]: MonadThrow](p: ReadResp.ReadEvent): F[Option[AllMessage.Event]] =
-      mkEvent(p, mkPositionGlobal[F]).map(_.map(AllMessage.Event(_)))
+    def mkAllMessageEvent[F[_]: MonadThrow](p: ReadResp.ReadEvent): F[Option[AllMessage.AllEvent]] =
+      mkEvent[F](p).map(_.map(AllMessage.AllEvent(_)))
 
     def mkAllMessageLast[F[_]: ApplicativeThrow](p: pshared.AllStreamPosition): F[AllMessage.LastAllStreamPosition] =
       LogPosition(p.commitPosition, p.preparePosition).liftTo[F].map(AllMessage.LastAllStreamPosition(_))
@@ -529,13 +514,13 @@ private[sec] object streams {
 
       import ReadResp.{Content => c}
 
-      final case class EventR(event: Option[AllEvent]) extends AllResult
+      final case class EventR(event: Option[sec.Event]) extends AllResult
       final case class CheckpointR(checkpoint: Checkpoint) extends AllResult
       final case class ConfirmationR(confirmation: SubscriptionConfirmation) extends AllResult
       final case class LastPositionR(position: LogPosition) extends AllResult
 
       def fromWire[F[_]](p: ReadResp)(implicit F: MonadThrow[F]): F[AllResult] = p.content match {
-        case c.Event(v)        => mkEvent[F, PositionInfo.Global](v, mkPositionGlobal[F]).map(EventR(_))
+        case c.Event(v)        => mkEvent[F](v).map(EventR(_))
         case c.Checkpoint(v)   => mkCheckpoint[F](v).map(CheckpointR(_))
         case c.Confirmation(v) => F.pure(ConfirmationR(SubscriptionConfirmation(v.subscriptionId)))
         case c.LastAllStreamPosition(v) =>
@@ -560,7 +545,7 @@ private[sec] object streams {
         }
 
         def toAllMessage: Option[AllMessage] = fold(
-          _.event.map(AllMessage.Event(_)),
+          _.event.map(AllMessage.AllEvent(_)),
           _ => none,
           _ => none,
           x => AllMessage.LastAllStreamPosition(x.position).some
@@ -575,7 +560,7 @@ private[sec] object streams {
 
       import ReadResp.{Content => c}
 
-      final case class EventR(event: Option[StreamEvent]) extends StreamResult
+      final case class EventR(event: Option[sec.Event]) extends StreamResult
       final case class CheckpointR(checkpoint: Checkpoint) extends StreamResult
       final case class ConfirmationR(confirmation: SubscriptionConfirmation) extends StreamResult
       final case class StreamNotFoundR(streamId: StreamId) extends StreamResult
@@ -584,7 +569,7 @@ private[sec] object streams {
 
       def fromWire[F[_]](p: ReadResp)(implicit F: MonadThrow[F]): F[StreamResult] = p.content match {
 
-        case c.Event(v)               => mkEvent(v, mkStreamPosition[F]).map(EventR(_))
+        case c.Event(v)               => mkEvent[F](v).map(EventR(_))
         case c.Confirmation(v)        => F.pure(ConfirmationR(SubscriptionConfirmation(v.subscriptionId)))
         case c.Checkpoint(v)          => mkCheckpoint[F](v).map(CheckpointR(_))
         case c.StreamNotFound(v)      => mkStreamId[F](v.streamIdentifier).map(StreamNotFoundR(_))
@@ -614,7 +599,7 @@ private[sec] object streams {
         }
 
         def toStreamMessage: Option[StreamMessage] = fold(
-          _.event.map(StreamMessage.Event(_)),
+          _.event.map(StreamMessage.StreamEvent(_)),
           _ => none,
           _ => none,
           x => StreamMessage.NotFound(x.streamId).some,

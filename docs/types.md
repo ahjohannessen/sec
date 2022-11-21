@@ -186,19 +186,14 @@ When `EventType` is translated to the protocol of @esdb@ it becomes `application
 
 ### Event
 
-Event data arriving from @esdb@ either comes from an individual stream or from the global log. Data retrieved 
-from the global log contains positions `LogPosition.Exact` and `StreamPosition.Exact`, whereas data retrieved 
-from an individual stream contains only `StreamPosition.Exact`. 
-
-The difference in position information is encoded in the *ADT* that models an event, `Event[P <: PositionInfo]` where `P` 
-is either `PositionInfo.Global` containing both position types or `PositionInfo.Local` that is an alias for `StreamPosition.Exact`.
-
-`Event` has the variants `EventRecord` and `ResolvedEvent`.
+Event data arriving from @esdb@ either comes from an individual stream or from the global log. An event is encoded as an
+`ADT` called `Event` that has the variants `EventRecord` and `ResolvedEvent`.
 
 An `EventRecord` consists of the following data types:
 
   - `streamId: StreamId` - The stream the event belongs to.
-  - `position: P` - The `PositionInfo` information `P` about the event.
+  - `streamPosition: StreamPosition.Exact` - The stream position of the event in its stream.
+  - `logPosition: LogPosition.Exact` - The position of the event in the global stream.
   - `eventData: EventData` - The data of the event.
   - `created: ZonedDateTime` - The time the event was created.
   

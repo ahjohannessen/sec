@@ -113,7 +113,7 @@ class ReadAllSuite extends SnSuite {
 
       val setup = write >>= { wr => delete(wr.streamPosition).void >> verifyDeleted >> read }
 
-      def verify(es: List[AllEvent]): Unit =
+      def verify(es: List[Event]): Unit =
         es.lastOption.fold(fail("expected metadata")) { ts =>
           if (normalDelete) {
             assertEquals(es.dropRight(1).map(_.eventData), events.toList)

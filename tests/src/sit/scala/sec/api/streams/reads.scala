@@ -48,7 +48,7 @@ class ReadsSuite extends SnSuite {
           .toList
           .map { ms =>
 
-            val readEvents   = ms.collect { case StreamMessage.Event(e) => e }
+            val readEvents   = ms.collect { case StreamMessage.StreamEvent(e) => e }
             val lastPosition = ms.lastOption.collect { case StreamMessage.LastStreamPosition(l) => l }
 
             assertEquals(ms.size, 33)
@@ -81,7 +81,7 @@ class ReadsSuite extends SnSuite {
 
       result.map { ms =>
 
-        val readEvents   = ms.collect { case StreamMessage.Event(e) => e }
+        val readEvents   = ms.collect { case StreamMessage.StreamEvent(e) => e }
         val lastPosition = ms.lastOption.collect { case StreamMessage.LastStreamPosition(l) => l }
 
         assertEquals(ms.size, 33)
@@ -106,7 +106,7 @@ class ReadsSuite extends SnSuite {
       result.map { ms =>
 
         val firstPosition = ms.headOption.collect { case StreamMessage.FirstStreamPosition(f) => f }
-        val readEvents    = ms.collect { case StreamMessage.Event(e) => e }
+        val readEvents    = ms.collect { case StreamMessage.StreamEvent(e) => e }
         val lastPosition  = ms.lastOption.collect { case StreamMessage.LastStreamPosition(l) => l }
 
         assertEquals(ms.size, 34)

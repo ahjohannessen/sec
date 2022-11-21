@@ -73,7 +73,7 @@ class SubscribeToStreamSuite extends SnSuite {
       val id    = genStreamId(s"${streamPrefix}multiple_subscriptions_to_same_stream_")
       val write = Stream.eval(streams.appendToStream(id, NoStream, events)).delayBy(1.second)
 
-      def mkSubscribers(onEvent: IO[Unit]): Stream[IO, StreamEvent] = Stream
+      def mkSubscribers(onEvent: IO[Unit]): Stream[IO, Event] = Stream
         .emit(streams.subscribeToStream(id, exclusivFrom).evalTap(_ => onEvent).take(takeCount.toLong))
         .repeat
         .take(subscriberCount.toLong)
@@ -110,7 +110,7 @@ class SubscribeToStreamSuite extends SnSuite {
       def afterWrite(st: StreamState): Stream[IO, WriteResult] =
         Stream.eval(streams.appendToStream(id, st, afterEvents)).delayBy(1.second)
 
-      def subscribe(onEvent: StreamEvent => IO[Unit]): Stream[IO, StreamEvent] =
+      def subscribe(onEvent: Event => IO[Unit]): Stream[IO, Event] =
         streams.subscribeToStream(id, exclusiveFrom).evalTap(onEvent).take(takeCount.toLong)
 
       val result: Stream[IO, List[EventData]] = for {

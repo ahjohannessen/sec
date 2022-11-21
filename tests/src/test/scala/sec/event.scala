@@ -32,21 +32,23 @@ class EventSuite extends SecSuite {
   private def bv(data: String): ByteVector =
     ByteVector.encodeUtf8(data).leftMap(_.getMessage).unsafe
 
-  val er: EventRecord[PositionInfo.Global] = sec.EventRecord[PositionInfo.Global](
+  val er: EventRecord = sec.EventRecord(
     StreamId("abc-1234").unsafe,
-    PositionInfo.Global(StreamPosition(5L), LogPosition.exact(42L, 42L)),
+    StreamPosition(5L),
+    LogPosition.exact(42L, 42L),
     EventData("et", sampleOf[ju.UUID], bv("abc"), ContentType.Binary).unsafe,
     sampleOf[ZonedDateTime]
   )
 
-  val link: EventRecord[PositionInfo.Global] = sec.EventRecord[PositionInfo.Global](
+  val link: EventRecord = sec.EventRecord(
     StreamId.system("ce-abc").unsafe,
-    PositionInfo.Global(StreamPosition(10L), LogPosition.exact(1337L, 1337L)),
+    StreamPosition(10L),
+    LogPosition.exact(1337L, 1337L),
     EventData(EventType.LinkTo, sampleOf[ju.UUID], bv("5@abc-1234"), ContentType.Binary),
     sampleOf[ZonedDateTime]
   )
 
-  val re: ResolvedEvent[PositionInfo.Global] = ResolvedEvent(er, link)
+  val re: ResolvedEvent = ResolvedEvent(er, link)
 
   //
 
@@ -57,44 +59,44 @@ class EventSuite extends SecSuite {
       assert(re.fold(_ => false, _ => true))
     }
 
-    def testCommon[P <: PositionInfo](er: EventRecord[P], re: ResolvedEvent[P]) = {
+    def testCommon(er: EventRecord, re: ResolvedEvent) = {
 
       test("streamId") {
-        assertEquals((er: Event[P]).streamId, er.streamId)
-        assertEquals((re: Event[P]).streamId, er.streamId)
+        assertEquals(er.streamId, er.streamId)
+        assertEquals(re.streamId, er.streamId)
       }
 
       test("streamPosition") {
-        assertEquals((er: Event[P]).streamPosition, er.streamPosition)
-        assertEquals((re: Event[P]).streamPosition, er.streamPosition)
+        assertEquals(er.streamPosition, er.streamPosition)
+        assertEquals(re.streamPosition, er.streamPosition)
       }
 
       test("eventData") {
-        assertEquals((er: Event[P]).eventData, er.eventData)
-        assertEquals((re: Event[P]).eventData, er.eventData)
+        assertEquals(er.eventData, er.eventData)
+        assertEquals(re.eventData, er.eventData)
       }
 
       test("record") {
-        assertEquals((er: Event[P]).record, er)
-        assertEquals((re: Event[P]).record, re.link)
+        assertEquals(er.record, er)
+        assertEquals(re.record, re.link)
       }
 
       test("created") {
-        assertEquals((er: Event[P]).created, er.created)
-        assertEquals((re: Event[P]).created, er.created)
+        assertEquals(er.created, er.created)
+        assertEquals(re.created, er.created)
       }
     }
 
     testCommon(er, re)
     testCommon(
-      er.copy(position = er.position.streamPosition),
-      re.copy(event    = re.event.copy(position = re.event.position.streamPosition),
-              link     = re.link.copy(position = re.link.position.streamPosition))
+      er.copy(streamPosition = er.streamPosition),
+      re.copy(event          = re.event.copy(streamPosition = re.event.streamPosition),
+              link           = re.link.copy(streamPosition = re.link.streamPosition))
     )
 
     test("logPosition") {
-      assertEquals((er: Event[PositionInfo.Global]).logPosition, er.logPosition)
-      assertEquals((re: Event[PositionInfo.Global]).logPosition, er.logPosition)
+      assertEquals(er.logPosition, er.logPosition)
+      assertEquals(re.logPosition, er.logPosition)
     }
 
     test("render") {
@@ -103,13 +105,14 @@ class EventSuite extends SecSuite {
         er.render,
         s"""
         |EventRecord(
-        |  streamId = ${er.streamId.render},
-        |  eventId  = ${er.eventData.eventId},
-        |  type     = ${er.eventData.eventType.render},
-        |  position = ${er.position.renderPosition},
-        |  data     = ${er.eventData.renderData},
-        |  metadata = ${er.eventData.renderMetadata},
-        |  created  = ${er.created}
+        |  streamId       = ${er.streamId.render},
+        |  eventId        = ${er.eventData.eventId},
+        |  type           = ${er.eventData.eventType.render},
+        |  streamPosition = ${er.streamPosition.value.render},
+        |  logPosition    = ${er.logPosition.render},
+        |  data           = ${er.eventData.renderData},
+        |  metadata       = ${er.eventData.renderMetadata},
+        |  created        = ${er.created}
         |)
         |""".stripMargin
       )

@@ -440,30 +440,6 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
     val empty = ps.Empty()
 
-    test("mkPositionAll") {
-
-      val re     = s.ReadResp.ReadEvent.RecordedEvent()
-      val valid1 = re.withStreamRevision(1000L).withCommitPosition(2L).withPreparePosition(2L)
-      val valid2 = re.withStreamRevision(-1000L).withCommitPosition(-2L).withPreparePosition(-2L)
-
-      // Happy Path
-      assertEquals(
-        mkPositionGlobal[ErrorOr](valid1),
-        PositionInfo.Global(StreamPosition(1000L), LogPosition.exact(2L, 2L)).asRight
-      )
-
-      assertEquals(
-        mkPositionGlobal[ErrorOr](valid2),
-        PositionInfo.Global(StreamPosition(-1000L), LogPosition.exact(-2L, -2L)).asRight
-      )
-
-      // Bad LogPosition
-      assertEquals(
-        mkPositionGlobal[ErrorOr](valid1.withCommitPosition(-2L).withPreparePosition(-1L)),
-        InvalidInput("commit must be >= prepare, but 18446744073709551614 < 18446744073709551615").asLeft
-      )
-    }
-
     test("mkStreamPosition") {
 
       val re = s.ReadResp.ReadEvent.RecordedEvent()
@@ -476,47 +452,41 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
     test("mkEvent") {
 
-      def test[P <: PositionInfo](
-        er: EventRecord[P],
-        lr: EventRecord[P],
+      def test(
+        er: EventRecord,
+        lr: EventRecord,
         eventProto: s.ReadResp.ReadEvent.RecordedEvent,
-        linkProto: s.ReadResp.ReadEvent.RecordedEvent,
-        mkPos: s.ReadResp.ReadEvent.RecordedEvent => ErrorOr[P]
+        linkProto: s.ReadResp.ReadEvent.RecordedEvent
       ) = {
 
         val readEvent = s.ReadResp.ReadEvent()
 
         // Event & No Link => EventRecord
-        assertEquals(mkEvent[ErrorOr, P](readEvent.withEvent(eventProto), mkPos), er.some.asRight)
+        assertEquals(mkEvent[ErrorOr](readEvent.withEvent(eventProto)), er.some.asRight)
 
         // Event & Link => ResolvedEvent
-        assertEquals(mkEvent[ErrorOr, P](readEvent.withEvent(eventProto).withLink(linkProto), mkPos),
+        assertEquals(mkEvent[ErrorOr](readEvent.withEvent(eventProto).withLink(linkProto)),
                      ResolvedEvent(er, lr).some.asRight)
 
         // No Event & No Link => None
-        assertEquals(mkEvent[ErrorOr, P](readEvent, mkPos), Option.empty[Event[P]].asRight)
+        assertEquals(mkEvent[ErrorOr](readEvent), Option.empty[Event].asRight)
 
         // No Event & Link, i.e. link to deleted event => None
-        assertEquals(mkEvent[ErrorOr, P](readEvent.withLink(linkProto), mkPos), Option.empty[Event[P]].asRight)
+        assertEquals(mkEvent[ErrorOr](readEvent.withLink(linkProto)), Option.empty[Event].asRight)
 
         // Require read event
-        assertEquals(reqReadEvent[ErrorOr, P](s.ReadResp().withEvent(readEvent.withEvent(eventProto)), mkPos),
-                     er.some.asRight)
+        assertEquals(reqReadEvent[ErrorOr](s.ReadResp().withEvent(readEvent.withEvent(eventProto))), er.some.asRight)
 
-        assertEquals(reqReadEvent[ErrorOr, P](s.ReadResp(), mkPos),
+        assertEquals(reqReadEvent[ErrorOr](s.ReadResp()),
                      ProtoResultError("Required value ReadEvent missing or invalid.").asLeft)
 
       }
 
       //
 
-      val sel = mkStreamEventAndLink
+      val eal = mkEventAndLink
 
-      test(sel.event, sel.link, sel.eventProto, sel.linkProto, mkStreamPosition[ErrorOr])
-
-      val ael = mkAllEventAndLink
-
-      test(ael.event, ael.link, ael.eventProto, ael.linkProto, mkPositionGlobal[ErrorOr])
+      test(eal.event, eal.link, eal.eventProto, eal.linkProto)
 
     }
 
@@ -535,105 +505,87 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
       val created         = Instant.EPOCH.atZone(ZoneOffset.UTC)
       val metadata        = Map(ContentType -> Binary, Type -> eventType, Created -> created.getNano().toString)
 
-      def test[P <: PositionInfo](
-        eventRecord: EventRecord[P],
-        recordedEvent: s.ReadResp.ReadEvent.RecordedEvent,
-        mkPos: s.ReadResp.ReadEvent.RecordedEvent => ErrorOr[P]
+      def test(
+        eventRecord: EventRecord,
+        recordedEvent: s.ReadResp.ReadEvent.RecordedEvent
       ) = {
 
         // Happy Path
-        assertEquals(mkEventRecord[ErrorOr, P](recordedEvent, mkPos), eventRecord.asRight)
+        assertEquals(mkEventRecord[ErrorOr](recordedEvent), eventRecord.asRight)
 
         // Bad StreamId
         assertEquals(
-          mkEventRecord[ErrorOr, P](recordedEvent.withStreamIdentifier("".toStreamIdentifer), mkPos),
+          mkEventRecord[ErrorOr](recordedEvent.withStreamIdentifier("".toStreamIdentifer)),
           ProtoResultError("name cannot be empty").asLeft
         )
 
         // Missing UUID
         assertEquals(
-          mkEventRecord[ErrorOr, P](recordedEvent.withId(ps.UUID().withValue(ps.UUID.Value.Empty)), mkPos),
+          mkEventRecord[ErrorOr](recordedEvent.withId(ps.UUID().withValue(ps.UUID.Value.Empty))),
           ProtoResultError("UUID is missing").asLeft
         )
 
         // Bad UUID
         assertEquals(
-          mkEventRecord[ErrorOr, P](recordedEvent.withId(ps.UUID().withString("invalid")), mkPos),
+          mkEventRecord[ErrorOr](recordedEvent.withId(ps.UUID().withString("invalid"))),
           ProtoResultError("Invalid UUID string: invalid").asLeft
         )
 
         // Missing EventType
         assertEquals(
-          mkEventRecord[ErrorOr, P](
-            recordedEvent.withMetadata(metadata.view.filterKeys(_ != Type).toMap),
-            mkPos
-          ),
+          mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.view.filterKeys(_ != Type).toMap)),
           ProtoResultError(s"Required value $Type missing or invalid.").asLeft
         )
 
         // Missing ContentType
         assertEquals(
-          mkEventRecord[ErrorOr, P](
-            recordedEvent.withMetadata(metadata.view.filterKeys(_ != ContentType).toMap),
-            mkPos
-          ),
+          mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.view.filterKeys(_ != ContentType).toMap)),
           ProtoResultError(s"Required value $ContentType missing or invalid.").asLeft
         )
 
         // Bad ContentType
         assertEquals(
-          mkEventRecord[ErrorOr, P](recordedEvent.withMetadata(metadata.updated(ContentType, "no")), mkPos),
+          mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.updated(ContentType, "no"))),
           ProtoResultError(s"Required value $ContentType missing or invalid: no").asLeft
         )
 
         // Missing Created
         assertEquals(
-          mkEventRecord[ErrorOr, P](
-            recordedEvent.withMetadata(metadata.view.filterKeys(_ != Created).toMap),
-            mkPos
-          ),
+          mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.view.filterKeys(_ != Created).toMap)),
           ProtoResultError(s"Required value $Created missing or invalid.").asLeft
         )
 
         // Bad Created
         assertEquals(
-          mkEventRecord[ErrorOr, P](
-            recordedEvent.withMetadata(metadata.updated(Created, "chuck norris")),
-            mkPos
-          ),
+          mkEventRecord[ErrorOr](recordedEvent.withMetadata(metadata.updated(Created, "chuck norris"))),
           ProtoResultError(s"Required value $Created missing or invalid.").asLeft
         )
       }
 
-      // /
+      //
 
       val sid = sec.StreamId(streamId).unsafe
       val et  = sec.EventType(eventType).unsafe
       val sp  = sec.StreamPosition(revision)
+      val lp  = sec.LogPosition.exact(commit, prepare)
       val ed  = sec.EventData(et, JUUID.fromString(id), data, customMeta, sec.ContentType.Binary)
 
-      val streamRecordedEvent =
+      val recordedEvent =
         s.ReadResp.ReadEvent
           .RecordedEvent()
           .withStreamIdentifier(streamId.toStreamIdentifer)
           .withStreamRevision(revision)
+          .withCommitPosition(commit)
+          .withPreparePosition(prepare)
           .withData(data.toByteString)
           .withCustomMetadata(customMeta.toByteString)
           .withId(ps.UUID().withString(id))
           .withMetadata(metadata)
 
-      val streamEventRecord =
-        sec.EventRecord(sid, sp, ed, created)
+      val eventRecord =
+        sec.EventRecord(sid, sp, lp, ed, created)
 
-      test(streamEventRecord, streamRecordedEvent, mkStreamPosition[ErrorOr])
-
-      val allRecordedEvent =
-        streamRecordedEvent.withCommitPosition(commit).withPreparePosition(prepare)
-
-      val allEventRecord =
-        sec.EventRecord(sid, sec.PositionInfo.Global(sp, sec.LogPosition.exact(commit, prepare)), ed, created)
-
-      test(allEventRecord, allRecordedEvent, mkPositionGlobal[ErrorOr])
+      test(eventRecord, recordedEvent)
 
     }
 
@@ -653,7 +605,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
     test("mkCheckpointOrEvent") {
 
       val created     = Instant.EPOCH.atZone(ZoneOffset.UTC)
-      val event       = sampleOfGen(eventGen.allEventRecordOne).copy(created = created)
+      val event       = sampleOfGen(eventGen.eventRecordOne).copy(created = created)
       val eventData   = event.eventData
       val eventType   = sec.EventType.eventTypeToString(event.eventData.eventType)
       val contentType = eventData.contentType.fold(Binary, Json)
@@ -679,12 +631,12 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
       assertEquals(
         mkCheckpointOrEvent[ErrorOr](s.ReadResp().withCheckpoint(checkpoint)),
-        Some(Checkpoint(sec.LogPosition.exact(1L, 1L)).asLeft[AllEvent]).asRight
+        Some(Checkpoint(sec.LogPosition.exact(1L, 1L)).asLeft[Event]).asRight
       )
 
       assertEquals(
         mkCheckpointOrEvent[ErrorOr](s.ReadResp()),
-        Option.empty[Either[Checkpoint, AllEvent]].asRight
+        Option.empty[Either[Checkpoint, Event]].asRight
       )
     }
 
@@ -989,7 +941,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
     test("mkStreamMessageEvent") {
 
       val created     = Instant.EPOCH.atZone(ZoneOffset.UTC)
-      val event       = sampleOfGen(eventGen.streamEventRecordOne).copy(created = created)
+      val event       = sampleOfGen(eventGen.eventRecordOne).copy(created = created)
       val eventData   = event.eventData
       val eventType   = sec.EventType.eventTypeToString(event.eventData.eventType)
       val contentType = eventData.contentType.fold(Binary, Json)
@@ -999,6 +951,8 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
         .RecordedEvent()
         .withStreamIdentifier(event.streamId.stringValue.toStreamIdentifer)
         .withStreamRevision(event.streamPosition.value.toLong)
+        .withCommitPosition(event.logPosition.commit.toLong)
+        .withPreparePosition(event.logPosition.prepare.toLong)
         .withData(event.eventData.data.toByteString)
         .withCustomMetadata(event.eventData.metadata.toByteString)
         .withId(ps.UUID().withString(event.eventData.eventId.toString))
@@ -1008,12 +962,12 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
       assertEquals(
         mkStreamMessageEvent[ErrorOr](s.ReadResp.ReadEvent().withEvent(recordedEvent)),
-        StreamMessage.Event(event).some.asRight
+        StreamMessage.StreamEvent(event).some.asRight
       )
 
       assertEquals(
         mkStreamMessageEvent[ErrorOr](s.ReadResp.ReadEvent()),
-        Option.empty[StreamMessage.Event].asRight
+        Option.empty[StreamMessage.StreamEvent].asRight
       )
     }
 
@@ -1031,16 +985,16 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
     test("mkAllMessageEvent") {
 
-      val ael = mkAllEventAndLink
+      val ael = mkEventAndLink
 
       assertEquals(
         mkAllMessageEvent[ErrorOr](s.ReadResp.ReadEvent().withEvent(ael.eventProto)),
-        AllMessage.Event(ael.event).some.asRight
+        AllMessage.AllEvent(ael.event).some.asRight
       )
 
       assertEquals(
         mkAllMessageEvent[ErrorOr](s.ReadResp.ReadEvent()),
-        Option.empty[AllMessage.Event].asRight
+        Option.empty[AllMessage.AllEvent].asRight
       )
     }
 
@@ -1125,7 +1079,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
       /** EventR */
 
-      val ael = mkAllEventAndLink
+      val ael = mkEventAndLink
       val re  = s.ReadResp.ReadEvent()
 
       test("Event & No Link => EventRecord") {
@@ -1169,22 +1123,14 @@ object StreamsMappingSuite {
   def bv(data: String): ByteVector =
     encodeToBV(data).unsafe
 
-  final case class EventAndLink[P <: PositionInfo](
-    event: EventRecord[P],
+  final case class EventAndLink(
+    event: EventRecord,
     eventProto: s.ReadResp.ReadEvent.RecordedEvent,
-    link: EventRecord[P],
+    link: EventRecord,
     linkProto: s.ReadResp.ReadEvent.RecordedEvent
   )
 
-  def mkStreamEventAndLink: EventAndLink[PositionInfo.Local] =
-    mkEventAndLink[PositionInfo.Local]((sp, _, _) => sp)
-
-  def mkAllEventAndLink: EventAndLink[PositionInfo.Global] =
-    mkEventAndLink[PositionInfo.Global]((sp, c, p) => sec.PositionInfo.Global(sp, sec.LogPosition.exact(c, p)))
-
-  private def mkEventAndLink[P <: PositionInfo](
-    mkPosition: (StreamPosition.Exact, Long, Long) => P
-  ): EventAndLink[P] = {
+  def mkEventAndLink: EventAndLink = {
 
     val streamId   = "abc-3"
     val revision   = 1L
@@ -1241,8 +1187,8 @@ object StreamsMappingSuite {
     val let  = sec.EventType.LinkTo
     val led  = sec.EventData(let, JUUID.fromString(linkId), linkData, linkCustomMeta, sec.ContentType.Binary)
 
-    val eventRecord = EventRecord(sid, mkPosition(sp, commit, prepare), ed, created)
-    val linkRecord  = sec.EventRecord(lsid, mkPosition(lsp, linkCommit, linkPrepare), led, linkCreated)
+    val eventRecord = EventRecord(sid, sp, LogPosition.exact(commit, prepare), ed, created)
+    val linkRecord  = sec.EventRecord(lsid, lsp, LogPosition.exact(linkCommit, linkPrepare), led, linkCreated)
 
     EventAndLink(eventRecord, eventProto, linkRecord, linkProto)
 
