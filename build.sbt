@@ -152,7 +152,7 @@ inThisBuild(
     scalaVersion := Scala2,
     crossScalaVersions := Seq(Scala3, Scala2),
     versionScheme := Some("early-semver"),
-    tlBaseVersion := "0.23",
+    tlBaseVersion := "0.24",
     tlSonatypeUseLegacyHost := false,
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
