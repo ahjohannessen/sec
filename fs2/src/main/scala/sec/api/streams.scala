@@ -160,7 +160,7 @@ trait Streams[F[_]] {
   ): F[WriteResult]
 
   /** Deletes a stream and returns [[DeleteResult]] with current log position after a successful operation. Failure to
-    * fulfill the expected stated is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
+    * fulfill the expected state is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
     *
     * @note
     *   Deleted streams can be recreated.
@@ -178,7 +178,7 @@ trait Streams[F[_]] {
   ): F[DeleteResult]
 
   /** Tombstones a stream and returns [[TombstoneResult]] with current log position after a successful operation.
-    * Failure to fulfill the expected stated is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
+    * Failure to fulfill the expected state is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
     *
     * @note
     *   Tombstoned streams can *never* be recreated.
