@@ -98,11 +98,11 @@ private[sec] object ClusterOptions {
 
   val default: ClusterOptions = ClusterOptions(
     maxDiscoverAttempts  = None,
-    retryDelay           = 100.millis,
+    retryDelay           = 250.millis,
     retryMaxDelay        = 2.seconds,
     retryBackoffFactor   = 1.25,
     readTimeout          = 5.seconds,
-    notificationInterval = 100.millis,
+    notificationInterval = 250.millis,
     preference           = NodePreference.Leader
   )
 
