@@ -24,16 +24,15 @@ import cats._
 import cats.data.NonEmptySet
 import cats.syntax.all._
 import cats.effect._
+import com.comcast.ip4s.{Hostname, Port}
 import io.grpc.ManagedChannelBuilder
 import com.typesafe.config._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
 import sec.api._
+import sec.api.cluster._
 
 private[sec] object config {
-
-  private val defaultPort    = 2113
-  private val defaultAddress = "127.0.0.1"
 
   private val rootPath = "sec"
   private val ooPath   = s"$rootPath.operations"
@@ -50,14 +49,15 @@ private[sec] object config {
   def mkClient[F[_]: Async, MCB <: ManagedChannelBuilder[MCB]](
     mcb: ChannelBuilderParams => F[MCB],
     cfg: Config
-  ): Resource[F, EsClient[F]] = mkClient[F, MCB](mcb, cfg, NoOpLogger.impl[F])
+  ): Resource[F, EsClient[F]] = mkClient[F, MCB](mcb, cfg, NoOpLogger.impl[F], EndpointResolver.default[F])
 
   def mkClient[F[_]: Async, MCB <: ManagedChannelBuilder[MCB]](
     mcb: ChannelBuilderParams => F[MCB],
     cfg: Config,
-    logger: Logger[F]
+    logger: Logger[F],
+    er: EndpointResolver[F]
   ): Resource[F, EsClient[F]] =
-    Resource.eval(mkBuilder[F](cfg, logger)) >>= {
+    Resource.eval(mkBuilder[F](cfg, logger, er)) >>= {
       case Left(c)  => c.build(mcb)
       case Right(s) => s.build(mcb)
     }
@@ -66,14 +66,16 @@ private[sec] object config {
 
   def mkBuilder[F[_]: MonadThrow](
     cfg: Config,
-    logger: Logger[F]
+    logger: Logger[F],
+    er: EndpointResolver[F]
   ): F[Either[ClusterBuilder[F], SingleNodeBuilder[F]]] = {
 
     def singleNode(o: Options): SingleNodeBuilder[F] =
       mkSingleNodeBuilder[F](o, cfg).withLogger(logger)
 
     def cluster(o: Options): F[Option[ClusterBuilder[F]]] =
-      mkClusterOptions[F](cfg).map(co => mkClusterBuilder[F](o, co, cfg).map(b => b.withLogger(logger)))
+      mkClusterOptions[F](cfg).map(co =>
+        mkClusterBuilder[F](o, co, cfg).map(b => b.withLogger(logger).withEndpointResolver(er)))
 
     mkOptions[F](cfg) >>= { o => cluster(o).map(_.toLeft(singleNode(o))) }
 
@@ -82,21 +84,31 @@ private[sec] object config {
   def mkSingleNodeBuilder[F[_]: Applicative](o: Options, cfg: Config): SingleNodeBuilder[F] = {
 
     val authority = getAuthority(cfg)
-    val address   = cfg.option(s"$rootPath.address", _.getString).getOrElse(defaultAddress)
-    val port      = cfg.option(s"$rootPath.port", _.getInt).getOrElse(defaultPort)
+    val port      = cfg.portOpt(s"$rootPath.port").getOrElse(o.httpPort).value
+    val address   = cfg.option(s"$rootPath.address", _.getString).getOrElse("127.0.0.1")
 
     EsClient.singleNode[F](Endpoint(address, port), authority, o)
   }
 
-  def mkClusterBuilder[F[_]: Applicative](
+  def mkClusterBuilder[F[_]: ApplicativeThrow](
     o: Options,
     co: ClusterOptions,
     cfg: Config
   ): Option[ClusterBuilder[F]] = {
 
-    val authority: Option[String] = getAuthority(cfg)
-    val seed: Option[NonEmptySet[Endpoint]] = {
+    type Authority = String
 
+    val viaDns: Option[(ClusterEndpoints.ViaDns, Authority)] = {
+      cfg
+        .option(s"$clPath.dns", _.getString)
+        .filter(_.nonEmpty)
+        .flatMap(Hostname.fromString)
+        .map(hn => (ClusterEndpoints.ViaDns(hn), getAuthority(cfg).getOrElse(hn.toString)))
+    }
+
+    val viaSeed: Option[(ClusterEndpoints.ViaSeed, Authority)] = {
+
+      val defaultPort = o.httpPort.value
       val seeds: List[String] =
         cfg.option(s"$clPath.seed", _.getStringList).fold(List.empty[String])(_.asScala.toList)
 
@@ -109,12 +121,14 @@ private[sec] object config {
       }
 
       result match {
-        case x :: xs => NonEmptySet.of(x, xs: _*).some
+        case x :: xs => getAuthority(cfg).map(a => (ClusterEndpoints.ViaSeed(NonEmptySet.of(x, xs: _*)), a))
         case Nil     => None
       }
     }
 
-    (seed, authority).mapN((s, a) => EsClient.cluster[F](s, a, o, co))
+    val endpointsAndAuthority: Option[(ClusterEndpoints, Authority)] = viaDns.orElse(viaSeed)
+
+    endpointsAndAuthority.map { case (ce, a) => EsClient.cluster[F](ce, a, o, co) }
 
   }
 
@@ -152,6 +166,7 @@ private[sec] object config {
       credentials,
       o => cfg.durationOpt(s"$rootPath.channel-shutdown-await").fold(o)(o.withChannelShutdownAwait),
       o => cfg.option(s"$rootPath.prefetch-n-messages", _.getInt).fold(o)(o.withPrefetchN),
+      o => cfg.portOpt(s"$rootPath.port").fold(o)(o.withHttpPort),
       o => cfg.option(s"$ooPath.retry-enabled", _.getBoolean).fold(o)(o.withOperationsRetryEnabled),
       o => cfg.durationOpt(s"$ooPath.retry-delay").fold(o)(o.withOperationsRetryDelay),
       o => cfg.durationOpt(s"$ooPath.retry-max-delay").fold(o)(o.withOperationsRetryMaxDelay),
@@ -198,6 +213,9 @@ private[sec] object config {
   }
 
   implicit private class ConfigOps(val cfg: Config) extends AnyVal {
+
+    def portOpt(path: String): Option[Port] =
+      option(path, _.getInt).flatMap(Port.fromInt)
 
     def durationOpt(path: String): Option[FiniteDuration] = {
       def duration(path: String): FiniteDuration =

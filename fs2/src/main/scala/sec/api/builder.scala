@@ -19,8 +19,9 @@ package api
 
 import cats.Endo
 import cats.data._
-import cats.effect._
 import cats.syntax.all._
+import cats.effect._
+import cats.effect.syntax.all._
 import org.typelevel.log4cats.Logger
 import io.grpc.{ManagedChannel, ManagedChannelBuilder, NameResolverRegistry}
 import sec.api.channel._
@@ -85,28 +86,31 @@ object SingleNodeBuilder {
 //======================================================================================================================
 
 class ClusterBuilder[F[_]] private (
-  val seed: NonEmptySet[Endpoint],
+  val endpoints: ClusterEndpoints,
   val authority: String,
   options: Options,
   clusterOptions: ClusterOptions,
-  logger: Logger[F]
+  logger: Logger[F],
+  endpointResolver: EndpointResolver[F]
 ) extends OptionsBuilder[ClusterBuilder[F]]
   with ClusterOptionsBuilder[ClusterBuilder[F]] {
 
   private def copy(
-    seed: NonEmptySet[Endpoint] = seed,
+    endpoints: ClusterEndpoints = endpoints,
     authority: String = authority,
     options: Options = options,
     clusterOptions: ClusterOptions = clusterOptions,
-    logger: Logger[F] = logger
+    logger: Logger[F] = logger,
+    endpointResolver: EndpointResolver[F] = endpointResolver
   ): ClusterBuilder[F] =
-    new ClusterBuilder[F](seed, authority, options, clusterOptions, logger) {}
+    new ClusterBuilder[F](endpoints, authority, options, clusterOptions, logger, endpointResolver) {}
 
   private[sec] def modOptions(fn: Endo[Options]): ClusterBuilder[F]         = copy(options = fn(options))
   private[sec] def modCOptions(fn: Endo[ClusterOptions]): ClusterBuilder[F] = copy(clusterOptions = fn(clusterOptions))
 
-  def withAuthority(value: String): ClusterBuilder[F] = copy(authority = value)
-  def withLogger(value: Logger[F]): ClusterBuilder[F] = copy(logger = value)
+  def withAuthority(value: String): ClusterBuilder[F]  = copy(authority = value)
+  def withLogger(value: Logger[F]): ClusterBuilder[F]  = copy(logger = value)
+  def withEndpointResolver(value: EndpointResolver[F]) = copy(endpointResolver = value)
 
   private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](
     mcb: ChannelBuilderParams => F[MCB]
@@ -120,30 +124,37 @@ class ClusterBuilder[F[_]] private (
     def gossipFn(mc: ManagedChannel): Resource[F, Gossip[F]] = EsClient
       .mkGossipFs2Grpc[F](mc)
       .map(g =>
-        Gossip(g,
-               EsClient.mkContext(options, requiresLeader = false),
-               EsClient.mkOpts[F](options.operationOptions.copy(retryEnabled = false), log, "gossip")))
+        Gossip(
+          g,
+          EsClient.mkContext(options, requiresLeader = false),
+          EsClient.mkOpts[F](options.operationOptions.copy(retryEnabled = false), log, "gossip")
+        ))
 
-    ClusterWatch(builderForTarget, options, clusterOptions, gossipFn, seed, authority, log) >>= { cw =>
+    val resolveSeed: Resource[F, NonEmptySet[Endpoint]] =
+      ClusterWatch.resolveSeed[F](endpoints, endpointResolver, options, clusterOptions, logger).toResource
 
-      val mkProvider: Resource[F, ResolverProvider[F]] = ResolverProvider
-        .bestNodes[F](authority, clusterOptions.preference, cw.subscribe, log)
-        .evalTap(p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
+    resolveSeed >>= { seed =>
 
-      def builder(p: ResolverProvider[F]): Resource[F, MCB] =
-        Resource.eval(builderForTarget(s"${p.scheme}:///"))
+      ClusterWatch(builderForTarget, options, clusterOptions, gossipFn, seed, authority, log) >>= { cw =>
 
-      val mods: Endo[MCB] =
-        _.defaultLoadBalancingPolicy("round_robin").overrideAuthority(authority)
+        val mkProvider: Resource[F, ResolverProvider[F]] = ResolverProvider
+          .bestNodes[F](authority, clusterOptions.preference, cw.subscribe, log)
+          .evalTap(p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
 
-      mkProvider >>= builder >>= { b =>
-        channel.resource[F](mods(b).build, options.channelShutdownAwait) >>= { mc =>
-          EsClient[F](mc, options, clusterOptions.preference.isLeader, logger)
+        def builder(p: ResolverProvider[F]): Resource[F, MCB] =
+          Resource.eval(builderForTarget(s"${p.scheme}:///"))
+
+        val mods: Endo[MCB] =
+          _.defaultLoadBalancingPolicy("round_robin").overrideAuthority(authority)
+
+        mkProvider >>= builder >>= { b =>
+          channel.resource[F](mods(b).build, options.channelShutdownAwait) >>= { mc =>
+            EsClient[F](mc, options, clusterOptions.preference.isLeader, logger)
+          }
         }
+
       }
-
     }
-
   }
 
 }
@@ -151,13 +162,14 @@ class ClusterBuilder[F[_]] private (
 object ClusterBuilder {
 
   private[sec] def apply[F[_]](
-    seed: NonEmptySet[Endpoint],
+    endpoints: ClusterEndpoints,
     authority: String,
     options: Options,
     clusterOptions: ClusterOptions,
-    logger: Logger[F]
+    logger: Logger[F],
+    endpointResolver: EndpointResolver[F]
   ): ClusterBuilder[F] =
-    new ClusterBuilder[F](seed, authority, options, clusterOptions, logger)
+    new ClusterBuilder[F](endpoints, authority, options, clusterOptions, logger, endpointResolver)
 }
 
 //======================================================================================================================

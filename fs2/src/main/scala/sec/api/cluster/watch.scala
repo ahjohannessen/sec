@@ -21,8 +21,9 @@ package cluster
 import scala.concurrent.duration._
 
 import cats.data._
-import cats.effect._
 import cats.syntax.all._
+import cats.effect._
+import com.comcast.ip4s._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 import io.grpc._
@@ -35,6 +36,32 @@ private[sec] trait ClusterWatch[F[_]] {
 }
 
 private[sec] object ClusterWatch {
+
+  def resolveSeed[F[_]: Async](
+    endpoints: ClusterEndpoints,
+    resolver: EndpointResolver[F],
+    options: Options,
+    clusterOptions: ClusterOptions,
+    logger: Logger[F]
+  ): F[NonEmptySet[Endpoint]] = {
+
+    def resolveEndpoints(viaDns: ClusterEndpoints.ViaDns): F[NonEmptySet[Endpoint]] = {
+
+      def raiseResolveError =
+        EndpointsResolveError(viaDns.clusterDns).raiseError[F, NonEmptySet[Endpoint]]
+
+      val action: F[NonEmptySet[Endpoint]] = resolver
+        .resolveEndpoints(viaDns.clusterDns, options.httpPort)
+        .map(NonEmptyList.fromList) >>= { _.map(_.toNes).fold(raiseResolveError)(_.pure[F]) }
+
+      retry(action, "dns-discovery", retryConfig(clusterOptions), logger) {
+        case _: EndpointsResolveError | _: Timeout => true
+      }
+    }
+
+    endpoints.fold(resolveEndpoints, _.endpoints.pure[F])
+
+  }
 
   def apply[F[_]: Async, MCB <: ManagedChannelBuilder[MCB]](
     builderFromTarget: String => F[MCB],
@@ -104,7 +131,7 @@ private[sec] object ClusterWatch {
     Stream.eval(action).metered(notificationInterval).repeat.changesBy(_.members).evalMap(setInfo)
   }
 
-  // /
+  ///
 
   def retryConfig(co: ClusterOptions): RetryConfig = {
     val timeout     = co.readTimeout.some
@@ -112,7 +139,7 @@ private[sec] object ClusterWatch {
     RetryConfig(co.retryDelay, co.retryMaxDelay, co.retryBackoffFactor, maxAttempts, timeout)
   }
 
-  // /
+  ///
 
   trait Cache[F[_]] {
     def set(ci: ClusterInfo): F[Unit]
@@ -133,3 +160,8 @@ private[sec] object ClusterWatch {
   }
 
 }
+
+//
+
+final private[sec] case class EndpointsResolveError(clusterDns: Hostname)
+  extends RuntimeException(s"No endpoints returned from DNS discovery using $clusterDns")

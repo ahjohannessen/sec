@@ -20,6 +20,7 @@ package api
 import java.io.File
 import scala.concurrent.duration._
 import cats.syntax.all._
+import com.comcast.ip4s._
 import io.grpc.ChannelCredentials
 
 //======================================================================================================================
@@ -30,7 +31,8 @@ private[sec] case class Options(
   operationOptions: OperationOptions,
   connectionMode: ConnectionMode,
   channelShutdownAwait: FiniteDuration,
-  prefetchN: Int
+  prefetchN: Int,
+  httpPort: Port
 )
 
 private[sec] object Options {
@@ -43,7 +45,8 @@ private[sec] object Options {
     operationOptions     = OperationOptions.default,
     connectionMode       = Insecure,
     channelShutdownAwait = 5.seconds,
-    prefetchN            = 512
+    prefetchN            = 512,
+    httpPort             = port"2113"
   )
 
   implicit final class OptionsOps(val o: Options) extends AnyVal {
@@ -58,6 +61,7 @@ private[sec] object Options {
     def withCredentials(creds: Option[UserCredentials]): Options    = o.copy(credentials = creds)
     def withChannelShutdownAwait(await: FiniteDuration): Options    = o.copy(channelShutdownAwait = await)
     def withPrefetchN(n: Int)                                       = o.copy(prefetchN = math.max(n, 1))
+    def withHttpPort(port: Port): Options                           = o.copy(httpPort = port)
     def withOperationsRetryDelay(delay: FiniteDuration): Options    = modifyOO(_.copy(retryDelay = delay))
     def withOperationsRetryMaxDelay(delay: FiniteDuration): Options = modifyOO(_.copy(retryMaxDelay = delay))
     def withOperationsRetryMaxAttempts(max: Int): Options           = modifyOO(_.copy(retryMaxAttempts = max))

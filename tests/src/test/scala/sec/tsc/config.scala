@@ -21,10 +21,12 @@ import java.io.File
 import scala.concurrent.duration._
 import cats.data.NonEmptySet
 import cats.syntax.all._
+import com.comcast.ip4s._
 import com.typesafe.config._
 import org.typelevel.log4cats.noop.NoOpLogger
 import sec.tsc.config._
 import sec.api._
+import sec.api.cluster._
 
 class ConfigSuite extends SecSuite {
 
@@ -91,7 +93,36 @@ class ConfigSuite extends SecSuite {
       )
     }
 
-    test("config") {
+    test("config - dns") {
+
+      val cfg1 = ConfigFactory.parseString(
+        """
+            | sec.authority   = "example.org"
+            | sec.cluster.dns = "active.example.org"
+            |""".stripMargin
+      )
+
+      val cfg2 = ConfigFactory.parseString(
+        """
+            | sec.cluster.dns = "example.org"
+            |""".stripMargin
+      )
+
+      mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg1).fold(
+        fail("Expected some ClusterBuilder")) { b =>
+        assertEquals(b.authority, "example.org")
+        assertEquals(b.endpoints, ClusterEndpoints.ViaDns(host"active.example.org"))
+      }
+
+      mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg2).fold(
+        fail("Expected some ClusterBuilder")) { b =>
+        assertEquals(b.authority, "example.org")
+        assertEquals(b.endpoints, ClusterEndpoints.ViaDns(host"example.org"))
+      }
+
+    }
+
+    test("config - seed") {
 
       val cfg = ConfigFactory.parseString(
         """
@@ -105,11 +136,13 @@ class ConfigSuite extends SecSuite {
       builder.fold(fail("Expected some ClusterBuilder")) { b =>
         assertEquals(b.authority, "example.org")
         assertEquals(
-          b.seed,
-          NonEmptySet.of(
-            Endpoint("127.0.0.1", 2113),
-            Endpoint("127.0.0.2", 2213),
-            Endpoint("127.0.0.3", 2113)
+          b.endpoints,
+          ClusterEndpoints.ViaSeed(
+            NonEmptySet.of(
+              Endpoint("127.0.0.1", 2113),
+              Endpoint("127.0.0.2", 2213),
+              Endpoint("127.0.0.3", 2113)
+            )
           )
         )
       }
@@ -140,9 +173,12 @@ class ConfigSuite extends SecSuite {
 
   group("mkBuilder") {
 
+    val noopL = NoOpLogger[ErrorOr]
+    val noopR = EndpointResolver.noop[ErrorOr]
+
     test("no config") {
 
-      mkBuilder[ErrorOr](ConfigFactory.parseString(""), NoOpLogger[ErrorOr]) match {
+      mkBuilder[ErrorOr](ConfigFactory.parseString(""), noopL, noopR) match {
         case Left(e) => fail(e.getMessage, e)
         case Right(either) =>
           either match {
@@ -163,7 +199,7 @@ class ConfigSuite extends SecSuite {
           | sec.address   = "10.0.0.2"
           |""".stripMargin)
 
-      mkBuilder[ErrorOr](cfg, NoOpLogger[ErrorOr]) match {
+      mkBuilder[ErrorOr](cfg, noopL, noopR) match {
         case Left(e) => fail(e.getMessage, e)
         case Right(either) =>
           either match {
@@ -178,14 +214,34 @@ class ConfigSuite extends SecSuite {
 
     test("cluster config") {
 
-      val cfg = ConfigFactory.parseString(
+      val cfg1 = ConfigFactory.parseString(
         """
-            | sec.authority    = "example.org"
+            | sec.authority   = "example.org"
+            | sec.cluster.dns = "rendezvous.example.org"
             | sec.cluster.seed = [ "127.0.0.1:2113", "127.0.0.2:2113", "127.0.0.3:2113" ]
             |""".stripMargin
       )
 
-      mkBuilder[ErrorOr](cfg, NoOpLogger[ErrorOr]) match {
+      mkBuilder[ErrorOr](cfg1, noopL, noopR) match {
+        case Left(e) => fail(e.getMessage, e)
+        case Right(either) =>
+          either match {
+            case Right(_) => fail("did not expect single node builder")
+            case Left(c) =>
+              assertEquals(c.authority, "example.org")
+              assertEquals(c.endpoints, ClusterEndpoints.ViaDns(host"rendezvous.example.org"))
+          }
+      }
+
+      val cfg2 = ConfigFactory.parseString(
+        """
+            | sec.authority    = "example.org"
+            | sec.cluster.dns  = ""
+            | sec.cluster.seed = [ "127.0.0.1:2113", "127.0.0.2:2113", "127.0.0.3:2113" ]
+            |""".stripMargin
+      )
+
+      mkBuilder[ErrorOr](cfg2, noopL, noopR) match {
         case Left(e) => fail(e.getMessage, e)
         case Right(either) =>
           either match {
@@ -193,11 +249,13 @@ class ConfigSuite extends SecSuite {
             case Left(c) =>
               assertEquals(c.authority, "example.org")
               assertEquals(
-                c.seed,
-                NonEmptySet.of(
-                  Endpoint("127.0.0.1", 2113),
-                  Endpoint("127.0.0.2", 2113),
-                  Endpoint("127.0.0.3", 2113)
+                c.endpoints,
+                ClusterEndpoints.ViaSeed(
+                  NonEmptySet.of(
+                    Endpoint("127.0.0.1", 2113),
+                    Endpoint("127.0.0.2", 2113),
+                    Endpoint("127.0.0.3", 2113)
+                  )
                 )
               )
           }
@@ -225,6 +283,7 @@ class ConfigSuite extends SecSuite {
           |   password               = "mr"
           |   channel-shutdown-await = 20s
           |   prefetch-n-messages    = 1
+          |   port                   = 2115
           | 
           |   operations {
           |   
@@ -245,6 +304,7 @@ class ConfigSuite extends SecSuite {
         .withCredentials(UserCredentials("mr", "mr").toOption)
         .withChannelShutdownAwait(20.seconds)
         .withPrefetchN(1)
+        .withHttpPort(port"2115")
         .withOperationsRetryEnabled(false)
         .withOperationsRetryDelay(2500.millis)
         .withOperationsRetryMaxDelay(5.seconds)

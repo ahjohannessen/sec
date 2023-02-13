@@ -24,6 +24,7 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
 import sec.tsc.config.mkClient
+import sec.api.cluster.EndpointResolver
 
 trait EsClientObjectSyntax {
 
@@ -40,7 +41,14 @@ trait EsClientObjectSyntax {
       }
 
     def fromConfig[F[_]: Async](cfg: Config, logger: Logger[F]): Resource[F, EsClient[F]] =
-      mkClient[F, NettyChannelBuilder](netty.mkBuilder[F], cfg, logger)
+      fromConfig[F](cfg, logger, EndpointResolver.default[F])
+
+    private[sec] def fromConfig[F[_]: Async](
+      cfg: Config,
+      logger: Logger[F],
+      er: EndpointResolver[F]
+    ): Resource[F, EsClient[F]] =
+      mkClient[F, NettyChannelBuilder](netty.mkBuilder[F], cfg, logger, er)
 
   }
 
