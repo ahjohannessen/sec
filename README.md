@@ -1,5 +1,5 @@
 [mergify]: https://mergify.io
-[mergify-status]: https://img.shields.io/endpoint.svg?url=https://gh.mergify.io/badges/ahjohannessen/sec&style=flat
+[mergify-status]: https://img.shields.io/endpoint.svg?url=https://api.mergify.com/v1/badges/ahjohannessen/sec&style=flat
 
 ![CI](https://github.com/ahjohannessen/sec/workflows/CI/badge.svg) ![Maven Central](https://img.shields.io/maven-central/v/io.github.ahjohannessen/sec-fs2-client_2.13?color=brightgreen) ![Sonatype Nexus (Snapshots)](https://img.shields.io/nexus/s/io.github.ahjohannessen/sec-fs2-client_2.13?server=https%3A%2F%2Foss.sonatype.org)
 
