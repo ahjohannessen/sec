@@ -64,7 +64,11 @@ lazy val `fs2-core` = project
       ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor"),
       //
       ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.shared.*"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem]("com.eventstore.dbclient.proto.streams.*")
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("com.eventstore.dbclient.proto.streams.*"),
+      // private
+      ProblemFilters.exclude[DirectMissingMethodProblem]("sec.api.ClusterBuilder.this"),
+      // replaced with endpoints
+      ProblemFilters.exclude[DirectMissingMethodProblem]("sec.api.ClusterBuilder.seed")
     )
   )
   .dependsOn(core)

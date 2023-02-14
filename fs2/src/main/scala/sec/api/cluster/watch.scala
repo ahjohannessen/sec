@@ -37,29 +37,27 @@ private[sec] trait ClusterWatch[F[_]] {
 
 private[sec] object ClusterWatch {
 
-  def resolveSeed[F[_]: Async](
-    endpoints: ClusterEndpoints,
-    resolver: EndpointResolver[F],
-    options: Options,
+  def resolveEndpoints[F[_]: Async](
+    clusterDns: Hostname,
+    resolveFn: Hostname => F[List[Endpoint]],
     clusterOptions: ClusterOptions,
     logger: Logger[F]
   ): F[NonEmptySet[Endpoint]] = {
 
-    def resolveEndpoints(viaDns: ClusterEndpoints.ViaDns): F[NonEmptySet[Endpoint]] = {
+    val log = logger.withModifiedString(s => s"dns-discovery > $s")
 
-      def raiseResolveError =
-        EndpointsResolveError(viaDns.clusterDns).raiseError[F, NonEmptySet[Endpoint]]
+    def raiseResolveError =
+      EndpointsResolveError(clusterDns).raiseError[F, NonEmptySet[Endpoint]]
 
-      val action: F[NonEmptySet[Endpoint]] = resolver
-        .resolveEndpoints(viaDns.clusterDns, options.httpPort)
-        .map(NonEmptyList.fromList) >>= { _.map(_.toNes).fold(raiseResolveError)(_.pure[F]) }
-
-      retry(action, "dns-discovery", retryConfig(clusterOptions), logger) {
-        case _: EndpointsResolveError | _: Timeout => true
+    val action: F[NonEmptySet[Endpoint]] =
+      resolveFn(clusterDns).map(NonEmptyList.fromList) >>= {
+        _.map(_.toNes).fold(raiseResolveError)(_.pure[F])
       }
-    }
 
-    endpoints.fold(resolveEndpoints, _.endpoints.pure[F])
+    retry(action, "resolve-endpoints", retryConfig(clusterOptions), log) {
+      case _: EndpointsResolveError | _: Timeout => true
+      case _                                     => false
+    }
 
   }
 
@@ -164,4 +162,4 @@ private[sec] object ClusterWatch {
 //
 
 final private[sec] case class EndpointsResolveError(clusterDns: Hostname)
-  extends RuntimeException(s"No endpoints returned from DNS discovery using $clusterDns")
+  extends RuntimeException(s"No endpoints returned from $clusterDns")
