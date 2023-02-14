@@ -67,6 +67,8 @@ lazy val `fs2-core` = project
       ProblemFilters.exclude[ReversedMissingMethodProblem]("com.eventstore.dbclient.proto.streams.*"),
       // private
       ProblemFilters.exclude[DirectMissingMethodProblem]("sec.api.ClusterBuilder.this"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("sec.api.ClusterBuilder.apply"),
+      ProblemFilters.exclude[IncompatibleMethTypeProblem]("sec.api.EsClient.cluster"),
       // replaced with endpoints
       ProblemFilters.exclude[DirectMissingMethodProblem]("sec.api.ClusterBuilder.seed")
     )
