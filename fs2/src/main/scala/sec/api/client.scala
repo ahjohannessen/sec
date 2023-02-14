@@ -20,8 +20,8 @@ package api
 import cats.{Applicative, Endo}
 import cats.syntax.all._
 import cats.data.NonEmptySet
-import cats.effect.Resource
-import cats.effect.kernel.Async
+import cats.effect.{Async, Resource}
+import com.comcast.ip4s.{Hostname, Port}
 import com.eventstore.dbclient.proto.gossip.GossipFs2Grpc
 import com.eventstore.dbclient.proto.streams.StreamsFs2Grpc
 import org.typelevel.log4cats.Logger
@@ -32,6 +32,9 @@ import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.grpc.convert.convertToEs
 import sec.api.grpc.metadata._
 import sec.api.retries.RetryConfig
+import sec.api.cluster.ClusterEndpoints
+import sec.api.cluster.EndpointResolver
+import cats.effect.kernel.Sync
 
 trait EsClient[F[_]] {
   def streams: Streams[F]
@@ -41,26 +44,70 @@ trait EsClient[F[_]] {
 
 object EsClient {
 
-  def singleNode[F[_]: Applicative](endpoint: Endpoint): SingleNodeBuilder[F] =
-    singleNode[F](endpoint, None, Options.default)
+  def singleNode[F[_]: Applicative](
+    endpoint: Endpoint
+  ): SingleNodeBuilder[F] =
+    singleNode[F](
+      endpoint,
+      None,
+      Options.default
+    )
 
   private[sec] def singleNode[F[_]: Applicative](
     endpoint: Endpoint,
     authority: Option[String],
     options: Options
   ): SingleNodeBuilder[F] =
-    SingleNodeBuilder[F](endpoint, authority, options, NoOpLogger.impl[F])
+    SingleNodeBuilder[F](
+      endpoint,
+      authority,
+      options,
+      NoOpLogger.impl[F]
+    )
 
-  def cluster[F[_]: Applicative](seed: NonEmptySet[Endpoint], authority: String): ClusterBuilder[F] =
-    cluster[F](seed, authority, Options.default, ClusterOptions.default)
+  def clusterViaDns[F[_]: Sync](
+    clusterDns: Hostname,
+    gossipPort: Option[Port],
+    authority: Option[String]
+  ): ClusterBuilder[F] = {
+
+    val endpoints             = ClusterEndpoints.ViaDns(clusterDns)
+    val authorityWithFallback = authority.getOrElse(clusterDns.toString)
+    val options               = gossipPort.fold(Options.default)(Options.default.withHttpPort)
+    val clusterOptions        = ClusterOptions.default
+    val endpointResolver      = EndpointResolver.default[F]
+
+    cluster[F](endpoints, authorityWithFallback, options, clusterOptions)
+      .withEndpointResolver(endpointResolver)
+
+  }
+
+  def cluster[F[_]: Applicative](
+    seed: NonEmptySet[Endpoint],
+    authority: String
+  ): ClusterBuilder[F] = {
+
+    val endpoints      = ClusterEndpoints.ViaSeed(seed)
+    val options        = Options.default
+    val clusterOptions = ClusterOptions.default
+
+    cluster[F](endpoints, authority, options, clusterOptions)
+  }
 
   private[sec] def cluster[F[_]: Applicative](
-    seed: NonEmptySet[Endpoint],
+    endpoints: ClusterEndpoints,
     authority: String,
     options: Options,
     clusterOptions: ClusterOptions
   ): ClusterBuilder[F] =
-    ClusterBuilder[F](seed, authority, options, clusterOptions, NoOpLogger.impl[F])
+    ClusterBuilder[F](
+      endpoints,
+      authority,
+      options,
+      clusterOptions,
+      NoOpLogger.impl[F],
+      EndpointResolver.noop[F]
+    )
 
 //======================================================================================================================
 

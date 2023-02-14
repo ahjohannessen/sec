@@ -8,6 +8,7 @@ object Dependencies {
     val catsCore   = "2.9.0"
     val catsEffect = "3.4.6"
     val fs2        = "3.6.1"
+    val ip4s       = "3.2.0"
     val log4cats   = "2.5.0"
     val logback    = "1.2.11"
     val scodecBits = "1.1.35"
@@ -30,6 +31,7 @@ object Dependencies {
   val catsEffect   = "org.typelevel"           %% "cats-effect"       % versions.catsEffect
   val fs2          = "co.fs2"                  %% "fs2-core"          % versions.fs2
   val fs2Io        = "co.fs2"                  %% "fs2-io"            % versions.fs2
+  val ip4s         = "com.comcast"             %% "ip4s-core"         % versions.ip4s
   val log4cats     = "org.typelevel"           %% "log4cats-core"     % versions.log4cats
   val log4catsNoop = "org.typelevel"           %% "log4cats-noop"     % versions.log4cats
   val unum         = "io.github.ahjohannessen" %% "unum"              % versions.unum
