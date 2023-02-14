@@ -23,11 +23,13 @@ import java.{util => ju}
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import cats.Id
+import cats.data.{NonEmptySet => Nes}
 import cats.data.{NonEmptyList => Nel}
 import cats.effect._
 import cats.effect.testkit._
 import cats.syntax.all._
 import fs2.Stream
+import com.comcast.ip4s._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.scalacheck.Gen
@@ -176,6 +178,73 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances {
 
       }
 
+    }
+  }
+
+  group("ClusterWatch.resolveSeed") {
+
+    val mkLog: IO[Logger[IO]] = Slf4jLogger.fromName[IO]("cluster-watch-resolve-seed")
+
+    val maxAttempts = 5
+    val clusterOptions = ClusterOptions.default
+      .withMaxDiscoverAttempts(maxAttempts.some)
+      .withRetryDelay(150.millis)
+      .withRetryBackoffFactor(1)
+      .withReadTimeout(150.millis)
+
+    def resolveEndpoints(clusterDns: Hostname, resolveFn: Hostname => IO[List[Endpoint]]) = mkLog >>= { l =>
+      ClusterWatch.resolveEndpoints[IO](clusterDns, resolveFn, clusterOptions, l)
+    }
+
+    def resolveFn(ref: Ref[IO, Int], returnAfter: Int): Hostname => IO[List[Endpoint]] = hn =>
+      hn.toString match {
+        case "fail.org" => IO.raiseError(new RuntimeException("OhNoes"))
+        case _ =>
+          ref.updateAndGet(_ + 1) >>= { c =>
+            if (returnAfter <= c) IO(List(Endpoint("127.0.0.1", 2113))) else IO(Nil)
+          }
+      }
+
+    test("dns") {
+
+      val program = for {
+        ref       <- IO.ref(0)
+        endpoints <- resolveEndpoints(host"example.org", resolveFn(ref, 1)).attempt
+        count     <- ref.get
+      } yield {
+        assertEquals(count, 1)
+        assertEquals(endpoints, Nes.of(Endpoint("127.0.0.1", 2113)).asRight)
+      }
+
+      TestControl.executeEmbed(program)
+    }
+
+    test("dns - max attempts exhausted") {
+
+      val program = for {
+        ref       <- IO.ref(0)
+        endpoints <- resolveEndpoints(host"example.org", resolveFn(ref, maxAttempts + 2)).attempt
+        count     <- ref.get
+      } yield {
+        assertEquals(count, 6)
+        assertEquals(endpoints, EndpointsResolveError(host"example.org").asLeft)
+      }
+
+      TestControl.executeEmbed(program)
+    }
+
+    test("dns - unknown errors are raised") {
+
+      val program = for {
+        ref       <- IO.ref(0)
+        endpoints <- resolveEndpoints(host"fail.org", resolveFn(ref, 1)).attempt
+        count     <- ref.get
+      } yield {
+        assertEquals(count, 0)
+        assertEquals(endpoints.leftMap(_.getMessage()), "OhNoes".asLeft)
+      }
+
+      TestControl.executeEmbed(program)
     }
 
   }

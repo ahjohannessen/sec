@@ -30,8 +30,8 @@ import sec.api.cluster._
 //======================================================================================================================
 
 sealed abstract class SingleNodeBuilder[F[_]] private (
-  val endpoint: Endpoint,
-  val authority: Option[String],
+  private[sec] val endpoint: Endpoint,
+  private[sec] val authority: Option[String],
   options: Options,
   logger: Logger[F]
 ) extends OptionsBuilder[SingleNodeBuilder[F]] {
@@ -86,8 +86,8 @@ object SingleNodeBuilder {
 //======================================================================================================================
 
 class ClusterBuilder[F[_]] private (
-  val endpoints: ClusterEndpoints,
-  val authority: String,
+  private[sec] val endpoints: ClusterEndpoints,
+  private[sec] val authority: String,
   options: Options,
   clusterOptions: ClusterOptions,
   logger: Logger[F],
@@ -130,8 +130,18 @@ class ClusterBuilder[F[_]] private (
           EsClient.mkOpts[F](options.operationOptions.copy(retryEnabled = false), log, "gossip")
         ))
 
-    val resolveSeed: Resource[F, NonEmptySet[Endpoint]] =
-      ClusterWatch.resolveSeed[F](endpoints, endpointResolver, options, clusterOptions, logger).toResource
+    val resolveSeed: Resource[F, NonEmptySet[Endpoint]] = {
+
+      def resolveEndpoints(vd: ClusterEndpoints.ViaDns) =
+        ClusterWatch.resolveEndpoints[F](
+          vd.clusterDns,
+          endpointResolver.resolveEndpoints(_, options.httpPort),
+          clusterOptions,
+          logger
+        )
+
+      endpoints.fold(resolveEndpoints, _.endpoints.pure[F]).toResource
+    }
 
     resolveSeed >>= { seed =>
 
