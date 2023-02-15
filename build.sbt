@@ -33,11 +33,7 @@ lazy val core = project
       // Generated code not for end users
       ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.scalaDescriptor"),
       ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.shared.*"),
-      // Package private
-      ProblemFilters.exclude[IncompatibleResultTypeProblem]("sec.api.ConnectionMode#Secure.*"),
-      ProblemFilters.exclude[IncompatibleMethTypeProblem]("sec.api.ConnectionMode#Secure.*"),
-      ProblemFilters.exclude[MissingTypesProblem]("sec.api.ConnectionMode$Secure$")
+      ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.shared.*")
     )
   )
 
@@ -64,13 +60,7 @@ lazy val `fs2-core` = project
       ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor"),
       //
       ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.shared.*"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem]("com.eventstore.dbclient.proto.streams.*"),
-      // private
-      ProblemFilters.exclude[DirectMissingMethodProblem]("sec.api.ClusterBuilder.this"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("sec.api.ClusterBuilder.apply"),
-      ProblemFilters.exclude[IncompatibleMethTypeProblem]("sec.api.EsClient.cluster"),
-      // replaced with endpoints
-      ProblemFilters.exclude[DirectMissingMethodProblem]("sec.api.ClusterBuilder.seed")
+      ProblemFilters.exclude[ReversedMissingMethodProblem]("com.eventstore.dbclient.proto.streams.*")
     )
   )
   .dependsOn(core)
@@ -158,7 +148,7 @@ inThisBuild(
     scalaVersion := Scala2,
     crossScalaVersions := Seq(Scala3, Scala2),
     versionScheme := Some("early-semver"),
-    tlBaseVersion := "0.24",
+    tlBaseVersion := "0.25",
     tlSonatypeUseLegacyHost := false,
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
