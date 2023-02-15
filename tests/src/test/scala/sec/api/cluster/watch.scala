@@ -40,9 +40,9 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances {
 
   import ClusterWatch.Cache
 
-  group("ClusterWatch") {
+  val mkLog: IO[Logger[IO]] = Slf4jLogger.fromName[IO]("cluster-watch-spec")
 
-    val mkLog: IO[Logger[IO]] = Slf4jLogger.fromName[IO]("cluster-watch-spec")
+  group("ClusterWatch") {
 
     test("only emit changes in cluster info") {
 
@@ -183,14 +183,16 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances {
 
   group("ClusterWatch.resolveSeed") {
 
-    val mkLog: IO[Logger[IO]] = Slf4jLogger.fromName[IO]("cluster-watch-resolve-seed")
-
     val maxAttempts = 5
     val clusterOptions = ClusterOptions.default
       .withMaxDiscoverAttempts(maxAttempts.some)
       .withRetryDelay(150.millis)
       .withRetryBackoffFactor(1)
       .withReadTimeout(150.millis)
+
+    val ep1 = Endpoint("127.0.0.1", 2113)
+    val ep2 = Endpoint("127.0.0.2", 2113)
+    val ep3 = Endpoint("127.0.0.3", 2113)
 
     def resolveEndpoints(clusterDns: Hostname, resolveFn: Hostname => IO[List[Endpoint]]) = mkLog >>= { l =>
       ClusterWatch.resolveEndpoints[IO](clusterDns, resolveFn, clusterOptions, l)
@@ -201,7 +203,7 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances {
         case "fail.org" => IO.raiseError(new RuntimeException("OhNoes"))
         case _ =>
           ref.updateAndGet(_ + 1) >>= { c =>
-            if (returnAfter <= c) IO(List(Endpoint("127.0.0.1", 2113))) else IO(Nil)
+            if (returnAfter <= c) IO(List(ep1, ep2, ep3)) else IO(Nil)
           }
       }
 
@@ -213,7 +215,7 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances {
         count     <- ref.get
       } yield {
         assertEquals(count, 1)
-        assertEquals(endpoints, Nes.of(Endpoint("127.0.0.1", 2113)).asRight)
+        assertEquals(endpoints, Nes.of(ep1, ep2, ep3).asRight)
       }
 
       TestControl.executeEmbed(program)
