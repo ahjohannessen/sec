@@ -24,19 +24,19 @@ import cats.effect.Sync
 import com.comcast.ip4s._
 
 private[sec] trait EndpointResolver[F[_]] {
-  def resolveEndpoints(host: Hostname, port: Port): F[List[Endpoint]]
+  def resolveEndpoints(host: Hostname, nodePort: Port): F[List[Endpoint]]
 }
 
 private[sec] object EndpointResolver {
 
   def noop[F[_]: Applicative]: EndpointResolver[F] = new EndpointResolver[F] {
-    def resolveEndpoints(host: Hostname, port: Port): F[List[Endpoint]] = List.empty[Endpoint].pure[F]
+    def resolveEndpoints(host: Hostname, nodePort: Port): F[List[Endpoint]] = List.empty[Endpoint].pure[F]
   }
 
   def default[F[_]: Sync]: EndpointResolver[F] = new EndpointResolver[F] {
 
-    def resolveEndpoints(host: Hostname, port: Port): F[List[Endpoint]] =
-      host.resolveAll[F].map(_.map(ia => Endpoint(ia.toUriString, port.value)))
+    def resolveEndpoints(host: Hostname, nodePort: Port): F[List[Endpoint]] =
+      host.resolveAll[F].map(_.map(ia => Endpoint(ia.toUriString, nodePort.value)))
 
   }
 

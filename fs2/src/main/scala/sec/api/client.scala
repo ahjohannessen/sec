@@ -67,13 +67,13 @@ object EsClient {
 
   def clusterViaDns[F[_]: Sync](
     clusterDns: Hostname,
-    gossipPort: Option[Port],
+    nodePort: Option[Port],
     authority: Option[String]
   ): ClusterBuilder[F] = {
 
     val endpoints             = ClusterEndpoints.ViaDns(clusterDns)
     val authorityWithFallback = authority.getOrElse(clusterDns.toString)
-    val options               = gossipPort.fold(Options.default)(Options.default.withHttpPort)
+    val options               = nodePort.fold(Options.default)(Options.default.withHttpPort)
     val clusterOptions        = ClusterOptions.default
     val endpointResolver      = EndpointResolver.default[F]
 
