@@ -44,17 +44,22 @@ private[sec] object ClusterWatch {
     logger: Logger[F]
   ): F[NonEmptySet[Endpoint]] = {
 
-    val log = logger.withModifiedString(s => s"dns-discovery > $s")
+    val log        = logger.withModifiedString(s => s"dns-discovery > $s")
+    val actionName = "resolve-endpoints"
+    val config     = retryConfig(clusterOptions)
 
     def raiseResolveError =
       EndpointsResolveError(clusterDns).raiseError[F, NonEmptySet[Endpoint]]
 
+    def logResult(endpoints: NonEmptySet[Endpoint]): F[Unit] =
+      log.info(s"$actionName got ${endpoints.toList.map(_.render).mkString(", ")} from $clusterDns")
+
     val action: F[NonEmptySet[Endpoint]] =
       resolveFn(clusterDns).map(NonEmptyList.fromList) >>= {
-        _.map(_.toNes).fold(raiseResolveError)(_.pure[F])
+        _.map(_.toNes).fold(raiseResolveError)(_.pure[F].flatTap(logResult))
       }
 
-    retry(action, "resolve-endpoints", retryConfig(clusterOptions), log) {
+    retry(action, actionName, config, log) {
       case _: EndpointsResolveError | _: Timeout => true
       case _                                     => false
     }
