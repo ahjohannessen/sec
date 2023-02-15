@@ -124,28 +124,39 @@ class ConfigSuite extends SecSuite {
 
     test("config - seed") {
 
-      val cfg = ConfigFactory.parseString(
+      val expectedEndpoints = ClusterEndpoints.ViaSeed(
+        NonEmptySet.of(
+          Endpoint("127.0.0.1", 2113),
+          Endpoint("127.0.0.2", 2213),
+          Endpoint("127.0.0.3", 2113)
+        )
+      )
+
+      val cfg1 = ConfigFactory.parseString(
         """
             | sec.authority    = "example.org"
             | sec.cluster.seed = [ "127.0.0.1", "127.0.0.2:2213", "127.0.0.3" ]
             |""".stripMargin
       )
 
-      val builder = mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg)
+      mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg1)
+        .fold(fail("Expected some ClusterBuilder")) { b =>
+          assertEquals(b.authority, "example.org")
+          assertEquals(b.endpoints, expectedEndpoints)
+        }
 
-      builder.fold(fail("Expected some ClusterBuilder")) { b =>
-        assertEquals(b.authority, "example.org")
-        assertEquals(
-          b.endpoints,
-          ClusterEndpoints.ViaSeed(
-            NonEmptySet.of(
-              Endpoint("127.0.0.1", 2113),
-              Endpoint("127.0.0.2", 2213),
-              Endpoint("127.0.0.3", 2113)
-            )
-          )
-        )
-      }
+      val cfg2 = ConfigFactory.parseString(
+        """
+            | sec.authority    = "example.org"
+            | sec.cluster.seed = "127.0.0.1,127.0.0.2:2213, 127.0.0.3, "
+            |""".stripMargin
+      )
+
+      mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg2)
+        .fold(fail("Expected some ClusterBuilder")) { b =>
+          assertEquals(b.authority, "example.org")
+          assertEquals(b.endpoints, expectedEndpoints)
+        }
 
     }
 

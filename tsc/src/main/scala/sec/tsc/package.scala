@@ -21,7 +21,7 @@ import java.io.File
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 import scala.jdk.CollectionConverters._
 import cats._
-import cats.data.NonEmptySet
+import cats.data.{NonEmptyList, NonEmptySet}
 import cats.syntax.all._
 import cats.effect._
 import com.comcast.ip4s.{Hostname, Port}
@@ -109,11 +109,25 @@ private[sec] object config {
     val viaSeed: Option[(ClusterEndpoints.ViaSeed, Authority)] = {
 
       val defaultPort = o.httpPort.value
-      val seeds: List[String] =
-        cfg.option(s"$clPath.seed", _.getStringList).fold(List.empty[String])(_.asScala.toList)
+      val seedPath    = s"$clPath.seed"
 
-      val result = seeds.flatMap { s =>
-        s.split(":") match {
+      val seedsList: Option[NonEmptyList[String]] =
+        cfg
+          .option(seedPath, _.getStringList)
+          .map(_.asScala.toList.map(_.trim).filter(_.nonEmpty))
+          .flatMap(NonEmptyList.fromList)
+
+      val seedsString: Option[NonEmptyList[String]] =
+        cfg
+          .option(seedPath, _.getString)
+          .filter(_.nonEmpty)
+          .map(_.split(",").toList.map(_.trim).filter(_.nonEmpty))
+          .flatMap(NonEmptyList.fromList)
+
+      val seeds = seedsList.orElse(seedsString).map(_.toList).getOrElse(Nil)
+
+      val result = seeds.flatMap {
+        _.split(":") match {
           case Array(host, port) => Endpoint(host, port.toIntOption.getOrElse(defaultPort)).some
           case Array(host)       => Endpoint(host, defaultPort).some
           case _                 => None
