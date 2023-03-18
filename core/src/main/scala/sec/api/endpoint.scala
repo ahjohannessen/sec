@@ -19,7 +19,7 @@ package api
 
 import java.net.InetSocketAddress
 
-import cats.Order
+import cats.{Order, Show}
 import io.grpc.{Attributes, EquivalentAddressGroup}
 
 /** Endpoint can be an IP Socket Address consisting of an IP address and port number. It can also be a hostname and a
@@ -36,6 +36,7 @@ object Endpoint {
 
   implicit val orderForEndpoint: Order[Endpoint]       = Order.by(ep => (ep.address, ep.port))
   implicit val orderingForEndpoint: Ordering[Endpoint] = orderForEndpoint.toOrdering
+  implicit val showForEndpoint: Show[Endpoint]         = Show.show(ep => render(ep))
 
   def render(ep: Endpoint): String = s"${ep.address}:${ep.port}"
 

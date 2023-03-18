@@ -115,7 +115,7 @@ private[sec] object ClusterWatch {
 
   def mkWatch[F[_]: Temporal](get: F[ClusterInfo], interval: FiniteDuration): ClusterWatch[F] =
     new ClusterWatch[F] {
-      val subscribe: Stream[F, ClusterInfo] = Stream.eval(get).metered(interval).repeat.changesBy(_.members)
+      val subscribe: Stream[F, ClusterInfo] = Stream.eval(get).metered(interval).repeat.changes
     }
 
   def mkFetcher[F[_]: Async](
@@ -131,7 +131,7 @@ private[sec] object ClusterWatch {
       case _                                                => false
     }
 
-    Stream.eval(action).metered(notificationInterval).repeat.changesBy(_.members).evalMap(setInfo)
+    Stream.eval(action).metered(notificationInterval).repeat.changes.evalMap(setInfo)
   }
 
   ///
