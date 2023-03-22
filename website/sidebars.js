@@ -1,4 +1,7 @@
-module.exports = {
+// @ts-check
+
+/** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
+const sidebars = {
 
   mainSidebar: {
     'Getting Started': ['intro', 'setup'],
@@ -7,3 +10,5 @@ module.exports = {
   }
 
 };
+
+module.exports = sidebars;
