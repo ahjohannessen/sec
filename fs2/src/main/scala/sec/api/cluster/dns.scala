@@ -35,8 +35,10 @@ private[sec] object EndpointResolver {
 
   def default[F[_]: Sync]: EndpointResolver[F] = new EndpointResolver[F] {
 
+    val dns: Dns[F] = Dns.forSync[F]
+
     def resolveEndpoints(host: Hostname, nodePort: Port): F[List[Endpoint]] =
-      host.resolveAll[F].map(_.map(ia => Endpoint(ia.toUriString, nodePort.value)))
+      dns.resolveAll(host).map(_.map(ia => Endpoint(ia.toUriString, nodePort.value)))
 
   }
 
