@@ -53,7 +53,7 @@ class NotifierSuite extends SecEffectSuite {
         halt      <- mkHaltR[IO]
         listener  <- mkListenerR[IO]
         endpoints <- Resource.eval(Ref.of[IO, Nes[Endpoint]](seed))
-        notifier   = gossip.create[IO](seed, (_, nes) => nes, updates, endpoints, halt)
+        notifier   = gossip.create[IO](seed, (_, nes) => nes, updates, endpoints, halt, gossip.ChangeObserver.noop[IO])
         n         <- notifier.start(listener)
       } yield n *> listener.recordings.get
 
@@ -79,7 +79,7 @@ class NotifierSuite extends SecEffectSuite {
         halt      <- mkHaltR[IO]
         listener  <- mkListenerR[IO]
         endpoints <- Resource.eval(Ref.of[IO, Nes[Endpoint]](seed))
-        notifier   = gossip.create[IO](seed, next, updates, endpoints, halt)
+        notifier   = gossip.create[IO](seed, next, updates, endpoints, halt, gossip.ChangeObserver.noop[IO])
         n         <- notifier.start(listener)
       } yield n *> listener.recordings.get
 
