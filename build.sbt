@@ -6,7 +6,7 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 Global / lintUnusedKeysOnLoad := false
 
 lazy val Scala2 = "2.13.10"
-lazy val Scala3 = "3.2.2"
+lazy val Scala3 = "3.3.0"
 
 lazy val sec = project
   .in(file("."))
@@ -150,7 +150,7 @@ inThisBuild(
     scalaVersion := Scala2,
     crossScalaVersions := Seq(Scala3, Scala2),
     versionScheme := Some("early-semver"),
-    tlBaseVersion := "0.25",
+    tlBaseVersion := "0.26",
     tlSonatypeUseLegacyHost := false,
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
