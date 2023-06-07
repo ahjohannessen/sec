@@ -5,7 +5,7 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 Global / lintUnusedKeysOnLoad := false
 
-lazy val Scala2 = "2.13.10"
+lazy val Scala2 = "2.13.11"
 lazy val Scala3 = "3.3.0"
 
 lazy val sec = project
