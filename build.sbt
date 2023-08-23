@@ -71,7 +71,13 @@ lazy val `fs2-netty` = project
   .in(file("fs2-netty"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
-  .settings(name := "sec-fs2-client", libraryDependencies ++= compileM(grpcNetty))
+  .settings(
+    name := "sec-fs2-client",
+    libraryDependencies ++= compileM(grpcNetty),
+    Compile / scalacOptions ++= {
+      if (tlIsScala3.value) Seq() else Seq("-Wconf:cat=deprecation&src=sec/api/package.scala:s")
+    }
+  )
   .dependsOn(`fs2-core`, tsc)
 
 //==== Config ==========================================================================================================
@@ -140,9 +146,10 @@ lazy val docs = project
 //==== Common ==========================================================================================================
 
 lazy val commonSettings = Seq(
-  scalacOptions ++= Seq("-release:8"),
-  Compile / doc / scalacOptions ~=
-    (_.filterNot(_ == "-Xfatal-warnings"))
+  Compile / scalacOptions ++= {
+    if (tlIsScala3.value) Seq() else Seq("-Ywarn-unused:-nowarn")
+  },
+  Compile / doc / scalacOptions ~= (_.filterNot(_ == "-Xfatal-warnings"))
 )
 
 inThisBuild(

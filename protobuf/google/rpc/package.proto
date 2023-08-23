@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package google.rpc;
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+    scope: PACKAGE
+    aux_message_options: [           
+      { target: "google.rpc.Status", options: { companion_annotations: "@scala.annotation.nowarn" } }
+    ]
+};

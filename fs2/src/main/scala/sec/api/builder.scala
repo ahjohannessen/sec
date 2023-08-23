@@ -108,9 +108,10 @@ class ClusterBuilder[F[_]] private (
   private[sec] def modOptions(fn: Endo[Options]): ClusterBuilder[F]         = copy(options = fn(options))
   private[sec] def modCOptions(fn: Endo[ClusterOptions]): ClusterBuilder[F] = copy(clusterOptions = fn(clusterOptions))
 
-  def withAuthority(value: String): ClusterBuilder[F]  = copy(authority = value)
-  def withLogger(value: Logger[F]): ClusterBuilder[F]  = copy(logger = value)
-  def withEndpointResolver(value: EndpointResolver[F]) = copy(endpointResolver = value)
+  private[sec] def withEndpointResolver(value: EndpointResolver[F]) = copy(endpointResolver = value)
+
+  def withAuthority(value: String): ClusterBuilder[F] = copy(authority = value)
+  def withLogger(value: Logger[F]): ClusterBuilder[F] = copy(logger = value)
 
   private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](
     mcb: ChannelBuilderParams => F[MCB]
