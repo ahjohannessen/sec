@@ -17,7 +17,6 @@
 package sec
 
 import java.util.UUID
-
 import cats.effect._
 
 package object api extends BuilderSyntax with EsClientObjectSyntax {

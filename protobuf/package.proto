@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package event_store.client;
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+    scope: PACKAGE
+    aux_message_options: [
+      
+      // shared.proto
+      
+      { target: "event_store.client.UUID", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.Empty", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.StreamIdentifier", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.AllStreamPosition", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.WrongExpectedVersion", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.AccessDenied", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.StreamDeleted", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.Timeout", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.Unknown", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.InvalidTransaction", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.MaximumAppendSizeExceeded", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.BadRequest", options: { companion_annotations: "@scala.annotation.nowarn" } },
+
+      // gossip.proto
+
+      { target: "event_store.client.gossip.ClusterInfo", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.gossip.EndPoint", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.gossip.MemberInfo", options: { companion_annotations: "@scala.annotation.nowarn" } },
+
+      // streams.proto
+
+      { target: "event_store.client.streams.ReadReq", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.streams.ReadResp", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.streams.AppendReq", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.streams.AppendResp", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.streams.BatchAppendReq", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.streams.BatchAppendResp", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.streams.DeleteReq", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.streams.DeleteResp", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.streams.TombstoneReq", options: { companion_annotations: "@scala.annotation.nowarn" } },
+      { target: "event_store.client.streams.TombstoneResp", options: { companion_annotations: "@scala.annotation.nowarn" } }
+
+    ]
+};
