@@ -31,9 +31,9 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
   /** Subscribes to the global stream, [[StreamId.All]] without resolving [[EventType.LinkTo]] events.
     *
     * @param exclusiveFrom
-    *   position to start from. Use [[None]] to subscribe from the beginning.
+    *   position to start from. Use [[scala.None]] to subscribe from the beginning.
     * @return
-    *   a [[Stream]] that emits [[Event]] values.
+    *   a [[fs2.Stream]] that emits [[Event]] values.
     */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition]
@@ -44,12 +44,12 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * [[EventType.LinkTo]] events.
     *
     * @param exclusiveFrom
-    *   log position to start from. Use [[None]] to subscribe from the beginning.
+    *   log position to start from. Use [[scala.None]] to subscribe from the beginning.
     * @param filterOptions
     *   to use when subscribing - See [[sec.api.SubscriptionFilterOptions]].
     * @return
-    *   a [[Stream]] that emits either [[Checkpoint]] or [[Event]] values. How frequent [[Checkpoint]] is emitted
-    *   depends on [[filterOptions]].
+    *   a [[fs2.Stream]] that emits either [[sec.api.Checkpoint]] or [[Event]] values. How frequent
+    *   [[sec.api.Checkpoint]] is emitted depends on @filterOptions.
     */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
@@ -62,9 +62,9 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * @param streamId
     *   the id of the stream to subscribe to.
     * @param exclusiveFrom
-    *   stream position to start from. Use [[None]] to subscribe from the beginning.
+    *   stream position to start from. Use [[scala.None]] to subscribe from the beginning.
     * @return
-    *   a [[Stream]] that emits [[Event]] values.
+    *   a [[fs2.Stream]] that emits [[Event]] values.
     */
   def subscribeToStream(
     streamId: StreamId,
@@ -83,7 +83,7 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[Event]] values.
+    *   a [[fs2.Stream]] that emits [[Event]] values.
     */
   def readAllForwards(
     from: LogPosition = LogPosition.Start,
@@ -101,7 +101,7 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[Event]] values.
+    *   a [[fs2.Stream]] that emits [[Event]] values.
     */
   def readAllBackwards(
     from: LogPosition = LogPosition.End,
@@ -122,7 +122,7 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[Event]] values.
+    *   a [[fs2.Stream]] that emits [[Event]] values.
     */
   def readStreamForwards(
     streamId: StreamId,
@@ -144,7 +144,7 @@ final class StreamsOps[F[_]](val s: Streams[F]) extends AnyVal {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[Event]] values.
+    *   a [[fs2.Stream]] that emits [[Event]] values.
     */
   def readStreamBackwards(
     streamId: StreamId,

@@ -49,11 +49,11 @@ trait Streams[F[_]] {
   /** Subscribes to the global stream, [[StreamId.All]].
     *
     * @param exclusiveFrom
-    *   position to start from. Use [[None]] to subscribe from the beginning.
+    *   position to start from. Use [[scala.None]] to subscribe from the beginning.
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[Event]] values.
+    *   a [[fs2.Stream]] that emits [[Event]] values.
     */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
@@ -63,14 +63,14 @@ trait Streams[F[_]] {
   /** Subscribes to the global stream, [[StreamId.All]] using a subscription filter.
     *
     * @param exclusiveFrom
-    *   log position to start from. Use [[None]] to subscribe from the beginning.
+    *   log position to start from. Use [[scala.None]] to subscribe from the beginning.
     * @param filterOptions
     *   to use when subscribing - See [[sec.api.SubscriptionFilterOptions]].
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits either [[Checkpoint]] or [[Event]] values. How frequent [[Checkpoint]] is emitted
-    *   depends on `filterOptions`.
+    *   a [[fs2.Stream]] that emits either [[sec.api.Checkpoint]] or [[Event]] values. How frequent
+    *   [[sec.api.Checkpoint]] is emitted depends on `filterOptions`.
     */
   def subscribeToAll(
     exclusiveFrom: Option[LogPosition],
@@ -83,11 +83,11 @@ trait Streams[F[_]] {
     * @param streamId
     *   the id of the stream to subscribe to.
     * @param exclusiveFrom
-    *   stream position to start from. Use [[None]] to subscribe from the beginning.
+    *   stream position to start from. Use [[scala.None]] to subscribe from the beginning.
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[Event]] values.
+    *   a [[fs2.Stream]] that emits [[Event]] values.
     */
   def subscribeToStream(
     streamId: StreamId,
@@ -106,7 +106,7 @@ trait Streams[F[_]] {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[Event]] values.
+    *   a [[fs2.Stream]] that emits [[Event]] values.
     */
   def readAll(
     from: LogPosition,
@@ -129,7 +129,7 @@ trait Streams[F[_]] {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[Event]] values.
+    *   a [[fs2.Stream]] that emits [[Event]] values.
     */
   def readStream(
     streamId: StreamId,

@@ -27,7 +27,7 @@ trait ReadsSyntax {
 
 final class ReadsOps[F[_]](val r: Reads[F]) extends AnyVal {
 
-  /** Read [[AllMessage]] messages forwards from the global stream, [[sec.StreamId.All]].
+  /** Read [[sec.api.AllMessage]] messages forwards from the global stream, [[sec.StreamId.All]].
     *
     * @param from
     *   log position to read from.
@@ -36,7 +36,7 @@ final class ReadsOps[F[_]](val r: Reads[F]) extends AnyVal {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[AllMessage]] values.
+    *   a [[fs2.Stream]] that emits [[sec.api.AllMessage]] values.
     */
   def readAllMessagesForwards(
     from: LogPosition = LogPosition.Start,
@@ -45,7 +45,7 @@ final class ReadsOps[F[_]](val r: Reads[F]) extends AnyVal {
   ): Stream[F, AllMessage] =
     r.readAllMessages(from, Direction.Forwards, maxCount, resolveLinkTos)
 
-  /** Read [[AllMessage]] messages backwards from the global stream, [[sec.StreamId.All]].
+  /** Read [[sec.api.AllMessage]] messages backwards from the global stream, [[sec.StreamId.All]].
     *
     * @param from
     *   log position to read from.
@@ -54,7 +54,7 @@ final class ReadsOps[F[_]](val r: Reads[F]) extends AnyVal {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[AllMessage]] values.
+    *   a [[fs2.Stream]] that emits [[sec.api.AllMessage]] values.
     */
   def readAllMessagesBackwards(
     from: LogPosition = LogPosition.End,
@@ -63,7 +63,7 @@ final class ReadsOps[F[_]](val r: Reads[F]) extends AnyVal {
   ): Stream[F, AllMessage] =
     r.readAllMessages(from, Direction.Backwards, maxCount, resolveLinkTos)
 
-  /** Read [[StreamMessage]] messages forwards from an individual stream.
+  /** Read [[sec.api.StreamMessage]] messages forwards from an individual stream.
     *
     * @param streamId
     *   the id of the stream to read from.
@@ -74,7 +74,7 @@ final class ReadsOps[F[_]](val r: Reads[F]) extends AnyVal {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[StreamMessage]] values.
+    *   a [[fs2.Stream]] that emits [[sec.api.StreamMessage]] values.
     */
   def readStreamMessagesForwards(
     streamId: StreamId,
@@ -84,7 +84,7 @@ final class ReadsOps[F[_]](val r: Reads[F]) extends AnyVal {
   ): Stream[F, StreamMessage] =
     r.readStreamMessages(streamId, from, Direction.Forwards, maxCount, resolveLinkTos)
 
-  /** Read [[StreamMessage]] messages backwards from an individual stream.
+  /** Read [[sec.api.StreamMessage]] messages backwards from an individual stream.
     *
     * @param streamId
     *   the id of the stream to read from.
@@ -95,7 +95,7 @@ final class ReadsOps[F[_]](val r: Reads[F]) extends AnyVal {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[StreamMessage]] values.
+    *   a [[fs2.Stream]] that emits [[sec.api.StreamMessage]] values.
     */
   def readStreamMessagesBackwards(
     streamId: StreamId,

@@ -43,7 +43,7 @@ trait Reads[F[_]] {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[AllMessage]] values.
+    *   a [[fs2.Stream]] that emits [[sec.api.AllMessage]] values.
     */
   def readAllMessages(
     from: LogPosition,
@@ -65,7 +65,7 @@ trait Reads[F[_]] {
     * @param resolveLinkTos
     *   whether to resolve [[EventType.LinkTo]] events automatically.
     * @return
-    *   a [[Stream]] that emits [[StreamMessage]] values.
+    *   a [[fs2.Stream]] that emits [[sec.api.StreamMessage]] values.
     */
   def readStreamMessages(
     streamId: StreamId,
