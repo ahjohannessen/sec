@@ -25,7 +25,7 @@ trait ReadsSyntax {
 
   extension [F[_]](r: Reads[F]) {
 
-    /** Read [[AllMessage]] messages forwards from the global stream, [[sec.StreamId.All]].
+    /** Read [[sec.api.AllMessage]] messages forwards from the global stream, [[sec.StreamId.All]].
       *
       * @param from
       *   log position to read from.
@@ -34,7 +34,7 @@ trait ReadsSyntax {
       * @param resolveLinkTos
       *   whether to resolve [[EventType.LinkTo]] events automatically.
       * @return
-      *   a [[Stream]] that emits [[AllMessage]] values.
+      *   a [[fs2.Stream]] that emits [[sec.api.AllMessage]] values.
       */
     def readAllMessagesForwards(
       from: LogPosition = LogPosition.Start,
@@ -43,7 +43,7 @@ trait ReadsSyntax {
     ): Stream[F, AllMessage] =
       r.readAllMessages(from, Direction.Forwards, maxCount, resolveLinkTos)
 
-    /** Read [[AllMessage]] messages backwards from the global stream, [[sec.StreamId.All]].
+    /** Read [[sec.api.AllMessage]] messages backwards from the global stream, [[sec.StreamId.All]].
       *
       * @param from
       *   log position to read from.
@@ -52,7 +52,7 @@ trait ReadsSyntax {
       * @param resolveLinkTos
       *   whether to resolve [[EventType.LinkTo]] events automatically.
       * @return
-      *   a [[Stream]] that emits [[AllMessage]] values.
+      *   a [[fs2.Stream]] that emits [[sec.api.AllMessage]] values.
       */
     def readAllMessagesBackwards(
       from: LogPosition = LogPosition.End,
@@ -61,7 +61,7 @@ trait ReadsSyntax {
     ): Stream[F, AllMessage] =
       r.readAllMessages(from, Direction.Backwards, maxCount, resolveLinkTos)
 
-    /** Read [[StreamMessage]] messages forwards from an individual stream.
+    /** Read [[sec.api.StreamMessage]] messages forwards from an individual stream.
       *
       * @param streamId
       *   the id of the stream to read from.
@@ -72,7 +72,7 @@ trait ReadsSyntax {
       * @param resolveLinkTos
       *   whether to resolve [[EventType.LinkTo]] events automatically.
       * @return
-      *   a [[Stream]] that emits [[StreamMessage]] values.
+      *   a [[fs2.Stream]] that emits [[sec.api.StreamMessage]] values.
       */
     def readStreamMessagesForwards(
       streamId: StreamId,
@@ -82,7 +82,7 @@ trait ReadsSyntax {
     ): Stream[F, StreamMessage] =
       r.readStreamMessages(streamId, from, Direction.Forwards, maxCount, resolveLinkTos)
 
-    /** Read [[StreamMessage]] messages backwards from an individual stream.
+    /** Read [[sec.api.StreamMessage]] messages backwards from an individual stream.
       *
       * @param streamId
       *   the id of the stream to read from.
@@ -93,7 +93,7 @@ trait ReadsSyntax {
       * @param resolveLinkTos
       *   whether to resolve [[EventType.LinkTo]] events automatically.
       * @return
-      *   a [[Stream]] that emits [[StreamMessage]] values.
+      *   a [[fs2.Stream]] that emits [[sec.api.StreamMessage]] values.
       */
     def readStreamMessagesBackwards(
       streamId: StreamId,

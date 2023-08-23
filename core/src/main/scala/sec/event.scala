@@ -112,7 +112,7 @@ object EventRecord {
 }
 
 /** Represents a [[EventType.LinkTo]] event that points to another event. Resolved events are common when reading or
-  * subscribing to system prefixed streams, for instance category streams like `$ce-` or `$et-`.
+  * subscribing to system prefixed streams, for instance streams like $$ce- or $$et-.
   *
   * @param event
   *   the original and linked to event record.
