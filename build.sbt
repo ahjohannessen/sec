@@ -60,6 +60,8 @@ lazy val `fs2-core` = project
       ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor"),
       //
       ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.shared.*"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.gossip.*"),
+      ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.streams.*"),
       ProblemFilters.exclude[ReversedMissingMethodProblem]("com.eventstore.dbclient.proto.streams.*"),
       //
       ProblemFilters.exclude[DirectMissingMethodProblem]("sec.api.cluster.Notifier#gossip.*")
