@@ -161,6 +161,7 @@ inThisBuild(
     versionScheme := Some("early-semver"),
     tlBaseVersion := "0.28",
     tlSonatypeUseLegacyHost := false,
+    mergifyStewardConfig ~= { _.map(_.copy(mergeMinors = true).copy(author = "scala-steward-ahjohannessen[bot]")) },
     javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
     organizationName := "Scala EventStoreDB Client",
