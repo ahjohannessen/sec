@@ -1,15 +1,13 @@
 queue_rules:
   - name: default
     conditions:
-      - status-success~=Build and Test \(ubuntu-latest, 2\.13\.\d{1}.+\)
-      - status-success~=Build and Test \(ubuntu-latest, 3\.\d{1}\.\d{1}.+\)
+      - status-success~=Build and Test \(ubuntu-latest, (\d+(\.\d+)?(\.\d+)?), temurin@\d{2}\)
 
 pull_request_rules:
 
   - name: Automatically merge pull requests
     conditions:
-      - status-success~=Build and Test \(ubuntu-latest, 2\.13\.\d{1}.+\)
-      - status-success~=Build and Test \(ubuntu-latest, 3\.\d{1}\.\d{1}.+\)
+      - status-success~=Build and Test \(ubuntu-latest, (\d+(\.\d+)?(\.\d+)?), temurin@\d{2}\)
       - label=merge
     actions:
       queue:
@@ -19,9 +17,8 @@ pull_request_rules:
 
   - name: Automatically merge scala-steward's PRs
     conditions:
-      - author=scala-steward-ahjohannessen[bot]
-      - status-success~=Build and Test \(ubuntu-latest, 2\.13\.\d{1}.+\)
-      - status-success~=Build and Test \(ubuntu-latest, 3\.\d{1}\.\d{1}.+\)
+      - author~=scala-steward
+      - status-success~=Build and Test \(ubuntu-latest, (\d+(\.\d+)?(\.\d+)?), temurin@\d{2}\)
       - body~=labels:(.*-patch.*)|(.*-minor.*)
     actions:
       queue:
