@@ -52,7 +52,7 @@ jobs:
         run: sbt +update
 
       - name: Start Single Node
-        if: contains(matrix.scala, '2.13.11')
+        if: contains(matrix.scala, '2.13.12')
         env:
           SEC_GENCERT_CERTS_ROOT: ${{ github.workspace }}
         run: |
@@ -64,14 +64,14 @@ jobs:
         run: sbt githubWorkflowCheck
 
       - name: Compile docs
-        if: contains(matrix.scala, '2.13.11')
+        if: contains(matrix.scala, '2.13.12')
         run: sbt '++ ${{ matrix.scala }}' compileDocs
 
       - name: Regular tests
         run: sbt '++ ${{ matrix.scala }}' compileTests tests/test
 
       - name: Single node integration tests
-        if: contains(matrix.scala, '2.13.11')
+        if: contains(matrix.scala, '2.13.12')
         env:
           SEC_SIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_SIT_AUTHORITY: es.sec.local
@@ -82,14 +82,14 @@ jobs:
           command: sbt ++${{ matrix.scala }} 'tests / Sit / test'
 
       - name: Stop Single Node
-        if: always() && contains(matrix.scala, '2.13.11')
+        if: always() && contains(matrix.scala, '2.13.12')
         run: |
           pushd .docker
           ./single-node.sh down
           popd
 
       - name: Start Cluster Nodes
-        if: contains(matrix.scala, '2.13.11')
+        if: contains(matrix.scala, '2.13.12')
         env:
           SEC_GENCERT_CERTS_ROOT: ${{ github.workspace }}
         run: |
@@ -98,7 +98,7 @@ jobs:
           popd
 
       - name: Cluster integration tests
-        if: contains(matrix.scala, '2.13.11')
+        if: contains(matrix.scala, '2.13.12')
         env:
           SEC_CIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_CIT_AUTHORITY: es.sec.local
@@ -109,7 +109,7 @@ jobs:
           command: sbt ++${{ matrix.scala }} 'tests / Cit / test'
 
       - name: Stop Cluster Nodes
-        if: always() && contains(matrix.scala, '2.13.11')
+        if: always() && contains(matrix.scala, '2.13.12')
         run: |
           pushd .docker
           ./cluster.sh down
@@ -203,10 +203,10 @@ jobs:
         run: sbt tlCiRelease
 
       - name: Compile docs
-        if: contains(matrix.scala, '2.13.11')
+        if: contains(matrix.scala, '2.13.12')
         run: sbt compileDocs
 
-      - if: contains(matrix.scala, '2.13.11') && github.ref == 'refs/heads/main'
+      - if: contains(matrix.scala, '2.13.12') && github.ref == 'refs/heads/main'
         env:
           GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
         run: sbt docs/docusaurusPublishGhpages
