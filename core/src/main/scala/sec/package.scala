@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package object sec {
+package sec
 
-  private[sec] type Attempt[T] = Either[String, T]
-  private[sec] type ErrorOr[T] = Either[Throwable, T]
+private[sec] type Attempt[T] = Either[String, T]
+private[sec] type ErrorOr[T] = Either[Throwable, T]
 
-  type ULong = unum.ULong
-  val ULong = unum.ULong
-
-}
+type ULong = unum.ULong
+val ULong = unum.ULong

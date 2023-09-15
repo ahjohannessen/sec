@@ -21,10 +21,6 @@ import cats.ApplicativeThrow
 import cats.syntax.all._
 import scodec.bits.ByteVector
 
-trait StringSyntax {
-  implicit final def syntaxForString(s: String): StringOps = new StringOps(s)
-}
+trait StringSyntax:
 
-final class StringOps(val s: String) extends AnyVal {
-  def utf8Bytes[F[_]: ApplicativeThrow]: F[ByteVector] = ByteVector.encodeUtf8(s).liftTo[F]
-}
+  extension [F[_]: ApplicativeThrow](s: String) def utf8Bytes: F[ByteVector] = ByteVector.encodeUtf8(s).liftTo[F]

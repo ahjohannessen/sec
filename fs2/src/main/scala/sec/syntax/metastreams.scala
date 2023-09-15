@@ -23,9 +23,9 @@ import cats.syntax.all._
 import sec.api._
 import StreamId.Id
 
-trait MetaStreamsSyntax {
+trait MetaStreamsSyntax:
 
-  extension [F[_]: MonadThrow](ms: MetaStreams[F]) {
+  extension [F[_]: MonadThrow](ms: MetaStreams[F])
 
     /** Sets max age in [[scala.concurrent.duration.FiniteDuration]] for a stream and returns [[sec.api.WriteResult]]
       * with current positions of the stream after a successful operation. Failure to fulfill the expected state is
@@ -88,7 +88,3 @@ trait MetaStreamsSyntax {
       */
     def setTruncateBefore(id: Id, expectedState: StreamState, truncateBefore: Long): F[WriteResult] =
       ms.setTruncateBefore(id, expectedState, StreamPosition(truncateBefore))
-
-  }
-
-}

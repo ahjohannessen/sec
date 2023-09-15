@@ -21,7 +21,7 @@ import cats.effect._
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder.{forAddress, forTarget}
 
-private[sec] object netty {
+private[sec] object netty:
 
   def mkBuilder[F[_]: Sync](p: ChannelBuilderParams): F[NettyChannelBuilder] = Sync[F].delay {
     p.targetOrEndpoint.fold(
@@ -29,5 +29,3 @@ private[sec] object netty {
       ep => p.creds.fold(forAddress(ep.address, ep.port).usePlaintext())(forAddress(ep.address, ep.port, _))
     )
   }
-
-}
