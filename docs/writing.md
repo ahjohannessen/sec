@@ -11,6 +11,7 @@ import cats.effect._
 import sec._
 import sec.api._
 import sec.syntax.all._
+import scodec.bits.ByteVector
 
 object WritingEvents extends IOApp {
 
@@ -29,7 +30,7 @@ object WritingEvents extends IOApp {
 
     def mkEventData(json: String): IO[EventData] = for {
       uuid <- mkUuid[IO]
-      data <- json.utf8Bytes[IO]
+      data <- ByteVector.encodeUtf8(json).liftTo[IO]
       et   <- EventType("event-type").liftTo[IO]
     } yield EventData(et, uuid, data, ContentType.Json)
 
@@ -43,6 +44,7 @@ object WritingEvents extends IOApp {
       _        <- streams.readStreamForwards(streamId).debug(_.render).compile.drain
     } yield ()
   }
-
+  
 }
+
 ```

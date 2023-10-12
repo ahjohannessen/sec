@@ -5,12 +5,12 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 Global / lintUnusedKeysOnLoad := false
 
-lazy val Scala2 = "2.13.12"
 lazy val Scala3 = "3.3.1"
 
 lazy val sec = project
   .in(file("."))
   .enablePlugins(NoPublishPlugin)
+  .settings(commonSettings)
   .aggregate(core, `fs2-core`, `fs2-netty`, tsc, tests)
 
 //==== Core ============================================================================================================
@@ -75,10 +75,7 @@ lazy val `fs2-netty` = project
   .settings(commonSettings)
   .settings(
     name := "sec-fs2-client",
-    libraryDependencies ++= compileM(grpcNetty),
-    Compile / scalacOptions ++= {
-      if (tlIsScala3.value) Seq() else Seq("-Wconf:cat=deprecation&src=sec/api/package.scala:s")
-    }
+    libraryDependencies ++= compileM(grpcNetty)
   )
   .dependsOn(`fs2-core`, tsc)
 
@@ -131,9 +128,8 @@ lazy val docs = project
   .in(file("sec-docs"))
   .enablePlugins(MdocPlugin, DocusaurusPlugin, NoPublishPlugin)
   .dependsOn(`fs2-netty`)
+  .settings(commonSettings)
   .settings(
-    scalaVersion := Scala2,
-    crossScalaVersions := Nil,
     moduleName := "sec-docs",
     mdocIn := file("docs"),
     mdocVariables := Map(
@@ -144,25 +140,27 @@ lazy val docs = project
       "esdb"          -> "EventStoreDB"
     )
   )
+  .settings(
+    scalacOptions ~= (_.filterNot(_ == "-Wunused:imports")),
+    excludeDependencies += "com.thesamet.scalapb" % "lenses_2.13",
+    excludeDependencies += "com.thesamet.scalapb" % "scalapb-runtime_2.13"
+  )
 
 //==== Common ==========================================================================================================
 
 lazy val commonSettings = Seq(
-  Compile / scalacOptions ++= {
-    if (tlIsScala3.value) Seq() else Seq("-Ywarn-unused:-nowarn")
-  },
+  scalaVersion := Scala3,
+  scalacOptions ~= (_.filterNot(_ == "-Ykind-projector:underscores")),
   Compile / doc / scalacOptions ~= (_.filterNot(_ == "-Xfatal-warnings"))
 )
 
 inThisBuild(
   List(
-    scalaVersion := Scala2,
-    crossScalaVersions := Seq(Scala3, Scala2),
+    scalaVersion := Scala3,
     versionScheme := Some("early-semver"),
     tlBaseVersion := "0.28",
     tlSonatypeUseLegacyHost := false,
     mergifyStewardConfig ~= { _.map(_.copy(mergeMinors = true).copy(author = "scala-steward-ahjohannessen[bot]")) },
-    javacOptions ++= Seq("-target", "8", "-source", "8"),
     organization := "io.github.ahjohannessen",
     organizationName := "Scala EventStoreDB Client",
     startYear := Some(2020),
@@ -177,9 +175,6 @@ inThisBuild(
 addCommandAlias("compileTests", "tests / Test / compile; tests / Sit / compile; tests / Cit / compile;")
 addCommandAlias("compileDocs", "docs/mdoc")
 
-def scalaCondition(version: String) = s"contains(matrix.scala, '$version')"
-val docsOnMain                      = "github.ref == 'refs/heads/main'"
-
 inThisBuild(
   List(
     githubWorkflowTargetBranches := Seq("main"),
@@ -187,7 +182,6 @@ inThisBuild(
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
-      cond     = Some(scalaCondition(Scala2)),
       env = Map(
         "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
       )
@@ -195,8 +189,7 @@ inThisBuild(
     githubWorkflowBuild := Seq(
       WorkflowStep.Sbt(
         name     = Some("Compile docs"),
-        commands = List("compileDocs"),
-        cond     = Some(scalaCondition(Scala2))
+        commands = List("compileDocs")
       ),
       WorkflowStep.Sbt(
         name     = Some("Regular tests"),
@@ -208,25 +201,23 @@ inThisBuild(
         params = Map(
           "timeout_minutes" -> "20",
           "max_attempts"    -> "3",
-          "command"         -> "sbt ++${{ matrix.scala }} 'tests / Sit / test'"
+          "command"         -> "sbt '++ ${{ matrix.scala }}' 'tests / Sit / test'"
         ),
         env = Map(
           "SEC_SIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_SIT_AUTHORITY"  -> "es.sec.local"
-        ),
-        cond = Some(scalaCondition(Scala2))
+        )
       )
     ),
     githubWorkflowBuildPostamble += WorkflowStep.Run(
       name     = Some("Stop Single Node"),
       commands = List("pushd .docker", "./single-node.sh down", "popd"),
-      cond     = Some(s"always() && ${scalaCondition(Scala2)}")
+      cond     = Some(s"always()")
     ),
     githubWorkflowBuildPostamble ++= Seq(
       WorkflowStep.Run(
         name     = Some("Start Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh up -d", "popd"),
-        cond     = Some(scalaCondition(Scala2)),
         env = Map(
           "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
         )
@@ -237,32 +228,30 @@ inThisBuild(
         params = Map(
           "timeout_minutes" -> "10",
           "max_attempts"    -> "10",
-          "command"         -> "sbt ++${{ matrix.scala }} 'tests / Cit / test'"
+          "command"         -> "sbt '++ ${{ matrix.scala }}' 'tests / Cit / test'"
         ),
         env = Map(
           "SEC_CIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
           "SEC_CIT_AUTHORITY"  -> "es.sec.local"
-        ),
-        cond = Some(scalaCondition(Scala2))
+        )
       ),
       WorkflowStep.Run(
         name     = Some("Stop Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh down", "popd"),
-        cond     = Some(s"always() && ${scalaCondition(Scala2)}")
+        cond     = Some(s"always()")
       )
     ),
     githubWorkflowPublish ++= Seq(
       WorkflowStep.Sbt(
         name     = Some("Compile docs"),
-        commands = List("compileDocs"),
-        cond     = Some(scalaCondition(Scala2))
+        commands = List("compileDocs")
       ),
       WorkflowStep.Sbt(
         List("docs/docusaurusPublishGhpages"),
         env = Map(
           "GIT_DEPLOY_KEY" -> "${{ secrets.GIT_DEPLOY_KEY }}"
         ),
-        cond = Some(s"${scalaCondition(Scala2)} && $docsOnMain")
+        cond = Some("github.ref == 'refs/heads/main'")
       )
     )
   )

@@ -20,9 +20,9 @@ package syntax
 import fs2.Stream
 import sec.api._
 
-trait StreamsSyntax {
+trait StreamsSyntax:
 
-  extension [F[_]](s: Streams[F]) {
+  extension [F[_]](s: Streams[F])
 
     // / Subscription
 
@@ -151,7 +151,3 @@ trait StreamsSyntax {
       resolveLinkTos: Boolean = false
     ): Stream[F, Event] =
       s.readStream(streamId, from, Direction.Backwards, maxCount, resolveLinkTos)
-
-  }
-
-}

@@ -15,12 +15,49 @@
  */
 
 package sec
+package api
 
 import java.util.UUID
-import cats.effect._
+import cats.syntax.all._
+import cats.effect.{Async, Resource, Sync}
+import com.typesafe.config.{Config, ConfigFactory}
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.noop.NoOpLogger
+import sec.tsc.config.mkClient
+import sec.api.cluster.EndpointResolver
 
-package object api extends BuilderSyntax with EsClientObjectSyntax {
+//======================================================================================================================
 
-  def mkUuid[F[_]: Sync]: F[UUID] = Sync[F].delay(UUID.randomUUID())
+def mkUuid[F[_]: Sync]: F[UUID] = Sync[F].delay(UUID.randomUUID())
 
-}
+//======================================================================================================================
+
+extension (ec: EsClient.type)
+
+  def fromConfig[F[_]: Async]: Resource[F, EsClient[F]] =
+    Resource.eval(Sync[F].delay(ConfigFactory.load)) >>= { cfg =>
+      fromConfig[F](cfg, NoOpLogger[F])
+    }
+
+  def fromConfig[F[_]: Async](logger: Logger[F]): Resource[F, EsClient[F]] =
+    Resource.eval(Sync[F].delay(ConfigFactory.load)) >>= { cfg =>
+      fromConfig[F](cfg, logger)
+    }
+
+  def fromConfig[F[_]: Async](cfg: Config, logger: Logger[F]): Resource[F, EsClient[F]] =
+    fromConfig[F](cfg, logger, EndpointResolver.default[F])
+
+  private[sec] def fromConfig[F[_]: Async](
+    cfg: Config,
+    logger: Logger[F],
+    er: EndpointResolver[F]
+  ): Resource[F, EsClient[F]] =
+    mkClient[F, NettyChannelBuilder](netty.mkBuilder[F], cfg, logger, er)
+
+//======================================================================================================================
+
+extension [F[_]: Async](b: SingleNodeBuilder[F]) def resource: Resource[F, EsClient[F]] = b.build(netty.mkBuilder[F])
+extension [F[_]: Async](b: ClusterBuilder[F]) def resource: Resource[F, EsClient[F]]    = b.build(netty.mkBuilder[F])
+
+//======================================================================================================================

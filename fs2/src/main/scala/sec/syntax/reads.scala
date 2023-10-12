@@ -21,9 +21,9 @@ import fs2.Stream
 import _root_.sec.api._
 import _root_.sec.api.streams.Reads
 
-trait ReadsSyntax {
+trait ReadsSyntax:
 
-  extension [F[_]](r: Reads[F]) {
+  extension [F[_]](r: Reads[F])
 
     /** Read [[sec.api.AllMessage]] messages forwards from the global stream, [[sec.StreamId.All]].
       *
@@ -102,6 +102,3 @@ trait ReadsSyntax {
       resolveLinkTos: Boolean = false
     ): Stream[F, StreamMessage] =
       r.readStreamMessages(streamId, from, Direction.Backwards, maxCount, resolveLinkTos)
-
-  }
-}
