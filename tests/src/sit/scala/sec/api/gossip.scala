@@ -17,7 +17,7 @@
 package sec
 package api
 
-class GossipSuite extends SnSuite {
+class GossipSuite extends SnSuite:
 
   test("read") {
     gossip.read
@@ -28,5 +28,3 @@ class GossipSuite extends SnSuite {
         assertEquals(mi.httpEndpoint, Endpoint("127.0.0.1", 2113))
       })
   }
-
-}

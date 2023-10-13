@@ -17,9 +17,9 @@
 package sec
 package api
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.effect.Temporal
-import com.eventstore.dbclient.proto.gossip.{ClusterInfo => PClusterInfo, GossipFs2Grpc}
+import com.eventstore.dbclient.proto.gossip.{ClusterInfo as PClusterInfo, GossipFs2Grpc}
 import com.eventstore.dbclient.proto.shared.Empty
 import sec.api.mapping.gossip.mkClusterInfo
 
@@ -28,7 +28,7 @@ import sec.api.mapping.gossip.mkClusterInfo
   * @tparam F
   *   the effect type in which [[Gossip]] operates.
   */
-trait Gossip[F[_]] {
+trait Gossip[F[_]]:
 
   /** Gets cluster information.
     */
@@ -41,20 +41,16 @@ trait Gossip[F[_]] {
     *   Custom user credentials to use.
     */
   def withCredentials(creds: UserCredentials): Gossip[F]
-}
 
-object Gossip {
+object Gossip:
 
   private[sec] def apply[F[_]: Temporal, C](
     client: GossipFs2Grpc[F, C],
     mkCtx: Option[UserCredentials] => C,
     opts: Opts[F]
-  ): Gossip[F] = new Gossip[F] {
+  ): Gossip[F] = new Gossip[F]:
     val read: F[ClusterInfo]                               = read0(opts)(client.read(Empty(), mkCtx(None)))
     def withCredentials(creds: UserCredentials): Gossip[F] = Gossip[F, C](client, _ => mkCtx(creds.some), opts)
-  }
 
   private[sec] def read0[F[_]: Temporal](o: Opts[F])(f: F[PClusterInfo]): F[ClusterInfo] =
     o.run(f, "read") >>= mkClusterInfo[F]
-
-}

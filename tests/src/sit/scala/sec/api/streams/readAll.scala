@@ -17,20 +17,20 @@
 package sec
 package api
 
-import java.{util => ju}
+import java.util as ju
 import scodec.bits.ByteVector
-import cats.data.{NonEmptyList => Nel}
-import cats.syntax.all._
+import cats.data.NonEmptyList as Nel
+import cats.syntax.all.*
 import cats.effect.IO
-import sec.syntax.all._
-import sec.api.exceptions._
-import sec.helpers.implicits._
+import sec.syntax.all.*
+import sec.api.exceptions.*
+import sec.helpers.implicits.*
 
-class ReadAllSuite extends SnSuite {
+class ReadAllSuite extends SnSuite:
 
-  import StreamState._
-  import Direction._
-  import LogPosition._
+  import StreamState.*
+  import Direction.*
+  import LogPosition.*
 
   val streamPrefix    = s"streams_read_all_${genIdentifier}_"
   val eventTypePrefix = s"sec.$genIdentifier.Event"
@@ -141,7 +141,7 @@ class ReadAllSuite extends SnSuite {
 
       val deletedId               = genStreamId("streams_read_all_linkto_deleted_")
       val linkId                  = genStreamId("streams_read_all_linkto_link_")
-      def encode(content: String) = ByteVector.encodeUtf8(content).unsafe
+      def encode(content: String) = ByteVector.encodeUtf8(content).unsafeGet
 
       def linkData(number: Long) =
         Nel.one(
@@ -216,5 +216,3 @@ class ReadAllSuite extends SnSuite {
     }
 
   }
-
-}

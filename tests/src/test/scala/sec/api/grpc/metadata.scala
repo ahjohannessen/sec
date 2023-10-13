@@ -18,13 +18,13 @@ package sec
 package api
 package grpc
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import io.grpc.Metadata
-import grpc.metadata._
-import grpc.metadata.keys._
-import grpc.constants.Headers._
+import grpc.metadata.*
+import grpc.metadata.keys.*
+import grpc.constants.Headers.*
 
-class MetadataSuite extends SecSuite {
+class MetadataSuite extends SecSuite:
 
   test("ContextOps.toMetadata") {
 
@@ -43,5 +43,3 @@ class MetadataSuite extends SecSuite {
     assertEquals(Option(md2.get(requiresLeader)), Some(true))
 
   }
-
-}

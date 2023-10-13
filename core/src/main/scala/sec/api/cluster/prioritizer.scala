@@ -23,7 +23,7 @@ import cats.implicits._
 
 import VNodeState._
 
-private[sec] object NodePrioritizer {
+private[sec] object NodePrioritizer:
 
   val allowedStates: Set[VNodeState] =
     Set(Leader, Follower, ReadOnlyReplica, ReadOnlyLeaderless)
@@ -46,30 +46,25 @@ private[sec] object NodePrioritizer {
     preference: NodePreference,
     randomSeed: Long,
     allowed: MemberInfo => Boolean
-  ): List[MemberInfo] = {
+  ): List[MemberInfo] =
 
     val candidates: List[MemberInfo] =
       members.filter(_.isAlive).filter(allowed).sortBy(_.state).reverse
 
-    def arrange(p: MemberInfo => Boolean): List[MemberInfo] = {
+    def arrange(p: MemberInfo => Boolean): List[MemberInfo] =
       val (satisfy, remaining) = candidates.partition(p)
       satisfy.shuffle(randomSeed) ::: remaining
-    }
 
     val isReadOnlyReplicaState: MemberInfo => Boolean =
       m => m.state.eqv(VNodeState.ReadOnlyLeaderless) || m.state.eqv(VNodeState.ReadOnlyReplica)
 
-    preference match {
+    preference match
       case NodePreference.Leader          => arrange(_.state.eqv(VNodeState.Leader))
       case NodePreference.Follower        => arrange(_.state.eqv(VNodeState.Follower))
       case NodePreference.ReadOnlyReplica => arrange(isReadOnlyReplicaState)
-    }
-  }
 
 //======================================================================================================================
 
-  implicit final private[sec] class ListOps[A](val inner: List[A]) extends AnyVal {
-    def shuffle(seed: Long): List[A] = new scala.util.Random(seed).shuffle(inner)
-  }
-
-}
+  extension [A](inner: List[A])
+    private[sec] def shuffle(seed: Long): List[A] =
+      new scala.util.Random(seed).shuffle(inner)

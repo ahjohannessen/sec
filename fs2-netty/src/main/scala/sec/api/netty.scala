@@ -17,7 +17,7 @@
 package sec
 package api
 
-import cats.effect._
+import cats.effect.*
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder.{forAddress, forTarget}
 

@@ -19,15 +19,14 @@ package api
 package mapping
 
 import cats.MonadThrow
-import cats.syntax.all._
-import com.eventstore.dbclient.proto.{gossip => p}
-import sec.api.mapping.implicits._
-import sec.api.mapping.shared._
-import sec.api.mapping.time._
+import cats.syntax.all.*
+import com.eventstore.dbclient.proto.gossip as p
+import sec.api.mapping.shared.*
+import sec.api.mapping.time.*
 
-private[sec] object gossip {
+private[sec] object gossip:
 
-  val mkVNodeState: p.MemberInfo.VNodeState => Attempt[VNodeState] = s => {
+  val mkVNodeState: p.MemberInfo.VNodeState => Attempt[VNodeState] = s =>
 
     val result = s.asRecognized.map {
       case p.MemberInfo.VNodeState.Initializing       => VNodeState.Initializing
@@ -50,9 +49,7 @@ private[sec] object gossip {
 
     result.fold(s"Unrecognized state value ${s.value}".asLeft[VNodeState])(_.asRight)
 
-  }
-
-  def mkMemberInfo[F[_]: MonadThrow](mi: p.MemberInfo): F[MemberInfo] = {
+  def mkMemberInfo[F[_]: MonadThrow](mi: p.MemberInfo): F[MemberInfo] =
 
     val instanceId = mi.instanceId.require[F]("instanceId") >>= mkJuuid[F]
     val timestamp  = fromTicksSinceEpoch[F](mi.timeStamp)
@@ -63,9 +60,6 @@ private[sec] object gossip {
     (instanceId, timestamp, state, isAlive, endpoint).mapN { (ii, ts, st, ia, ep) =>
       MemberInfo(ii, ts, st, ia, ep)
     }
-  }
 
   def mkClusterInfo[F[_]: MonadThrow](ci: p.ClusterInfo): F[ClusterInfo] =
     ci.members.toList.traverse(mkMemberInfo[F]).map(m => ClusterInfo(m.toSet))
-
-}

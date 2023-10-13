@@ -16,12 +16,12 @@
 
 package sec
 
-import cats.kernel.laws.discipline._
-import cats.syntax.all._
-import org.scalacheck._
-import sec.arbitraries._
+import cats.kernel.laws.discipline.*
+import cats.syntax.all.*
+import org.scalacheck.*
+import sec.arbitraries.{*, given}
 
-class StreamIdSuite extends SecDisciplineSuite {
+class StreamIdSuite extends SecDisciplineSuite:
 
   val normal: StreamId.Normal = StreamId.Normal.unsafe("normal")
   val system: StreamId.System = StreamId.System.unsafe("system")
@@ -106,5 +106,3 @@ class StreamIdSuite extends SecDisciplineSuite {
     implicit val cogen: Cogen[StreamId] = Cogen[String].contramap[StreamId](_.stringValue)
     checkAll("StreamId", EqTests[StreamId].eqv)
   }
-
-}

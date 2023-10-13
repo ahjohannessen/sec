@@ -18,11 +18,11 @@ package sec
 package api
 package grpc
 
-private[api] object constants {
+private[api] object constants:
 
 //======================================================================================================================
 
-  object Exceptions {
+  object Exceptions:
 
     val ExceptionKey: String                       = "exception"
     val AccessDenied: String                       = "access-denied"
@@ -52,32 +52,25 @@ private[api] object constants {
     val LeaderEndpointPort: String = "leader-endpoint-port"
 
     val LoginName = "login-name"
-  }
 
 //======================================================================================================================
 
-  object Metadata {
+  object Metadata:
 
     val ContentType: String = "content-type"
     val Type: String        = "type"
     val Created: String     = "created"
 
-    object ContentTypes {
+    object ContentTypes:
       val ApplicationJson: String        = "application/json"
       val ApplicationOctetStream: String = "application/octet-stream"
-    }
-
-  }
 
 //======================================================================================================================
 
-  object Headers {
+  object Headers:
     val Authorization: String  = "authorization"
     val BasicScheme: String    = "Basic"
     val ConnectionName: String = "connection-name"
     val RequiresLeader: String = "requires-leader"
-  }
 
 //======================================================================================================================
-
-}

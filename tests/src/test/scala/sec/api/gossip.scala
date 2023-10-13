@@ -19,11 +19,11 @@ package api
 
 import java.time.ZonedDateTime
 import java.util.UUID
-import cats.kernel.laws.discipline._
-import org.scalacheck._
-import sec.arbitraries._
+import cats.kernel.laws.discipline.*
+import org.scalacheck.*
+import sec.arbitraries.*
 
-class GossipSuite extends SecDisciplineSuite {
+class GossipSuite extends SecDisciplineSuite:
 
   group("ClusterInfo") {
 
@@ -113,5 +113,3 @@ class GossipSuite extends SecDisciplineSuite {
       assertEquals(VNodeState.values.map(_.toString), VNodeState.values.map(_.render))
     }
   }
-
-}

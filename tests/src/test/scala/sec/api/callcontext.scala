@@ -17,7 +17,7 @@
 package sec
 package api
 
-class UserCredentialsSpec extends SecSuite {
+class UserCredentialsSpec extends SecSuite:
 
   test("UserCredentials.apply") {
 
@@ -35,4 +35,3 @@ class UserCredentialsSpec extends SecSuite {
     )
 
   }
-}

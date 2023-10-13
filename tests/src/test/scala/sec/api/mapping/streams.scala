@@ -19,19 +19,18 @@ package api
 package mapping
 
 import java.time.{Instant, ZoneOffset}
-import java.util.{UUID => JUUID}
+import java.util.UUID as JUUID
 import cats.data.NonEmptyList
-import cats.syntax.all._
-import org.scalacheck.Prop._
-import com.eventstore.dbclient.proto.{shared => ps}
-import com.eventstore.dbclient.proto.{streams => s}
+import cats.syntax.all.*
+import org.scalacheck.Prop.*
+import com.eventstore.dbclient.proto.shared as ps
+import com.eventstore.dbclient.proto.streams as s
 import scodec.bits.ByteVector
 import sec.api.exceptions.{StreamNotFound, WrongExpectedState}
-import sec.api.mapping.implicits._
-import sec.api.mapping.shared._
+import sec.api.mapping.shared.*
 import sec.api.mapping.streams.{incoming, outgoing}
-import sec.arbitraries._
-import sec.helpers.implicits._
+import sec.arbitraries.{*, given}
+import sec.helpers.implicits.*
 import sec.helpers.text.encodeToBV
 
 class StreamsMappingSuite extends SecScalaCheckSuite {
@@ -178,7 +177,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
     test("mkSubscribeToStreamReq") {
       import StreamPosition._
 
-      val sid = StreamId("abc").unsafe
+      val sid = StreamId("abc").unsafeGet
 
       def test(exclusiveFrom: Option[StreamPosition], resolveLinkTos: Boolean) =
         assertEquals(
@@ -238,7 +237,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
     test("mkReadStreamReq") {
 
-      val sid = sec.StreamId("abc").unsafe
+      val sid = sec.StreamId("abc").unsafeGet
 
       def test(rd: Direction, from: StreamPosition, count: Long, rlt: Boolean) =
         assertEquals(
@@ -296,7 +295,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
     test("mkDeleteReq") {
 
       import s.DeleteReq.Options.ExpectedStreamRevision
-      val sid = sec.StreamId("abc").unsafe
+      val sid = sec.StreamId("abc").unsafeGet
 
       def test(ess: StreamState, esr: ExpectedStreamRevision) =
         assertEquals(mkDeleteReq(sid, ess), s.DeleteReq().withOptions(s.DeleteReq.Options(sid.esSid.some, esr)))
@@ -310,7 +309,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
     test("mkTombstoneReq") {
 
       import s.TombstoneReq.Options.ExpectedStreamRevision
-      val sid = sec.StreamId("abc").unsafe
+      val sid = sec.StreamId("abc").unsafeGet
 
       def test(ess: StreamState, esr: ExpectedStreamRevision) =
         assertEquals(
@@ -327,7 +326,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
     test("mkAppendHeaderReq") {
 
       import s.AppendReq.Options.ExpectedStreamRevision
-      val sid = sec.StreamId("abc").unsafe
+      val sid = sec.StreamId("abc").unsafeGet
 
       def test(ess: StreamState, esr: ExpectedStreamRevision) =
         assertEquals(
@@ -375,7 +374,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
       import com.google.protobuf.timestamp.Timestamp
 
       val empty    = com.google.protobuf.empty.Empty()
-      val streamId = sec.StreamId("abc").unsafe
+      val streamId = sec.StreamId("abc").unsafeGet
 
       def test(
         streamState: sec.StreamState,
@@ -387,7 +386,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
           mkBatchAppendHeader(streamId, streamState, deadline),
           s.BatchAppendReq
             .Options(deadline = exdl)
-            .withStreamIdentifier(streamId.sid.esSid)
+            .withStreamIdentifier(streamId.esSid)
             .withExpectedStreamPosition(esp)
         )
 
@@ -564,8 +563,8 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
       //
 
-      val sid = sec.StreamId(streamId).unsafe
-      val et  = sec.EventType(eventType).unsafe
+      val sid = sec.StreamId(streamId).unsafeGet
+      val et  = sec.EventType(eventType).unsafeGet
       val sp  = sec.StreamPosition(revision)
       val lp  = sec.LogPosition.exact(commit, prepare)
       val ed  = sec.EventData(et, JUUID.fromString(id), data, customMeta, sec.ContentType.Binary)
@@ -693,7 +692,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
       import s.AppendResp.WrongExpectedVersion.ExpectedRevisionOption
       import s.AppendResp.WrongExpectedVersion.CurrentRevisionOption
 
-      val sid: StreamId.Id                               = sec.StreamId("abc").unsafe
+      val sid: StreamId.Id                               = sec.StreamId("abc").unsafeGet
       val mkResult: s.AppendResp => ErrorOr[WriteResult] = mkWriteResult[ErrorOr](sid, _)
 
       val successRevOne   = Success().withCurrentRevision(1L).withPosition(s.AppendResp.Position(1L, 1L))
@@ -832,7 +831,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
                 "WrongExpectedVersion",
                 Any.pack(ps.WrongExpectedVersion().withExpectedStreamPosition(1L).withCurrentStreamRevision(2L)).some))
         ),
-        exceptions.WrongExpectedState(sec.StreamId("abc").unsafe, StreamPosition(1L), StreamPosition(2L)).asLeft
+        exceptions.WrongExpectedState(sec.StreamId("abc").unsafeGet, StreamPosition(1L), StreamPosition(2L)).asLeft
       )
 
       assertEquals(
@@ -934,7 +933,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
       assertEquals(
         mkStreamMessageNotFound[ErrorOr](sni),
-        StreamMessage.NotFound(StreamId("abc").unsafe).asRight
+        StreamMessage.NotFound(StreamId("abc").unsafeGet).asRight
       )
     }
 
@@ -1177,12 +1176,12 @@ object StreamsMappingSuite {
       .withId(ps.UUID().withString(linkId))
       .withMetadata(linkMetadata)
 
-    val sid = sec.StreamId(streamId).unsafe
+    val sid = sec.StreamId(streamId).unsafeGet
     val sp  = sec.StreamPosition(revision)
-    val et  = sec.EventType(eventType).unsafe
+    val et  = sec.EventType(eventType).unsafeGet
     val ed  = sec.EventData(et, JUUID.fromString(id), data, customMeta, sec.ContentType.Json)
 
-    val lsid = sec.StreamId(linkStreamId).unsafe
+    val lsid = sec.StreamId(linkStreamId).unsafeGet
     val lsp  = sec.StreamPosition(linkRevision)
     val let  = sec.EventType.LinkTo
     val led  = sec.EventData(let, JUUID.fromString(linkId), linkData, linkCustomMeta, sec.ContentType.Binary)
@@ -1201,7 +1200,7 @@ object StreamsMappingSuite {
     val et = s"et-$nr"
     val da = bv(s"""{ "data" : "$nr" }""")
     val md = bv(s"""{ "meta" : "$nr" }""")
-    sec.EventData(et, id, da, md, sec.ContentType.Json).unsafe
+    sec.EventData(et, id, da, md, sec.ContentType.Json).unsafeGet
   }
 
   def mkBinary(nr: Int): EventData = {
@@ -1209,7 +1208,7 @@ object StreamsMappingSuite {
     val et = s"et-$nr"
     val da = bv(s"data@$nr")
     val md = bv(s"meta@$nr")
-    sec.EventData(et, id, da, md, sec.ContentType.Binary).unsafe
+    sec.EventData(et, id, da, md, sec.ContentType.Binary).unsafeGet
   }
 
 }

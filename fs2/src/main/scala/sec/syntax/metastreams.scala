@@ -19,8 +19,8 @@ package syntax
 
 import scala.concurrent.duration.FiniteDuration
 import cats.MonadThrow
-import cats.syntax.all._
-import sec.api._
+import cats.syntax.all.*
+import sec.api.*
 import StreamId.Id
 
 trait MetaStreamsSyntax:

@@ -17,17 +17,17 @@
 package sec
 
 import java.time.{ZoneOffset, ZonedDateTime}
-import java.{util => ju}
+import java.util as ju
 import scala.annotation.tailrec
 import scala.collection.immutable.{Nil, SortedSet}
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import cats.data.NonEmptyList
-import cats.implicits._
+import cats.implicits.*
 import org.scalacheck.Arbitrary.arbitrary
-import org.scalacheck._
+import org.scalacheck.*
 import scodec.bits.ByteVector
-import sec.api._
-import sec.helpers.implicits._
+import sec.api.*
+import sec.helpers.implicits.*
 import StreamState.{Any, NoStream, StreamExists}
 
 object arbitraries {
@@ -36,16 +36,15 @@ object arbitraries {
     sampleOfGen(ev.arbitrary)
 
   @tailrec
-  final def sampleOfGen[T](implicit g: Gen[T]): T = g.sample match {
+  final def sampleOfGen[T](implicit g: Gen[T]): T = g.sample match
     case Some(t) => t
     case None    => sampleOfGen[T](g)
-  }
 
 //======================================================================================================================
 // Std Instances
 //======================================================================================================================
 
-  implicit val arbZonedDateTime: Arbitrary[ZonedDateTime] = Arbitrary(
+  given arbZonedDateTime: Arbitrary[ZonedDateTime] = Arbitrary(
     Gen.choose(-86400000L, 0L).map(ZonedDateTime.now(ZoneOffset.UTC).plusSeconds(_))
   )
 
@@ -53,84 +52,79 @@ object arbitraries {
 // StreamPosition, LogPosition & StreamState
 //======================================================================================================================
 
-  implicit val ulong: Arbitrary[ULong] =
+  given ulong: Arbitrary[ULong] =
     Arbitrary(arbitrary[Long].map(new ULong(_)))
 
-  implicit val arbStreamPositionExact: Arbitrary[StreamPosition.Exact] =
+  given arbStreamPositionExact: Arbitrary[StreamPosition.Exact] =
     Arbitrary[StreamPosition.Exact](arbitrary(ulong).map(StreamPosition.Exact(_)))
 
-  implicit val arbStreamPosition: Arbitrary[StreamPosition] =
+  given arbStreamPosition: Arbitrary[StreamPosition] =
     Arbitrary[StreamPosition](Gen.oneOf(List(StreamPosition.End, sampleOf[StreamPosition.Exact])))
 
-  implicit val arbLogPositionExact: Arbitrary[LogPosition.Exact] = Arbitrary[LogPosition.Exact](
-    for {
+  given arbLogPositionExact: Arbitrary[LogPosition.Exact] = Arbitrary[LogPosition.Exact](
+    for
       c <- Gen.chooseNum(0L, Long.MaxValue)
       p <- Gen.chooseNum(0L, 10L).map(c - _).suchThat(_ >= 0)
-    } yield LogPosition.Exact(c, p).leftMap(require(false, _)).toOption.get)
+    yield LogPosition.Exact(c, p).leftMap(require(false, _)).toOption.get)
 
-  implicit val arbLogPosition: Arbitrary[LogPosition] =
+  given arbLogPosition: Arbitrary[LogPosition] =
     Arbitrary[LogPosition](Gen.oneOf(List(LogPosition.End, sampleOf[LogPosition.Exact])))
 
-  implicit val arbStreamState: Arbitrary[StreamState] =
+  given arbStreamState: Arbitrary[StreamState] =
     Arbitrary[StreamState](Gen.oneOf(List(NoStream, Any, StreamExists, sampleOf[StreamPosition.Exact])))
 
 //======================================================================================================================
 // StreamId
 //======================================================================================================================
 
-  private[sec] object idGen {
+  object idGen:
 
     def genStreamIdNormal(prefix: String): Gen[StreamId.Normal] =
       Gen.identifier
         .suchThat(s => s.nonEmpty && s.length >= 3 && s.length <= 15 && !s.startsWith(StreamId.systemPrefix))
         .map(n => StreamId.normal(s"$prefix$n").unsafe)
 
-  }
-
-  implicit val arbStreamIdNormal: Arbitrary[StreamId.Normal] =
+  given arbStreamIdNormal: Arbitrary[StreamId.Normal] =
     Arbitrary[StreamId.Normal](idGen.genStreamIdNormal(""))
 
-  implicit val arbStreamIdSystem: Arbitrary[StreamId.System] = Arbitrary[StreamId.System] {
-    import StreamId._
+  given arbStreamIdSystem: Arbitrary[StreamId.System] = Arbitrary[StreamId.System] {
+    import StreamId.*
     Gen.oneOf(All, Settings, Stats, Scavenges, Streams, System.unsafe(sampleOf[StreamId.Normal].name))
   }
 
-  implicit val arbStreamIdId: Arbitrary[StreamId.Id] =
+  given arbStreamIdId: Arbitrary[StreamId.Id] =
     Arbitrary[StreamId.Id](Gen.oneOf(sampleOf[StreamId.Normal], sampleOf[StreamId.System]))
 
-  implicit val arbStreamIdMetaId: Arbitrary[StreamId.MetaId] =
+  given arbStreamIdMetaId: Arbitrary[StreamId.MetaId] =
     Arbitrary[StreamId.MetaId](Gen.oneOf(sampleOf[StreamId.System], sampleOf[StreamId.Normal]).map(_.metaId))
 
-  implicit val arbStreamId: Arbitrary[StreamId] =
+  given arbStreamId: Arbitrary[StreamId] =
     Arbitrary[StreamId](Gen.oneOf(sampleOf[StreamId.Id], sampleOf[StreamId.MetaId]))
 
 //======================================================================================================================
 // EventType
 //======================================================================================================================
 
-  private[sec] object eventTypeGen {
+  object eventTypeGen:
 
     val defaultPrefix = "com.eventstore.client.Event"
 
-    def genEventTypeUserDefined(prefix: String): Gen[EventType.Normal] = {
+    def genEventTypeUserDefined(prefix: String): Gen[EventType.Normal] =
 
-      val gen: Gen[String] = for {
+      val gen: Gen[String] = for
         c  <- Gen.alphaUpperChar
         cs <- Gen.listOfN(2, Gen.alphaLowerChar)
-      } yield s"$prefix${(c :: cs).mkString}"
+      yield s"$prefix${(c :: cs).mkString}"
 
       gen.map(et => EventType.normal(et).unsafe)
-    }
 
-  }
-
-  implicit val arbEventTypeUserDefined: Arbitrary[EventType.Normal] = {
-    import eventTypeGen._
+  given arbEventTypeUserDefined: Arbitrary[EventType.Normal] = {
+    import eventTypeGen.*
     Arbitrary[EventType.Normal](genEventTypeUserDefined(defaultPrefix))
   }
 
-  implicit val arbEventTypeSysteDefined: Arbitrary[EventType.System] = Arbitrary[EventType.System] {
-    import EventType._
+  given arbEventTypeSysteDefined: Arbitrary[EventType.System] = Arbitrary[EventType.System] {
+    import EventType.*
     Gen.oneOf(
       StreamDeleted,
       StatsCollected,
@@ -142,14 +136,14 @@ object arbitraries {
     )
   }
 
-  implicit val arbEventType: Arbitrary[EventType] =
+  given arbEventType: Arbitrary[EventType] =
     Arbitrary[EventType](Gen.oneOf(sampleOf[EventType.System], sampleOf[EventType.Normal]))
 
 //======================================================================================================================
 // Metadata
 //======================================================================================================================
 
-  implicit val arbStreamAcl: Arbitrary[StreamAcl] = Arbitrary[StreamAcl] {
+  given arbStreamAcl: Arbitrary[StreamAcl] = Arbitrary[StreamAcl] {
 
     val roles: Set[String]                      = Set("role1", "role2", "role3", "role4", "role5")
     val someOf: Set[String] => Gen[Set[String]] = Gen.someOf(_).map(s => SortedSet(s.toSeq: _*))
@@ -170,10 +164,10 @@ object arbitraries {
     val seconds = Gen.chooseNum(1L, oneYear).map(FiniteDuration(_, SECONDS))
 
     for {
-      maxAge         <- Gen.option(seconds.map(MaxAge(_).unsafe))
-      maxCount       <- Gen.option(Gen.chooseNum(1, Int.MaxValue).map(MaxCount(_).unsafe))
+      maxAge         <- Gen.option(seconds.map(MaxAge(_).unsafeGet))
+      maxCount       <- Gen.option(Gen.chooseNum(1, Int.MaxValue).map(MaxCount(_).unsafeGet))
       truncateBefore <- Gen.option(arbStreamPositionExact.arbitrary.suchThat(_ > StreamPosition.Start))
-      cacheControl   <- Gen.option(seconds.map(CacheControl(_).unsafe))
+      cacheControl   <- Gen.option(seconds.map(CacheControl(_).unsafeGet))
       acl            <- Gen.option(arbStreamAcl.arbitrary)
     } yield MetaState(maxAge, maxCount, truncateBefore, cacheControl, acl)
 

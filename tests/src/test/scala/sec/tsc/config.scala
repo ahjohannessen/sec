@@ -18,17 +18,17 @@ package sec
 package tsc
 
 import java.io.File
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import cats.data.NonEmptySet
-import cats.syntax.all._
-import com.comcast.ip4s._
-import com.typesafe.config._
+import cats.syntax.all.*
+import com.comcast.ip4s.*
+import com.typesafe.config.*
 import org.typelevel.log4cats.noop.NoOpLogger
-import sec.tsc.config._
-import sec.api._
-import sec.api.cluster._
+import sec.tsc.config.*
+import sec.api.*
+import sec.api.cluster.*
 
-class ConfigSuite extends SecSuite {
+class ConfigSuite extends SecSuite:
 
   group("mkSingleNodeBuilder") {
 
@@ -410,5 +410,3 @@ class ConfigSuite extends SecSuite {
     }
 
   }
-
-}

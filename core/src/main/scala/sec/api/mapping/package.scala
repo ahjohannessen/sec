@@ -15,12 +15,28 @@
  */
 
 package sec
-package syntax
+package api
+package mapping
 
 import cats.ApplicativeThrow
 import cats.syntax.all.*
+import com.google.protobuf.ByteString
 import scodec.bits.ByteVector
 
-trait StringSyntax:
+extension (bv: ByteVector)
+  private[sec] def toByteString: ByteString =
+    ByteString.copyFrom(bv.toByteBuffer)
 
-  extension [F[_]: ApplicativeThrow](s: String) def utf8Bytes: F[ByteVector] = ByteVector.encodeUtf8(s).liftTo[F]
+extension (bs: ByteString)
+  private[sec] def toByteVector: ByteVector =
+    ByteVector.view(bs.asReadOnlyByteBuffer())
+
+//
+
+extension [A](o: Option[A])
+
+  private[sec] def require[F[_]: ApplicativeThrow](value: String): F[A] = require[F](value, None)
+  private[sec] def require[F[_]: ApplicativeThrow](value: String, details: Option[String]) =
+    def extra = details.map(d => s" $d").getOrElse("")
+    def msg   = s"Required value $value missing or invalid.$extra"
+    o.toRight(ProtoResultError(msg)).liftTo[F]

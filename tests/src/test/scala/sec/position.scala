@@ -16,11 +16,11 @@
 
 package sec
 
-import cats.kernel.laws.discipline._
-import org.scalacheck._
-import sec.arbitraries._
+import cats.kernel.laws.discipline.*
+import org.scalacheck.*
+import sec.arbitraries.given
 
-class VersionSuite extends SecDisciplineSuite {
+class VersionSuite extends SecDisciplineSuite:
 
   group("StreamState") {
 
@@ -80,5 +80,3 @@ class VersionSuite extends SecDisciplineSuite {
       checkAll("LogPosition", OrderTests[LogPosition].order)
     }
   }
-
-}

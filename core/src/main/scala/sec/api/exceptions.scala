@@ -19,7 +19,7 @@ package api
 
 import scala.util.control.NoStackTrace
 
-object exceptions {
+object exceptions:
 
   sealed abstract class EsException private[sec] (
     msg: String,
@@ -41,17 +41,15 @@ object exceptions {
     port: Option[Int]
   ) extends EsException(NotLeader.msg(host, port))
 
-  object NotLeader {
+  object NotLeader:
     def msg(host: Option[String], port: Option[Int]): String =
       s"Not leader. Leader at ${host.getOrElse("<unknown>")}:${port.getOrElse("<unknown>")}."
-  }
 
   final case class MaximumAppendSizeExceeded(size: Option[Int]) extends EsException(MaximumAppendSizeExceeded.msg(size))
 
-  object MaximumAppendSizeExceeded {
+  object MaximumAppendSizeExceeded:
     def msg(maxSize: Option[Int]): String =
       s"Maximum append size ${maxSize.map(max => s"of $max bytes ").getOrElse("")}exceeded."
-  }
 
   final case class WrongExpectedState(
     sid: StreamId,
@@ -59,12 +57,10 @@ object exceptions {
     actual: StreamState
   ) extends EsException(WrongExpectedState.msg(sid, expected, actual))
 
-  object WrongExpectedState {
+  object WrongExpectedState:
 
     def msg(sid: StreamId, expected: StreamState, actual: StreamState): String =
       s"Wrong expected state for stream: ${sid.render}, expected: ${expected.render}, actual: ${actual.render}"
-
-  }
 
   // TODO: Remove when ESDB does not transport this via response headers
   final case class WrongExpectedVersion(
@@ -73,31 +69,22 @@ object exceptions {
     actual: Option[Long]
   ) extends EsException(WrongExpectedVersion.msg(streamId, expected, actual))
 
-  private[sec] object WrongExpectedVersion {
+  private[sec] object WrongExpectedVersion:
 
-    def msg(streamId: String, expected: Option[Long], actual: Option[Long]): String = {
+    def msg(streamId: String, expected: Option[Long], actual: Option[Long]): String =
       val exp = expected.map(_.toString).getOrElse("<unknown>")
       val act = actual.map(_.toString).getOrElse("<unknown>")
       s"WrongExpectedVersion for stream: $streamId, expected version: $exp, actual version: $act"
-    }
 
-    def adaptOrFallback(e: WrongExpectedVersion, sid: StreamId, expected: StreamState): Throwable = {
-
-      def mkException(actual: StreamState) = WrongExpectedState(sid, expected, actual)
-      def noStream                         = mkException(StreamState.NoStream)
-      def mkExact(a: Long)                 = if (a == -1) noStream else mkException(StreamPosition(a))
-
-      e.actual.fold(noStream)(mkExact)
-    }
-
-    implicit final class WrongExpectedVersionOps(val e: WrongExpectedVersion) extends AnyVal {
+    extension (e: WrongExpectedVersion)
       def adaptOrFallback(sid: StreamId, expected: StreamState): Throwable =
-        WrongExpectedVersion.adaptOrFallback(e, sid, expected)
-    }
+        def mkException(actual: StreamState) = WrongExpectedState(sid, expected, actual)
+        def noStream                         = mkException(StreamState.NoStream)
+        def mkExact(a: Long)                 = if (a == -1) noStream else mkException(StreamPosition(a))
 
-  }
+        e.actual.fold(noStream)(mkExact)
 
-  object PersistentSubscription {
+  object PersistentSubscription:
 
     final case class Failed(streamId: String, groupName: String, reason: String)
       extends EsException(s"Subscription group $groupName on stream $streamId failed: '$reason'.")
@@ -113,7 +100,3 @@ object exceptions {
 
     final case class MaximumSubscribersReached(streamId: String, groupName: String)
       extends EsException(s"Maximum subscriptions reached for subscription group '$groupName' on stream '$streamId.'")
-
-  }
-
-}

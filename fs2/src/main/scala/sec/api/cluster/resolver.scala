@@ -21,8 +21,8 @@ package cluster
 import java.net.URI
 import scala.jdk.CollectionConverters._
 import cats.data.{NonEmptyList, NonEmptySet}
-import cats.syntax.all._
-import cats.effect._
+import cats.syntax.all.*
+import cats.effect.*
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 import io.grpc.NameResolver.{Args, Listener2, ResolutionResult}
@@ -37,14 +37,13 @@ final private[sec] case class Resolver[F[_]: Sync](
   authority: String,
   notifier: Notifier[F],
   dispatcher: Dispatcher[F]
-) extends NameResolver {
+) extends NameResolver:
   override def start(l: Listener2): Unit   = dispatcher.unsafeRunSync(notifier.start(mkListener[F](l)).allocated.void)
   override val shutdown: Unit              = ()
   override val getServiceAuthority: String = authority
   override val refresh: Unit               = ()
-}
 
-private[sec] object Resolver {
+private[sec] object Resolver:
 
   def mkResult(endpoints: NonEmptyList[Endpoint]): ResolutionResult =
     ResolutionResult.newBuilder().setAddresses(endpoints.toList.map(_.toEquivalentAddressGroup).asJava).build()
@@ -70,23 +69,20 @@ private[sec] object Resolver {
     Notifier.bestNodes[F](np, updates, log).map(Resolver[F](authority, _, d))
   }
 
-}
-
 //======================================================================================================================
 
 final private[sec] case class ResolverProvider[F[_]](
   scheme: String,
   resolver: Resolver[F]
-) extends NameResolverProvider {
+) extends NameResolverProvider:
   override val getDefaultScheme: String = scheme
   override val isAvailable: Boolean     = true
   override val priority: Int            = 4 // Less important than DNS
 
   override def newNameResolver(uri: URI, args: Args): NameResolver =
-    if (scheme == uri.getScheme) resolver else null
-}
+    if scheme == uri.getScheme then resolver else null
 
-private[sec] object ResolverProvider {
+private[sec] object ResolverProvider:
 
   final val gossipScheme: String  = "eventstore-gossip"
   final val clusterScheme: String = "eventstore-cluster"
@@ -108,7 +104,5 @@ private[sec] object ResolverProvider {
   ): Resource[F, ResolverProvider[F]] = Resolver
     .bestNodes(authority, np, updates, log.withModifiedString(s => s"BestNodes Resolver > $s"))
     .map(resolver => ResolverProvider(clusterScheme, resolver))
-
-}
 
 //======================================================================================================================

@@ -17,16 +17,16 @@
 package sec.api
 
 import java.io.{File, InputStream}
-import scala.concurrent.duration._
-import cats.syntax.all._
+import scala.concurrent.duration.*
+import cats.syntax.all.*
 import cats.effect.{Resource, Sync}
 import scodec.bits.ByteVector
-import io.grpc._
-import sec.api.ConnectionMode._
+import io.grpc.*
+import sec.api.ConnectionMode.*
 
-private[sec] object channel {
+private[sec] object channel:
 
-  def mkCredentials[F[_]: Sync](cm: ConnectionMode): F[Option[ChannelCredentials]] = {
+  def mkCredentials[F[_]: Sync](cm: ConnectionMode): F[Option[ChannelCredentials]] =
 
     def from(cert: Either[File, InputStream]): F[ChannelCredentials] = Sync[F].blocking {
       val builder = TlsChannelCredentials.newBuilder()
@@ -42,16 +42,13 @@ private[sec] object channel {
       .liftTo[F]
       .flatMap(is => from(is.asRight))
 
-    cm match {
+    cm match
       case Insecure     => none[ChannelCredentials].pure[F]
       case Secure(cert) => cert.fold(fromFile, fromB64).map(_.some)
-    }
-
-  }
 
   //
 
-  def resource[F[_]: Sync](acquire: => ManagedChannel, shutdownAwait: FiniteDuration): Resource[F, ManagedChannel] = {
+  def resource[F[_]: Sync](acquire: => ManagedChannel, shutdownAwait: FiniteDuration): Resource[F, ManagedChannel] =
     resourceWithShutdown[F](acquire) { ch =>
       Sync[F].delay(ch.shutdown()) >>
         Sync[F].blocking {
@@ -61,11 +58,8 @@ private[sec] object channel {
           }
         }
     }
-  }
 
   def resourceWithShutdown[F[_]: Sync](acquire: => ManagedChannel)(
     release: ManagedChannel => F[Unit]
   ): Resource[F, ManagedChannel] =
     Resource.make(Sync[F].delay(acquire))(release)
-
-}

@@ -18,13 +18,13 @@ package sec
 package api
 package grpc
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import io.grpc.{Metadata, Status, StatusRuntimeException}
-import sec.api.exceptions._
-import sec.api.grpc.constants.{Exceptions => ce}
-import sec.api.grpc.convert.{convertToEs, keys => k}
+import sec.api.exceptions.*
+import sec.api.grpc.constants.Exceptions as ce
+import sec.api.grpc.convert.{convertToEs, keys as k}
 
-class ConvertSuite extends SecSuite {
+class ConvertSuite extends SecSuite:
 
   test("convertToEs") {
 
@@ -35,7 +35,7 @@ class ConvertSuite extends SecSuite {
     val user     = "chuck norris"
     val unknown  = "<unknown>"
 
-    val convert: (Metadata => Unit) => Option[EsException] = f => {
+    val convert: (Metadata => Unit) => Option[EsException] = f =>
 
       val fn: Metadata => StatusRuntimeException =
         md => Status.INVALID_ARGUMENT.asRuntimeException(md)
@@ -47,7 +47,6 @@ class ConvertSuite extends SecSuite {
       }
 
       convertToEs(fn(meta(f)))
-    }
 
     assertEquals(
       convert(_.put(ek, ce.AccessDenied)),
@@ -260,4 +259,3 @@ class ConvertSuite extends SecSuite {
     )
 
   }
-}

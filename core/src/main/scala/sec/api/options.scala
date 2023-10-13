@@ -18,9 +18,9 @@ package sec
 package api
 
 import java.io.File
-import scala.concurrent.duration._
-import cats.syntax.all._
-import com.comcast.ip4s._
+import scala.concurrent.duration.*
+import cats.syntax.all.*
+import com.comcast.ip4s.*
 import io.grpc.ChannelCredentials
 
 //======================================================================================================================
@@ -35,9 +35,9 @@ private[sec] case class Options(
   httpPort: Port
 )
 
-private[sec] object Options {
+private[sec] object Options:
 
-  import ConnectionMode._
+  import ConnectionMode.*
 
   val default: Options = Options(
     connectionName       = "sec-client",
@@ -49,7 +49,7 @@ private[sec] object Options {
     httpPort             = port"2113"
   )
 
-  implicit final class OptionsOps(val o: Options) extends AnyVal {
+  extension (o: Options)
 
     private def modifyOO(fn: OperationOptions => OperationOptions): Options =
       o.copy(operationOptions = fn(o.operationOptions))
@@ -67,24 +67,19 @@ private[sec] object Options {
     def withOperationsRetryMaxAttempts(max: Int): Options           = modifyOO(_.copy(retryMaxAttempts = max))
     def withOperationsRetryBackoffFactor(factor: Double): Options   = modifyOO(_.copy(retryBackoffFactor = factor))
     def withOperationsRetryEnabled(enabled: Boolean): Options       = modifyOO(_.copy(retryEnabled = enabled))
-  }
-
-}
 
 //======================================================================================================================
 
 sealed private[sec] trait ConnectionMode
-private[sec] object ConnectionMode {
+private[sec] object ConnectionMode:
 
   final case class CertB64(value: String) extends AnyVal
 
   case object Insecure extends ConnectionMode
   final case class Secure(cert: Either[File, CertB64]) extends ConnectionMode
-  object Secure {
+  object Secure:
     def apply(file: File): Secure     = Secure(file.asLeft)
     def apply(base64: String): Secure = Secure(CertB64(base64).asRight)
-  }
-}
 
 //======================================================================================================================
 
@@ -98,7 +93,7 @@ final private[sec] case class ClusterOptions(
   preference: NodePreference
 )
 
-private[sec] object ClusterOptions {
+private[sec] object ClusterOptions:
 
   val default: ClusterOptions = ClusterOptions(
     maxDiscoverAttempts  = None,
@@ -110,7 +105,7 @@ private[sec] object ClusterOptions {
     preference           = NodePreference.Leader
   )
 
-  implicit final class ClusterOptionsOps(val co: ClusterOptions) extends AnyVal {
+  extension (co: ClusterOptions)
     def withMaxDiscoverAttempts(max: Option[Int]): ClusterOptions          = co.copy(maxDiscoverAttempts = max)
     def withRetryDelay(delay: FiniteDuration): ClusterOptions              = co.copy(retryDelay = delay)
     def withRetryMaxDelay(maxDelay: FiniteDuration): ClusterOptions        = co.copy(retryMaxDelay = maxDelay)
@@ -118,9 +113,6 @@ private[sec] object ClusterOptions {
     def withReadTimeout(timeout: FiniteDuration): ClusterOptions           = co.copy(readTimeout = timeout)
     def withNotificationInterval(interval: FiniteDuration): ClusterOptions = co.copy(notificationInterval = interval)
     def withNodePreference(np: NodePreference): ClusterOptions             = co.copy(preference = np)
-  }
-
-}
 
 //======================================================================================================================
 
@@ -132,7 +124,7 @@ final private[sec] case class OperationOptions(
   retryMaxAttempts: Int
 )
 
-private[sec] object OperationOptions {
+private[sec] object OperationOptions:
 
   val default: OperationOptions = OperationOptions(
     retryEnabled       = true,
@@ -142,8 +134,6 @@ private[sec] object OperationOptions {
     retryMaxAttempts   = 100
   )
 
-}
-
 //======================================================================================================================
 
 final private[sec] case class ChannelBuilderParams(
@@ -151,7 +141,7 @@ final private[sec] case class ChannelBuilderParams(
   creds: Option[ChannelCredentials]
 )
 
-private[sec] object ChannelBuilderParams {
+private[sec] object ChannelBuilderParams:
 
   def apply(target: String, creds: Option[ChannelCredentials]): ChannelBuilderParams =
     ChannelBuilderParams(target.asLeft, creds)
@@ -159,11 +149,9 @@ private[sec] object ChannelBuilderParams {
   def apply(endpoint: Endpoint, creds: Option[ChannelCredentials]): ChannelBuilderParams =
     ChannelBuilderParams(endpoint.asRight, creds)
 
-}
-
 //======================================================================================================================
 
-private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]] {
+private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]]:
 
   private[sec] def modOptions(fn: Options => Options): B
 
@@ -179,11 +167,10 @@ private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]] {
   def withOperationsRetryBackoffFactor(value: Double): B    = modOptions(_.withOperationsRetryBackoffFactor(value))
   def withOperationsRetryEnabled: B                         = modOptions(_.withOperationsRetryEnabled(true))
   def withOperationsRetryDisabled: B                        = modOptions(_.withOperationsRetryEnabled(false))
-}
 
 //======================================================================================================================
 
-private[sec] trait ClusterOptionsBuilder[B <: ClusterOptionsBuilder[B]] {
+private[sec] trait ClusterOptionsBuilder[B <: ClusterOptionsBuilder[B]]:
 
   private[sec] def modCOptions(fn: ClusterOptions => ClusterOptions): B
 
@@ -194,6 +181,5 @@ private[sec] trait ClusterOptionsBuilder[B <: ClusterOptionsBuilder[B]] {
   def withClusterReadTimeout(value: FiniteDuration): B          = modCOptions(_.withReadTimeout(value))
   def withClusterNotificationInterval(value: FiniteDuration): B = modCOptions(_.withNotificationInterval(value))
   def withClusterNodePreference(value: NodePreference): B       = modCOptions(_.withNodePreference(value))
-}
 
 //======================================================================================================================

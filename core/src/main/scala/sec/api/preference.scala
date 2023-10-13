@@ -18,7 +18,7 @@ package sec
 package api
 
 import cats.Eq
-import cats.syntax.all._
+import cats.syntax.all.*
 
 /** Used in conjunction with cluster connections where you provide a preference about what state a node should be in.
   *
@@ -35,17 +35,12 @@ import cats.syntax.all._
   *     replicate data, but do not have requirements for fast updates or need to append data.
   */
 sealed trait NodePreference
-object NodePreference {
+object NodePreference:
 
   case object Leader extends NodePreference
   case object Follower extends NodePreference
   case object ReadOnlyReplica extends NodePreference
 
-  implicit val eqForNodePreference: Eq[NodePreference] =
-    Eq.fromUniversalEquals[NodePreference]
+  given Eq[NodePreference] = Eq.fromUniversalEquals[NodePreference]
 
-  implicit final private[sec] class NodePreferenceOps(val np: NodePreference) extends AnyVal {
-    def isLeader: Boolean = np.eqv(Leader)
-  }
-
-}
+  extension (np: NodePreference) def isLeader: Boolean = np.eqv(Leader)

@@ -18,15 +18,15 @@ package sec
 package api
 package mapping
 
-import java.util.{UUID => JUUID}
+import java.util.UUID as JUUID
 import com.google.protobuf.ByteString
-import cats.syntax.all._
-import com.eventstore.dbclient.proto.{shared => ps}
+import cats.syntax.all.*
+import com.eventstore.dbclient.proto.shared as ps
 import sec.api.exceptions.{MaximumAppendSizeExceeded, StreamDeleted, WrongExpectedState}
-import sec.api.mapping.shared._
-import sec.helpers.implicits._
+import sec.api.mapping.shared.*
+import sec.helpers.implicits.*
 
-class SharedMappingSuite extends SecSuite {
+class SharedMappingSuite extends SecSuite:
 
   group("shared") {
 
@@ -62,7 +62,7 @@ class SharedMappingSuite extends SecSuite {
     test("mkWrongExpectedStreamState") {
 
       val empty = com.google.protobuf.empty.Empty()
-      val sid   = StreamId("stream-a").unsafe
+      val sid   = StreamId("stream-a").unsafeGet
       val wev   = ps.WrongExpectedVersion()
 
       assertEquals(
@@ -133,5 +133,3 @@ class SharedMappingSuite extends SecSuite {
     }
 
   }
-
-}

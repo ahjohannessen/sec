@@ -18,28 +18,26 @@ package sec
 package api
 package mapping
 
-import java.util.{UUID => JUUID}
+import java.util.UUID as JUUID
 import cats.{ApplicativeThrow, MonadThrow}
-import cats.syntax.all._
-import com.eventstore.dbclient.proto.{shared => ps}
+import cats.syntax.all.*
+import com.eventstore.dbclient.proto.shared as ps
 import com.google.protobuf.ByteString
 import exceptions.{MaximumAppendSizeExceeded, StreamDeleted, WrongExpectedState}
 
-private[sec] object shared {
+private[sec] object shared:
 
   val mkUuid: JUUID => ps.UUID = j =>
     ps.UUID().withStructured(ps.UUID.Structured(j.getMostSignificantBits(), j.getLeastSignificantBits()))
 
-  def mkJuuid[F[_]: ApplicativeThrow](uuid: ps.UUID): F[JUUID] = {
+  def mkJuuid[F[_]: ApplicativeThrow](uuid: ps.UUID): F[JUUID] =
 
-    val juuid = uuid.value match {
+    val juuid = uuid.value match
       case ps.UUID.Value.Structured(v) => new JUUID(v.mostSignificantBits, v.leastSignificantBits).asRight
       case ps.UUID.Value.String(v)     => Either.catchNonFatal(JUUID.fromString(v)).leftMap(_.getMessage())
       case ps.UUID.Value.Empty         => "UUID is missing".asLeft
-    }
 
     juuid.leftMap(ProtoResultError(_)).liftTo[F]
-  }
 
   //
 
@@ -53,7 +51,7 @@ private[sec] object shared {
 
   //
 
-  def mkWrongExpectedStreamState[F[_]: MonadThrow](sid: StreamId, w: ps.WrongExpectedVersion): F[WrongExpectedState] = {
+  def mkWrongExpectedStreamState[F[_]: MonadThrow](sid: StreamId, w: ps.WrongExpectedVersion): F[WrongExpectedState] =
 
     import ps.WrongExpectedVersion.ExpectedStreamPositionOption
     import ps.WrongExpectedVersion.CurrentStreamRevisionOption
@@ -73,7 +71,6 @@ private[sec] object shared {
     }
 
     (expected, actual).mapN((e, a) => WrongExpectedState(sid, e, a)).liftTo[F]
-  }
 
   def mkStreamDeleted[F[_]: MonadThrow](sd: ps.StreamDeleted): F[StreamDeleted] =
     sd.streamIdentifier.traverse(_.utf8[F]).map(_.getOrElse("<unknown>")).map(StreamDeleted(_))
@@ -86,24 +83,18 @@ private[sec] object shared {
   def mkError[T](msg: String): Either[Throwable, T] =
     ProtoResultError(msg).asLeft[T]
 
-  implicit final class StreamIdOps(val v: StreamId) extends AnyVal {
-    def esSid: ps.StreamIdentifier = v.stringValue.toStreamIdentifer
-  }
+  extension (v: StreamId)
+    def esSid: ps.StreamIdentifier =
+      v.stringValue.toStreamIdentifer
 
-  implicit final class StringOps(val v: String) extends AnyVal {
-    def toStreamIdentifer: ps.StreamIdentifier = ps.StreamIdentifier(ByteString.copyFromUtf8(v))
-  }
+  extension (v: String)
+    def toStreamIdentifer: ps.StreamIdentifier =
+      ps.StreamIdentifier(ByteString.copyFromUtf8(v))
 
-  implicit final class StreamIdentifierOps(val v: ps.StreamIdentifier) extends AnyVal {
+  extension (v: ps.StreamIdentifier)
     def utf8[F[_]](implicit F: ApplicativeThrow[F]): F[String] =
       F.catchNonFatal(Option(v.streamName.toStringUtf8()).getOrElse(""))
-  }
 
-  implicit final class AllStreamPositionOps(val v: ps.AllStreamPosition) extends AnyVal {
+  extension (v: ps.AllStreamPosition)
     def toLogPosition: Either[InvalidInput, LogPosition.Exact] =
       LogPosition(v.commitPosition, v.preparePosition)
-  }
-
-  //
-
-}

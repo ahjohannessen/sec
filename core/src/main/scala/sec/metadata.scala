@@ -16,12 +16,12 @@
 
 package sec
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import cats.{ApplicativeThrow, Endo}
-import cats.syntax.all._
+import cats.syntax.all.*
 import io.circe.Decoder.Result
-import io.circe._
-import io.circe.syntax._
+import io.circe.*
+import io.circe.syntax.*
 
 //======================================================================================================================
 
@@ -30,12 +30,12 @@ final private[sec] case class StreamMetadata(
   custom: Option[JsonObject]
 )
 
-private[sec] object StreamMetadata {
+private[sec] object StreamMetadata:
 
   final val empty: StreamMetadata             = StreamMetadata(MetaState.empty)
   def apply(state: MetaState): StreamMetadata = StreamMetadata(state, None)
 
-  implicit final class StreamMetadataOps(val sm: StreamMetadata) extends AnyVal {
+  extension (sm: StreamMetadata)
 
     def truncateBefore: Option[StreamPosition.Exact] = sm.state.truncateBefore
     def maxAge: Option[MaxAge]                       = sm.state.maxAge
@@ -43,7 +43,7 @@ private[sec] object StreamMetadata {
     def cacheControl: Option[CacheControl]           = sm.state.cacheControl
     def acl: Option[StreamAcl]                       = sm.state.acl
 
-    // /
+    //
 
     private def modS(fn: MetaState => MetaState): StreamMetadata = sm.copy(state = fn(sm.state))
 
@@ -62,7 +62,7 @@ private[sec] object StreamMetadata {
     def withCustom(value: JsonObject): StreamMetadata                = sm.setCustom(value.some)
     def withCustom(value: (String, Json)*): StreamMetadata = sm.withCustom(JsonObject.fromMap(Map.from(value)))
 
-    // /
+    //
 
     def getCustom[F[_]: ApplicativeThrow, T: Decoder]: F[Option[T]] =
       sm.custom.traverse(jo => Decoder[T].apply(Json.fromJsonObject(jo).hcursor).liftTo[F])
@@ -73,9 +73,7 @@ private[sec] object StreamMetadata {
     def modifyCustom[F[_]: ApplicativeThrow, T: Codec.AsObject](fn: Endo[Option[T]]): F[StreamMetadata] =
       getCustom[F, T].map(c => sm.setCustom(fn(c).map(Encoder.AsObject[T].encodeObject)))
 
-  }
-
-  // /
+  //
 
   import MetaState.metadataKeys
 
@@ -87,15 +85,14 @@ private[sec] object StreamMetadata {
     metadataKeys.CacheControl
   )
 
-  implicit val codecForStreamMetadata: Codec.AsObject[StreamMetadata] = new Codec.AsObject[StreamMetadata] {
+  given Codec.AsObject[StreamMetadata] = new Codec.AsObject[StreamMetadata]:
 
     val encodeSS: MetaState => JsonObject         = Encoder.AsObject[MetaState].encodeObject(_)
     val decodeSS: JsonObject => Result[MetaState] = jo => Decoder[MetaState].apply(jo.asJson.hcursor)
 
-    def encodeObject(sm: StreamMetadata): JsonObject = sm.custom match {
+    def encodeObject(sm: StreamMetadata): JsonObject = sm.custom match
       case Some(c) if c.nonEmpty => encodeSS(sm.state).toList.foldLeft(c) { case (i, (k, v)) => i.add(k, v) }
       case _                     => encodeSS(sm.state)
-    }
 
     def apply(c: HCursor): Result[StreamMetadata] =
       Decoder.decodeJsonObject(c).map { both =>
@@ -104,16 +101,13 @@ private[sec] object StreamMetadata {
       } >>= { case (s, c) =>
         decodeSS(s).map(StreamMetadata(_, Option.when(c.nonEmpty)(c)))
       }
-  }
-
-}
 
 //======================================================================================================================
 
 /** The maximum age of events in the stream. Events older than this will be automatically removed.
   */
 sealed abstract case class MaxAge(value: FiniteDuration)
-object MaxAge {
+object MaxAge:
 
   /** The maximum age of events in the stream. Events older than this will be automatically removed.
     *
@@ -125,12 +119,11 @@ object MaxAge {
     else new MaxAge(maxAge) {}.asRight
 
   private[sec] def render(ma: MaxAge): String = ma.value.toString()
-}
 
 /** The maximum count of events in the stream. When the stream has more than max count then the oldest will be removed.
   */
 sealed abstract case class MaxCount(value: Int)
-object MaxCount {
+object MaxCount:
 
   /** @param maxCount
     *   must be greater than or equal to 1.
@@ -142,14 +135,12 @@ object MaxCount {
   private[sec] def render(mc: MaxCount): String =
     s"${mc.value} event${if (mc.value == 1) "" else "s"}"
 
-}
-
 /** Used for the ATOM API of EventStoreDB. The head of a feed in the ATOM API is not cacheable. This value allows you to
   * specify a period of time you want it to be cacheable. Low numbers are best here, e.g. 30-60 seconds, and introducing
   * values here will introduce latency over the ATOM protocol if caching is occuring.
   */
 sealed abstract case class CacheControl(value: FiniteDuration)
-object CacheControl {
+object CacheControl:
 
   /** @param cacheControl
     *   must be greater than or equal to 1 second.
@@ -159,7 +150,6 @@ object CacheControl {
     else new CacheControl(cacheControl) {}.asRight
 
   private[sec] def render(cc: CacheControl): String = cc.value.toString()
-}
 
 //======================================================================================================================
 
@@ -191,14 +181,14 @@ final private[sec] case class MetaState(
   acl: Option[StreamAcl]
 )
 
-private[sec] object MetaState {
+private[sec] object MetaState:
 
   val empty: MetaState = MetaState(None, None, None, None, None)
 
-  // /
+  //
 
-  implicit private[sec] val codecForMetaState: Codec.AsObject[MetaState] =
-    new Codec.AsObject[MetaState] {
+  private[sec] given Codec.AsObject[MetaState] =
+    new Codec.AsObject[MetaState]:
 
       import Decoder.{decodeInt => di, decodeLong => dl}
       import Encoder.{encodeInt => ei, encodeLong => el}
@@ -206,21 +196,21 @@ private[sec] object MetaState {
       final private val cfd: Codec[FiniteDuration] =
         Codec.from(dl.map(FiniteDuration(_, SECONDS)), el.contramap(_.toSeconds))
 
-      implicit val codecForMaxAge: Codec[MaxAge] =
+      given Codec[MaxAge] =
         Codec.from(cfd.emap(MaxAge(_).leftMap(_.msg)), cfd.contramap(_.value))
 
-      implicit val codecForMaxCount: Codec[MaxCount] =
+      given Codec[MaxCount] =
         Codec.from(di.emap(MaxCount(_).leftMap(_.msg)), ei.contramap(_.value))
 
-      implicit val codecForCacheControl: Codec[CacheControl] =
+      given Codec[CacheControl] =
         Codec.from(cfd.emap(CacheControl(_).leftMap(_.msg)), cfd.contramap(_.value))
 
-      implicit val codecForStreamPositionExact: Codec[StreamPosition.Exact] =
+      given Codec[StreamPosition.Exact] =
         Codec.from(dl.map(StreamPosition(_)), el.contramap(_.value.toLong))
 
       //
 
-      def encodeObject(ms: MetaState): JsonObject = {
+      def encodeObject(ms: MetaState): JsonObject =
 
         val data = Map(
           metadataKeys.MaxAge         -> ms.maxAge.asJson,
@@ -231,22 +221,17 @@ private[sec] object MetaState {
         )
 
         JsonObject.fromMap(data).mapValues(_.dropNullValues)
-      }
 
       def apply(c: HCursor): Result[MetaState] =
-        for {
-
+        for
           maxAge         <- c.get[Option[MaxAge]](metadataKeys.MaxAge)
           truncateBefore <- c.get[Option[StreamPosition.Exact]](metadataKeys.TruncateBefore)
           maxCount       <- c.get[Option[MaxCount]](metadataKeys.MaxCount)
           acl            <- c.get[Option[StreamAcl]](metadataKeys.Acl)
           cacheControl   <- c.get[Option[CacheControl]](metadataKeys.CacheControl)
+        yield MetaState(maxAge, maxCount, truncateBefore, cacheControl, acl)
 
-        } yield MetaState(maxAge, maxCount, truncateBefore, cacheControl, acl)
-
-    }
-
-  private[sec] object metadataKeys {
+  private[sec] object metadataKeys:
 
     final val MaxAge: String         = "$maxAge"
     final val MaxCount: String       = "$maxCount"
@@ -254,9 +239,7 @@ private[sec] object MetaState {
     final val CacheControl: String   = "$cacheControl"
     final val Acl: String            = "$acl"
 
-  }
-
-  def render(ms: MetaState): String = {
+  def renderMetaState(ms: MetaState): String =
     s"""
        |MetaState:
        |  max-age         = ${ms.maxAge.map(MaxAge.render).getOrElse("n/a")}
@@ -265,13 +248,12 @@ private[sec] object MetaState {
        |  truncate-before = ${ms.truncateBefore.map(e => s"${e.value.render}").getOrElse("n/a")}
        |  access-list     = ${ms.acl.map(StreamAcl.render).getOrElse("n/a")}
        |""".stripMargin
-  }
 
-  implicit final class MetaStateOps(val ms: MetaState) extends AnyVal {
-    def render: String = MetaState.render(ms)
-  }
+  extension (ms: MetaState)
+    def render: String =
+      MetaState.renderMetaState(ms)
 
-}
+end MetaState
 
 //======================================================================================================================
 
@@ -296,26 +278,25 @@ final case class StreamAcl(
   metaWriteRoles: Set[String]
 )
 
-object StreamAcl {
+object StreamAcl:
 
-  final val empty: StreamAcl = StreamAcl(Set.empty, Set.empty, Set.empty, Set.empty, Set.empty)
+  final val empty: StreamAcl =
+    StreamAcl(Set.empty, Set.empty, Set.empty, Set.empty, Set.empty)
 
-  implicit final class StreamAclOps(val sa: StreamAcl) extends AnyVal {
+  extension (sa: StreamAcl)
 
     def withReadRoles(value: Set[String]): StreamAcl      = sa.copy(readRoles = value)
     def withWriteRoles(value: Set[String]): StreamAcl     = sa.copy(writeRoles = value)
     def withMetaReadRoles(value: Set[String]): StreamAcl  = sa.copy(metaReadRoles = value)
     def withMetaWriteRoles(value: Set[String]): StreamAcl = sa.copy(metaWriteRoles = value)
     def withDeleteRoles(value: Set[String]): StreamAcl    = sa.copy(deleteRoles = value)
-    def render: String                                    = StreamAcl.render(sa)
+    def render: String                                    = StreamAcl.renderStreamAcl(sa)
 
-  }
+  //
 
-  // /
+  private[sec] given Codec.AsObject[StreamAcl] = new Codec.AsObject[StreamAcl]:
 
-  implicit private[sec] val codecForStreamAcl: Codec.AsObject[StreamAcl] = new Codec.AsObject[StreamAcl] {
-
-    def encodeObject(a: StreamAcl): JsonObject = {
+    def encodeObject(a: StreamAcl): JsonObject =
 
       val roles: Map[String, Set[String]] = Map(
         aclKeys.Read      -> a.readRoles,
@@ -330,19 +311,16 @@ object StreamAcl {
       }
 
       JsonObject.fromMap(nonEmptyRoles)
-    }
 
-    def apply(c: HCursor): Result[StreamAcl] = {
+    def apply(c: HCursor): Result[StreamAcl] =
 
       def get(k: String): Result[Set[String]] =
         c.getOrElse[Set[String]](k)(Set.empty)(Decoder[Set[String]].or(Decoder[String].map(Set(_))))
 
       (get(aclKeys.Read), get(aclKeys.Write), get(aclKeys.Delete), get(aclKeys.MetaRead), get(aclKeys.MetaWrite))
         .mapN(StreamAcl.apply)
-    }
-  }
 
-  private[sec] object aclKeys {
+  private[sec] object aclKeys:
 
     final val Read: String            = "$r"
     final val Write: String           = "$w"
@@ -352,9 +330,7 @@ object StreamAcl {
     final val UserStreamAcl: String   = "$userStreamAcl"
     final val SystemStreamAcl: String = "$systemStreamAcl"
 
-  }
-
-  def render(sa: StreamAcl): String = {
+  def renderStreamAcl(sa: StreamAcl): String =
 
     def show(label: String, roles: Set[String]): String =
       s"$label: ${roles.mkString("[", ", ", "]")}"
@@ -366,6 +342,5 @@ object StreamAcl {
     val mw = show("meta-write", sa.metaWriteRoles)
 
     s"$r, $w, $d, $mr, $mw"
-  }
 
-}
+end StreamAcl

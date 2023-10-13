@@ -19,10 +19,9 @@ package api
 
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit.SECONDS
-import java.{util => ju}
-
+import java.util as ju
 import cats.Order
-import cats.implicits._
+import cats.implicits.*
 
 /** Used for information about the nodes in an EventStoreDB cluster.
   */
@@ -30,21 +29,16 @@ final case class ClusterInfo(
   members: Set[MemberInfo]
 )
 
-object ClusterInfo {
+object ClusterInfo:
 
-  implicit val orderForClusterInfo: Order[ClusterInfo] = Order.by(_.members.toList.sorted)
+  given Order[ClusterInfo] = Order.by(_.members.toList.sorted)
 
-  def render(ci: ClusterInfo): String = {
+  def renderClusterInfo(ci: ClusterInfo): String =
     val padTo   = ci.members.map(_.state.render).map(_.length).maxOption.getOrElse(0)
     val members = ci.members.toList.sorted
-    s"ClusterInfo:\n${members.map(mi => s" ${MemberInfo.render(mi, padTo)}").mkString("\n")}"
-  }
+    s"ClusterInfo:\n${members.map(mi => s" ${MemberInfo.renderMemberInfo(mi, padTo)}").mkString("\n")}"
 
-  implicit final class ClusterInfoOps(val ci: ClusterInfo) extends AnyVal {
-    def render: String = ClusterInfo.render(ci)
-  }
-
-}
+  extension (ci: ClusterInfo) def render: String = ClusterInfo.renderClusterInfo(ci)
 
 final case class MemberInfo(
   instanceId: ju.UUID,
@@ -54,14 +48,13 @@ final case class MemberInfo(
   httpEndpoint: Endpoint
 )
 
-object MemberInfo {
+object MemberInfo:
 
-  implicit val orderForMemberInfo: Order[MemberInfo] =
-    Order.by(mi => (mi.httpEndpoint, mi.state, mi.isAlive, mi.instanceId))
+  given Order[MemberInfo] = Order.by(mi => (mi.httpEndpoint, mi.state, mi.isAlive, mi.instanceId))
 
-  def render(mi: MemberInfo): String = render(mi, 0)
+  private[sec] def renderMemberInfo(mi: MemberInfo): String = renderMemberInfo(mi, 0)
 
-  private[sec] def render(mi: MemberInfo, padTo: Int): String = {
+  private[sec] def renderMemberInfo(mi: MemberInfo, padTo: Int): String =
 
     val alive    = s"${if (mi.isAlive) "✔" else "✕"}"
     val state    = s"${mi.state.render.padTo(padTo, ' ')}"
@@ -70,16 +63,11 @@ object MemberInfo {
     val id       = s"${mi.instanceId}"
 
     s"$alive $state $endpoint $ts $id"
-  }
 
-  implicit final class MemberInfoOps(val mi: MemberInfo) extends AnyVal {
-    def render: String = MemberInfo.render(mi)
-  }
-
-}
+  extension (mi: MemberInfo) def render: String = MemberInfo.renderMemberInfo(mi)
 
 sealed trait VNodeState
-object VNodeState {
+object VNodeState:
 
   case object Initializing extends VNodeState
   case object DiscoverLeader extends VNodeState
@@ -98,26 +86,27 @@ object VNodeState {
   case object ReadOnlyReplica extends VNodeState
   case object ResigningLeader extends VNodeState
 
-  final private[sec] val values: Set[VNodeState] = Set(
-    Initializing,
-    DiscoverLeader,
-    Unknown,
-    PreReplica,
-    CatchingUp,
-    Clone,
-    Follower,
-    PreLeader,
-    Leader,
-    Manager,
-    ShuttingDown,
-    Shutdown,
-    ReadOnlyLeaderless,
-    PreReadOnlyReplica,
-    ReadOnlyReplica,
-    ResigningLeader
-  )
+  private[sec] val values: Set[VNodeState] =
+    Set(
+      Initializing,
+      DiscoverLeader,
+      Unknown,
+      PreReplica,
+      CatchingUp,
+      Clone,
+      Follower,
+      PreLeader,
+      Leader,
+      Manager,
+      ShuttingDown,
+      Shutdown,
+      ReadOnlyLeaderless,
+      PreReadOnlyReplica,
+      ReadOnlyReplica,
+      ResigningLeader
+    )
 
-  implicit val orderForVNodeState: Order[VNodeState] =
+  given Order[VNodeState] =
     Order.by[VNodeState, Int] {
       case Initializing       => 0
       case DiscoverLeader     => 1
@@ -137,8 +126,4 @@ object VNodeState {
       case ResigningLeader    => 15
     }
 
-  implicit final class VNodeStateOps(val vns: VNodeState) extends AnyVal {
-    def render: String = vns.toString
-  }
-
-}
+  extension (vns: VNodeState) def render: String = vns.toString

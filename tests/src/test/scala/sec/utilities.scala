@@ -16,10 +16,10 @@
 
 package sec
 
-import scala.concurrent.duration._
-import sec.utilities._
+import scala.concurrent.duration.*
+import sec.utilities.*
 
-class UtilitiesSuite extends SecSuite {
+class UtilitiesSuite extends SecSuite:
 
   group("guardNonEmpty") {
     assertEquals(guardNonEmpty("x")(null), Left("x cannot be empty"))
@@ -37,5 +37,3 @@ class UtilitiesSuite extends SecSuite {
     assertEquals(format(1001.millis), "1.001s")
     assertEquals(format(4831.millis), "4.831s")
   }
-
-}

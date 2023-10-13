@@ -17,11 +17,11 @@
 package sec
 package api
 
-import cats.kernel.laws.discipline._
-import org.scalacheck._
+import cats.kernel.laws.discipline.*
+import org.scalacheck.*
 
-class NodePreferenceSuite extends SecDisciplineSuite {
-  import NodePreference._
+class NodePreferenceSuite extends SecDisciplineSuite:
+  import NodePreference.*
 
   group("Ops") {
 
@@ -36,5 +36,3 @@ class NodePreferenceSuite extends SecDisciplineSuite {
     implicit val cogen: Cogen[NodePreference]   = Cogen[String].contramap[NodePreference](_.toString)
     checkAll("NodePreference", EqTests[NodePreference].eqv)
   }
-
-}

@@ -28,21 +28,17 @@ import cats.Eq
   *     [[StreamPosition.Exact]] value of a particular stream.
   */
 sealed trait Direction
-object Direction {
+object Direction:
 
   case object Forwards extends Direction
   case object Backwards extends Direction
 
-  implicit final private[sec] class DirectionOps(val d: Direction) extends AnyVal {
-    def fold[A](fw: => A, bw: => A): A = d match {
-      case Forwards  => fw
-      case Backwards => bw
-    }
+  extension (d: Direction)
+    private[sec] def fold[A](fw: => A, bw: => A): A =
+      d match
+        case Forwards  => fw
+        case Backwards => bw
 
-  }
-
-  implicit val eqForDirection: Eq[Direction] = Eq.fromUniversalEquals[Direction]
-
-}
+  given Eq[Direction] = Eq.fromUniversalEquals[Direction]
 
 //======================================================================================================================

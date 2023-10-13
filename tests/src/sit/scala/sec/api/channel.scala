@@ -17,15 +17,15 @@
 package sec
 package api
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.effect.IO
 import fs2.text
-import fs2.io.file._
+import fs2.io.file.*
 import io.grpc.{ChannelCredentials, TlsChannelCredentials}
 import channel.mkCredentials
-import ConnectionMode._
+import ConnectionMode.*
 
-class ChannelSuite extends SecEffectSuite {
+class ChannelSuite extends SecEffectSuite:
 
   group("mkCredentials") {
 
@@ -52,5 +52,3 @@ class ChannelSuite extends SecEffectSuite {
     }
 
   }
-
-}

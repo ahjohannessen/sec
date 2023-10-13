@@ -19,20 +19,20 @@ package tsc
 
 import java.io.File
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
-import scala.jdk.CollectionConverters._
-import cats._
+import scala.jdk.CollectionConverters.*
+import cats.*
 import cats.data.{NonEmptyList, NonEmptySet}
-import cats.syntax.all._
-import cats.effect._
+import cats.syntax.all.*
+import cats.effect.*
 import com.comcast.ip4s.{Hostname, Port}
 import io.grpc.ManagedChannelBuilder
-import com.typesafe.config._
+import com.typesafe.config.*
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
-import sec.api._
-import sec.api.cluster._
+import sec.api.*
+import sec.api.cluster.*
 
-private[sec] object config {
+private[sec] object config:
 
   private val rootPath = "sec"
   private val ooPath   = s"$rootPath.operations"
@@ -81,32 +81,30 @@ private[sec] object config {
 
   }
 
-  def mkSingleNodeBuilder[F[_]: Applicative](o: Options, cfg: Config): SingleNodeBuilder[F] = {
+  def mkSingleNodeBuilder[F[_]: Applicative](o: Options, cfg: Config): SingleNodeBuilder[F] =
 
     val authority = getAuthority(cfg)
     val port      = cfg.portOpt(s"$rootPath.port").getOrElse(o.httpPort).value
     val address   = cfg.option(s"$rootPath.address", _.getString).getOrElse("127.0.0.1")
 
     EsClient.singleNode[F](Endpoint(address, port), authority, o)
-  }
 
   def mkClusterBuilder[F[_]: ApplicativeThrow](
     o: Options,
     co: ClusterOptions,
     cfg: Config
-  ): Option[ClusterBuilder[F]] = {
+  ): Option[ClusterBuilder[F]] =
 
     type Authority = String
 
-    val viaDns: Option[(ClusterEndpoints.ViaDns, Authority)] = {
+    val viaDns: Option[(ClusterEndpoints.ViaDns, Authority)] =
       cfg
         .option(s"$clPath.dns", _.getString)
         .filter(_.nonEmpty)
         .flatMap(Hostname.fromString)
         .map(hn => (ClusterEndpoints.ViaDns(hn), getAuthority(cfg).getOrElse(hn.toString)))
-    }
 
-    val viaSeed: Option[(ClusterEndpoints.ViaSeed, Authority)] = {
+    val viaSeed: Option[(ClusterEndpoints.ViaSeed, Authority)] =
 
       val defaultPort = o.httpPort.value
       val seedPath    = s"$clPath.seed"
@@ -127,30 +125,26 @@ private[sec] object config {
       val seeds = seedsList.orElse(seedsString).map(_.toList).getOrElse(Nil)
 
       val result = seeds.flatMap {
-        _.split(":") match {
+        _.split(":") match
           case Array(host, port) => Endpoint(host, port.toIntOption.getOrElse(defaultPort)).some
           case Array(host)       => Endpoint(host, defaultPort).some
           case _                 => None
-        }
       }
 
       result match {
         case x :: xs => getAuthority(cfg).map(a => (ClusterEndpoints.ViaSeed(NonEmptySet.of(x, xs: _*)), a))
         case Nil     => None
       }
-    }
 
     val endpointsAndAuthority: Option[(ClusterEndpoints, Authority)] = viaDns.orElse(viaSeed)
 
     endpointsAndAuthority.map { case (ce, a) => EsClient.cluster[F](ce, a, o, co) }
 
-  }
-
   //
 
-  def mkOptions[F[_]: ApplicativeThrow](cfg: Config): F[Options] = {
+  def mkOptions[F[_]: ApplicativeThrow](cfg: Config): F[Options] =
 
-    val certificate: Endo[Options] = o => {
+    val certificate: Endo[Options] = o =>
 
       val certFile: Option[File] = cfg
         .option(s"$rootPath.certificate-path", _.getString)
@@ -165,8 +159,6 @@ private[sec] object config {
         certFile.map(_.asLeft).orElse(certBase64.map(_.asRight))
 
       cert.fold(o.withInsecureMode)(_.fold(o.withSecureMode, o.withSecureMode))
-
-    }
 
     val credentials: Endo[Options] = o =>
       (cfg.option(s"$rootPath.username", _.getString), cfg.option(s"$rootPath.password", _.getString))
@@ -192,11 +184,9 @@ private[sec] object config {
 
     Either.catchNonFatal(mod(Options.default)).liftTo[F]
 
-  }
-
   //
 
-  def mkClusterOptions[F[_]: ApplicativeThrow](cfg: Config): F[ClusterOptions] = {
+  def mkClusterOptions[F[_]: ApplicativeThrow](cfg: Config): F[ClusterOptions] =
 
     val nodePreference: Endo[ClusterOptions] = o =>
       cfg.option(s"$coPath.node-preference", _.getString).map(_.toLowerCase()).fold(o) {
@@ -224,21 +214,19 @@ private[sec] object config {
     val mod = modifications.foldK
 
     Either.catchNonFatal(mod(ClusterOptions.default)).liftTo[F]
-  }
 
-  implicit private class ConfigOps(val cfg: Config) extends AnyVal {
+  extension (cfg: Config)
 
-    def portOpt(path: String): Option[Port] =
+    private[config] def portOpt(path: String): Option[Port] =
       option(path, _.getInt).flatMap(Port.fromInt)
 
-    def durationOpt(path: String): Option[FiniteDuration] = {
+    private[config] def durationOpt(path: String): Option[FiniteDuration] =
       def duration(path: String): FiniteDuration =
         FiniteDuration(cfg.getDuration(path, MILLISECONDS), MILLISECONDS).toCoarsest
-      if (cfg hasPath path) Either.catchNonFatal(duration(path)).toOption else None
-    }
 
-    def option[T](path: String, f: Config => (String => T)): Option[T] =
-      if (cfg hasPath path) Either.catchNonFatal(f(cfg)(path)).toOption else None
-  }
+      if cfg.hasPath(path) then Either.catchNonFatal(duration(path)).toOption else None
 
-}
+    private[config] def option[T](path: String, f: Config => (String => T)): Option[T] =
+      if cfg.hasPath(path) then Either.catchNonFatal(f(cfg)(path)).toOption else None
+
+end config

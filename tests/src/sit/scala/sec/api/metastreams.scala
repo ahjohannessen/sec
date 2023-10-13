@@ -17,13 +17,13 @@
 package sec
 package api
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import cats.effect.IO
-import cats.syntax.all._
+import cats.syntax.all.*
 import sec.api.MetaStreams.Result
 import sec.api.exceptions.WrongExpectedState
-import sec.helpers.implicits._
-import sec.syntax.all._
+import sec.helpers.implicits.*
+import sec.syntax.all.*
 
 class MetaStreamsSuite extends SnSuite {
 
@@ -57,16 +57,16 @@ class MetaStreamsSuite extends SnSuite {
   group("getting metadata returns latest stream position") {
 
     val meta1 = StreamMetadata.empty
-      .withMaxCount(MaxCount(17).unsafe)
-      .withMaxAge(MaxAge(1.day).unsafe)
+      .withMaxCount(MaxCount(17).unsafeGet)
+      .withMaxAge(MaxAge(1.day).unsafeGet)
       .withTruncateBefore(StreamPosition(10))
-      .withCacheControl(CacheControl(3.days).unsafe)
+      .withCacheControl(CacheControl(3.days).unsafeGet)
 
     val meta2 = StreamMetadata.empty
-      .withMaxCount(MaxCount(37).unsafe)
-      .withMaxAge(MaxAge(12.hours).unsafe)
+      .withMaxCount(MaxCount(37).unsafeGet)
+      .withMaxAge(MaxAge(12.hours).unsafeGet)
       .withTruncateBefore(StreamPosition(24))
-      .withCacheControl(CacheControl(36.hours).unsafe)
+      .withCacheControl(CacheControl(36.hours).unsafeGet)
 
     test("using expected stream state no stream for first write and exact for second write") {
 
@@ -124,7 +124,7 @@ class MetaStreamsSuite extends SnSuite {
       } yield {
         assert(ma1.isEmpty)
         assertEquals(wr1.streamPosition, Start)
-        assertEquals(ma2, Result(Start, MaxAge(1.day).unsafe.some).some)
+        assertEquals(ma2, Result(Start, MaxAge(1.day).unsafeGet.some).some)
         assertEquals(wr2.streamPosition, StreamPosition(1L))
         assertEquals(ma3, Result(wr2.streamPosition, none[MaxAge]).some)
       }
@@ -142,7 +142,7 @@ class MetaStreamsSuite extends SnSuite {
       } yield {
         assert(ma1.isEmpty)
         assertEquals(wr1.streamPosition, Start)
-        assertEquals(ma2, Result(Start, MaxCount(10).unsafe.some).some)
+        assertEquals(ma2, Result(Start, MaxCount(10).unsafeGet.some).some)
         assertEquals(wr2.streamPosition, StreamPosition(1L))
         assertEquals(ma3, Result(wr2.streamPosition, none[MaxCount]).some)
       }
@@ -160,7 +160,7 @@ class MetaStreamsSuite extends SnSuite {
       } yield {
         assert(ma1.isEmpty)
         assertEquals(wr1.streamPosition, Start)
-        assertEquals(ma2, Result(Start, CacheControl(20.days).unsafe.some).some)
+        assertEquals(ma2, Result(Start, CacheControl(20.days).unsafeGet.some).some)
         assertEquals(wr2.streamPosition, StreamPosition(1L))
         assertEquals(ma3, Result(wr2.streamPosition, none[CacheControl]).some)
       }

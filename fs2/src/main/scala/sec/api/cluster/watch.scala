@@ -18,31 +18,29 @@ package sec
 package api
 package cluster
 
-import scala.concurrent.duration._
-
-import cats.data._
-import cats.syntax.all._
-import cats.effect._
-import com.comcast.ip4s._
+import scala.concurrent.duration.*
+import cats.data.*
+import cats.syntax.all.*
+import cats.effect.*
+import com.comcast.ip4s.*
 import fs2.Stream
 import org.typelevel.log4cats.Logger
-import io.grpc._
+import io.grpc.*
 import sec.api.exceptions.{NotLeader, ServerUnavailable}
-import sec.api.retries._
-import sec.api.channel._
+import sec.api.retries.*
+import sec.api.channel.*
 
-private[sec] trait ClusterWatch[F[_]] {
+private[sec] trait ClusterWatch[F[_]]:
   def subscribe: Stream[F, ClusterInfo]
-}
 
-private[sec] object ClusterWatch {
+private[sec] object ClusterWatch:
 
   def resolveEndpoints[F[_]: Async](
     clusterDns: Hostname,
     resolveFn: Hostname => F[List[Endpoint]],
     clusterOptions: ClusterOptions,
     logger: Logger[F]
-  ): F[NonEmptySet[Endpoint]] = {
+  ): F[NonEmptySet[Endpoint]] =
 
     val log        = logger.withModifiedString(s => s"dns-discovery > $s")
     val actionName = "resolve-endpoints"
@@ -64,8 +62,6 @@ private[sec] object ClusterWatch {
       case _                                     => false
     }
 
-  }
-
   def apply[F[_]: Async, MCB <: ManagedChannelBuilder[MCB]](
     builderFromTarget: String => F[MCB],
     options: Options,
@@ -74,7 +70,7 @@ private[sec] object ClusterWatch {
     seed: NonEmptySet[Endpoint],
     authority: String,
     logger: Logger[F]
-  ): Resource[F, ClusterWatch[F]] = {
+  ): Resource[F, ClusterWatch[F]] =
 
     val mkCache: Resource[F, Cache[F]] = Resource.eval(Cache(ClusterInfo(Set.empty)))
 
@@ -87,23 +83,21 @@ private[sec] object ClusterWatch {
       .eval(builderFromTarget(s"${p.scheme}:///"))
       .flatMap(b => resource[F](b.defaultLoadBalancingPolicy("round_robin").build, options.channelShutdownAwait))
 
-    for {
+    for
       store    <- mkCache
       updates   = mkWatch(store.get, clusterOptions.notificationInterval).subscribe
       provider <- mkProvider(updates)
       channel  <- mkChannel(provider)
       gossip   <- gossipFn(channel)
       watch    <- create[F](gossip.read, clusterOptions, store, logger)
-    } yield watch
-
-  }
+    yield watch
 
   def create[F[_]: Async](
     readFn: F[ClusterInfo],
     options: ClusterOptions,
     store: Cache[F],
     log: Logger[F]
-  ): Resource[F, ClusterWatch[F]] = {
+  ): Resource[F, ClusterWatch[F]] =
 
     val watch   = mkWatch(store.get, options.notificationInterval)
     val fetcher = mkFetcher(readFn, options, store.set, log)
@@ -111,19 +105,16 @@ private[sec] object ClusterWatch {
 
     create.compile.resource.lastOrError
 
-  }
-
   def mkWatch[F[_]: Temporal](get: F[ClusterInfo], interval: FiniteDuration): ClusterWatch[F] =
-    new ClusterWatch[F] {
+    new ClusterWatch[F]:
       val subscribe: Stream[F, ClusterInfo] = Stream.eval(get).metered(interval).repeat.changes
-    }
 
   def mkFetcher[F[_]: Async](
     readFn: F[ClusterInfo],
     co: ClusterOptions,
     setInfo: ClusterInfo => F[Unit],
     log: Logger[F]
-  ): Stream[F, Unit] = {
+  ): Stream[F, Unit] =
     import co._
 
     val action = retry(readFn, "gossip", retryConfig(co), log) {
@@ -132,37 +123,30 @@ private[sec] object ClusterWatch {
     }
 
     Stream.eval(action).metered(notificationInterval).repeat.changes.evalMap(setInfo)
-  }
 
   ///
 
-  def retryConfig(co: ClusterOptions): RetryConfig = {
+  def retryConfig(co: ClusterOptions): RetryConfig =
     val timeout     = co.readTimeout.some
     val maxAttempts = co.maxDiscoverAttempts.getOrElse(Int.MaxValue)
     RetryConfig(co.retryDelay, co.retryMaxDelay, co.retryBackoffFactor, maxAttempts, timeout)
-  }
 
   ///
 
-  trait Cache[F[_]] {
+  trait Cache[F[_]]:
     def set(ci: ClusterInfo): F[Unit]
     def get: F[ClusterInfo]
-  }
 
-  object Cache {
+  object Cache:
 
     def apply[F[_]: Sync](
       ci: ClusterInfo
     ): F[Cache[F]] = Ref[F].of(ci).map(create)
 
     def create[F[_]](ref: Ref[F, ClusterInfo]): Cache[F] =
-      new Cache[F] {
+      new Cache[F]:
         def set(ci: ClusterInfo): F[Unit] = ref.set(ci)
         def get: F[ClusterInfo]           = ref.get
-      }
-  }
-
-}
 
 //
 

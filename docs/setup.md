@@ -38,10 +38,10 @@ In order to verify that you can reach the database try out the
 following [IOApp](https://typelevel.org/cats-effect/datatypes/ioapp.html):
 
 ```scala mdoc:compile-only
-import cats.effect._
-import sec.api._
+import cats.effect.*
+import sec.api.*
 
-object HelloWorld extends IOApp {
+object HelloWorld extends IOApp:
 
   def run(args: List[String]): IO[ExitCode] = EsClient
     .singleNode[IO](Endpoint("127.0.0.1", 2113))
@@ -50,7 +50,6 @@ object HelloWorld extends IOApp {
     )
     .as(ExitCode.Success)
 
-}
 ```
 
 The methods used on `EsClient` are explained in the subsequent sections.

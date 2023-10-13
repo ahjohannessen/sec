@@ -17,12 +17,10 @@
 package sec
 
 import java.util.Locale
+import scala.concurrent.duration.*
+import cats.syntax.all.*
 
-import scala.concurrent.duration._
-
-import cats.syntax.all._
-
-private[sec] object utilities {
+private[sec] object utilities:
 
 //======================================================================================================================
 
@@ -34,9 +32,9 @@ private[sec] object utilities {
 
 //======================================================================================================================
 
-  def format(duration: Duration): String = {
+  def format(duration: Duration): String =
 
-    def chooseUnit(fd: FiniteDuration): TimeUnit = {
+    def chooseUnit(fd: FiniteDuration): TimeUnit =
       if (fd.toDays > 0) DAYS
       else if (fd.toHours > 0) HOURS
       else if (fd.toMinutes > 0) MINUTES
@@ -44,9 +42,8 @@ private[sec] object utilities {
       else if (fd.toMillis > 0) MILLISECONDS
       else if (fd.toMicros > 0) MICROSECONDS
       else NANOSECONDS
-    }
 
-    def abbreviate(unit: TimeUnit): String = unit match {
+    def abbreviate(unit: TimeUnit): String = unit match
       case NANOSECONDS  => "ns"
       case MICROSECONDS => "μs"
       case MILLISECONDS => "ms"
@@ -54,9 +51,8 @@ private[sec] object utilities {
       case MINUTES      => "m"
       case HOURS        => "h"
       case DAYS         => "d"
-    }
 
-    def format(d: FiniteDuration): String = {
+    def format(d: FiniteDuration): String =
 
       val precision: Int = 4
       val nanos: Long    = d.toNanos
@@ -64,15 +60,9 @@ private[sec] object utilities {
       val value: Double  = nanos.toDouble / NANOSECONDS.convert(1, unit)
 
       s"%.${precision}g%s".formatLocal(Locale.ROOT, value, abbreviate(unit))
-    }
 
-    duration match {
+    duration match
       case d: FiniteDuration => format(d)
       case d: Duration       => d.toString
-    }
-
-  }
 
 //======================================================================================================================
-
-}

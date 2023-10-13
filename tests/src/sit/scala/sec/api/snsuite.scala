@@ -19,15 +19,15 @@ package api
 
 import java.io.File
 import java.util.UUID
-import scala.concurrent.duration._
-import cats.data.{NonEmptyList => Nel}
-import cats.effect._
-import cats.syntax.all._
+import scala.concurrent.duration.*
+import cats.data.NonEmptyList as Nel
+import cats.effect.*
+import cats.syntax.all.*
 import org.typelevel.log4cats.Logger
 import org.scalacheck.Gen
-import sec.arbitraries._
+import sec.arbitraries.*
 
-trait SnSuite extends ClientSuite {
+trait SnSuite extends ClientSuite:
 
   def genUuid[F[_]: Sync]: F[UUID] = Sync[F].delay(sampleOf[UUID])
   def genIdentifier: String        = sampleOfGen(Gen.identifier.suchThat(id => id.length >= 5 && id.length <= 20))
@@ -43,9 +43,7 @@ trait SnSuite extends ClientSuite {
 
   final val makeResource: Resource[IO, EsClient[IO]] = SnSuite.mkClient[IO](log)
 
-}
-
-object SnSuite {
+object SnSuite:
 
   final private val certsFolder = new File(sys.env.getOrElse("SEC_SIT_CERTS_PATH", BuildInfo.certsPath))
   final val cert                = new File(certsFolder, "ca/ca.crt")
@@ -64,5 +62,3 @@ object SnSuite {
     .withPrefetchN(4096)
     .withLogger(log)
     .resource
-
-}

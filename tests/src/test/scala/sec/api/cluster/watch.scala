@@ -19,24 +19,24 @@ package api
 package cluster
 
 import java.time.ZonedDateTime
-import java.{util => ju}
+import java.util as ju
 import scala.concurrent.TimeoutException
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import cats.Id
-import cats.data.{NonEmptySet => Nes}
-import cats.data.{NonEmptyList => Nel}
-import cats.effect._
-import cats.effect.testkit._
-import cats.syntax.all._
+import cats.data.NonEmptySet as Nes
+import cats.data.NonEmptyList as Nel
+import cats.effect.*
+import cats.effect.testkit.*
+import cats.syntax.all.*
 import fs2.Stream
-import com.comcast.ip4s._
+import com.comcast.ip4s.*
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.scalacheck.Gen
 import sec.api.exceptions.ServerUnavailable
-import sec.arbitraries._
+import sec.arbitraries.*
 
-class ClusterWatchSuite extends SecEffectSuite with TestInstances {
+class ClusterWatchSuite extends SecEffectSuite with TestInstances:
 
   import ClusterWatch.Cache
 
@@ -100,7 +100,7 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances {
         .withReadTimeout(50.millis)
         .withNotificationInterval(50.millis)
 
-      def test(err: Throwable, count: Int): IO[Unit] = {
+      def test(err: Throwable, count: Int): IO[Unit] =
 
         val result = for {
           readCountRef <- Stream.eval(Ref.of[IO, Int](0))
@@ -116,8 +116,6 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances {
         } yield count
 
         assertIO(result.compile.lastOrError, count)
-
-      }
 
       test(ServerUnavailable("Oh Noes"), 6) *>
         test(new TimeoutException("Oh Noes"), 6) *>
@@ -251,14 +249,10 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances {
 
   }
 
-  def succeededOrFail[A](outcome: Option[Outcome[Id, Throwable, A]]): A = outcome match {
+  def succeededOrFail[A](outcome: Option[Outcome[Id, Throwable, A]]): A = outcome match
     case Some(_ @Outcome.Succeeded(a)) => a
     case other                         => fail(s"Expected Succeeded! Got $other")
-  }
 
-  def recordingCache(ref: Ref[IO, List[ClusterInfo]]): Cache[IO] = new Cache[IO] {
+  def recordingCache(ref: Ref[IO, List[ClusterInfo]]): Cache[IO] = new Cache[IO]:
     def set(ci: ClusterInfo): IO[Unit] = ref.update(_ :+ ci)
     def get: IO[ClusterInfo]           = ref.get.map(_.lastOption.getOrElse(ClusterInfo(Set.empty)))
-  }
-
-}

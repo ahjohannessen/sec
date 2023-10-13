@@ -36,7 +36,7 @@ sealed abstract case class UserCredentials(username: String, password: String) {
   override def toString = s"UserCredentials(username = $username, password = 🤐)"
 }
 
-object UserCredentials {
+object UserCredentials:
 
   private[sec] def unsafe(username: String, password: String): UserCredentials =
     new UserCredentials(username, password) {}
@@ -44,9 +44,9 @@ object UserCredentials {
   /** Constructs an instance with provided @param username and @param password. Input is validated for being non-empty
     * and not containing the character `:`.
     */
-  def apply(username: String, password: String): Either[InvalidInput, UserCredentials] = {
+  def apply(username: String, password: String): Either[InvalidInput, UserCredentials] =
 
-    def validate(value: String, name: String) = {
+    def validate(value: String, name: String) =
 
       def nonEmpty(v: String): Attempt[String] =
         Option(v).filter(_.nonEmpty).toRight(s"$name is empty")
@@ -55,12 +55,9 @@ object UserCredentials {
         Option.unless(v.contains(':'))(v).toRight(s"$name cannot contain characters [':']")
 
       nonEmpty(value) >>= validChars
-    }
 
     (validate(username, "username"), validate(password, "password"))
       .mapN(UserCredentials.unsafe)
       .leftMap(InvalidInput(_))
-  }
-}
 
 //======================================================================================================================

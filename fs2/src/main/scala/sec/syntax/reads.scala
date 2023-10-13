@@ -18,8 +18,8 @@ package sec
 package syntax
 
 import fs2.Stream
-import _root_.sec.api._
-import _root_.sec.api.streams.Reads
+import sec.api.*
+import sec.api.streams.Reads
 
 trait ReadsSyntax:
 

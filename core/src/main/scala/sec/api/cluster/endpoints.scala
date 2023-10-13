@@ -22,7 +22,7 @@ import cats.data.NonEmptySet
 import com.comcast.ip4s.Hostname
 
 sealed private[sec] trait ClusterEndpoints
-private[sec] object ClusterEndpoints {
+private[sec] object ClusterEndpoints:
 
   /** Used when discovering endpoints via DNS.
     *
@@ -44,13 +44,7 @@ private[sec] object ClusterEndpoints {
 
   //
 
-  implicit final class ClusterEndpointsOps(val ce: ClusterEndpoints) {
-
-    def fold[A](dns: ViaDns => A, seed: ViaSeed => A): A = ce match {
+  extension (ce: ClusterEndpoints)
+    def fold[A](dns: ViaDns => A, seed: ViaSeed => A): A = ce match
       case x: ViaDns  => dns(x)
       case x: ViaSeed => seed(x)
-    }
-
-  }
-
-}

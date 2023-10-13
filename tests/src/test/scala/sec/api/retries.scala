@@ -17,17 +17,17 @@
 package sec
 package api
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.util.control.NoStackTrace
-import cats.effect._
-import cats.effect.testkit._
-import cats.syntax.all._
+import cats.effect.*
+import cats.effect.testkit.*
+import cats.syntax.all.*
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
 import org.typelevel.log4cats.testing.TestingLogger
 import sec.api.retries.RetryConfig
 
-class RetriesSuite extends SecEffectSuite with TestInstances {
+class RetriesSuite extends SecEffectSuite with TestInstances:
 
   import RetriesSuite.Oops
 
@@ -265,8 +265,5 @@ class RetriesSuite extends SecEffectSuite with TestInstances {
   def assertOutcome[A](control: TestControl[A]): IO[Outcome[cats.Id, Throwable, A]] =
     control.results.map(_.fold(fail("Expected some result"))(identity))
 
-}
-
-object RetriesSuite {
+object RetriesSuite:
   case object Oops extends RuntimeException("Oops") with NoStackTrace
-}

@@ -18,7 +18,7 @@ package sec
 package syntax
 
 import fs2.Stream
-import sec.api._
+import sec.api.*
 
 trait StreamsSyntax:
 

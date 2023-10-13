@@ -16,7 +16,7 @@
 
 package sec
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.{Eq, Order}
 
 //======================================================================================================================
@@ -53,18 +53,17 @@ object StreamState {
   case object Any extends StreamState
   case object StreamExists extends StreamState
 
-  implicit val eq: Eq[StreamState] = Eq.fromUniversalEquals
+  given Eq[StreamState] = Eq.fromUniversalEquals
 
-  def render(ss: StreamState): String = ss match {
+  def renderStreamState(ss: StreamState): String = ss match
     case NoStream                => "NoStream"
     case Any                     => "Any"
     case StreamExists            => "StreamExists"
     case StreamPosition.Exact(v) => s"Exact(${v.render})"
-  }
 
-  implicit final class StreamStateOps(val ss: StreamState) extends AnyVal {
-    def render: String = StreamState.render(ss)
-  }
+  extension (ss: StreamState)
+    def render: String =
+      StreamState.renderStreamState(ss)
 
 }
 
@@ -76,14 +75,13 @@ object StreamState {
   *   - [[StreamPosition.End]] Represents the end of a particular stream.
   */
 sealed trait StreamPosition
-object StreamPosition {
+object StreamPosition:
 
   val Start: Exact = Exact(ULong.min)
 
   final case class Exact(value: ULong) extends StreamPosition with StreamState
-  object Exact {
+  object Exact:
     def fromUnsigned(value: Long): Exact = Exact(ULong(value))
-  }
 
   case object End extends StreamPosition
 
@@ -91,27 +89,23 @@ object StreamPosition {
     */
   def apply(value: Long): Exact = Exact.fromUnsigned(value)
 
-  // /
+  //
 
-  implicit final class StreamPositionOps(val sp: StreamPosition) extends AnyVal {
-    def render: String = sp match {
+  extension (sp: StreamPosition)
+    def render: String = sp match
       case e: Exact => s"${e.value.render}"
       case End      => "end"
-    }
-  }
 
-  // /
+  //
 
-  implicit val orderForStreamPosition: Order[StreamPosition] = Order.from {
+  given Order[StreamPosition] = Order.from {
     case (x: Exact, y: Exact) => Order[Exact].compare(x, y)
     case (_: Exact, End)      => -1
     case (End, _: Exact)      => 1
     case (End, End)           => 0
   }
 
-  implicit val orderForExact: Order[Exact] = Order.by(_.value)
-
-}
+  given Order[Exact] = Order.by(_.value)
 
 //======================================================================================================================
 
@@ -121,12 +115,12 @@ object StreamPosition {
   *   - [[LogPosition.End]] Represents the end of the global stream.
   */
 sealed trait LogPosition
-object LogPosition {
+object LogPosition:
 
   val Start: Exact = exact(0L, 0L)
 
   sealed abstract case class Exact(commit: ULong, prepare: ULong) extends LogPosition
-  object Exact {
+  object Exact:
 
     val MaxValue: Exact = create(ULong.max, ULong.max)
 
@@ -140,11 +134,9 @@ object LogPosition {
       if (commitU < prepareU) error.asLeft else create(commitU, prepareU).asRight
     }
 
-  }
-
   case object End extends LogPosition
 
-  // /
+  //
 
   private[sec] def exact(commit: Long, prepare: Long): Exact =
     Exact.create(ULong(commit), ULong(prepare))
@@ -155,30 +147,25 @@ object LogPosition {
     */
   def apply(commit: Long, prepare: Long): Either[InvalidInput, Exact] = Exact(commit, prepare)
 
-  // /
+  //
 
-  implicit final class LogPositionOps(val lp: LogPosition) extends AnyVal {
-    def render: String = lp match {
+  extension (lp: LogPosition)
+    def render: String = lp match
       case Exact(c, p) => s"(c = ${c.render}, p = ${p.render})"
       case End         => "end"
-    }
-  }
 
-  // /
+  //
 
-  implicit val orderForLogPosition: Order[LogPosition] = Order.from {
+  given Order[LogPosition] = Order.from {
     case (x: Exact, y: Exact) => Order[Exact].compare(x, y)
     case (_: Exact, End)      => -1
     case (End, _: Exact)      => 1
     case (End, End)           => 0
   }
 
-  implicit val orderForExact: Order[Exact] = Order.from { (x: Exact, y: Exact) =>
-    (x.commit compare y.commit, x.prepare compare y.prepare) match {
+  given Order[Exact] = Order.from { (x: Exact, y: Exact) =>
+    (x.commit compare y.commit, x.prepare compare y.prepare) match
       case (0, 0) => 0
       case (0, x) => x
       case (x, _) => x
-    }
   }
-
-}

@@ -35,7 +35,7 @@ class SubscribeToAllFilterSuite extends SnSuite {
   val multiplier      = 3
 
   val replaceType: String => Endo[EventData] =
-    et => ed => EventData(et, ed.eventId, ed.data, ed.metadata, ed.contentType).unsafe
+    et => ed => EventData(et, ed.eventId, ed.data, ed.metadata, ed.contentType).unsafeGet
 
   val mkPrefix: String => String =
     p => s"streams_subscribe_to_all_filter_${p}_$genIdentifier"

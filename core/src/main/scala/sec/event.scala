@@ -18,8 +18,7 @@ package sec
 
 import java.time.ZonedDateTime
 import java.util.UUID
-
-import cats.syntax.all._
+import cats.syntax.all.*
 import scodec.bits.ByteVector
 import sec.utilities.{guardNonEmpty, guardNotStartsWith}
 
@@ -31,14 +30,13 @@ import sec.utilities.{guardNonEmpty, guardNotStartsWith}
   *   - [[ResolvedEvent]] A special event that contains a link and a linked event record.
   */
 sealed trait Event
-object Event {
+object Event:
 
-  implicit final class EventOps(val e: Event) extends AnyVal {
+  extension (e: Event)
 
-    def fold[A](f: EventRecord => A, g: ResolvedEvent => A): A = e match {
+    def fold[A](f: EventRecord => A, g: ResolvedEvent => A): A = e match
       case er: EventRecord   => f(er)
       case re: ResolvedEvent => g(re)
-    }
 
     /** The stream identifier of the stream the event belongs to.
       */
@@ -68,9 +66,6 @@ object Event {
     def created: ZonedDateTime = e.fold(_.created, _.event.created)
 
     def render: String = fold(EventRecord.render, ResolvedEvent.render)
-  }
-
-}
 
 /** An event persisted in an event stream.
   *
@@ -93,7 +88,7 @@ final case class EventRecord(
   created: ZonedDateTime
 ) extends Event
 
-object EventRecord {
+object EventRecord:
 
   def render(er: EventRecord): String =
     s"""
@@ -109,8 +104,6 @@ object EventRecord {
        |)
        |""".stripMargin
 
-}
-
 /** Represents a [[EventType.LinkTo]] event that points to another event. Resolved events are common when reading or
   * subscribing to system prefixed streams, for instance streams like $$ce- or $$et-.
   *
@@ -124,7 +117,7 @@ final case class ResolvedEvent(
   link: EventRecord
 ) extends Event
 
-object ResolvedEvent {
+object ResolvedEvent:
 
   def render(re: ResolvedEvent): String =
     s"""
@@ -133,8 +126,6 @@ object ResolvedEvent {
        |  link  = ${EventRecord.render(re.link)}
        |)
        |""".stripMargin
-
-}
 
 //======================================================================================================================
 
@@ -147,7 +138,7 @@ object ResolvedEvent {
   *   [[https://ahjohannessen.github.io/sec/docs/types#eventtype]] for more information about event type usage.
   */
 sealed trait EventType
-object EventType {
+object EventType:
 
   sealed abstract case class System(name: String) extends EventType
   private[sec] object System {
@@ -175,7 +166,7 @@ object EventType {
   def apply(name: String): Either[InvalidInput, Normal] =
     normal(name).leftMap(InvalidInput(_))
 
-  // /
+  //
 
   private[sec] val guardNonEmptyName: String => Attempt[String] = guardNonEmpty("Event type name")
 
@@ -185,27 +176,22 @@ object EventType {
   private[sec] def normal(name: String): Attempt[Normal] =
     guardNonEmptyName(name) >>= guardNotStartsWith(systemPrefix) >>= (Normal.unsafe(_).asRight)
 
-  // /
+  //
 
-  private[sec] val eventTypeToString: EventType => String = {
+  private[sec] val eventTypeToString: EventType => String =
     case System(n) => s"$systemPrefix$n"
     case Normal(n) => n
-  }
 
-  private[sec] val stringToEventType: String => Attempt[EventType] = {
+  private[sec] val stringToEventType: String => Attempt[EventType] =
     case sd if sd.startsWith(systemPrefix) => system(sd.substring(systemPrefixLength))
     case ud                                => normal(ud)
-  }
 
   final private[sec] val systemPrefix: String    = "$"
   final private[sec] val systemPrefixLength: Int = systemPrefix.length
 
-  implicit final class EventTypeOps(val et: EventType) extends AnyVal {
+  extension (et: EventType)
     def stringValue: String = eventTypeToString(et)
     def render: String      = stringValue
-  }
-
-}
 
 //======================================================================================================================
 
@@ -230,7 +216,7 @@ final case class EventData(
   contentType: ContentType
 )
 
-object EventData {
+object EventData:
 
   /** Constructor for [[EventData]] when metadata is not required.
     *
@@ -293,24 +279,20 @@ object EventData {
   ): Either[InvalidInput, EventData] =
     EventType(eventType).map(EventData(_, eventId, data, metadata, contentType))
 
-  // /
+  //
 
-  implicit final private[sec] class EventDataOps(val ed: EventData) extends AnyVal {
-    def renderData: String     = render(ed.data, ed.contentType)
-    def renderMetadata: String = render(ed.metadata, ed.contentType)
-  }
+  extension (ed: EventData)
+    private[sec] def renderData: String     = render(ed.data, ed.contentType)
+    private[sec] def renderMetadata: String = render(ed.metadata, ed.contentType)
 
   private[sec] def render(bv: ByteVector, ct: ContentType): String =
     if (bv.isEmpty || ct.isBinary) s"${ct.render}(${renderByteVector(bv)})"
     else s"${bv.decodeUtf8.getOrElse("Failed decoding utf8")}"
 
-  private[sec] def renderByteVector(bv: ByteVector): String = {
+  private[sec] def renderByteVector(bv: ByteVector): String =
     if (bv.isEmpty) s"empty"
     else if (bv.size < 32) s"${bv.size} bytes, 0x${bv.toHex}"
     else s"${bv.size} bytes, #${bv.hashCode}"
-  }
-
-}
 
 //======================================================================================================================
 
@@ -322,24 +304,19 @@ object EventData {
   */
 
 sealed trait ContentType
-object ContentType {
+object ContentType:
 
   case object Binary extends ContentType
   case object Json extends ContentType
 
-  implicit final class ContentTypeOps(val ct: ContentType) extends AnyVal {
+  extension (ct: ContentType)
 
-    def fold[A](binary: => A, json: => A): A = ct match {
+    def fold[A](binary: => A, json: => A): A = ct match
       case Binary => binary
       case Json   => json
-    }
 
     def isJson: Boolean   = ct.fold(false, true)
     def isBinary: Boolean = !isJson
     def render: String    = fold("Binary", "Json")
-
-  }
-
-}
 
 //======================================================================================================================
