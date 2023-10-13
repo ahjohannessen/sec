@@ -18,7 +18,7 @@ package sec
 package api
 
 import java.util.UUID
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.effect.{Async, Resource, Sync}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder

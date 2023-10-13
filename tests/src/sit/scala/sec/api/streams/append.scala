@@ -18,20 +18,20 @@ package sec
 package api
 
 import java.util.UUID
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scodec.bits.ByteVector
-import cats.data.{NonEmptyList => Nel}
-import cats.syntax.all._
+import cats.data.NonEmptyList as Nel
+import cats.syntax.all.*
 import cats.effect.IO
 import fs2.Stream
-import sec.syntax.all._
-import sec.api.exceptions._
-import sec.helpers.implicits._
+import sec.syntax.all.*
+import sec.api.exceptions.*
+import sec.helpers.implicits.*
 
-class AppendToStreamSuite extends SnSuite {
+class AppendToStreamSuite extends SnSuite:
 
-  import StreamState._
-  import StreamPosition._
+  import StreamState.*
+  import StreamPosition.*
 
   val streamPrefix = s"streams_append_to_stream_${genIdentifier}_"
 
@@ -39,7 +39,7 @@ class AppendToStreamSuite extends SnSuite {
 
     val events = genEvents(1)
 
-    def run(expectedState: StreamState) = {
+    def run(expectedState: StreamState) =
 
       val id = genStreamId(s"${streamPrefix}non_existing_${mkSnakeCase(expectedState.render)}_")
 
@@ -49,7 +49,6 @@ class AppendToStreamSuite extends SnSuite {
           assertEquals(wr.streamPosition, Start)
         }
       }
-    }
 
     test("works with any expected stream state")(run(Any))
 
@@ -106,7 +105,7 @@ class AppendToStreamSuite extends SnSuite {
 
   group("multiple writes of multiple events with same uuids using expected stream state") {
 
-    def run(expectedState: StreamState, secondExpectedState: StreamState) = {
+    def run(expectedState: StreamState, secondExpectedState: StreamState) =
 
       val st     = mkSnakeCase(expectedState.render)
       val id     = genStreamId(s"${streamPrefix}multiple_writes_multiple_events_same_uuid_${st}_")
@@ -121,8 +120,6 @@ class AppendToStreamSuite extends SnSuite {
         }
       }
 
-    }
-
     test("any then next expected stream state is unreliable")(run(Any, Start))
 
     test("no stream then next expected stream state is correct")(run(NoStream, StreamPosition(5)))
@@ -131,7 +128,7 @@ class AppendToStreamSuite extends SnSuite {
 
   group("append to tombstoned stream raises") {
 
-    def run(expectedState: StreamState) = {
+    def run(expectedState: StreamState) =
       val st     = mkSnakeCase(expectedState.render)
       val id     = genStreamId(s"${streamPrefix}tombstoned_stream_${st}_")
       val events = genEvents(1)
@@ -139,7 +136,6 @@ class AppendToStreamSuite extends SnSuite {
       val write  = streams.appendToStream(id, expectedState, events)
 
       assertIO(delete >> write.attempt, StreamDeleted(id.stringValue).asLeft)
-    }
 
     test("with correct expected stream state")(run(NoStream))
 
@@ -153,7 +149,7 @@ class AppendToStreamSuite extends SnSuite {
 
   group("append to existing stream") {
 
-    def run(sndExpectedState: StreamState): IO[StreamPosition] = {
+    def run(sndExpectedState: StreamState): IO[StreamPosition] =
 
       val st                      = mkSnakeCase(sndExpectedState.render)
       val id                      = genStreamId(s"${streamPrefix}existing_stream_with_${st}_")
@@ -161,7 +157,6 @@ class AppendToStreamSuite extends SnSuite {
 
       assertIO(write(NoStream).map(_.streamPosition), Start) *>
         write(sndExpectedState).map(_.streamPosition)
-    }
 
     test("works with correct expected stream state") {
       assertIO(run(Start), StreamPosition(1))
@@ -235,7 +230,7 @@ class AppendToStreamSuite extends SnSuite {
 
     def mkEvent(sizeBytes: Int): IO[EventData] = IO(UUID.randomUUID()).map { uuid =>
 
-      val et       = EventType("et").unsafe
+      val et       = EventType("et").unsafeGet
       val data     = ByteVector.fill(sizeBytes.toLong)(0)
       val metadata = ByteVector.empty
       val ct       = ContentType.Binary
@@ -289,18 +284,16 @@ class AppendToStreamSuite extends SnSuite {
 
     test("sequence 0em1 1e0 2e1 3e2 4e3 5e4") {
 
-      def run(nextExpected: StreamState) = {
+      def run(nextExpected: StreamState) =
 
         val id     = mkId
         val events = genEvents(6)
 
-        for {
+        for
           _ <- streams.appendToStream(id, NoStream, events)
           _ <- streams.appendToStream(id, nextExpected, Nel.one(events.head))
           e <- streams.readStreamForwards(id, maxCount = events.size + 1L).compile.toList
-
-        } yield assertEquals(e.size, events.size)
-      }
+        yield assertEquals(e.size, events.size)
 
       // 0em1 is idempotent
       val t1 = run(NoStream)
@@ -317,12 +310,11 @@ class AppendToStreamSuite extends SnSuite {
       val id     = mkId
       val events = genEvents(6)
 
-      for {
+      for
         _ <- streams.appendToStream(id, NoStream, events)
         _ <- streams.appendToStream(id, StreamPosition(5), Nel.one(events.head))
         e <- streams.readStreamForwards(id, maxCount = events.size + 2L).compile.toList
-
-      } yield assertEquals(e.size, events.size + 1)
+      yield assertEquals(e.size, events.size + 1)
 
     }
 
@@ -330,10 +322,11 @@ class AppendToStreamSuite extends SnSuite {
 
       val id     = mkId
       val events = genEvents(6)
-      val result = for {
+
+      val result = for
         _ <- streams.appendToStream(id, NoStream, events)
         _ <- streams.appendToStream(id, StreamPosition(6), Nel.one(events.head))
-      } yield ()
+      yield ()
 
       assertIO(result.attempt, Left(WrongExpectedState(id, StreamPosition(6), StreamPosition(5))))
     }
@@ -343,10 +336,10 @@ class AppendToStreamSuite extends SnSuite {
       val id     = mkId
       val events = genEvents(6)
 
-      val result = for {
+      val result = for
         _ <- streams.appendToStream(id, NoStream, events)
         _ <- streams.appendToStream(id, StreamPosition(4), Nel.one(events.head))
-      } yield ()
+      yield ()
 
       assertIO(result.attempt, Left(WrongExpectedState(id, StreamPosition(4), StreamPosition(5))))
     }
@@ -356,28 +349,26 @@ class AppendToStreamSuite extends SnSuite {
       val id     = mkId
       val events = genEvents(1)
 
-      for {
+      for
         _ <- streams.appendToStream(id, NoStream, events)
         _ <- streams.appendToStream(id, Start, Nel.one(events.head))
         e <- streams.readStreamForwards(id, maxCount = events.size + 2L).compile.toList
+      yield assertEquals(e.size, events.size + 1)
 
-      } yield assertEquals(e.size, events.size + 1)
     }
 
     test("sequence 0em1") {
 
-      def run(nextExpected: StreamState) = {
+      def run(nextExpected: StreamState) =
 
         val id     = mkId
         val events = genEvents(1)
 
-        for {
+        for
           _ <- streams.appendToStream(id, NoStream, events)
           _ <- streams.appendToStream(id, nextExpected, Nel.one(events.head))
           e <- streams.readStreamForwards(id, maxCount = events.size + 1L).compile.toList
-
-        } yield assertEquals(e.size, events.size)
-      }
+        yield assertEquals(e.size, events.size)
 
       // 0em1 is idempotent
       val t1 = run(NoStream)
@@ -396,18 +387,18 @@ class AppendToStreamSuite extends SnSuite {
       val e2 = genEvent
       val e3 = genEvent
 
-      for {
+      for
         _ <- streams.appendToStream(id, NoStream, Nel.of(e1, e2, e3))
         _ <- streams.appendToStream(id, Any, Nel.of(e2))
         _ <- streams.appendToStream(id, Any, Nel.of(e2))
         e <- streams.readStreamForwards(id, maxCount = 4).compile.toList
+      yield assertEquals(e.size, 3)
 
-      } yield assertEquals(e.size, 3)
     }
 
     test("sequence S 0em1 1em1 E") {
 
-      def run(nextState: StreamState, onlyLast: Boolean) = {
+      def run(nextState: StreamState, onlyLast: Boolean) =
 
         val id         = mkId
         val e1         = genEvent
@@ -415,13 +406,11 @@ class AppendToStreamSuite extends SnSuite {
         val events     = Nel.of(e1, e2)
         val nextEvents = if (onlyLast) Nel.one(e2) else events
 
-        for {
+        for
           _ <- streams.appendToStream(id, NoStream, events)
           _ <- streams.appendToStream(id, nextState, nextEvents)
           e <- streams.readStreamForwards(id, maxCount = events.size + 1L).compile.toList
-
-        } yield assertEquals(e.size, events.size)
-      }
+        yield assertEquals(e.size, events.size)
 
       // S 0em1 E is idempotent
       val t1 = run(NoStream, onlyLast = false)
@@ -456,5 +445,3 @@ class AppendToStreamSuite extends SnSuite {
     }
 
   }
-
-}

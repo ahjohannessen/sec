@@ -17,17 +17,17 @@
 package sec
 package api
 
-import scala.concurrent.duration._
-import cats.syntax.all._
+import scala.concurrent.duration.*
+import cats.syntax.all.*
 import cats.effect.{IO, Ref}
 import fs2.Stream
-import sec.syntax.all._
-import sec.api.exceptions._
+import sec.syntax.all.*
+import sec.api.exceptions.*
 
-class SubscribeToStreamSuite extends SnSuite {
+class SubscribeToStreamSuite extends SnSuite:
 
-  import StreamState._
-  import StreamPosition._
+  import StreamState.*
+  import StreamPosition.*
 
   val streamPrefix                                       = s"streams_subscribe_to_stream_${genIdentifier}_"
   val fromBeginning: Option[StreamPosition]              = Option.empty
@@ -68,7 +68,7 @@ class SubscribeToStreamSuite extends SnSuite {
     val subscriberCount = 3
     val events          = genEvents(eventCount)
 
-    def run(exclusivFrom: Option[StreamPosition], takeCount: Int) = {
+    def run(exclusivFrom: Option[StreamPosition], takeCount: Int) =
 
       val id    = genStreamId(s"${streamPrefix}multiple_subscriptions_to_same_stream_")
       val write = Stream.eval(streams.appendToStream(id, NoStream, events)).delayBy(1.second)
@@ -84,7 +84,6 @@ class SubscribeToStreamSuite extends SnSuite {
       }
 
       assertIO(result.compile.lastOrError, takeCount * subscriberCount)
-    }
 
     test("from beginning")(run(fromBeginning, eventCount))
 
@@ -100,7 +99,7 @@ class SubscribeToStreamSuite extends SnSuite {
     val afterEvents  = genEvents(10)
     val totalEvents  = beforeEvents.concatNel(afterEvents)
 
-    def run(exclusiveFrom: Option[StreamPosition], takeCount: Int) = {
+    def run(exclusiveFrom: Option[StreamPosition], takeCount: Int) =
 
       val id = genStreamId(s"${streamPrefix}existing_and_new_")
 
@@ -113,17 +112,15 @@ class SubscribeToStreamSuite extends SnSuite {
       def subscribe(onEvent: Event => IO[Unit]): Stream[IO, Event] =
         streams.subscribeToStream(id, exclusiveFrom).evalTap(onEvent).take(takeCount.toLong)
 
-      val result: Stream[IO, List[EventData]] = for {
+      val result: Stream[IO, List[EventData]] = for
         ref        <- Stream.eval(Ref.of[IO, List[EventData]](Nil))
         st         <- beforeWrite.map(_.streamPosition)
         _          <- Stream.sleep[IO](1.second)
         _          <- subscribe(e => ref.update(_ :+ e.eventData)).concurrently(afterWrite(st))
         readEvents <- Stream.eval(ref.get)
-      } yield readEvents
+      yield readEvents
 
       result.compile.lastOrError
-
-    }
 
     test("from beginning - reads all events and listens for new ones") {
       assertIO(run(fromBeginning, totalEvents.size).map(_.toNel), totalEvents.some)
@@ -158,5 +155,3 @@ class SubscribeToStreamSuite extends SnSuite {
     test("from end")(run(fromEnd))
 
   }
-
-}

@@ -18,7 +18,7 @@ package sec
 package api
 package grpc
 
-class MarshallingSuite extends SecSuite {
+class MarshallingSuite extends SecSuite:
 
   test("NumericAsciiMarshallers") {
 
@@ -89,5 +89,3 @@ class MarshallingSuite extends SecSuite {
       UserCredentialsMarshaller.decodingNotSupported
     )
   }
-
-}

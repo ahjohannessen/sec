@@ -18,16 +18,16 @@ package sec
 package api
 package grpc
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import io.grpc.{Metadata, Status, StatusRuntimeException}
-import sec.api.exceptions._
-import sec.api.grpc.constants.{Exceptions => ce}
+import sec.api.exceptions.*
+import sec.api.grpc.constants.Exceptions as ce
 
-private[sec] object convert {
+private[sec] object convert:
 
 //======================================================================================================================
 
-  private[grpc] object keys {
+  private[grpc] object keys:
     val exception: Metadata.Key[String]          = Metadata.Key.of(ce.ExceptionKey, StringMarshaller)
     val streamName: Metadata.Key[String]         = Metadata.Key.of(ce.StreamName, StringMarshaller)
     val groupName: Metadata.Key[String]          = Metadata.Key.of(ce.GroupName, StringMarshaller)
@@ -38,15 +38,14 @@ private[sec] object convert {
     val maximumAppendSize: Metadata.Key[Int]     = Metadata.Key.of(ce.MaximumAppendSize, IntMarshaller)
     val leaderEndpointHost: Metadata.Key[String] = Metadata.Key.of(ce.LeaderEndpointHost, StringMarshaller)
     val leaderEndpointPort: Metadata.Key[Int]    = Metadata.Key.of(ce.LeaderEndpointPort, IntMarshaller)
-  }
 
 //======================================================================================================================
 
-  implicit final private[grpc] class MetadataOps(val md: Metadata) extends AnyVal {
-    def getOpt[T](key: Metadata.Key[T]): Option[T] = Either.catchNonFatal(Option(md.get(key))).toOption.flatten
-  }
+  extension (md: Metadata)
+    private[grpc] def getOpt[T](key: Metadata.Key[T]): Option[T] =
+      Either.catchNonFatal(Option(md.get(key))).toOption.flatten
 
-  val convertToEs: StatusRuntimeException => Option[EsException] = ex => {
+  val convertToEs: StatusRuntimeException => Option[EsException] = ex =>
 
     val unknown            = "<unknown>"
     val md                 = ex.getTrailers
@@ -79,20 +78,15 @@ private[sec] object convert {
     }
 
     reified orElse serverUnavailable(ex) orElse resubscriptionRequired(ex)
-  }
 
-  val serverUnavailable: StatusRuntimeException => Option[ServerUnavailable] = { ex =>
+  val serverUnavailable: StatusRuntimeException => Option[ServerUnavailable] = ex =>
     val cause = Option(ex.getCause()).fold("")(c => s", cause: ${c.getMessage}")
     Option.when(ex.getStatus.getCode == Status.Code.UNAVAILABLE)(ServerUnavailable(s"${ex.getMessage}$cause"))
-  }
 
-  val resubscriptionRequired: StatusRuntimeException => Option[ResubscriptionRequired] = { ex =>
+  val resubscriptionRequired: StatusRuntimeException => Option[ResubscriptionRequired] = ex =>
     val isAborted        = ex.getStatus.getCode == Status.Code.ABORTED
     val msg              = Option(ex.getMessage).getOrElse("")
     val isResubscription = msg.contains("resubscription required")
     Option.when(isAborted && isResubscription)(ResubscriptionRequired(msg))
-  }
 
 //======================================================================================================================
-
-}

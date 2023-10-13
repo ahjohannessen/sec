@@ -17,15 +17,15 @@
 package sec
 package api
 
-import scala.concurrent.duration._
-import cats.data.{NonEmptyList => Nel}
-import cats.syntax.all._
+import scala.concurrent.duration.*
+import cats.data.NonEmptyList as Nel
+import cats.syntax.all.*
 import fs2.Stream
-import sec.syntax.all._
+import sec.syntax.all.*
 
-class SubscribeToAllSuite extends SnSuite {
+class SubscribeToAllSuite extends SnSuite:
 
-  import StreamState._
+  import StreamState.*
 
   val streamPrefix                       = s"streams_subscribe_to_all_${genIdentifier}_"
   val fromBeginning: Option[LogPosition] = Option.empty
@@ -145,5 +145,3 @@ class SubscribeToAllSuite extends SnSuite {
     }
 
   }
-
-}

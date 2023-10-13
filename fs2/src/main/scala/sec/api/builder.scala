@@ -18,14 +18,14 @@ package sec
 package api
 
 import cats.Endo
-import cats.data._
-import cats.syntax.all._
-import cats.effect._
-import cats.effect.syntax.all._
+import cats.data.*
+import cats.syntax.all.*
+import cats.effect.*
+import cats.effect.syntax.all.*
 import org.typelevel.log4cats.Logger
 import io.grpc.{ManagedChannel, ManagedChannelBuilder, NameResolverRegistry}
-import sec.api.channel._
-import sec.api.cluster._
+import sec.api.channel.*
+import sec.api.cluster.*
 
 //======================================================================================================================
 
@@ -34,7 +34,7 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
   private[sec] val authority: Option[String],
   options: Options,
   logger: Logger[F]
-) extends OptionsBuilder[SingleNodeBuilder[F]] {
+) extends OptionsBuilder[SingleNodeBuilder[F]]:
 
   private def copy(
     endpoint: Endpoint = endpoint,
@@ -51,13 +51,13 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
   def withNoAuthority: SingleNodeBuilder[F]               = copy(authority = None)
   def withLogger(value: Logger[F]): SingleNodeBuilder[F]  = copy(logger = value)
 
-  private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](mcb: ChannelBuilderParams => F[MCB])(implicit
+  private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](mcb: ChannelBuilderParams => F[MCB])(using
     F: Async[F]): Resource[F, EsClient[F]] = {
 
     val mkChannelBuilderParams: F[ChannelBuilderParams] =
       mkCredentials(options.connectionMode).map(ChannelBuilderParams(endpoint, _))
 
-    val makeClient: MCB => Resource[F, EsClient[F]] = { builder =>
+    val makeClient: MCB => Resource[F, EsClient[F]] = builder =>
 
       val mods: Endo[MCB] =
         b => authority.fold(b)(a => b.overrideAuthority(a))
@@ -65,14 +65,11 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
       channel
         .resource[F](mods(builder).build, options.channelShutdownAwait)
         .flatMap(EsClient[F](_, options, requiresLeader = false, logger))
-    }
 
     Resource.eval(mkChannelBuilderParams).evalMap(mcb) >>= makeClient
   }
 
-}
-
-object SingleNodeBuilder {
+object SingleNodeBuilder:
 
   private[sec] def apply[F[_]](
     endpoint: Endpoint,
@@ -81,7 +78,6 @@ object SingleNodeBuilder {
     logger: Logger[F]
   ): SingleNodeBuilder[F] =
     new SingleNodeBuilder[F](endpoint, authority, options, logger) {}
-}
 
 //======================================================================================================================
 
@@ -93,7 +89,7 @@ class ClusterBuilder[F[_]] private (
   logger: Logger[F],
   endpointResolver: EndpointResolver[F]
 ) extends OptionsBuilder[ClusterBuilder[F]]
-  with ClusterOptionsBuilder[ClusterBuilder[F]] {
+  with ClusterOptionsBuilder[ClusterBuilder[F]]:
 
   private def copy(
     endpoints: ClusterEndpoints = endpoints,
@@ -115,7 +111,7 @@ class ClusterBuilder[F[_]] private (
 
   private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](
     mcb: ChannelBuilderParams => F[MCB]
-  )(implicit F: Async[F]): Resource[F, EsClient[F]] = {
+  )(using F: Async[F]): Resource[F, EsClient[F]] =
 
     val log: Logger[F] = logger.withModifiedString(s => s"Cluster > $s")
 
@@ -131,7 +127,7 @@ class ClusterBuilder[F[_]] private (
           EsClient.mkOpts[F](options.operationOptions.copy(retryEnabled = false), log, "gossip")
         ))
 
-    val resolveSeed: Resource[F, NonEmptySet[Endpoint]] = {
+    val resolveSeed: Resource[F, NonEmptySet[Endpoint]] =
 
       def resolveEndpoints(vd: ClusterEndpoints.ViaDns) =
         ClusterWatch.resolveEndpoints[F](
@@ -142,7 +138,6 @@ class ClusterBuilder[F[_]] private (
         )
 
       endpoints.fold(resolveEndpoints, _.endpoints.pure[F]).toResource
-    }
 
     resolveSeed >>= { seed =>
 
@@ -166,11 +161,8 @@ class ClusterBuilder[F[_]] private (
 
       }
     }
-  }
 
-}
-
-object ClusterBuilder {
+object ClusterBuilder:
 
   private[sec] def apply[F[_]](
     endpoints: ClusterEndpoints,
@@ -181,6 +173,5 @@ object ClusterBuilder {
     endpointResolver: EndpointResolver[F]
   ): ClusterBuilder[F] =
     new ClusterBuilder[F](endpoints, authority, options, clusterOptions, logger, endpointResolver)
-}
 
 //======================================================================================================================

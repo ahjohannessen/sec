@@ -17,11 +17,11 @@
 package sec
 package api
 
-import cats.kernel.laws.discipline._
-import org.scalacheck._
-import sec.arbitraries._
+import cats.kernel.laws.discipline.*
+import org.scalacheck.*
+import sec.arbitraries.*
 
-class EndpointSuite extends SecDisciplineSuite {
+class EndpointSuite extends SecDisciplineSuite:
 
   test("order") {
     implicit val cogen: Cogen[Endpoint] = Cogen[String].contramap[Endpoint](_.toString)
@@ -31,5 +31,3 @@ class EndpointSuite extends SecDisciplineSuite {
   test("render") {
     assertEquals(Endpoint("127.0.0.1", 2113).render, "127.0.0.1:2113")
   }
-
-}

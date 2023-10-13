@@ -18,11 +18,9 @@ package sec
 package api
 
 import scala.util.matching.Regex
-
 import cats.data.NonEmptyList
-import cats.syntax.all._
-
-import EventFilter._
+import cats.syntax.all.*
+import EventFilter.*
 
 //======================================================================================================================
 
@@ -45,7 +43,7 @@ final case class EventFilter(
   option: Either[NonEmptyList[PrefixFilter], RegexFilter]
 )
 
-object EventFilter {
+object EventFilter:
 
   sealed trait Kind
   case object ByStreamId extends Kind
@@ -62,18 +60,15 @@ object EventFilter {
   def regex(kind: Kind, filter: String): EventFilter =
     EventFilter(kind, RegexFilter(filter).asRight)
 
-  // /
+  //
 
   sealed trait Expression
   final case class PrefixFilter(value: String) extends Expression
   final case class RegexFilter(value: String) extends Expression
 
-  object RegexFilter {
+  object RegexFilter:
     val excludeSystemEvents: RegexFilter = apply("^[^$].*".r)
     def apply(regex: Regex): RegexFilter = RegexFilter(regex.pattern.toString)
-  }
-
-}
 
 //======================================================================================================================
 
@@ -83,7 +78,7 @@ sealed abstract case class SubscriptionFilterOptions(
   checkpointIntervalMultiplier: Int
 )
 
-object SubscriptionFilterOptions {
+object SubscriptionFilterOptions:
 
   /** @param filter
     *   See [[EventFilter]].
@@ -100,7 +95,5 @@ object SubscriptionFilterOptions {
     checkpointIntervalMultiplier: Int = 1
   ): SubscriptionFilterOptions =
     new SubscriptionFilterOptions(filter, maxSearchWindow.map(_ max 1), checkpointIntervalMultiplier max 1) {}
-
-}
 
 //======================================================================================================================

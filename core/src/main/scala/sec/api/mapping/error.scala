@@ -27,16 +27,14 @@ sealed abstract class MappingError(msg: String) extends RuntimeException(msg) wi
 //======================================================================================================================
 
 final private[sec] case class EncodingError(msg: String) extends MappingError(msg)
-private[sec] object EncodingError {
+private[sec] object EncodingError:
   def apply(e: Throwable): EncodingError = EncodingError(e.getMessage)
-}
 
 //======================================================================================================================
 
 final private[sec] case class DecodingError(msg: String) extends MappingError(msg)
-private[sec] object DecodingError {
+private[sec] object DecodingError:
   def apply(e: Throwable): DecodingError = DecodingError(e.getMessage)
-}
 
 //======================================================================================================================
 

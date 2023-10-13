@@ -21,21 +21,18 @@ import io.circe.Codec
 //======================================================================================================================
 
 final case class Custom(name: String, numbers: List[Int])
-object Custom {
-  implicit val codecForCustom: Codec.AsObject[Custom] =
+object Custom:
+  given Codec.AsObject[Custom] =
     Codec.forProduct2("name", "numbers")(Custom.apply)(c => (c.name, c.numbers))
-}
 
 final case class Bar(name: String)
-object Bar {
-  implicit val codecForBar: Codec.AsObject[Bar] =
+object Bar:
+  given Codec.AsObject[Bar] =
     Codec.forProduct1("name")(Bar.apply)(_.name)
-}
 
 final case class Foo(bars: List[Bar])
-object Foo {
-  implicit val codecForFoo: Codec.AsObject[Foo] =
+object Foo:
+  given Codec.AsObject[Foo] =
     Codec.forProduct1("bars")(Foo.apply)(_.bars)
-}
 
 //======================================================================================================================

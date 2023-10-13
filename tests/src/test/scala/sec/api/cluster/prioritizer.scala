@@ -19,16 +19,16 @@ package api
 package cluster
 
 import java.time.ZonedDateTime
-import java.{util => ju}
-import cats.data.{NonEmptyList => Nel}
-import cats.syntax.all._
+import java.util as ju
+import cats.data.NonEmptyList as Nel
+import cats.syntax.all.*
 import org.scalacheck.{Arbitrary, Gen}
-import sec.arbitraries._
-import VNodeState._
+import sec.arbitraries.*
+import VNodeState.*
 
-class NodePrioritizerSuite extends SecSuite {
+class NodePrioritizerSuite extends SecSuite:
 
-  import NodePrioritizer._
+  import NodePrioritizer.*
 
   def id         = sampleOf[ju.UUID]
   def ts         = sampleOf[ZonedDateTime]
@@ -123,5 +123,3 @@ class NodePrioritizerSuite extends SecSuite {
       assertEquals(List(1, 2, 3).shuffle(1L), List(1, 2, 3).shuffle(1L))
     }
   }
-
-}

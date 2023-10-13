@@ -17,14 +17,14 @@
 package sec
 package api
 
-import cats.syntax.all._
-import sec.api.exceptions._
+import cats.syntax.all.*
+import sec.api.exceptions.*
 
-class ReadStreamSuite extends SnSuite {
+class ReadStreamSuite extends SnSuite:
 
-  import StreamState._
-  import StreamPosition._
-  import Direction._
+  import StreamState.*
+  import StreamPosition.*
+  import Direction.*
 
   val streamPrefix = s"streams_read_stream_${genIdentifier}_"
   val id           = genStreamId(streamPrefix)
@@ -183,5 +183,3 @@ class ReadStreamSuite extends SnSuite {
     }
 
   }
-
-}

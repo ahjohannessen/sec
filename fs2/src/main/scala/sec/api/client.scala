@@ -18,7 +18,7 @@ package sec
 package api
 
 import cats.{Applicative, Endo}
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.data.NonEmptySet
 import cats.effect.{Async, Resource}
 import com.comcast.ip4s.{Hostname, Port}
@@ -30,19 +30,18 @@ import io.grpc.{CallOptions, ManagedChannel}
 import fs2.grpc.client.ClientOptions
 import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.grpc.convert.convertToEs
-import sec.api.grpc.metadata._
+import sec.api.grpc.metadata.*
 import sec.api.retries.RetryConfig
 import sec.api.cluster.ClusterEndpoints
 import sec.api.cluster.EndpointResolver
 import cats.effect.kernel.Sync
 
-trait EsClient[F[_]] {
+trait EsClient[F[_]]:
   def streams: Streams[F]
   def metaStreams: MetaStreams[F]
   def gossip: Gossip[F]
-}
 
-object EsClient {
+object EsClient:
 
   def singleNode[F[_]: Applicative](
     endpoint: Endpoint
@@ -69,7 +68,7 @@ object EsClient {
     clusterDns: Hostname,
     nodePort: Option[Port],
     authority: Option[String]
-  ): ClusterBuilder[F] = {
+  ): ClusterBuilder[F] =
 
     val endpoints             = ClusterEndpoints.ViaDns(clusterDns)
     val authorityWithFallback = authority.getOrElse(clusterDns.toString)
@@ -80,19 +79,16 @@ object EsClient {
     cluster[F](endpoints, authorityWithFallback, options, clusterOptions)
       .withEndpointResolver(endpointResolver)
 
-  }
-
   def cluster[F[_]: Applicative](
     seed: NonEmptySet[Endpoint],
     authority: String
-  ): ClusterBuilder[F] = {
+  ): ClusterBuilder[F] =
 
     val endpoints      = ClusterEndpoints.ViaSeed(seed)
     val options        = Options.default
     val clusterOptions = ClusterOptions.default
 
     cluster[F](endpoints, authority, options, clusterOptions)
-  }
 
   private[sec] def cluster[F[_]: Applicative](
     endpoints: ClusterEndpoints,
@@ -127,7 +123,7 @@ object EsClient {
     options: Options,
     requiresLeader: Boolean,
     logger: Logger[F]
-  ): EsClient[F] = new EsClient[F] {
+  ): EsClient[F] = new EsClient[F]:
 
     val streams: Streams[F] = Streams(
       streamsFs2Grpc,
@@ -142,24 +138,21 @@ object EsClient {
       mkContext(options, requiresLeader),
       mkOpts[F](options.operationOptions, logger, "Gossip")
     )
-  }
 
 //======================================================================================================================
 
   private[sec] def mkContext(o: Options, requiresLeader: Boolean): Option[UserCredentials] => Context =
     uc => Context(o.connectionName, uc.orElse(o.credentials), requiresLeader)
 
-  private[sec] val defaultRetryOn: Throwable => Boolean = {
+  private[sec] val defaultRetryOn: Throwable => Boolean =
     case _: ServerUnavailable | _: NotLeader => true
     case _                                   => false
-  }
 
-  private[sec] def mkOpts[F[_]](oo: OperationOptions, log: Logger[F], prefix: String): Opts[F] = {
+  private[sec] def mkOpts[F[_]](oo: OperationOptions, log: Logger[F], prefix: String): Opts[F] =
     val rc = RetryConfig(oo.retryDelay, oo.retryMaxDelay, oo.retryBackoffFactor, oo.retryMaxAttempts, None)
     Opts[F](oo.retryEnabled, rc, defaultRetryOn, log.withModifiedString(s => s"$prefix > $s"))
-  }
 
-  // / Streams
+  /// Streams
 
   private[sec] def mkStreamsFs2Grpc[F[_]: Async](
     mc: ManagedChannel,
@@ -175,7 +168,7 @@ object EsClient {
         .withPrefetchN(prefetchN)
     )
 
-  // / Gossip
+  /// Gossip
 
   private[sec] def mkGossipFs2Grpc[F[_]: Async](
     mc: ManagedChannel,
@@ -188,5 +181,3 @@ object EsClient {
         .configureCallOptions(fn)
         .withErrorAdapter(Function.unlift(convertToEs))
     )
-
-}

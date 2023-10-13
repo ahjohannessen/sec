@@ -17,23 +17,22 @@
 package sec
 package api
 
-import cats.syntax.all._
-import sec.syntax.all._
-import sec.api.exceptions._
+import cats.syntax.all.*
+import sec.syntax.all.*
+import sec.api.exceptions.*
 
-class TombstoneSuite extends SnSuite {
+class TombstoneSuite extends SnSuite:
 
-  import StreamState._
-  import StreamPosition._
+  import StreamState.*
+  import StreamPosition.*
 
   val streamPrefix = s"streams_tombstone_${genIdentifier}_"
 
   group("tombstone a stream that does not exist") {
 
-    def mkId(expectedState: StreamState) = {
+    def mkId(expectedState: StreamState) =
       val st = mkSnakeCase(expectedState.render)
       genStreamId(s"${streamPrefix}non_existing_stream_with_expected_state_${st}_")
-    }
 
     test("works with no stream expected stream state") {
       val state = NoStream
@@ -61,12 +60,11 @@ class TombstoneSuite extends SnSuite {
     val id     = genStreamId(s"${streamPrefix}return_log_position_")
     val events = genEvents(1)
 
-    for {
+    for
       wr  <- streams.appendToStream(id, NoStream, events)
       pos <- streams.readAllBackwards(maxCount = 1).compile.lastOrError.map(_.logPosition)
       tr  <- streams.tombstone(id, wr.streamPosition)
-
-    } yield assert(tr.logPosition > pos)
+    yield assert(tr.logPosition > pos)
 
   }
 
@@ -75,5 +73,3 @@ class TombstoneSuite extends SnSuite {
     streams.tombstone(id, NoStream) >>
       interceptIO[StreamDeleted](streams.tombstone(id, NoStream))
   }
-
-}

@@ -18,13 +18,12 @@ package sec
 package api
 package mapping
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.google.protobuf.ByteString
 import scodec.bits.ByteVector
-import sec.api.mapping.implicits._
 import java.nio.charset.CharacterCodingException
 
-class ImplicitsSuite extends SecSuite {
+class PackageSuite extends SecSuite:
 
   test("OptionOps.require") {
     assertEquals(
@@ -53,5 +52,3 @@ class ImplicitsSuite extends SecSuite {
       ByteVector.encodeUtf8("abc")
     )
   }
-
-}

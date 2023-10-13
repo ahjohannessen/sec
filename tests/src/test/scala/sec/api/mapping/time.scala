@@ -19,10 +19,10 @@ package api
 package mapping
 
 import java.time.{Instant, ZoneOffset, ZonedDateTime}
-import cats.syntax.all._
+import cats.syntax.all.*
 import sec.api.mapping.time.fromTicksSinceEpoch
 
-class TimeSuite extends SecSuite {
+class TimeSuite extends SecSuite:
 
   test("fromTicksSinceEpoch") {
     assertEquals(
@@ -36,5 +36,3 @@ class TimeSuite extends SecSuite {
     )
 
   }
-
-}

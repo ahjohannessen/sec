@@ -20,20 +20,20 @@ package cluster
 
 import java.time.ZonedDateTime
 import java.util.UUID
-import java.{util => ju}
-import cats.data.{NonEmptyList => Nel, NonEmptySet => Nes}
-import cats.effect._
-import cats.syntax.all._
+import java.util as ju
+import cats.data.{NonEmptyList as Nel, NonEmptySet as Nes}
+import cats.effect.*
+import cats.syntax.all.*
 import fs2.Stream
 import fs2.concurrent.SignallingRef
 import org.typelevel.log4cats.testing.TestingLogger
-import sec.arbitraries._
-import VNodeState._
-import Notifier._
+import sec.arbitraries.*
+import VNodeState.*
+import Notifier.*
 
-class NotifierSuite extends SecEffectSuite {
+class NotifierSuite extends SecEffectSuite:
 
-  import NotifierSuite._
+  import NotifierSuite.*
 
   def mkId: UUID                                     = sampleOf[ju.UUID]
   def mkTs: ZonedDateTime                            = sampleOf[ZonedDateTime]
@@ -168,13 +168,10 @@ class NotifierSuite extends SecEffectSuite {
     assertIO(run, Vector(TestingLogger.DEBUG("Notifier signalled to shutdown.", None)))
   }
 
-}
+object NotifierSuite:
 
-object NotifierSuite {
-
-  final case class RecordingListener[F[_]](recordings: Ref[F, List[Nel[Endpoint]]]) extends Listener[F] {
+  final case class RecordingListener[F[_]](recordings: Ref[F, List[Nel[Endpoint]]]) extends Listener[F]:
     def onResult(result: Nel[Endpoint]): F[Unit] = recordings.update(_ :+ result)
-  }
 
   def mkUpdates[F[_]](
     updates: List[ClusterInfo]
@@ -186,5 +183,3 @@ object NotifierSuite {
 
   def mkListenerR[F[_]: Sync]: Resource[F, RecordingListener[F]] = Resource.eval(mkListener[F])
   def mkListener[F[_]: Sync]: F[RecordingListener[F]] = Ref.of[F, List[Nel[Endpoint]]](Nil).map(RecordingListener[F])
-
-}

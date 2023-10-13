@@ -20,13 +20,13 @@ package api
 import java.util.concurrent.TimeoutException
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.control.NonFatal
-import cats.effect.implicits._
-import cats.effect._
-import cats.syntax.all._
+import cats.effect.implicits.*
+import cats.effect.*
+import cats.syntax.all.*
 import org.typelevel.log4cats.Logger
-import sec.utilities._
+import sec.utilities.*
 
-private[sec] object retries {
+private[sec] object retries:
 
 //======================================================================================================================
 
@@ -38,7 +38,7 @@ private[sec] object retries {
     timeout: Option[FiniteDuration]
   )
 
-  object RetryConfig {
+  object RetryConfig:
 
     def apply(
       delay: FiniteDuration,
@@ -49,16 +49,11 @@ private[sec] object retries {
     ): RetryConfig =
       new RetryConfig(delay.min(maxDelay), maxDelay, backoffFactor.max(1), math.max(maxAttempts, 1), timeout) {}
 
-    implicit final class RetryConfigOps(val c: RetryConfig) extends AnyVal {
-
+    extension (c: RetryConfig)
       def nextDelay(d: FiniteDuration): FiniteDuration =
-        (d * c.backoffFactor).min(c.maxDelay) match {
+        (d * c.backoffFactor).min(c.maxDelay) match
           case f: FiniteDuration    => f
           case _: Duration.Infinite => c.maxDelay
-        }
-
-    }
-  }
 
 //======================================================================================================================
 
@@ -71,8 +66,8 @@ private[sec] object retries {
     actionName: String,
     retryConfig: RetryConfig,
     log: Logger[F]
-  )(retryOn: Throwable => Boolean): F[A] = {
-    import retryConfig._
+  )(retryOn: Throwable => Boolean): F[A] =
+    import retryConfig.*
 
     def withTimeout(to: FiniteDuration): F[A] =
       action.timeout(to).adaptError { case _: TimeoutException => Timeout(to) }
@@ -93,7 +88,6 @@ private[sec] object retries {
     }
 
     run(1, retryConfig.delay)
-  }
 
 //======================================================================================================================
 
@@ -108,5 +102,3 @@ private[sec] object retries {
     log.error(s"$action failed after ${cfg.maxAttempts} attempts - ${th.getMessage}")
 
 //======================================================================================================================
-
-}

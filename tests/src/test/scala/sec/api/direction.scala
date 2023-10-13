@@ -17,11 +17,11 @@
 package sec
 package api
 
-import cats.kernel.laws.discipline._
-import org.scalacheck._
+import cats.kernel.laws.discipline.*
+import org.scalacheck.*
 
-class DirectionSpec extends SecDisciplineSuite {
-  import Direction._
+class DirectionSpec extends SecDisciplineSuite:
+  import Direction.*
 
   group("Ops") {
 
@@ -37,5 +37,3 @@ class DirectionSpec extends SecDisciplineSuite {
     implicit val cogen: Cogen[Direction]   = Cogen[String].contramap[Direction](_.toString)
     checkAll("Direction", EqTests[Direction].eqv)
   }
-
-}

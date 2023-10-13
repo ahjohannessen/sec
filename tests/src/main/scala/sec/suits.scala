@@ -16,16 +16,16 @@
 
 package sec
 
-import scala.concurrent.duration._
-import munit._
-import cats.effect._
+import scala.concurrent.duration.*
+import munit.*
+import cats.effect.*
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import sec.api._
+import sec.api.*
 import sec.api.streams.Reads
 import helpers.text.mkSnakeCase
 
-trait SecSuite extends FunSuite {
+trait SecSuite extends FunSuite:
 
   //
 
@@ -47,13 +47,11 @@ trait SecSuite extends FunSuite {
     registered.foreach(t => munitTestsBuffer += t.withName(s"$name - ${t.name}"))
   }
 
-}
-
 trait SecDisciplineSuite extends DisciplineSuite with SecSuite
 trait SecScalaCheckSuite extends ScalaCheckSuite with SecSuite
 trait SecEffectSuite extends CatsEffectSuite with SecSuite
 
-trait SecResourceSuite[A] extends SecEffectSuite {
+trait SecResourceSuite[A] extends SecEffectSuite:
 
   private lazy val testName = mkSnakeCase(getClass.getSimpleName)
   private lazy val logger   = Slf4jLogger.fromName[IO](testName).unsafeRunSync()
@@ -67,9 +65,7 @@ trait SecResourceSuite[A] extends SecEffectSuite {
   final protected def resource: A     = clientFixture()
   final protected def log: Logger[IO] = logger
 
-}
-
-abstract class ClientSuite extends SecResourceSuite[EsClient[IO]] {
+abstract class ClientSuite extends SecResourceSuite[EsClient[IO]]:
 
   override def munitTimeout: Duration = 120.seconds
 
@@ -78,4 +74,3 @@ abstract class ClientSuite extends SecResourceSuite[EsClient[IO]] {
   final def reads: Reads[IO]             = client.streams.messageReads
   final def metaStreams: MetaStreams[IO] = client.metaStreams
   final def gossip: Gossip[IO]           = client.gossip
-}

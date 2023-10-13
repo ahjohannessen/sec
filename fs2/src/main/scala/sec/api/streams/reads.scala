@@ -18,19 +18,19 @@ package sec
 package api
 package streams
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.effect.Temporal
 import fs2.Stream
-import com.eventstore.dbclient.proto.streams._
-import sec.api.mapping.streams.{incoming => mi}
-import sec.api.mapping.streams.{outgoing => mo}
+import com.eventstore.dbclient.proto.streams.*
+import sec.api.mapping.streams.incoming as mi
+import sec.api.mapping.streams.outgoing as mo
 
 /** Low-level API for reading streams that exposes more detailed messages than the [[Streams]] API.
   *
   * @tparam F
   *   the effect type in which [[Reads]] operates.
   */
-trait Reads[F[_]] {
+trait Reads[F[_]]:
 
   /** Read [[AllMessage]] messages from the global stream, [[sec.StreamId.All]].
     *
@@ -75,14 +75,12 @@ trait Reads[F[_]] {
     resolveLinkTos: Boolean
   ): Stream[F, StreamMessage]
 
-}
-
-object Reads {
+object Reads:
 
   private[sec] def apply[F[_]: Temporal, C](
     client: StreamsFs2Grpc[F, C],
     mkCtx: Option[UserCredentials] => C
-  ): Reads[F] = new Reads[F] {
+  ): Reads[F] = new Reads[F]:
 
     val readAll: ReadReq => Stream[F, mi.AllResult] =
       client.read(_, mkCtx(None)).evalMap(mi.AllResult.fromWire[F])
@@ -109,10 +107,6 @@ object Reads {
       ReadStream(streamId, from, direction, maxCount, resolveLinkTos, readStream).run
         .mapFilter(_.toStreamMessage)
 
-  }
-
-}
-
 // ====================================================================================================================
 
 final private[api] case class ReadAll[F[_]](
@@ -123,22 +117,17 @@ final private[api] case class ReadAll[F[_]](
   handle: ReadReq => Stream[F, mi.AllResult]
 )
 
-private[api] object ReadAll {
+private[api] object ReadAll:
 
-  implicit final class ReadAllOps[F[_]](val ra: ReadAll[F]) extends AnyVal {
+  extension [F[_]](ra: ReadAll[F])
 
     def withFrom(lp: LogPosition): ReadAll[F] =
       ra.copy(from = lp)
 
-    def run: Stream[F, mi.AllResult] = {
+    def run: Stream[F, mi.AllResult] =
       val valid = ra.maxCount > 0L
       val req   = mo.mkReadAllReq(ra.from, ra.direction, ra.maxCount, ra.resolveLinkTos)
-      if (valid) ra.handle(req) else Stream.empty
-    }
-
-  }
-
-}
+      if valid then ra.handle(req) else Stream.empty
 
 final private[api] case class ReadStream[F[_]](
   streamId: StreamId,
@@ -149,19 +138,14 @@ final private[api] case class ReadStream[F[_]](
   handle: ReadReq => Stream[F, mi.StreamResult]
 )
 
-private[api] object ReadStream {
+private[api] object ReadStream:
 
-  implicit final class ReadStreamOps[F[_]](val rs: ReadStream[F]) extends AnyVal {
+  extension [F[_]](rs: ReadStream[F])
 
     def withFrom(sp: StreamPosition): ReadStream[F] =
       rs.copy(from = sp)
 
-    def run: Stream[F, mi.StreamResult] = {
+    def run: Stream[F, mi.StreamResult] =
       val valid = rs.direction.fold(rs.from =!= StreamPosition.End, true) && rs.maxCount > 0L
       val req   = mo.mkReadStreamReq(rs.streamId, rs.from, rs.direction, rs.maxCount, rs.resolveLinkTos)
-      if (valid) rs.handle(req) else Stream.empty
-    }
-
-  }
-
-}
+      if valid then rs.handle(req) else Stream.empty

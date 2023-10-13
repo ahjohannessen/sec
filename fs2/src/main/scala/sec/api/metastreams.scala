@@ -17,23 +17,21 @@
 package sec
 package api
 
-import java.{util => ju}
-
+import java.util as ju
 import cats.{ApplicativeThrow, Endo}
 import cats.data.NonEmptyList
 import cats.effect.Sync
-import cats.syntax.all._
-import io.circe._
+import cats.syntax.all.*
+import io.circe.*
 import io.circe.parser.decode
 import scodec.bits.ByteVector
 import sec.api.exceptions.StreamNotFound
-import sec.api.mapping._
-import sec.syntax.all._
-
+import sec.api.mapping.*
+import sec.syntax.all.*
 import StreamId.Id
 import StreamPosition.Exact
 import StreamId.MetaId
-import MetaStreams._
+import MetaStreams.*
 
 /** API for interacting with metadata streams in EventStoreDB.
   *
@@ -42,7 +40,7 @@ import MetaStreams._
   * @tparam F
   *   the effect type in which [[MetaStreams]] operates.
   */
-trait MetaStreams[F[_]] {
+trait MetaStreams[F[_]]:
 
   /** Gets the max age for a stream.
     *
@@ -260,15 +258,13 @@ trait MetaStreams[F[_]] {
     */
   def withCredentials(creds: UserCredentials): MetaStreams[F]
 
-  // /
+  //
 
   private[sec] def getMetadata(id: Id): F[Option[MetaResult]]
   private[sec] def setMetadata(id: Id, expectedState: StreamState, data: StreamMetadata): F[WriteResult]
   private[sec] def unsetMetadata(id: Id, expectedState: StreamState): F[WriteResult]
 
-}
-
-object MetaStreams {
+object MetaStreams:
 
   // ====================================================================================================================
 
@@ -280,12 +276,10 @@ object MetaStreams {
     data: T
   )
 
-  object Result {
-    implicit final class ResultOps[A](val r: Result[A]) extends AnyVal {
+  object Result:
+    extension [A](r: Result[A])
       def withData[B](data: B): Result[B] = zoom(_ => data)
       def zoom[B](fn: A => B): Result[B]  = r.copy(data = fn(r.data))
-    }
-  }
 
   // ====================================================================================================================
 
@@ -324,7 +318,7 @@ object MetaStreams {
       modify(id, es, _.setTruncateBefore(tb))
 
     def getCustom[T: Decoder](id: Id): F[Option[ReadResult[T]]] =
-      getMetadata(id) >>= { _.traverse(r => r.data.getCustom[F, T].map(r.withData)) }
+      getMetadata(id) >>= { _.traverse(r => r.data.getCustom[F, T].map(c => r.withData(c))) }
 
     def setCustom[T: Encoder.AsObject](id: Id, es: StreamState, c: T): F[WriteResult] =
       modify(id, es, _.setCustom[T](c))
@@ -340,7 +334,7 @@ object MetaStreams {
     private[sec] def getResult[A](id: Id, fn: StreamMetadata => Option[A]): F[Option[ReadResult[A]]] =
       getMetadata(id).nested.map(_.zoom(fn)).value
 
-    private[sec] def getMetadata(id: Id): F[Option[MetaResult]] = {
+    private[sec] def getMetadata(id: Id): F[Option[MetaResult]] =
 
       val decodeJson: EventData => F[StreamMetadata] =
         _.data.decodeUtf8.leftMap(DecodingError(_)).liftTo[F] >>= { utf8 =>
@@ -353,8 +347,6 @@ object MetaStreams {
         _.traverse(es => decodeJson(es.eventData).map(Result(es.streamPosition, _)))
       }
 
-    }
-
     private[sec] def setMetadata(id: Id, expectedState: StreamState, sm: StreamMetadata): F[WriteResult] =
       modify(id, expectedState, _ => sm)
 
@@ -364,15 +356,14 @@ object MetaStreams {
     private[sec] def modify[A](id: Id, es: StreamState, mod: Endo[StreamMetadata]): F[WriteResult] =
       modifyF(id, es, mod(_).pure[F])
 
-    private[sec] def modifyF[A](id: Id, es: StreamState, mod: StreamMetadata => F[StreamMetadata]): F[WriteResult] = {
-      for {
+    private[sec] def modifyF[A](id: Id, es: StreamState, mod: StreamMetadata => F[StreamMetadata]): F[WriteResult] =
+      for
         smr         <- getMetadata(id)
         modified    <- mod(smr.fold(StreamMetadata.empty)(_.data))
         eid         <- uuid[F]
         eventData   <- mkEventData[F](eid, modified)
         writeResult <- meta.write(id.metaId, es, eventData)
-      } yield writeResult
-    }
+      yield writeResult
 
   }
 
@@ -385,15 +376,14 @@ object MetaStreams {
       .map(EventData(EventType.StreamMetadata, eventId, _, ContentType.Json))
       .liftTo[F]
 
-  private[sec] trait MetaRW[F[_]] {
+  private[sec] trait MetaRW[F[_]]:
     def read(mid: MetaId): F[Option[EventRecord]]
     def write(mid: MetaId, es: StreamState, data: EventData): F[WriteResult]
     def withCredentials(creds: UserCredentials): MetaRW[F]
-  }
 
-  private[sec] object MetaRW {
+  private[sec] object MetaRW:
 
-    def apply[F[_]](s: Streams[F])(implicit F: Sync[F]): MetaRW[F] = new MetaRW[F] {
+    def apply[F[_]: Sync](s: Streams[F]): MetaRW[F] = new MetaRW[F]:
 
       def withCredentials(creds: UserCredentials): MetaRW[F] =
         MetaRW[F](s.withCredentials(creds))
@@ -406,8 +396,3 @@ object MetaStreams {
 
       def write(mid: MetaId, es: StreamState, data: EventData): F[WriteResult] =
         s.appendToStream(mid, es, NonEmptyList.one(data))
-
-    }
-  }
-
-}

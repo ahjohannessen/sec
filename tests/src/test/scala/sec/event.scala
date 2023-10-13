@@ -18,25 +18,25 @@ package sec
 
 import java.time.ZonedDateTime
 import java.util.UUID
-import java.{util => ju}
-import cats.syntax.all._
+import java.util as ju
+import cats.syntax.all.*
 import scodec.bits.ByteVector
-import sec.arbitraries._
-import sec.helpers.implicits._
+import sec.arbitraries.{*, given}
+import sec.helpers.implicits.*
 import sec.helpers.text.encodeToBV
 
 //======================================================================================================================
 
-class EventSuite extends SecSuite {
+class EventSuite extends SecSuite:
 
   private def bv(data: String): ByteVector =
     ByteVector.encodeUtf8(data).leftMap(_.getMessage).unsafe
 
   val er: EventRecord = sec.EventRecord(
-    StreamId("abc-1234").unsafe,
+    StreamId("abc-1234").unsafeGet,
     StreamPosition(5L),
     LogPosition.exact(42L, 42L),
-    EventData("et", sampleOf[ju.UUID], bv("abc"), ContentType.Binary).unsafe,
+    EventData("et", sampleOf[ju.UUID], bv("abc"), ContentType.Binary).unsafeGet,
     sampleOf[ZonedDateTime]
   )
 
@@ -131,11 +131,9 @@ class EventSuite extends SecSuite {
 
   }
 
-}
-
 //======================================================================================================================
 
-class EventTypeSuite extends SecSuite {
+class EventTypeSuite extends SecSuite:
 
   val normal: EventType = EventType.Normal.unsafe("user")
   val system: EventType = EventType.System.unsafe("system")
@@ -182,11 +180,9 @@ class EventTypeSuite extends SecSuite {
 
   }
 
-}
-
 //======================================================================================================================
 
-class EventDataSuite extends SecSuite {
+class EventDataSuite extends SecSuite:
 
   import ContentType.{Binary, Json}
 
@@ -194,7 +190,7 @@ class EventDataSuite extends SecSuite {
     encodeToBV(data).unsafe
 
   val bve: ByteVector      = ByteVector.empty
-  val et: EventType.Normal = EventType("eventType").unsafe
+  val et: EventType.Normal = EventType("eventType").unsafeGet
   val id: UUID             = sampleOf[ju.UUID]
 
   val dataJson: ByteVector   = encode("""{ "data": "1" }""")
@@ -237,11 +233,9 @@ class EventDataSuite extends SecSuite {
 
   }
 
-}
-
 //======================================================================================================================
 
-class ContentTypeSuite extends SecSuite {
+class ContentTypeSuite extends SecSuite:
 
   import ContentType._
 
@@ -268,7 +262,5 @@ class ContentTypeSuite extends SecSuite {
     }
 
   }
-
-}
 
 //======================================================================================================================

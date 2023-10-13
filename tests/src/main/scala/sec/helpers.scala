@@ -17,59 +17,50 @@
 package sec
 
 import java.util.regex.Pattern
-import cats.syntax.all._
+import cats.syntax.all.*
 import scodec.bits.ByteVector
 import sec.api.Endpoint
 
-object helpers {
+object helpers:
 
 //======================================================================================================================
 
-  object implicits {
+  object implicits:
 
-    implicit final class AttemptOps[A](val inner: Attempt[A]) extends AnyVal {
-      def unsafe: A = inner.leftMap(require(false, _)).toOption.get
-    }
+    extension [A](inner: Attempt[A])
+      def unsafe: A =
+        inner.leftMap(require(false, _)).toOption.get
 
-    implicit final class ErrorOrOps[A](val inner: ErrorOr[A]) extends AnyVal {
-      def unsafe: A = inner.leftMap(t => require(false, t.getMessage)).toOption.get
-    }
+    extension [A](inner: ErrorOr[A])
+      def unsafeGet: A =
+        inner.leftMap(t => require(false, t.getMessage)).toOption.get
 
-    implicit final class BooleanOps(val b: Boolean) extends AnyVal {
-      def fold[A](t: => A, f: => A): A = if (b) t else f
-    }
-
-  }
+    extension (b: Boolean)
+      def fold[A](t: => A, f: => A): A =
+        if b then t else f
 
 //======================================================================================================================
 
-  object text {
+  object text:
 
     def encodeToBV(content: String): Attempt[ByteVector] =
       ByteVector.encodeUtf8(content).leftMap(_.getMessage)
 
-    // /
+    //
 
     final private val basePattern: Pattern = Pattern.compile("([A-Z]+)([A-Z][a-z])")
     final private val swapPattern: Pattern = Pattern.compile("([a-z\\d])([A-Z])")
-    final val mkSnakeCase: String => String = s => {
+    final val mkSnakeCase: String => String = s =>
       val partial = basePattern.matcher(s).replaceAll("$1_$2")
       swapPattern.matcher(partial).replaceAll("$1_$2").toLowerCase
-    }
-  }
 
 //======================================================================================================================
 
-  object endpoint {
+  object endpoint:
 
-    def endpointFrom(envAddrName: String, envPortName: String, fallbackAddr: String, fallbackPort: Int): Endpoint = {
+    def endpointFrom(envAddrName: String, envPortName: String, fallbackAddr: String, fallbackPort: Int): Endpoint =
       val address = sys.env.getOrElse(envAddrName, fallbackAddr)
       val port    = sys.env.get(envPortName).flatMap(_.toIntOption).getOrElse(fallbackPort)
       Endpoint(address, port)
-    }
-
-  }
 
 //======================================================================================================================
-
-}

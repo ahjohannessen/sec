@@ -19,7 +19,7 @@ package api
 
 import scala.concurrent.duration._
 
-class ClusterSuite extends CSuite {
+class ClusterSuite extends CSuite:
 
   group("Cluster") {
 
@@ -42,5 +42,3 @@ class ClusterSuite extends CSuite {
     }
 
   }
-
-}

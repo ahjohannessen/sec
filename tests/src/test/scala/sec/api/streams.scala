@@ -17,20 +17,20 @@
 package sec
 package api
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.util.control.NoStackTrace
 import cats.Order
-import cats.effect._
+import cats.effect.*
 import fs2.Stream
 import org.typelevel.log4cats.noop.NoOpLogger
 import org.typelevel.log4cats.testing.TestingLogger
 import sec.api.Direction.Forwards
-import sec.api.Streams._
+import sec.api.Streams.*
 import sec.api.retries.RetryConfig
 
-class StreamsWithRetrySuite extends SecEffectSuite {
+class StreamsWithRetrySuite extends SecEffectSuite:
 
-  import StreamsSpec._
+  import StreamsSpec.*
 
   test("immediate success") {
 
@@ -342,8 +342,5 @@ class StreamsWithRetrySuite extends SecEffectSuite {
     }
   }
 
-}
-
-object StreamsSpec {
+object StreamsSpec:
   final case class RetryErr(msg: String = "") extends RuntimeException(msg) with NoStackTrace
-}

@@ -19,14 +19,14 @@ package api
 package mapping
 
 import java.time.{Instant, ZoneOffset}
-import java.util.{UUID => JUUID}
-import cats.syntax.all._
+import java.util.UUID as JUUID
+import cats.syntax.all.*
 import com.eventstore.dbclient.proto.shared.UUID
-import com.eventstore.dbclient.proto.{gossip => g}
-import sec.api.mapping.gossip._
+import com.eventstore.dbclient.proto.gossip as g
+import sec.api.mapping.gossip.*
 
-class GossipMappingSuite extends SecSuite {
-  import VNodeState._
+class GossipMappingSuite extends SecSuite:
+  import VNodeState.*
 
   test("mkVNodeState") {
 
@@ -133,5 +133,3 @@ class GossipMappingSuite extends SecSuite {
     )
 
   }
-
-}

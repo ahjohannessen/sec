@@ -19,11 +19,11 @@ package api
 
 import scala.util.matching.Regex
 import cats.data.NonEmptyList
-import cats.syntax.all._
-import org.scalacheck._
+import cats.syntax.all.*
+import org.scalacheck.*
 import org.scalacheck.Prop.forAll
 
-class EventFilterSuite extends SecDisciplineSuite {
+class EventFilterSuite extends SecDisciplineSuite:
 
   import EventFilter._
 
@@ -48,4 +48,3 @@ class EventFilterSuite extends SecDisciplineSuite {
     }
 
   }
-}

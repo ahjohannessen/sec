@@ -18,17 +18,16 @@ package sec
 package api
 
 import java.io.File
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import cats.data.NonEmptySet
-import cats.effect._
+import cats.effect.*
 import org.typelevel.log4cats.Logger
 import helpers.endpoint.endpointFrom
 
-trait CSuite extends ClientSuite {
+trait CSuite extends ClientSuite:
   final val makeResource: Resource[IO, EsClient[IO]] = CSuite.mkClient[IO](log)
-}
 
-object CSuite {
+object CSuite:
 
   final private val certsFolder = new File(sys.env.getOrElse("SEC_CIT_CERTS_PATH", BuildInfo.certsPath))
   final private val ca          = new File(certsFolder, "ca/ca.crt")
@@ -39,7 +38,7 @@ object CSuite {
     endpointFrom("SEC_CLUSTER_ES3_ADDRESS", "SEC_CIT_ES3_PORT", "127.0.0.1", 2116)
   )
 
-  // /
+  //
 
   def mkClient[F[_]: Async](log: Logger[F]): Resource[F, EsClient[F]] = EsClient
     .cluster[F](seed, authority)
@@ -48,5 +47,3 @@ object CSuite {
     .withLogger(log)
     .withOperationsRetryDisabled
     .resource
-
-}

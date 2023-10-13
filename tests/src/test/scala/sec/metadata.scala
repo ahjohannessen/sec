@@ -16,16 +16,16 @@
 
 package sec
 
-import scala.concurrent.duration._
-import cats.syntax.all._
-import io.circe._
-import io.circe.syntax._
-import sec.arbitraries._
-import sec.helpers.implicits._
+import scala.concurrent.duration.*
+import cats.syntax.all.*
+import io.circe.*
+import io.circe.syntax.*
+import sec.arbitraries.{*, given}
+import sec.helpers.implicits.*
 
 //======================================================================================================================
 
-class StreamMetadataSuite extends SecSuite {
+class StreamMetadataSuite extends SecSuite:
 
   test("codec") {
 
@@ -47,9 +47,9 @@ class StreamMetadataSuite extends SecSuite {
     val reserved = StreamMetadata.reservedKeys
 
     val system = MetaState(
-      maxAge         = MaxAge(1000.seconds).unsafe.some,
+      maxAge         = MaxAge(1000.seconds).unsafeGet.some,
       maxCount       = None,
-      cacheControl   = CacheControl(12.hours).unsafe.some,
+      cacheControl   = CacheControl(12.hours).unsafeGet.some,
       truncateBefore = StreamPosition(1000L).some,
       acl            = StreamAcl.empty.copy(readRoles = Set("a", "b")).some
     )
@@ -77,11 +77,9 @@ class StreamMetadataSuite extends SecSuite {
 
   }
 
-}
-
 //======================================================================================================================
 
-class MetaStateSuite extends SecSuite {
+class MetaStateSuite extends SecSuite:
 
   test("codec") {
 
@@ -149,11 +147,9 @@ class MetaStateSuite extends SecSuite {
 
   }
 
-}
-
 //======================================================================================================================
 
-class StreamAclSuite extends SecSuite {
+class StreamAclSuite extends SecSuite:
 
   test("codec") {
 
@@ -200,7 +196,5 @@ class StreamAclSuite extends SecSuite {
       "read: [a, b], write: [b], delete: [], meta-read: [], meta-write: []"
     )
   }
-
-}
 
 //======================================================================================================================

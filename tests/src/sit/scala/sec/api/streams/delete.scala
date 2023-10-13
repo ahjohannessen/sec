@@ -17,18 +17,18 @@
 package sec
 package api
 
-import scala.concurrent.duration._
-import cats.syntax.all._
+import scala.concurrent.duration.*
+import cats.syntax.all.*
 import cats.effect.IO
 import io.circe.Json
-import sec.syntax.all._
-import sec.api.exceptions._
-import helpers.implicits._
+import sec.syntax.all.*
+import sec.api.exceptions.*
+import helpers.implicits.*
 
-class DeleteSuite extends SnSuite {
+class DeleteSuite extends SnSuite:
 
-  import StreamState._
-  import StreamPosition._
+  import StreamState.*
+  import StreamPosition.*
 
   val streamPrefix = s"streams_delete_${genIdentifier}_"
 
@@ -51,12 +51,11 @@ class DeleteSuite extends SnSuite {
     val id     = genStreamId(s"${streamPrefix}return_log_position_")
     val events = genEvents(1)
 
-    for {
+    for
       wr  <- streams.appendToStream(id, NoStream, events)
       pos <- streams.readAllBackwards(maxCount = 1).compile.lastOrError.map(_.logPosition)
       dr  <- streams.delete(id, wr.streamPosition)
-
-    } yield assert(dr.logPosition > pos)
+    yield assert(dr.logPosition > pos)
 
   }
 
@@ -65,11 +64,11 @@ class DeleteSuite extends SnSuite {
     val id     = genStreamId(s"${streamPrefix}reading_raises_")
     val events = genEvents(1)
 
-    val run = for {
+    val run = for
       wr <- streams.appendToStream(id, NoStream, events)
       _  <- streams.delete(id, wr.streamPosition)
       _  <- streams.readStreamForwards(id, maxCount = 1).compile.drain
-    } yield ()
+    yield ()
 
     interceptIO[StreamNotFound](run)
 
@@ -80,45 +79,40 @@ class DeleteSuite extends SnSuite {
     val id     = genStreamId(s"${streamPrefix}and_tombstone_it_")
     val events = genEvents(2)
 
-    for {
+    for
       wr  <- streams.appendToStream(id, NoStream, events)
       _   <- streams.delete(id, wr.streamPosition)
       _   <- streams.tombstone(id, Any)
       rat <- streams.readStreamForwards(id, maxCount = 2).compile.drain.attempt
       mat <- metaStreams.getMetadata(id).attempt
       aat <- streams.appendToStream(id, Any, genEvents(1)).attempt
-
-    } yield {
-      (rat, mat, aat) match {
+    yield
+      (rat, mat, aat) match
         case (Left(r: StreamDeleted), Left(m: StreamDeleted), Left(a: StreamDeleted)) =>
           assertEquals(r.streamId, id.stringValue)
           assertEquals(m.streamId, id.metaId.stringValue)
           assertEquals(a.streamId, id.stringValue)
         case other => fail(s"Did not expect $other")
-      }
-    }
 
   }
 
   group("delete a stream and recreate with") {
 
-    def run(expectedState: StreamState) = {
+    def run(expectedState: StreamState) =
 
       val st           = mkSnakeCase(expectedState.render)
       val id           = genStreamId(s"${streamPrefix}and_recreate_with_expected_state_${st}_")
       val beforeEvents = genEvents(1)
       val afterEvents  = genEvents(3)
 
-      for {
+      for
         wr1 <- streams.appendToStream(id, NoStream, beforeEvents)
         _   <- streams.delete(id, wr1.streamPosition)
         wr2 <- streams.appendToStream(id, expectedState, afterEvents)
         _   <- IO.sleep(100.millis) // Workaround for ES github issue #1744
         evt <- streams.readStreamForwards(id, maxCount = 3).compile.toList
         tbm <- metaStreams.getTruncateBefore(id)
-
-      } yield {
-
+      yield
         assertEquals(wr1.streamPosition, Start)
         assertEquals(wr2.streamPosition, StreamPosition(3))
 
@@ -127,9 +121,6 @@ class DeleteSuite extends SnSuite {
         assertEquals(evt.map(_.streamPosition), List(StreamPosition(1), StreamPosition(2), StreamPosition(3)))
 
         assertEquals(tbm, Some(MetaStreams.Result(StreamPosition(1), StreamPosition(1).some)))
-      }
-
-    }
 
     test("no stream expected stream state") {
       run(StreamState.NoStream)
@@ -153,19 +144,18 @@ class DeleteSuite extends SnSuite {
 
     val metadata = StreamMetadata.empty
       .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
-      .withMaxCount(MaxCount(100).unsafe)
+      .withMaxCount(MaxCount(100).unsafeGet)
       .withTruncateBefore(StreamPosition(Long.MaxValue))
       .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
 
-    for {
+    for
       swr    <- streams.appendToStream(id, NoStream, beforeEvents)
       mwr    <- metaStreams.setMetadata(id, NoStream, metadata)
       _      <- streams.appendToStream(id, StreamPosition(1), afterEvents)
       _      <- IO.sleep(1.second) // Workaround for ES github issue #1744
       events <- streams.readStreamForwards(id, maxCount = 3).compile.toList
       meta   <- metaStreams.getMetadata(id)
-
-    } yield {
+    yield
 
       assertEquals(swr.streamPosition, StreamPosition(1))
       assertEquals(mwr.streamPosition, Start)
@@ -178,25 +168,21 @@ class DeleteSuite extends SnSuite {
         assertEquals(m.data, metadata.withTruncateBefore(StreamPosition(2)))
       }
 
-    }
-
   }
 
   test("delete a stream and recreate raises if not first write") {
 
     val id = genStreamId(s"${streamPrefix}and_recreate_only_first_write_")
 
-    for {
+    for
       wr1 <- streams.appendToStream(id, NoStream, genEvents(2))
       _   <- streams.delete(id, wr1.streamPosition)
       wr2 <- streams.appendToStream(id, NoStream, genEvents(3))
       wr3 <- streams.appendToStream(id, StreamState.NoStream, genEvents(1)).attempt
-    } yield {
-
+    yield
       assertEquals(wr1.streamPosition, StreamPosition(1))
       assertEquals(wr2.streamPosition, StreamPosition(4))
       assertEquals(wr3, Left(WrongExpectedState(id, NoStream, StreamPosition(4L))))
-    }
 
   }
 
@@ -207,15 +193,14 @@ class DeleteSuite extends SnSuite {
     val events1 = genEvents(3)
     val events2 = genEvents(2)
 
-    for {
+    for
       wr0    <- streams.appendToStream(id, NoStream, events0)
       _      <- streams.delete(id, wr0.streamPosition)
       wr1    <- streams.appendToStream(id, Any, events1)
       wr2    <- streams.appendToStream(id, Any, events2)
       events <- streams.readStreamForwards(id, maxCount = 5).compile.toList
       tbr    <- metaStreams.getTruncateBefore(id)
-    } yield {
-
+    yield
       assertEquals(wr0.streamPosition, StreamPosition(1))
       assertEquals(wr1.streamPosition, StreamPosition(4))
       assertEquals(wr2.streamPosition, StreamPosition(6))
@@ -228,7 +213,6 @@ class DeleteSuite extends SnSuite {
         assertEquals(result.data, Some(StreamPosition(2)))
         assertEquals(result.streamPosition, StreamPosition(1))
       }
-    }
 
   }
 
@@ -237,19 +221,18 @@ class DeleteSuite extends SnSuite {
     val id = genStreamId(s"${streamPrefix}and_recreate_on_empty_when_metadata_set_")
 
     val metadata = StreamMetadata.empty
-      .withMaxCount(MaxCount(100).unsafe)
+      .withMaxCount(MaxCount(100).unsafeGet)
       .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
       .withTruncateBefore(StreamPosition(Long.MaxValue))
       .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
 
-    for {
+    for
       _    <- streams.appendToStream(id, NoStream, genEvents(1))
       _    <- streams.delete(id, StreamExists)
       mw   <- metaStreams.setMetadata(id, Start, metadata)
       read <- streams.readStreamForwards(id, maxCount = 1).compile.toList.attempt
       meta <- metaStreams.getMetadata(id)
-    } yield {
-
+    yield
       assertEquals(mw.streamPosition, StreamPosition(1))
       assertEquals(read, Right(Nil))
 
@@ -257,7 +240,6 @@ class DeleteSuite extends SnSuite {
         assertEquals(m.streamPosition, StreamPosition(2))
         assertEquals(m.data, metadata.withTruncateBefore(StreamPosition(1)))
       }
-    }
 
   }
 
@@ -267,18 +249,17 @@ class DeleteSuite extends SnSuite {
     val events = genEvents(2)
 
     val metadata = StreamMetadata.empty
-      .withMaxCount(MaxCount(100).unsafe)
+      .withMaxCount(MaxCount(100).unsafeGet)
       .withAcl(StreamAcl.empty.withDeleteRoles(Set("some-role")))
       .withCustom("k1" -> Json.True, "k2" -> Json.fromInt(17), "k3" -> Json.fromString("some value"))
 
-    for {
+    for
       sw1  <- streams.appendToStream(id, NoStream, events)
       _    <- streams.delete(id, sw1.streamPosition)
       mw1  <- metaStreams.setMetadata(id, Start, metadata)
       read <- streams.readStreamForwards(id, maxCount = 2).compile.toList
       meta <- metaStreams.getMetadata(id)
-    } yield {
-
+    yield
       assertEquals(sw1.streamPosition, StreamPosition(1))
       assertEquals(mw1.streamPosition, StreamPosition(1))
       assertEquals(read.size, 0)
@@ -286,8 +267,5 @@ class DeleteSuite extends SnSuite {
       meta.fold(fail("Expected some metadata")) { m =>
         assertEquals(m.data, metadata.withTruncateBefore(StreamPosition(events.size.toLong)))
       }
-    }
 
   }
-
-}

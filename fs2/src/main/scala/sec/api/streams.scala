@@ -17,20 +17,19 @@
 package sec
 package api
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.util.control.NonFatal
-
-import cats._
-import cats.data._
-import cats.effect._
-import cats.syntax.all._
-import com.eventstore.dbclient.proto.streams._
+import cats.*
+import cats.data.*
+import cats.effect.*
+import cats.syntax.all.*
+import com.eventstore.dbclient.proto.streams.*
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.log4cats.Logger
 import sec.api.exceptions.{ResubscriptionRequired, WrongExpectedVersion}
-import sec.api.mapping.streams.incoming._
-import sec.api.mapping.streams.outgoing._
-import sec.api.streams._
+import sec.api.mapping.streams.incoming.*
+import sec.api.mapping.streams.outgoing.*
+import sec.api.streams.*
 
 /** API for interacting with streams in EventStoreDB.
   *
@@ -44,7 +43,7 @@ import sec.api.streams._
   * @tparam F
   *   the effect type in which [[Streams]] operates.
   */
-trait Streams[F[_]] {
+trait Streams[F[_]]:
 
   /** Subscribes to the global stream, [[StreamId.All]].
     *
@@ -210,9 +209,7 @@ trait Streams[F[_]] {
     */
   def messageReads: Reads[F]
 
-}
-
-object Streams {
+object Streams:
 
 //======================================================================================================================
 
@@ -220,7 +217,7 @@ object Streams {
     client: StreamsFs2Grpc[F, C],
     mkCtx: Option[UserCredentials] => C,
     opts: Opts[F]
-  ): Streams[F] = new Streams[F] {
+  ): Streams[F] = new Streams[F]:
 
     private val ctx    = mkCtx(None)
     private val read   = client.read(_, ctx)
@@ -256,14 +253,13 @@ object Streams {
       direction: Direction,
       maxCount: Long,
       resolveLinkTos: Boolean
-    ): Stream[F, Event] = {
+    ): Stream[F, Event] =
 
       val read: LogPosition => Stream[F, Event] = messageReads
         .readAllMessages(_, direction, maxCount, resolveLinkTos)
         .mapFilter(_.event.map(_.event))
 
       withRetry[F, LogPosition, Event](from, read, _.record.logPosition, opts, "readAll", direction)
-    }
 
     def readStream(
       streamId: StreamId,
@@ -271,7 +267,7 @@ object Streams {
       direction: Direction,
       maxCount: Long,
       resolveLinkTos: Boolean
-    ): Stream[F, Event] = {
+    ): Stream[F, Event] =
 
       val read: StreamPosition => Stream[F, Event] = messageReads
         .readStreamMessages(streamId, _, direction, maxCount, resolveLinkTos)
@@ -279,7 +275,6 @@ object Streams {
         .mapFilter(_.event.map(_.event))
 
       withRetry[F, StreamPosition, Event](from, read, _.record.streamPosition, opts, "readStream", direction)
-    }
 
     def appendToStream(
       streamId: StreamId,
@@ -307,7 +302,6 @@ object Streams {
 
     val messageReads: Reads[F] =
       Reads[F, C](client, mkCtx)
-  }
 
 //======================================================================================================================
 
@@ -315,7 +309,7 @@ object Streams {
     exclusiveFrom: Option[LogPosition],
     resolveLinkTos: Boolean,
     opts: Opts[F]
-  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Event] = {
+  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Event] =
 
     val opName: String                               = "subscribeToAll"
     val pipeLog: Logger[F]                           = opts.log.withModifiedString(m => s"$opName: $m")
@@ -325,14 +319,12 @@ object Streams {
 
     withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
 
-  }
-
   private[sec] def subscribeToAll0[F[_]: Temporal](
     exclusiveFrom: Option[LogPosition],
     filterOptions: SubscriptionFilterOptions,
     resolveLinkTos: Boolean,
     opts: Opts[F]
-  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Either[Checkpoint, Event]] = {
+  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Either[Checkpoint, Event]] =
 
     type O = Either[Checkpoint, Event]
 
@@ -343,14 +335,13 @@ object Streams {
     val fn: O => Option[LogPosition]             = _.fold(_.logPosition, _.record.logPosition).some
 
     withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
-  }
 
   private[sec] def subscribeToStream0[F[_]: Temporal](
     streamId: StreamId,
     exclusiveFrom: Option[StreamPosition],
     resolveLinkTos: Boolean,
     opts: Opts[F]
-  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Event] = {
+  )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Event] =
 
     val opName: String                           = "subscribeToStream"
     val pipeLog: Logger[F]                       = opts.log.withModifiedString(m => s"$opName[${streamId.render}]: $m")
@@ -361,21 +352,19 @@ object Streams {
     val fn: Event => Option[StreamPosition] = _.record.streamPosition.some
 
     withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
-  }
 
   private[sec] def appendToStream0[F[_]: Temporal](
     streamId: StreamId,
     expectedState: StreamState,
     eventsNel: NonEmptyList[EventData],
     opts: Opts[F]
-  )(f: Stream[F, AppendReq] => F[AppendResp]): F[WriteResult] = {
+  )(f: Stream[F, AppendReq] => F[AppendResp]): F[WriteResult] =
 
     val header: AppendReq        = mkAppendHeaderReq(streamId, expectedState)
     val events: List[AppendReq]  = mkAppendProposalsReq(eventsNel).toList
     val operation: F[AppendResp] = f(Stream.emit(header) ++ Stream.emits(events))
 
     opts.run(operation, "appendToStream") >>= { ar => mkWriteResult[F](streamId, ar) }
-  }
 
   private[sec] def delete0[F[_]: Temporal](
     streamId: StreamId,
@@ -397,7 +386,7 @@ object Streams {
 
 //======================================================================================================================
 
-  private[sec] def subConfirmationPipe[F[_]: MonadThrow](logger: Logger[F]): Pipe[F, ReadResp, ReadResp] = in => {
+  private[sec] def subConfirmationPipe[F[_]: MonadThrow](logger: Logger[F]): Pipe[F, ReadResp, ReadResp] = in =>
 
     val log: SubscriptionConfirmation => F[Unit] =
       sc => logger.debug(s"$sc received")
@@ -408,7 +397,6 @@ object Streams {
     }
 
     initialPull.stream
-  }
 
   private[sec] def subscriptionAllPipe[F[_]: MonadThrow](
     log: Logger[F]
@@ -439,9 +427,8 @@ object Streams {
     o: Opts[F],
     opName: String,
     direction: Direction
-  ): Stream[F, O] = {
-
-    if (o.retryEnabled) {
+  ): Stream[F, O] =
+    if o.retryEnabled then
 
       val logWarn     = o.logWarn(opName) _
       val logError    = o.logError(opName) _
@@ -459,7 +446,7 @@ object Streams {
           state.get.map(_.fold(true)(filter))
         }
 
-        def run(f: T, attempts: Int, d: FiniteDuration): Stream[F, O] = {
+        def run(f: T, attempts: Int, d: FiniteDuration): Stream[F, O] =
 
           val readAndFilter: Stream[F, O] = streamFn(f).evalFilter(readFilter)
           val readAndUpdate: Stream[F, O] = readAndFilter.evalTap(o => state.set(extractFn(o).some))
@@ -467,7 +454,7 @@ object Streams {
           readAndUpdate.recoverWith {
 
             case NonFatal(t) if o.retryOn(t) =>
-              if (attempts <= maxAttempts) {
+              if attempts <= maxAttempts then
 
                 val logWarning = logWarn(attempts, d, t).whenA(attempts < maxAttempts)
                 val getCurrent = state.get.map(_.getOrElse(f))
@@ -475,17 +462,9 @@ object Streams {
                 Stream.eval(logWarning *> getCurrent) >>= { c =>
                   run(c, attempts + 1, nextDelay(d)).delayBy(d)
                 }
-
-              } else
-                Stream.eval(logError(t)) *> Stream.raiseError[F](t)
+              else Stream.eval(logError(t)) *> Stream.raiseError[F](t)
           }
-        }
 
         run(from, 1, o.retryConfig.delay)
       }
-
-    } else streamFn(from)
-
-  }
-
-}
+    else streamFn(from)
