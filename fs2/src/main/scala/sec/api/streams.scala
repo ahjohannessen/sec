@@ -401,24 +401,27 @@ object Streams:
   private[sec] def subscriptionAllPipe[F[_]: MonadThrow](
     log: Logger[F]
   ): Pipe[F, ReadResp, Event] =
-    _.filterNot(_.content.isCheckpoint)
+    _.filterNot(_.isCheckpoint)
       .through(subConfirmationPipe(log))
-      .through(_.filter(_.content.isEvent).evalMap(reqReadEvent[F]).unNone)
+      .through(_.filter(_.isEvent).evalMap(reqReadEvent[F]).unNone)
 
   private[sec] def subscriptionStreamPipe[F[_]: MonadThrow](
     log: Logger[F]
   ): Pipe[F, ReadResp, Event] =
-    _.through(subConfirmationPipe(log)).evalMap(reqReadEvent[F]).unNone
+    _.through(subConfirmationPipe(log))
+      .through(_.filter(_.isEvent).evalMap(reqReadEvent[F]).unNone)
 
   private[sec] def subAllFilteredPipe[F[_]: MonadThrow](
     log: Logger[F]
   ): Pipe[F, ReadResp, Either[Checkpoint, Event]] =
     // Defensive filtering to guard against ESDB emitting checkpoints
     // with `LogPosition.Exact.MaxValue`, i.e. end of stream.
-    _.through(subConfirmationPipe(log)).through(_.evalMap(mkCheckpointOrEvent[F]).unNone).collect {
-      case r @ Right(_)                               => r
-      case l @ Left(v) if v != Checkpoint.endOfStream => l
-    }
+    _.through(subConfirmationPipe(log))
+      .through(_.filter(_.isCheckpointOrEvent).evalMap(mkCheckpointOrEvent[F]).unNone)
+      .collect {
+        case r @ Right(_)                               => r
+        case l @ Left(v) if v != Checkpoint.endOfStream => l
+      }
 
   private[sec] def withRetry[F[_]: Temporal, T: Order, O](
     from: T,
@@ -468,3 +471,10 @@ object Streams:
         run(from, 1, o.retryConfig.delay)
       }
     else streamFn(from)
+
+//======================================================================================================================
+
+  extension (rr: ReadResp)
+    private[sec] def isEvent: Boolean             = rr.content.isEvent
+    private[sec] def isCheckpoint: Boolean        = rr.content.isCheckpoint
+    private[sec] def isCheckpointOrEvent: Boolean = rr.isEvent || rr.isCheckpoint
