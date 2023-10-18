@@ -12,8 +12,7 @@ object Prompt {
   private def cyan(str: String) =
     if (isANSISupported) CYAN + str + RESET else str
 
-  val enrichedShellPrompt: State => String = { state: State =>
+  val enrichedShellPrompt: State => String = state: State =>
     s"[${cyan(Project.extract(state).currentProject.id)}] λ "
-  }
 
 }
