@@ -35,14 +35,6 @@ lazy val core = project
       ) -> (Compile / sourceManaged).value
     )
   )
-  .settings(
-    mimaBinaryIssueFilters ++= Seq(
-      // Generated code not for end users
-      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.scalaDescriptor"),
-      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.shared.*")
-    )
-  )
 
 //==== FS2 =============================================================================================================
 
@@ -61,22 +53,6 @@ lazy val `fs2-core` = project
       CodeGeneratorOption.Scala3Sources
     ),
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf")
-  )
-  .settings(
-    mimaBinaryIssueFilters ++= Seq(
-      // Generated code not for end users
-      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.grpc.ServiceCompanion.scalaDescriptor"),
-      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.grpc.ServiceCompanion.javaDescriptor"),
-      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.scalaDescriptor"),
-      ProblemFilters.exclude[DirectAbstractMethodProblem]("scalapb.GeneratedFileObject.javaDescriptor"),
-      //
-      ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.shared.*"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.gossip.*"),
-      ProblemFilters.exclude[DirectMissingMethodProblem]("com.eventstore.dbclient.proto.streams.*"),
-      ProblemFilters.exclude[ReversedMissingMethodProblem]("com.eventstore.dbclient.proto.streams.*"),
-      //
-      ProblemFilters.exclude[DirectMissingMethodProblem]("sec.api.cluster.Notifier#gossip.*")
-    )
   )
   .dependsOn(core)
 
@@ -169,7 +145,7 @@ inThisBuild(
   List(
     scalaVersion := Scala3,
     versionScheme := Some("early-semver"),
-    tlBaseVersion := "0.30",
+    tlBaseVersion := "0.40",
     tlSonatypeUseLegacyHost := false,
     mergifyStewardConfig ~= { _.map(_.copy(mergeMinors = true).copy(author = "scala-steward-ahjohannessen[bot]")) },
     organization := "io.github.ahjohannessen",
