@@ -26,7 +26,14 @@ lazy val core = project
         compileM(cats, scodecBits, ip4s, unum, circe, scalaPb) ++
         protobufM(scalaPb),
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
-    Compile / PB.targets := Seq(scalapb.gen(flatPackage = true, grpc = false) -> (Compile / sourceManaged).value)
+    Compile / PB.targets := Seq(
+      scalapb.gen(
+        flatPackage   = true,
+        grpc          = false,
+        scala3Sources = true,
+        lenses        = false
+      ) -> (Compile / sourceManaged).value
+    )
   )
   .settings(
     mimaBinaryIssueFilters ++= Seq(
@@ -48,7 +55,11 @@ lazy val `fs2-core` = project
     libraryDependencies ++=
       compileM(grpcApi, grpcStub, grpcProtobuf, grpcCore) ++
         compileM(cats, catsEffect, fs2, ip4s, log4cats, log4catsNoop, scodecBits, circe, circeParser),
-    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
+    scalapbCodeGeneratorOptions ++= Seq(
+      CodeGeneratorOption.FlatPackage,
+      CodeGeneratorOption.NoLenses,
+      CodeGeneratorOption.Scala3Sources
+    ),
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf")
   )
   .settings(
