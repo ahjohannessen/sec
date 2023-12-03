@@ -10,7 +10,7 @@ object Dependencies {
     val fs2        = "3.9.3"
     val ip4s       = "3.4.0"
     val log4cats   = "2.6.0"
-    val logback    = "1.2.12"
+    val logback    = "1.2.13"
     val scodecBits = "1.1.38"
     val unum       = "1.2.0"
     val circe      = "0.14.3"
