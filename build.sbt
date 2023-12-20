@@ -165,7 +165,7 @@ addCommandAlias("compileDocs", "docs/mdoc")
 inThisBuild(
   List(
     githubWorkflowTargetBranches := Seq("main"),
-    githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17")),
+    githubWorkflowJavaVersions := Seq(JavaSpec.temurin("21")),
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
