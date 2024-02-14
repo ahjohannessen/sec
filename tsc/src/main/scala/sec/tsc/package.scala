@@ -132,7 +132,7 @@ private[sec] object config:
       }
 
       result match {
-        case x :: xs => getAuthority(cfg).map(a => (ClusterEndpoints.ViaSeed(NonEmptySet.of(x, xs: _*)), a))
+        case x :: xs => getAuthority(cfg).map(a => (ClusterEndpoints.ViaSeed(NonEmptySet.of(x, xs*)), a))
         case Nil     => None
       }
 

@@ -33,7 +33,7 @@ class SharedMappingSuite extends SecSuite:
     val uuidString     = "e5390fcb-48bd-4895-bcc3-01629cca2af6"
     val juuid          = JUUID.fromString(uuidString)
     val uuidStructured = ps.UUID.Structured(juuid.getMostSignificantBits(), juuid.getLeastSignificantBits())
-    val mkId           = mkJuuid[ErrorOr] _
+    val mkId           = mkJuuid[ErrorOr]
 
     test("mkJuuid") {
       assertEquals(mkId(ps.UUID().withValue(ps.UUID.Value.Empty)), ProtoResultError("UUID is missing").asLeft)

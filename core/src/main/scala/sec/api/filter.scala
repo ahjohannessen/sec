@@ -49,9 +49,9 @@ object EventFilter:
   case object ByStreamId extends Kind
   case object ByEventType extends Kind
 
-  def streamIdPrefix(fst: String, rest: String*): EventFilter  = prefix(ByStreamId, fst, rest: _*)
+  def streamIdPrefix(fst: String, rest: String*): EventFilter  = prefix(ByStreamId, fst, rest*)
   def streamIdRegex(filter: String): EventFilter               = regex(ByStreamId, filter)
-  def eventTypePrefix(fst: String, rest: String*): EventFilter = prefix(ByEventType, fst, rest: _*)
+  def eventTypePrefix(fst: String, rest: String*): EventFilter = prefix(ByEventType, fst, rest*)
   def eventTypeRegex(filter: String): EventFilter              = regex(ByEventType, filter)
 
   def prefix(kind: Kind, fst: String, rest: String*): EventFilter =
