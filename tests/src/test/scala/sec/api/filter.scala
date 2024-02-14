@@ -35,7 +35,7 @@ class EventFilterSuite extends SecDisciplineSuite:
     property("prefix") {
       forAll { (k: Kind, fst: String, rest: List[String]) =>
         assertEquals(
-          prefix(k, fst, rest: _*),
+          prefix(k, fst, rest*),
           EventFilter(k, NonEmptyList(PrefixFilter(fst), rest.map(x => PrefixFilter(x))).asLeft)
         )
       }

@@ -73,10 +73,10 @@ private[sec] object retries:
       action.timeout(to).adaptError { case _: TimeoutException => Timeout(to) }
 
     val fa          = timeout.fold(action)(withTimeout)
-    val logWarn     = retries.logWarn[F](retryConfig, actionName, log) _
-    val logError    = retries.logError[F](retryConfig, actionName, log) _
+    val logWarn     = retries.logWarn[F](retryConfig, actionName, log)
+    val logError    = retries.logError[F](retryConfig, actionName, log)
     val maxAttempts = retryConfig.maxAttempts
-    val nextDelay   = retryConfig.nextDelay _
+    val nextDelay   = retryConfig.nextDelay
 
     def run(attempts: Int, d: FiniteDuration): F[A] = fa.recoverWith {
       case NonFatal(t) if retryOn(t) =>

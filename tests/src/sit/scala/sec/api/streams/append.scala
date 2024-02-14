@@ -95,7 +95,7 @@ class AppendToStreamSuite extends SnSuite:
 
       val id     = genStreamId(s"${streamPrefix}multiple_idempotent_writes_same_uuid_")
       val event  = genEvents(1).head
-      val events = Nel.of(event, List.fill(5)(event): _*)
+      val events = Nel.of(event, List.fill(5)(event)*)
       val write  = streams.appendToStream(id, Any, events)
 
       assertIO(write.map(_.streamPosition), StreamPosition(5))
@@ -110,7 +110,7 @@ class AppendToStreamSuite extends SnSuite:
       val st     = mkSnakeCase(expectedState.render)
       val id     = genStreamId(s"${streamPrefix}multiple_writes_multiple_events_same_uuid_${st}_")
       val event  = genEvents(1).head
-      val events = Nel.of(event, List.fill(5)(event): _*)
+      val events = Nel.of(event, List.fill(5)(event)*)
       val write  = streams.appendToStream(id, expectedState, events)
 
       write >>= { first =>

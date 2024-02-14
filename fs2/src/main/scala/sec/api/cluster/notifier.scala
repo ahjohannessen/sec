@@ -95,7 +95,7 @@ private[sec] object Notifier:
 
     def defaultSelector(ci: ClusterInfo, seed: Nes[Endpoint]): Nes[Endpoint] =
       ci.members.filter(_.isAlive).map(_.httpEndpoint).toList match
-        case x :: xs => Nes.of(x, xs: _*)
+        case x :: xs => Nes.of(x, xs*)
         case Nil     => seed
 
   //

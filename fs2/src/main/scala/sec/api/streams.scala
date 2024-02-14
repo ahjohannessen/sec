@@ -433,9 +433,9 @@ object Streams:
   ): Stream[F, O] =
     if o.retryEnabled then
 
-      val logWarn     = o.logWarn(opName) _
-      val logError    = o.logError(opName) _
-      val nextDelay   = o.retryConfig.nextDelay _
+      val logWarn     = o.logWarn(opName)
+      val logError    = o.logError(opName)
+      val nextDelay   = o.retryConfig.nextDelay
       val maxAttempts = o.retryConfig.maxAttempts
       val order       = Order[T]
 
@@ -444,7 +444,7 @@ object Streams:
         val readFilter: O => F[Boolean] = o => {
 
           val next: T              = extractFn(o)
-          val filter: T => Boolean = direction.fold(order.gt _, order.lt _)(next, _)
+          val filter: T => Boolean = direction.fold(order.gt, order.lt)(next, _)
 
           state.get.map(_.fold(true)(filter))
         }

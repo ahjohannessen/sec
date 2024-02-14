@@ -146,7 +146,7 @@ object arbitraries {
   given arbStreamAcl: Arbitrary[StreamAcl] = Arbitrary[StreamAcl] {
 
     val roles: Set[String]                      = Set("role1", "role2", "role3", "role4", "role5")
-    val someOf: Set[String] => Gen[Set[String]] = Gen.someOf(_).map(s => SortedSet(s.toSeq: _*))
+    val someOf: Set[String] => Gen[Set[String]] = Gen.someOf(_).map(s => SortedSet(s.toSeq*))
 
     for {
       rr  <- someOf(roles).label("read")

@@ -38,7 +38,7 @@ class NotifierSuite extends SecEffectSuite:
   def mkId: UUID                                     = sampleOf[ju.UUID]
   def mkTs: ZonedDateTime                            = sampleOf[ZonedDateTime]
   def mkEp(addr: String, port: Int = 2113): Endpoint = Endpoint(addr, port)
-  def mkCi(ms: MemberInfo*): ClusterInfo             = ClusterInfo(Set(ms: _*))
+  def mkCi(ms: MemberInfo*): ClusterInfo             = ClusterInfo(Set(ms*))
 
   //
 

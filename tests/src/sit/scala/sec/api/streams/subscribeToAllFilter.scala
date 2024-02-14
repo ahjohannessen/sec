@@ -70,7 +70,7 @@ class SubscribeToAllFilterSuite extends SnSuite {
     val etPrefix = mkPrefix(s"event_type_prefix$append")
     val etRegex  = mkPrefix(s"event_type_regex_$append")
 
-    val run = testBeginningOrEnd(None, includeBefore) _
+    val run = testBeginningOrEnd(None, includeBefore)
 
     test("from beginning: stream id prefix")(run(siPrefix, streamIdPrefix(siPrefix), identity))
     test("from beginning: stream id regex")(run(siRegex, streamIdRegex(siRegex), identity))
@@ -89,7 +89,7 @@ class SubscribeToAllFilterSuite extends SnSuite {
     val etPrefix = mkPrefix(s"event_type_prefix$append")
     val etRegex  = mkPrefix(s"event_type_regex_$append")
 
-    val run = testBeginningOrEnd(LogPosition.End.some, includeBefore) _
+    val run = testBeginningOrEnd(LogPosition.End.some, includeBefore)
 
     test("from end: stream id prefix")(run(siPrefix, streamIdPrefix(siPrefix), identity))
     test("from end: stream id regex")(run(siRegex, streamIdRegex(siRegex), identity))
@@ -108,7 +108,7 @@ class SubscribeToAllFilterSuite extends SnSuite {
     val etPrefix = mkPrefix(s"event_type_prefix$append")
     val etRegex  = mkPrefix(s"event_type_regex_$append")
 
-    val run = testPosition(includeBefore) _
+    val run = testPosition(includeBefore)
 
     test("from position: stream id prefix")(run(siPrefix, streamIdPrefix(siPrefix), identity))
     test("from position: stream id regex")(run(siRegex, streamIdRegex(siRegex), identity))

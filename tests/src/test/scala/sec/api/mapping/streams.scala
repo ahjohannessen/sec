@@ -1020,7 +1020,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
     group("AllResult.fromWire") {
 
       val rsp = s.ReadResp()
-      val run = AllResult.fromWire[ErrorOr] _
+      val run = AllResult.fromWire[ErrorOr]
 
       /** Empty */
 
