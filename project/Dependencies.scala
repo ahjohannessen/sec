@@ -18,7 +18,7 @@ object Dependencies {
     val grpc       = "1.63.0"
     val tsConfig   = "1.4.3"
 
-    val scalaCheck      = "1.17.1"
+    val scalaCheck      = "1.18.0"
     val munitDiscipline = "1.0.9"
     val munitEffect     = "1.0.7"
     val munit           = "0.7.29"
