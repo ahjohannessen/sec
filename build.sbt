@@ -147,7 +147,7 @@ inThisBuild(
     versionScheme := Some("early-semver"),
     tlBaseVersion := "0.40",
     tlSonatypeUseLegacyHost := false,
-    mergifyStewardConfig ~= { _.map(_.copy(mergeMinors = true).copy(author = "scala-steward-ahjohannessen[bot]")) },
+    mergifyStewardConfig ~= { _.map(_.withMergeMinors(true).withAuthor("scala-steward-ahjohannessen[bot]")) },
     organization := "io.github.ahjohannessen",
     organizationName := "Scala EventStoreDB Client",
     startYear := Some(2020),
