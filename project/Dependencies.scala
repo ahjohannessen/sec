@@ -19,8 +19,8 @@ object Dependencies {
     val tsConfig   = "1.4.3"
 
     val scalaCheck      = "1.18.0"
-    val munitDiscipline = "1.0.9"
-    val munitEffect     = "1.0.7"
+    val munitDiscipline = "2.0.0"
+    val munitEffect     = "2.0.0"
     val munit           = "1.0.0"
 
   }
@@ -52,7 +52,7 @@ object Dependencies {
   val catsLaws          = "org.typelevel"  %% "cats-laws"           % versions.catsCore
   val scalaCheck        = "org.scalacheck" %% "scalacheck"          % versions.scalaCheck
   val munitDiscipline   = "org.typelevel"  %% "discipline-munit"    % versions.munitDiscipline
-  val munitEffect       = "org.typelevel"  %% "munit-cats-effect-3" % versions.munitEffect
+  val munitEffect       = "org.typelevel"  %% "munit-cats-effect"   % versions.munitEffect
   val catsEffectTestkit = "org.typelevel"  %% "cats-effect-testkit" % versions.catsEffect
 
   val logback         = "ch.qos.logback" % "logback-classic"  % versions.logback

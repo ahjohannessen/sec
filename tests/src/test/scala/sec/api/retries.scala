@@ -31,7 +31,7 @@ class RetriesSuite extends SecEffectSuite with TestInstances:
 
   import RetriesSuite.Oops
 
-  override def munitTimeout: Duration = 1.second
+  override def munitIOTimeout: Duration = 1.second
 
   def run[A](
     action: IO[A],
