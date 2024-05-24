@@ -18,6 +18,7 @@ package sec
 
 import scala.concurrent.duration.*
 import munit.*
+import munit.catseffect.*
 import cats.effect.*
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -56,7 +57,7 @@ trait SecResourceSuite[A] extends SecEffectSuite:
   private lazy val testName = mkSnakeCase(getClass.getSimpleName)
   private lazy val logger   = Slf4jLogger.fromName[IO](testName).unsafeRunSync()
 
-  private lazy val clientFixture: Fixture[A] =
+  private lazy val clientFixture: IOFixture[A] =
     ResourceSuiteLocalFixture(s"${testName}_fixture", makeResource)
 
   override def munitFixtures = List(clientFixture)
@@ -67,7 +68,7 @@ trait SecResourceSuite[A] extends SecEffectSuite:
 
 abstract class ClientSuite extends SecResourceSuite[EsClient[IO]]:
 
-  override def munitTimeout: Duration = 120.seconds
+  override def munitIOTimeout: Duration = 120.seconds
 
   final def client: EsClient[IO]         = resource
   final def streams: Streams[IO]         = client.streams
