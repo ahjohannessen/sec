@@ -26,7 +26,7 @@ import cats.effect.*
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 import io.grpc.NameResolver.{Args, Listener2, ResolutionResult}
-import io.grpc.{NameResolver, NameResolverProvider}
+import io.grpc.{NameResolver, NameResolverProvider, StatusOr}
 import Notifier.Listener
 import Resolver.mkListener
 import cats.effect.std.Dispatcher
@@ -46,7 +46,10 @@ final private[sec] case class Resolver[F[_]: Sync](
 private[sec] object Resolver:
 
   def mkResult(endpoints: NonEmptyList[Endpoint]): ResolutionResult =
-    ResolutionResult.newBuilder().setAddresses(endpoints.toList.map(_.toEquivalentAddressGroup).asJava).build()
+    ResolutionResult
+      .newBuilder()
+      .setAddressesOrError(StatusOr.fromValue(endpoints.toList.map(_.toEquivalentAddressGroup).asJava))
+      .build()
 
   def mkListener[F[_]](l2: Listener2)(implicit F: Sync[F]): Listener[F] =
     (endpoints: NonEmptyList[Endpoint]) => F.delay(l2.onResult(mkResult(endpoints)))
