@@ -179,8 +179,7 @@ object EventType:
   //
 
   private[sec] val eventTypeToString: EventType => String =
-    case System(n) => s"$systemPrefix$n"
-    case Normal(n) => n
+    _.fold(sys => s"$systemPrefix${sys.name}", _.name)
 
   private[sec] val stringToEventType: String => Attempt[EventType] =
     case sd if sd.startsWith(systemPrefix) => system(sd.substring(systemPrefixLength))
@@ -190,6 +189,13 @@ object EventType:
   final private[sec] val systemPrefixLength: Int = systemPrefix.length
 
   extension (et: EventType)
+
+    def fold[A](f: System => A, g: Normal => A): A = et match
+      case s: System => f(s)
+      case n: Normal => g(n)
+
+    def isSystem: Boolean   = fold(_ => true, _ => false)
+    def isNormal: Boolean   = fold(_ => false, _ => true)
     def stringValue: String = eventTypeToString(et)
     def render: String      = stringValue
 

@@ -107,13 +107,13 @@ class NodePrioritizerSuite extends SecSuite:
 
     val members =
       Nel.of(
-        MemberInfo(id, ts, Leader, isAlive   = false, Endpoint(address, 1111)),
-        MemberInfo(id, ts, Manager, isAlive  = true, Endpoint(address, 4444)),
-        MemberInfo(id, ts, Follower, isAlive = true, Endpoint(address, 2222))
+        MemberInfo(id, ts, ReadOnlyReplica, isAlive = false, Endpoint(address, 1111)),
+        MemberInfo(id, ts, Manager, isAlive         = true, Endpoint(address, 4444)),
+        MemberInfo(id, ts, Follower, isAlive        = true, Endpoint(address, 2222))
       )
 
     assertEquals(
-      pickBestNode(members, NodePreference.Leader, randomSeed).map(_.httpEndpoint.port),
+      pickBestNode(members, NodePreference.ReadOnlyReplica, randomSeed).map(_.httpEndpoint.port),
       members.filter(_.state.eqv(Follower)).lastOption.map(_.httpEndpoint.port)
     )
   }

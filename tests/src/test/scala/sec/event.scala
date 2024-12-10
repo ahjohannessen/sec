@@ -178,6 +178,14 @@ class EventTypeSuite extends SecSuite:
       assertEquals(et.stringValue, EventType.eventTypeToString(et))
     }
 
+    test("isSystem/isNormal") {
+      assert(system.isSystem)
+      assert(EventType.StreamDeleted.isSystem)
+      assertNot(normal.isSystem)
+      assert(normal.isNormal)
+      assertNot(system.isNormal)
+    }
+
   }
 
 //======================================================================================================================
