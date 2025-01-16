@@ -26,10 +26,8 @@ import cats.syntax.all.*
   *
   *   - [[NodePreference.Leader]] When you prefer the node you connect to is in a [[VNodeState.Leader]] state. This is,
   *     for instance, used when you wish to avoid unecessary network hops when appending data.
-  *
   *   - [[NodePreference.Follower]] When you prefer the node you connect to is in a [[VNodeState.Follower]] state. This
   *     is useful in situations where you wish to get fast subscription updates for a read model.
-  *
   *   - [[NodePreference.ReadOnlyReplica]] When you prefer the node you connect to is in a
   *     [[VNodeState.ReadOnlyReplica]] or [[VNodeState.ReadOnlyLeaderless]] state. This is useful when you wish to
   *     replicate data, but do not have requirements for fast updates or need to append data.

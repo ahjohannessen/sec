@@ -34,7 +34,6 @@ import EventFilter.*
   *   - [[EventFilter.PrefixFilter]] when you wish to filter for prefixes. An example of this is
   *     `PrefixFilter("user_stream")` for streams starting with the string value `"user_stream"` like `"user_stream-a"`
   *     and `"user_stream-b"`.
-  *
   *   - [[EventFilter.RegexFilter]] when you wish to filter with a regular expression. An example of this is
   *     `RegexFilter("^[^$].*")` when you for do not wish to retrieve events starting with `$`.
   */
