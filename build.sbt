@@ -5,7 +5,7 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 Global / lintUnusedKeysOnLoad := false
 
-lazy val Scala3 = "3.6.2"
+lazy val Scala3 = "3.6.3"
 
 lazy val sec = project
   .in(file("."))
