@@ -228,10 +228,14 @@ class AppendToStreamSuite extends SnSuite:
 
     val max = 1024 * 1024 // Default ESDB setting
 
+    // ((data length) + (metadata length) + (eventType length * 2);)
+
     def mkEvent(sizeBytes: Int): IO[EventData] = IO(UUID.randomUUID()).map { uuid =>
 
-      val et       = EventType("et").unsafeGet
-      val data     = ByteVector.fill(sizeBytes.toLong)(0)
+      val etName   = "et"
+      val et       = EventType(etName).unsafeGet
+      val etSize   = etName.length * 2
+      val data     = ByteVector.fill((sizeBytes - etSize).toLong)(0)
       val metadata = ByteVector.empty
       val ct       = ContentType.Binary
 
