@@ -145,8 +145,7 @@ inThisBuild(
   List(
     scalaVersion := Scala3,
     versionScheme := Some("early-semver"),
-    tlBaseVersion := "0.41",
-    tlSonatypeUseLegacyHost := false,
+    tlBaseVersion := "0.42",
     mergifyStewardConfig ~= { _.map(_.withMergeMinors(true).withAuthor("scala-steward-ahjohannessen[bot]")) },
     organization := "io.github.ahjohannessen",
     organizationName := "Scala EventStoreDB Client",
