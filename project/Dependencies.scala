@@ -20,7 +20,7 @@ object Dependencies {
 
     val scalaCheck      = "1.18.1"
     val munitDiscipline = "2.0.0"
-    val munitEffect     = "2.0.0"
+    val munitEffect     = "2.1.0"
     val munit           = "1.1.0"
 
   }
