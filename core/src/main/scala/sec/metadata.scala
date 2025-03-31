@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala EventStoreDB Client
+ * Copyright 2020 Scala Event Sourcing client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -135,7 +135,7 @@ object MaxCount:
   private[sec] def render(mc: MaxCount): String =
     s"${mc.value} event${if (mc.value == 1) "" else "s"}"
 
-/** Used for the ATOM API of EventStoreDB. The head of a feed in the ATOM API is not cacheable. This value allows you to
+/** Used for the ATOM API of KurrentDB. The head of a feed in the ATOM API is not cacheable. This value allows you to
   * specify a period of time you want it to be cacheable. Low numbers are best here, e.g. 30-60 seconds, and introducing
   * values here will introduce latency over the ATOM protocol if caching is occuring.
   */
@@ -171,7 +171,7 @@ object CacheControl:
   *   The access control list for this stream.
   *
   * @note
-  *   More details are here https://eventstore.org/docs/server/deleting-streams-and-events/index.html
+  *   More details are here https://docs.kurrent.io/server/v25.0/features/streams.html#deleting-streams-and-events
   */
 final private[sec] case class MetaState(
   maxAge: Option[MaxAge],

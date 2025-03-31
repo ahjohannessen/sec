@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala EventStoreDB Client
+ * Copyright 2020 Scala Event Sourcing client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ final private[sec] case class Context(
 
 //======================================================================================================================
 
-/** Credentials used for EventStoreDB connections.
+/** Credentials used for KurrentDB connections.
   */
 
 sealed abstract case class UserCredentials(username: String, password: String) {

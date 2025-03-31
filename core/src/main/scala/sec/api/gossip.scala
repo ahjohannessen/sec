@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala EventStoreDB Client
+ * Copyright 2020 Scala Event Sourcing client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import java.util as ju
 import cats.Order
 import cats.implicits.*
 
-/** Used for information about the nodes in an EventStoreDB cluster.
+/** Used for information about the nodes in an KurrentDB cluster.
   */
 final case class ClusterInfo(
   members: Set[MemberInfo]

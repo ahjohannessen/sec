@@ -1,69 +1,69 @@
 x-common-variables: &common-variables
-  EVENTSTORE_CLUSTER_SIZE: "3"
+  KURRENTDB_CLUSTER_SIZE: "3"
 
 services:
 
-  es1:
-    image: "$EVENTSTORE_DB_IMAGE"
+  kdb1:
+    image: "$KURRENTDB_IMAGE"
     env_file:
       - ./shared.env
     environment:
       <<: *common-variables
-      EVENTSTORE_GOSSIP_SEED: "${SEC_ESC_2_IP}:2113,${SEC_ESC_3_IP}:2113"
-      EVENTSTORE_ADVERTISE_HTTP_PORT_TO_CLIENT_AS: "2114"
+      KURRENTDB_GOSSIP_SEED: "${SEC_CL_2_IP}:2113,${SEC_CL_3_IP}:2113"
+      KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS: "2114"
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
     ports:
       - 2114:2113
     networks:
-      es_cluster_network:
-        ipv4_address: "$SEC_ESC_1_IP"
+      kdb_cluster_network:
+        ipv4_address: "$SEC_CL_1_IP"
     depends_on:
       - cert-gen
     restart: on-failure:10
 
-  es2:
-    image: "$EVENTSTORE_DB_IMAGE"
+  kdb2:
+    image: "$KURRENTDB_IMAGE"
     env_file:
       - ./shared.env
     environment:
       <<: *common-variables
-      EVENTSTORE_GOSSIP_SEED: "${SEC_ESC_1_IP}:2113,${SEC_ESC_3_IP}:2113"
-      EVENTSTORE_ADVERTISE_HTTP_PORT_TO_CLIENT_AS: "2115"
+      KURRENTDB_GOSSIP_SEED: "${SEC_CL_1_IP}:2113,${SEC_CL_3_IP}:2113"
+      KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS: "2115"
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
     ports:
       - 2115:2113
     networks:
-      es_cluster_network:
-        ipv4_address: "$SEC_ESC_2_IP"
+      kdb_cluster_network:
+        ipv4_address: "$SEC_CL_2_IP"
     depends_on:
       - cert-gen
     restart: on-failure:10
 
-  es3:
-    image: "$EVENTSTORE_DB_IMAGE"
+  kdb3:
+    image: "$KURRENTDB_IMAGE"
     env_file:
       - ./shared.env
     environment:
       <<: *common-variables
-      EVENTSTORE_GOSSIP_SEED: "${SEC_ESC_1_IP}:2113,${SEC_ESC_2_IP}:2113"
-      EVENTSTORE_ADVERTISE_HTTP_PORT_TO_CLIENT_AS: "2116"
+      KURRENTDB_GOSSIP_SEED: "${SEC_CL_1_IP}:2113,${SEC_CL_2_IP}:2113"
+      KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS: "2116"
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
     ports:
       - 2116:2113
     networks:
-      es_cluster_network:
-        ipv4_address: "$SEC_ESC_3_IP"
+      kdb_cluster_network:
+        ipv4_address: "$SEC_CL_3_IP"
     depends_on:
       - cert-gen
     restart: on-failure:10
 
 networks:
-  es_cluster_network:
-    name: es-cluster-net
+  kdb_cluster_network:
+    name: kdb-cluster-net
     ipam:
       driver: default
       config:
-        - subnet: "$SEC_ESC_SUBNET"
+        - subnet: "$SEC_CL_SUBNET"

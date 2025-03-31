@@ -124,7 +124,7 @@ lazy val docs = project
       "libVersion"    -> version.value.takeWhile(c => !(c == '+' || c == '-')), // strip off the SNAPSHOT business
       "libGithubRepo" -> "https://github.com/ahjohannessen/sec",
       "grpcVersion"   -> versions.grpc,
-      "esdb"          -> "EventStoreDB"
+      "esdb"          -> "KurrentDB"
     )
   )
   .settings(
@@ -148,7 +148,7 @@ inThisBuild(
     tlBaseVersion := "0.43",
     mergifyStewardConfig ~= { _.map(_.withMergeMinors(true).withAuthor("scala-steward-ahjohannessen[bot]")) },
     organization := "io.github.ahjohannessen",
-    organizationName := "Scala EventStoreDB Client",
+    organizationName := "Scala Event Sourcing Client for KurrentDB",
     startYear := Some(2020),
     developers +=
       tlGitHubDev("ahjohannessen", "Alex Henning Johannessen"),

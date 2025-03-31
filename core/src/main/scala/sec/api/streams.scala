@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala EventStoreDB Client
+ * Copyright 2020 Scala Event Sourcing client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import cats.Order
 import cats.syntax.all.*
 import exceptions.StreamNotFound
 
-/** Checkpoint result used with server-side filtering in EventStoreDB. Contains the [[LogPosition.Exact]] when the
+/** Checkpoint result used with server-side filtering in KurrentDB. Contains the [[LogPosition.Exact]] when the
   * checkpoint was made.
   */
 final case class Checkpoint(
@@ -59,7 +59,7 @@ final case class TombstoneResult(
   logPosition: LogPosition.Exact
 )
 
-/** A subscription confirmation identifier as the first value from the EventStoreDB when subscribing to a stream. Not
+/** A subscription confirmation identifier as the first value from the KurrentDB when subscribing to a stream. Not
   * intended for public use.
   */
 final private[sec] case class SubscriptionConfirmation(

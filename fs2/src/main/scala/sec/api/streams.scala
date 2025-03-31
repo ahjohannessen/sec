@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala EventStoreDB Client
+ * Copyright 2020 Scala Event Sourcing client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ import sec.api.mapping.streams.incoming.*
 import sec.api.mapping.streams.outgoing.*
 import sec.api.streams.*
 
-/** API for interacting with streams in EventStoreDB.
+/** API for interacting with streams in KurrentDB.
   *
   * ==Main operations==
   *
