@@ -2,27 +2,27 @@
 services:
 
   es:
-    image: "$EVENTSTORE_DB_IMAGE"
+    image: "$KURRENTDB_IMAGE"
     env_file:
       - ./shared.env
     environment:
-      - EVENTSTORE_MEM_DB=True
-      - EVENTSTORE_START_STANDARD_PROJECTIONS=True
+      - KURRENTDB_MEM_DB=True
+      - KURRENTDB_START_STANDARD_PROJECTIONS=True
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
     ports:
       - 2113:2113
     networks:
-      es_single_network:
-        ipv4_address: "$SEC_ESS_IP"
+      kdb_single_network:
+        ipv4_address: "$SEC_SN_IP"
     depends_on:
       - cert-gen
     restart: on-failure:10
 
 networks:
-  es_single_network:
-    name: es-single-net
+  kdb_single_network:
+    name: kdb-single-net
     ipam:
       driver: default
       config:
-        - subnet: "$SEC_ESS_SUBNET"
+        - subnet: "$SEC_SN_SUBNET"

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala EventStoreDB Client
+ * Copyright 2020 Scala Event Sourcing client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ import StreamPosition.Exact
 import StreamId.MetaId
 import MetaStreams.*
 
-/** API for interacting with metadata streams in EventStoreDB.
+/** API for interacting with metadata streams in KurrentDB.
   *
   * Methods for getting, setting and unsetting metadata for streams.
   *

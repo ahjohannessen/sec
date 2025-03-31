@@ -13,16 +13,16 @@ node in in-secure mode as follows:
 ```console
 docker run -it --rm --name es-node \
 -p 2113:2113 \
--e EVENTSTORE_MEM_DB=True \
--e EVENTSTORE_INSECURE=True \
--e EVENTSTORE_GOSSIP_ON_SINGLE_NODE=True \
--e EVENTSTORE_DISCOVER_VIA_DNS=False \
--e EVENTSTORE_START_STANDARD_PROJECTIONS=True \
-eventstore/eventstore:21.10.2-bionic
+-e KURRENTDB_MEM_DB=True \
+-e KURRENTDB_INSECURE=True \
+-e KURRENTDB_GOSSIP_ON_SINGLE_NODE=True \
+-e KURRENTDB_DISCOVER_VIA_DNS=False \
+-e KURRENTDB_START_STANDARD_PROJECTIONS=True \
+docker.cloudsmith.io/eventstore/kurrent-latest/kurrentdb:25.0.0
 ```
 
 The above is enough to get something up and running for the purpose of exploration and learning. Consult the 
-@esdb@ [docs](https://developers.eventstore.com/server/v21.10/configuration.html#configuration-options) for more details on
+@esdb@ [docs](https://docs.kurrent.io/server/v25.0/configuration) for more details on
 configuration for production setup.
 
 ### Scala Setup

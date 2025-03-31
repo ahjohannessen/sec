@@ -3,8 +3,8 @@
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'Scala EventStoreDB Client',
-  tagline: 'A pure functional client for EventStoreDB',
+  title: 'Scala KurrentDB Client',
+  tagline: 'A pure functional client for KurrentDB',
   favicon: 'img/favicon.ico',
   url: 'https://ahjohannessen.github.com',
   baseUrl: '/sec/',

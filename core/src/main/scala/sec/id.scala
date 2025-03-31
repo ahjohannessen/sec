@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala EventStoreDB Client
+ * Copyright 2020 Scala Event Sourcing client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import sec.utilities.{guardNonEmpty, guardNotStartsWith}
 
 //======================================================================================================================
 
-/** Stream identifier for streams in EventStoreDB. There are three variants:
+/** Stream identifier for streams in KurrentDB. There are three variants:
   *
   *   - [[StreamId.System]] identifier used for reserverd internal system streams.
   *   - [[StreamId.Normal]] identifier used by users.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala EventStoreDB Client
+ * Copyright 2020 Scala Event Sourcing client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import sec.utilities.{guardNonEmpty, guardNotStartsWith}
 
 //======================================================================================================================
 
-/** A persisted event in EventStoreDB. There are two variants:
+/** A persisted event in KurrentDB. There are two variants:
   *
   *   - [[EventRecord]] An event in an event stream.
   *   - [[ResolvedEvent]] A special event that contains a link and a linked event record.
@@ -201,7 +201,7 @@ object EventType:
 
 //======================================================================================================================
 
-/** Event payload for an event. This is the actual data that you persist in EventStoreDB.
+/** Event payload for an event. This is the actual data that you persist in KurrentDB.
   *
   * @param eventType
   *   the [[EventType]] for the event.

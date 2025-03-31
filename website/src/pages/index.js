@@ -13,7 +13,7 @@ const features = [
     description: (
       <>
         Use the power of functional programming and Scala to build robust, correct
-        and type-safe applications that interact with <a href="https://www.eventstore.com" target="_blank">EventStoreDB</a> nodes in a purely functional style.
+        and type-safe applications that interact with <a href="https://www.kurrent.io" target="_blank">KurrentDB</a> nodes in a purely functional style.
       </>
     ),
   },

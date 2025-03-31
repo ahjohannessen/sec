@@ -6,7 +6,7 @@ sidebar_label: Client API
 
 TODO:
  
- - Briefly explain the main interface for EventStoreDB, `EsClient`.
+ - Briefly explain the main interface for KurrentDB, `EsClient`.
  
  - mention that `operations.proto` will be implemented at a later point.
  - mention that  `users.proto`, `projections.proto` and `persistent.proto` might be implemented if there is a need. 
