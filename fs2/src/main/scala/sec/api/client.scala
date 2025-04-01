@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala Event Sourcing client for KurrentDB
+ * Copyright 2020 Scala Event Sourcing Client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@ import cats.syntax.all.*
 import cats.data.NonEmptySet
 import cats.effect.{Async, Resource}
 import com.comcast.ip4s.{Hostname, Port}
-import com.eventstore.dbclient.proto.gossip.GossipFs2Grpc
-import com.eventstore.dbclient.proto.streams.StreamsFs2Grpc
+import io.kurrent.dbclient.proto.gossip.GossipFs2Grpc
+import io.kurrent.dbclient.proto.streams.StreamsFs2Grpc
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
 import io.grpc.{CallOptions, ManagedChannel}

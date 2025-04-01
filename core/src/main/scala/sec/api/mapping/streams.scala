@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala Event Sourcing client for KurrentDB
+ * Copyright 2020 Scala Event Sourcing Client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@ import java.util.concurrent.TimeoutException
 import cats.{Applicative, ApplicativeThrow, MonadThrow}
 import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.all.*
-import com.eventstore.dbclient.proto.shared as pshared
-import com.eventstore.dbclient.proto.streams.*
+import io.kurrent.dbclient.proto.shared as pshared
+import io.kurrent.dbclient.proto.streams.*
 import sec.api.exceptions.*
 import sec.api.grpc.constants.Metadata.{ContentType, ContentTypes, Created, Type}
 import sec.api.mapping.shared.*

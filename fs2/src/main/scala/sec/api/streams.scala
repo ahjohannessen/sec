@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala Event Sourcing client for KurrentDB
+ * Copyright 2020 Scala Event Sourcing Client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import cats.*
 import cats.data.*
 import cats.effect.*
 import cats.syntax.all.*
-import com.eventstore.dbclient.proto.streams.*
+import io.kurrent.dbclient.proto.streams.*
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.log4cats.Logger
 import sec.api.exceptions.{ResubscriptionRequired, WrongExpectedVersion}
