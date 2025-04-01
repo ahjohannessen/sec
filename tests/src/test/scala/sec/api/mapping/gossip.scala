@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala Event Sourcing client for KurrentDB
+ * Copyright 2020 Scala Event Sourcing Client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ package mapping
 import java.time.{Instant, ZoneOffset}
 import java.util.UUID as JUUID
 import cats.syntax.all.*
-import com.eventstore.dbclient.proto.shared.UUID
-import com.eventstore.dbclient.proto.gossip as g
+import io.kurrent.dbclient.proto.shared.UUID
+import io.kurrent.dbclient.proto.gossip as g
 import sec.api.mapping.gossip.*
 
 class GossipMappingSuite extends SecSuite:

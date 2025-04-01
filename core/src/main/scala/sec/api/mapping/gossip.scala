@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala Event Sourcing client for KurrentDB
+ * Copyright 2020 Scala Event Sourcing Client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ package mapping
 
 import cats.MonadThrow
 import cats.syntax.all.*
-import com.eventstore.dbclient.proto.gossip as p
+import io.kurrent.dbclient.proto.gossip as p
 import sec.api.mapping.shared.*
 import sec.api.mapping.time.*
 

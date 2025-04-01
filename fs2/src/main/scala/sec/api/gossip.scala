@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala Event Sourcing client for KurrentDB
+ * Copyright 2020 Scala Event Sourcing Client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ package api
 
 import cats.syntax.all.*
 import cats.effect.Temporal
-import com.eventstore.dbclient.proto.gossip.{ClusterInfo as PClusterInfo, GossipFs2Grpc}
-import com.eventstore.dbclient.proto.shared.Empty
+import io.kurrent.dbclient.proto.gossip.{ClusterInfo as PClusterInfo, GossipFs2Grpc}
+import io.kurrent.dbclient.proto.shared.Empty
 import sec.api.mapping.gossip.mkClusterInfo
 
 /** API for reading gossip information from an KurrentDB cluster.

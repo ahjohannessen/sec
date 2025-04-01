@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Scala Event Sourcing client for KurrentDB
+ * Copyright 2020 Scala Event Sourcing Client for KurrentDB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ import java.util.UUID as JUUID
 import cats.data.NonEmptyList
 import cats.syntax.all.*
 import org.scalacheck.Prop.*
-import com.eventstore.dbclient.proto.shared as ps
-import com.eventstore.dbclient.proto.streams as s
+import io.kurrent.dbclient.proto.shared as ps
+import io.kurrent.dbclient.proto.streams as s
 import scodec.bits.ByteVector
 import sec.api.exceptions.{StreamNotFound, WrongExpectedState}
 import sec.api.mapping.shared.*
