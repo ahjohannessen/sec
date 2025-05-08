@@ -34,7 +34,7 @@ class NodePrioritizerSuite extends SecSuite:
   def ts         = sampleOf[ZonedDateTime]
   def port       = sampleOfGen(Gen.chooseNum(1, 65535))
   def address    = sampleOfGen(Gen.chooseNum(0, 254).map(i => s"127.0.0.$i"))
-  val randomSeed = sampleOf(Arbitrary.arbLong)
+  val randomSeed = sampleOf(using Arbitrary.arbLong)
 
   test("allowed vnode states") {
     assertEquals(allowedStates, Set[VNodeState](Leader, Follower, ReadOnlyReplica, ReadOnlyLeaderless))
