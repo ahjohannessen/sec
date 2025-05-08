@@ -25,7 +25,7 @@ import StreamId.Id
 
 trait MetaStreamsSyntax:
 
-  extension [F[_]: MonadThrow](ms: MetaStreams[F])
+  extension [F[_]](ms: MetaStreams[F])
 
     /** Sets max age in [[scala.concurrent.duration.FiniteDuration]] for a stream and returns [[sec.api.WriteResult]]
       * with current positions of the stream after a successful operation. Failure to fulfill the expected state is
@@ -40,7 +40,7 @@ trait MetaStreamsSyntax:
       *   [[scala.concurrent.duration.FiniteDuration]] greater or equal to 1 second. An [[InvalidInput]] exception is
       *   raised for invalid input value.
       */
-    def setMaxAge(id: Id, expectedState: StreamState, age: FiniteDuration): F[WriteResult] =
+    def setMaxAge(id: Id, expectedState: StreamState, age: FiniteDuration)(using MonadThrow[F]): F[WriteResult] =
       MaxAge(age).liftTo[F] >>= (ms.setMaxAge(id, expectedState, _))
 
     /** Sets max count in [[scala.Int]] for a stream and returns [[sec.api.WriteResult]] with current positions of the
@@ -55,7 +55,7 @@ trait MetaStreamsSyntax:
       *   the max count [[scala.Int]] value for data in the stream. Valid values are greater or equal to 1. An
       *   [[InvalidInput]] exception is raised for invalid input value.
       */
-    def setMaxCount(id: Id, expectedState: StreamState, count: Int): F[WriteResult] =
+    def setMaxCount(id: Id, expectedState: StreamState, count: Int)(using MonadThrow[F]): F[WriteResult] =
       MaxCount(count).liftTo[F] >>= (ms.setMaxCount(id, expectedState, _))
 
     /** Sets cache control in [[scala.concurrent.duration.FiniteDuration]] for a stream and returns
@@ -71,7 +71,8 @@ trait MetaStreamsSyntax:
       *   [[scala.concurrent.duration.FiniteDuration]] greater or equal to 1 second. An [[InvalidInput]] exception is
       *   raised for invalid input value.
       */
-    def setCacheControl(id: Id, expectedState: StreamState, cacheControl: FiniteDuration): F[WriteResult] =
+    def setCacheControl(id: Id, expectedState: StreamState, cacheControl: FiniteDuration)(using
+      MonadThrow[F]): F[WriteResult] =
       CacheControl(cacheControl).liftTo[F] >>= (ms.setCacheControl(id, expectedState, _))
 
     /** Sets truncated before in [[Long]] for a stream and returns [[sec.api.WriteResult]] with current positions of the
