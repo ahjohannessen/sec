@@ -315,7 +315,7 @@ object StreamAcl:
     def apply(c: HCursor): Result[StreamAcl] =
 
       def get(k: String): Result[Set[String]] =
-        c.getOrElse[Set[String]](k)(Set.empty)(Decoder[Set[String]].or(Decoder[String].map(Set(_))))
+        c.getOrElse[Set[String]](k)(Set.empty)(using Decoder[Set[String]].or(Decoder[String].map(Set(_))))
 
       (get(aclKeys.Read), get(aclKeys.Write), get(aclKeys.Delete), get(aclKeys.MetaRead), get(aclKeys.MetaWrite))
         .mapN(StreamAcl.apply)
