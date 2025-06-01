@@ -43,7 +43,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
     )
 
     IO.defer {
-      var attempts = 0
+      var attempts        = 0
       val action: IO[Int] = IO {
         attempts += 1
         attempts
@@ -69,7 +69,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
     IO.defer {
 
       var failures, successes = 0
-      val action: IO[Int] = IO {
+      val action: IO[Int]     = IO {
         if (failures == 5) {
           successes += 1
           successes
@@ -104,7 +104,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
 
     IO.defer {
 
-      var failures = 0
+      var failures        = 0
       val action: IO[Int] = IO {
         failures += 1
         throw RetryErr(failures.toString)
@@ -133,7 +133,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
     IO.defer {
 
       var failures, successes = 0
-      val action = IO {
+      val action              = IO {
         if (failures == 5) {
           failures += 1; throw RetryErr("fatal")
         } else if (failures > 5) {
@@ -159,7 +159,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
 
   test("delay / maxDelay / backoffFactor") {
 
-    val unit = 200
+    val unit   = 200
     val config = RetryConfig(
       delay         = unit.millis,
       maxDelay      = 1600.millis,
@@ -207,7 +207,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
     )
 
     var failures, successes = 0
-    val action: IO[Int] = IO {
+    val action: IO[Int]     = IO {
       if (failures == 5) {
         successes += 1
         successes

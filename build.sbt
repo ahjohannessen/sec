@@ -168,7 +168,7 @@ inThisBuild(
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
-      env = Map(
+      env      = Map(
         "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
       )
     ),
@@ -183,7 +183,7 @@ inThisBuild(
       ),
       WorkflowStep.Use(
         UseRef.Public("nick-invision", "retry", "v2"),
-        name = Some("Single node integration tests"),
+        name   = Some("Single node integration tests"),
         params = Map(
           "timeout_minutes" -> "20",
           "max_attempts"    -> "3",
@@ -204,13 +204,13 @@ inThisBuild(
       WorkflowStep.Run(
         name     = Some("Start Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh up -d", "popd"),
-        env = Map(
+        env      = Map(
           "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
         )
       ),
       WorkflowStep.Use(
         UseRef.Public("nick-invision", "retry", "v2"),
-        name = Some("Cluster integration tests"),
+        name   = Some("Cluster integration tests"),
         params = Map(
           "timeout_minutes" -> "10",
           "max_attempts"    -> "10",

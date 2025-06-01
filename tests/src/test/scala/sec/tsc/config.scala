@@ -190,10 +190,10 @@ class ConfigSuite extends SecSuite:
     test("no config") {
 
       mkBuilder[ErrorOr](ConfigFactory.parseString(""), noopL, noopR) match {
-        case Left(e) => fail(e.getMessage, e)
+        case Left(e)       => fail(e.getMessage, e)
         case Right(either) =>
           either match {
-            case Left(_) => fail("did not expect cluster builder")
+            case Left(_)  => fail("did not expect cluster builder")
             case Right(s) =>
               assertEquals(s.authority, None)
               assertEquals(s.endpoint, Endpoint("127.0.0.1", 2113))
@@ -211,10 +211,10 @@ class ConfigSuite extends SecSuite:
           |""".stripMargin)
 
       mkBuilder[ErrorOr](cfg, noopL, noopR) match {
-        case Left(e) => fail(e.getMessage, e)
+        case Left(e)       => fail(e.getMessage, e)
         case Right(either) =>
           either match {
-            case Left(_) => fail("did not expect cluster builder")
+            case Left(_)  => fail("did not expect cluster builder")
             case Right(s) =>
               assertEquals(s.authority, Some("example.org"))
               assertEquals(s.endpoint, Endpoint("10.0.0.2", 2113))
@@ -234,11 +234,11 @@ class ConfigSuite extends SecSuite:
       )
 
       mkBuilder[ErrorOr](cfg1, noopL, noopR) match {
-        case Left(e) => fail(e.getMessage, e)
+        case Left(e)       => fail(e.getMessage, e)
         case Right(either) =>
           either match {
             case Right(_) => fail("did not expect single node builder")
-            case Left(c) =>
+            case Left(c)  =>
               assertEquals(c.authority, "example.org")
               assertEquals(c.endpoints, ClusterEndpoints.ViaDns(host"rendezvous.example.org"))
           }
@@ -253,11 +253,11 @@ class ConfigSuite extends SecSuite:
       )
 
       mkBuilder[ErrorOr](cfg2, noopL, noopR) match {
-        case Left(e) => fail(e.getMessage, e)
+        case Left(e)       => fail(e.getMessage, e)
         case Right(either) =>
           either match {
             case Right(_) => fail("did not expect single node builder")
-            case Left(c) =>
+            case Left(c)  =>
               assertEquals(c.authority, "example.org")
               assertEquals(
                 c.endpoints,

@@ -107,7 +107,7 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances:
           store        <- Stream.eval(Ref.of[IO, List[ClusterInfo]](Nil))
           readFn        = readCountRef.update(_ + 1) *> IO.raiseError(err) *> IO(ClusterInfo(Set.empty))
           log          <- Stream.eval(mkLog)
-          _ <- Stream
+          _            <- Stream
                  .resource(ClusterWatch.create[IO](readFn, options, recordingCache(store), log))
                  .map(_ => -1)
                  .handleErrorWith(_ => Stream.eval(readCountRef.get))
@@ -181,7 +181,7 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances:
 
   group("ClusterWatch.resolveSeed") {
 
-    val maxAttempts = 5
+    val maxAttempts    = 5
     val clusterOptions = ClusterOptions.default
       .withMaxDiscoverAttempts(maxAttempts.some)
       .withRetryDelay(150.millis)
@@ -199,7 +199,7 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances:
     def resolveFn(ref: Ref[IO, Int], returnAfter: Int): Hostname => IO[List[Endpoint]] = hn =>
       hn.toString match {
         case "fail.org" => IO.raiseError(new RuntimeException("OhNoes"))
-        case _ =>
+        case _          =>
           ref.updateAndGet(_ + 1) >>= { c =>
             if (returnAfter <= c) IO(List(ep1, ep2, ep3)) else IO(Nil)
           }

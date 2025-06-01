@@ -35,7 +35,7 @@ extension (bs: ByteString)
 
 extension [A](o: Option[A])
 
-  private[sec] def require[F[_]: ApplicativeThrow](value: String): F[A] = require[F](value, None)
+  private[sec] def require[F[_]: ApplicativeThrow](value: String): F[A]                    = require[F](value, None)
   private[sec] def require[F[_]: ApplicativeThrow](value: String, details: Option[String]) =
     def extra = details.map(d => s" $d").getOrElse("")
     def msg   = s"Required value $value missing or invalid.$extra"
