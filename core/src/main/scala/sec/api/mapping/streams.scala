@@ -483,9 +483,9 @@ private[sec] object streams:
       final case class LastPositionR(position: LogPosition) extends AllResult
 
       def fromWire[F[_]](p: ReadResp)(implicit F: MonadThrow[F]): F[AllResult] = p.content match
-        case c.Event(v)        => mkEvent[F](v).map(EventR(_))
-        case c.Checkpoint(v)   => mkCheckpoint[F](v).map(CheckpointR(_))
-        case c.Confirmation(v) => F.pure(ConfirmationR(SubscriptionConfirmation(v.subscriptionId)))
+        case c.Event(v)                 => mkEvent[F](v).map(EventR(_))
+        case c.Checkpoint(v)            => mkCheckpoint[F](v).map(CheckpointR(_))
+        case c.Confirmation(v)          => F.pure(ConfirmationR(SubscriptionConfirmation(v.subscriptionId)))
         case c.LastAllStreamPosition(v) =>
           v.toLogPosition.leftMap(e => ProtoResultError(e.msg)).liftTo[F].map(LastPositionR(_))
         case m => F.raiseError(ProtoResultError(s"Unexpected response for AllResult: $m"))

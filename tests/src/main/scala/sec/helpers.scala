@@ -48,8 +48,8 @@ object helpers:
 
     //
 
-    final private val basePattern: Pattern = Pattern.compile("([A-Z]+)([A-Z][a-z])")
-    final private val swapPattern: Pattern = Pattern.compile("([a-z\\d])([A-Z])")
+    final private val basePattern: Pattern  = Pattern.compile("([A-Z]+)([A-Z][a-z])")
+    final private val swapPattern: Pattern  = Pattern.compile("([a-z\\d])([A-Z])")
     final val mkSnakeCase: String => String = s =>
       val partial = basePattern.matcher(s).replaceAll("$1_$2")
       swapPattern.matcher(partial).replaceAll("$1_$2").toLowerCase

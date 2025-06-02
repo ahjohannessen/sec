@@ -52,7 +52,7 @@ class RetriesSuite extends SecEffectSuite with TestInstances:
       timeout       = None
     )
 
-    var attempts = 0
+    var attempts        = 0
     val action: IO[Int] = IO {
       attempts += 1
       attempts

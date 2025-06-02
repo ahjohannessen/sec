@@ -32,7 +32,7 @@ object CSuite:
   final private val certsFolder = new File(sys.env.getOrElse("SEC_CIT_CERTS_PATH", BuildInfo.certsPath))
   final private val ca          = new File(certsFolder, "ca/ca.crt")
   final private val authority   = sys.env.getOrElse("SEC_CIT_AUTHORITY", "es.sec.local")
-  final private val seed = NonEmptySet.of(
+  final private val seed        = NonEmptySet.of(
     endpointFrom("SEC_CLUSTER_ES1_ADDRESS", "SEC_CIT_ES1_PORT", "127.0.0.1", 2114),
     endpointFrom("SEC_CLUSTER_ES2_ADDRESS", "SEC_CIT_ES2_PORT", "127.0.0.1", 2115),
     endpointFrom("SEC_CLUSTER_ES3_ADDRESS", "SEC_CIT_ES3_PORT", "127.0.0.1", 2116)

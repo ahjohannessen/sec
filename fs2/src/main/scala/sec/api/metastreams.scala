@@ -283,14 +283,14 @@ object MetaStreams:
 
   // ====================================================================================================================
 
-  private[sec] def apply[F[_]: Sync](s: Streams[F]): MetaStreams[F] = MetaStreams[F](MetaRW[F](s))
+  private[sec] def apply[F[_]: Sync](s: Streams[F]): MetaStreams[F]                  = MetaStreams[F](MetaRW[F](s))
   private[sec] def apply[F[_]](meta: MetaRW[F])(implicit F: Sync[F]): MetaStreams[F] = new MetaStreams[F] {
 
     // ==================================================================================================================
 
-    def getMaxAge(id: Id): F[Option[ReadResult[MaxAge]]]               = getResult(id, _.maxAge)
-    def setMaxAge(id: Id, es: StreamState, ma: MaxAge): F[WriteResult] = setMaxAge(id, es, ma.some)
-    def unsetMaxAge(id: Id, es: StreamState): F[WriteResult]           = setMaxAge(id, es, None)
+    def getMaxAge(id: Id): F[Option[ReadResult[MaxAge]]]                       = getResult(id, _.maxAge)
+    def setMaxAge(id: Id, es: StreamState, ma: MaxAge): F[WriteResult]         = setMaxAge(id, es, ma.some)
+    def unsetMaxAge(id: Id, es: StreamState): F[WriteResult]                   = setMaxAge(id, es, None)
     def setMaxAge(id: Id, es: StreamState, ma: Option[MaxAge]): F[WriteResult] =
       modify(id, es, _.setMaxAge(ma))
 
@@ -300,9 +300,9 @@ object MetaStreams:
     def setMaxCount(id: Id, es: StreamState, mc: Option[MaxCount]): F[WriteResult] =
       modify(id, es, _.setMaxCount(mc))
 
-    def getCacheControl(id: Id): F[Option[ReadResult[CacheControl]]]               = getResult(id, _.cacheControl)
-    def setCacheControl(id: Id, es: StreamState, cc: CacheControl): F[WriteResult] = setCControl(id, es, cc.some)
-    def unsetCacheControl(id: Id, es: StreamState): F[WriteResult]                 = setCControl(id, es, None)
+    def getCacheControl(id: Id): F[Option[ReadResult[CacheControl]]]                   = getResult(id, _.cacheControl)
+    def setCacheControl(id: Id, es: StreamState, cc: CacheControl): F[WriteResult]     = setCControl(id, es, cc.some)
+    def unsetCacheControl(id: Id, es: StreamState): F[WriteResult]                     = setCControl(id, es, None)
     def setCControl(id: Id, es: StreamState, cc: Option[CacheControl]): F[WriteResult] =
       modify(id, es, _.setCacheControl(cc))
 
