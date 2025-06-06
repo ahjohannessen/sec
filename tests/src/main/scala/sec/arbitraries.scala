@@ -32,11 +32,11 @@ import StreamState.{Any, NoStream, StreamExists}
 
 object arbitraries {
 
-  final def sampleOf[T](implicit ev: Arbitrary[T]): T =
+  final def sampleOf[T](using ev: Arbitrary[T]): T =
     sampleOfGen(ev.arbitrary)
 
   @tailrec
-  final def sampleOfGen[T](implicit g: Gen[T]): T = g.sample match
+  final def sampleOfGen[T](g: Gen[T]): T = g.sample match
     case Some(t) => t
     case None    => sampleOfGen[T](g)
 
@@ -56,7 +56,7 @@ object arbitraries {
     Arbitrary(arbitrary[Long].map(new ULong(_)))
 
   given arbStreamPositionExact: Arbitrary[StreamPosition.Exact] =
-    Arbitrary[StreamPosition.Exact](arbitrary(ulong).map(StreamPosition.Exact(_)))
+    Arbitrary[StreamPosition.Exact](arbitrary(using ulong).map(StreamPosition.Exact(_)))
 
   given arbStreamPosition: Arbitrary[StreamPosition] =
     Arbitrary[StreamPosition](Gen.oneOf(List(StreamPosition.End, sampleOf[StreamPosition.Exact])))
