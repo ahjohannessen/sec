@@ -1,7 +1,7 @@
 
 services:
 
-  es:
+  kdb:
     image: "$KURRENTDB_IMAGE"
     env_file:
       - ./shared.env
