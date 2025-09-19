@@ -5,7 +5,7 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 Global / lintUnusedKeysOnLoad := false
 
-lazy val Scala3 = "3.6.4"
+lazy val Scala3 = "3.7.3"
 
 lazy val sec = project
   .in(file("."))
@@ -138,6 +138,7 @@ lazy val docs = project
 lazy val commonSettings = Seq(
   scalaVersion := Scala3,
   scalacOptions ~= (_.filterNot(_ == "-Ykind-projector:underscores")),
+  scalacOptions ++= Seq("-Wconf:msg=unused implicit parameter in extension method:s"),
   Compile / doc / scalacOptions ~= (_.filterNot(_ == "-Xfatal-warnings"))
 )
 
