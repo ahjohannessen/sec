@@ -1,6 +1,6 @@
 addSbtPlugin("org.typelevel" % "sbt-typelevel"         % "0.8.2")
 addSbtPlugin("org.typelevel" % "sbt-typelevel-mergify" % "0.8.2")
-addSbtPlugin("org.typelevel" % "sbt-fs2-grpc"          % "2.10.0")
+addSbtPlugin("org.typelevel" % "sbt-fs2-grpc"          % "2.11.0")
 addSbtPlugin("io.spray"      % "sbt-revolver"          % "0.10.0")
 addSbtPlugin("com.eed3si9n"  % "sbt-buildinfo"         % "0.13.1")
 addSbtPlugin("org.scalameta" % "sbt-mdoc"              % "2.8.0")
