@@ -219,11 +219,11 @@ object Streams:
     opts: Opts[F]
   ): Streams[F] = new Streams[F]:
 
-    private val ctx    = mkCtx(None)
-    private val read   = client.read(_, ctx)
-    private val append = client.append(_, ctx)
-    private val delete = client.delete(_, ctx)
-    private val tomb   = client.tombstone(_, ctx)
+    private given C = mkCtx(None)
+    private val read   = client.read(_)
+    private val append = client.append(_)
+    private val delete = client.delete(_)
+    private val tomb   = client.tombstone(_)
 
     private val subscriptionOpts: Opts[F] =
       opts.copy(retryOn = th => opts.retryOn(th) || th.isInstanceOf[ResubscriptionRequired])
