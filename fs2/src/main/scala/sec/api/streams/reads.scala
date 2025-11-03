@@ -81,12 +81,13 @@ object Reads:
     client: StreamsFs2Grpc[F, C],
     mkCtx: Option[UserCredentials] => C
   ): Reads[F] = new Reads[F]:
+    given C = mkCtx(None)
 
     val readAll: ReadReq => Stream[F, mi.AllResult] =
-      client.read(_, mkCtx(None)).evalMap(mi.AllResult.fromWire[F])
+      client.read(_).evalMap(mi.AllResult.fromWire[F])
 
     val readStream: ReadReq => Stream[F, mi.StreamResult] =
-      client.read(_, mkCtx(None)).evalMap(mi.StreamResult.fromWire[F])
+      client.read(_).evalMap(mi.StreamResult.fromWire[F])
 
     def readAllMessages(
       from: LogPosition,

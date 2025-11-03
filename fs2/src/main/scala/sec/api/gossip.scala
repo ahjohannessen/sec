@@ -49,7 +49,8 @@ object Gossip:
     mkCtx: Option[UserCredentials] => C,
     opts: Opts[F]
   ): Gossip[F] = new Gossip[F]:
-    val read: F[ClusterInfo]                               = read0(opts)(client.read(Empty(), mkCtx(None)))
+    private given C = mkCtx(None)
+    val read: F[ClusterInfo]                               = read0(opts)(client.read(Empty()))
     def withCredentials(creds: UserCredentials): Gossip[F] = Gossip[F, C](client, _ => mkCtx(creds.some), opts)
 
   private[sec] def read0[F[_]: Temporal](o: Opts[F])(f: F[PClusterInfo]): F[ClusterInfo] =

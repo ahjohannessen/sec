@@ -50,7 +50,9 @@ lazy val `fs2-core` = project
     scalapbCodeGeneratorOptions ++= Seq(
       CodeGeneratorOption.FlatPackage,
       CodeGeneratorOption.NoLenses,
-      CodeGeneratorOption.Scala3Sources
+      CodeGeneratorOption.Scala3Sources,
+      CodeGeneratorOption.Fs2GrpcDisableTrailers,
+      CodeGeneratorOption.Fs2GrpcRenderContextAsImplicit
     ),
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf")
   )
