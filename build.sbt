@@ -148,7 +148,7 @@ inThisBuild(
   List(
     scalaVersion := Scala3,
     versionScheme := Some("early-semver"),
-    tlBaseVersion := "0.48",
+    tlBaseVersion := "0.50",
     mergifyStewardConfig ~= { _.map(_.withMergeMinors(true).withAuthor("scala-steward-ahjohannessen[bot]")) },
     organization := "io.github.ahjohannessen",
     organizationName := "Scala Event Sourcing Client for KurrentDB",
