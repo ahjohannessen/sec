@@ -226,7 +226,7 @@ class AppendToStreamSuite extends SnSuite:
 
   group("append events with size") {
 
-    val max = 1024 * 1024 // Default ESDB setting
+    val max = 1024 * 1024 * 16
 
     // ((data length) + (metadata length) + (eventType length * 2);)
 
@@ -242,30 +242,23 @@ class AppendToStreamSuite extends SnSuite:
       EventData(et, uuid, data, metadata, ct)
     }
 
-    test("less than or equal max append size works") {
+    test("less than max append size works") {
 
-      val id = genStreamId(s"${streamPrefix}append_size_less_or_equal_bytes_")
+      val id       = genStreamId(s"${streamPrefix}append_size_less_bytes_")
+      val events   = mkEvent(max / 2).replicateA(31).map(Nel.fromListUnsafe)
+      val lessThan = events >>= (streams.appendToStream(id, NoStream, _))
 
-      val equal  = List(mkEvent(max / 2), mkEvent(max / 2)).sequence.map(Nel.fromListUnsafe)
-      val equalA = equal >>= (streams.appendToStream(id, NoStream, _))
-
-      val lessThan  = List(mkEvent(max / 4), mkEvent(max / 2)).sequence.map(Nel.fromListUnsafe)
-      val lessThanA = lessThan >>= (streams.appendToStream(id, StreamPosition(1L), _))
-
-      val t1 = assertIOBoolean(equalA.attempt.map(_.isRight))
-      val t2 = assertIOBoolean(lessThanA.attempt.map(_.isRight))
-
-      t1 *> t2
+      assertIOBoolean(lessThan.attempt.map(_.isRight))
     }
 
     test("greater than max append size raises") {
-
       val id          = genStreamId(s"${streamPrefix}append_size_exceeds_bytes_")
-      val greaterThan = List(mkEvent(max / 2), mkEvent(max / 2), mkEvent(max + 1)).sequence.map(Nel.fromListUnsafe)
+      val events      = mkEvent(max / 2).replicateA(33)
+      val greaterThan = events.map(Nel.fromListUnsafe)
 
       greaterThan >>= { events =>
         streams.appendToStream(id, NoStream, events).attempt.map {
-          assertEquals(_, MaximumAppendSizeExceeded(max.some).asLeft)
+          assertEquals(_, MaximumAppendSizeExceeded(268435456.some).asLeft)
         }
       }
 

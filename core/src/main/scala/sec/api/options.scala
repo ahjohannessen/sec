@@ -32,7 +32,8 @@ private[sec] case class Options(
   connectionMode: ConnectionMode,
   channelShutdownAwait: FiniteDuration,
   prefetchN: Int,
-  httpPort: Port
+  httpPort: Port,
+  maxInboundMessageSize: Int
 )
 
 private[sec] object Options:
@@ -40,13 +41,14 @@ private[sec] object Options:
   import ConnectionMode.*
 
   val default: Options = Options(
-    connectionName       = "sec-client",
-    credentials          = UserCredentials.unsafe("admin", "changeit").some,
-    operationOptions     = OperationOptions.default,
-    connectionMode       = Insecure,
-    channelShutdownAwait = 5.seconds,
-    prefetchN            = 512,
-    httpPort             = port"2113"
+    connectionName        = "sec-client",
+    credentials           = UserCredentials.unsafe("admin", "changeit").some,
+    operationOptions      = OperationOptions.default,
+    connectionMode        = Insecure,
+    channelShutdownAwait  = 5.seconds,
+    prefetchN             = 512,
+    httpPort              = port"2113",
+    maxInboundMessageSize = 8 * 1024 * 1024 // 8MB
   )
 
   extension (o: Options)
@@ -62,6 +64,7 @@ private[sec] object Options:
     def withChannelShutdownAwait(await: FiniteDuration): Options    = o.copy(channelShutdownAwait = await)
     def withPrefetchN(n: Int)                                       = o.copy(prefetchN = math.max(n, 1))
     def withHttpPort(port: Port): Options                           = o.copy(httpPort = port)
+    def withMaxInboundMessageSize(bytes: Int)                       = o.copy(maxInboundMessageSize = bytes)
     def withOperationsRetryDelay(delay: FiniteDuration): Options    = modifyOO(_.copy(retryDelay = delay))
     def withOperationsRetryMaxDelay(delay: FiniteDuration): Options = modifyOO(_.copy(retryMaxDelay = delay))
     def withOperationsRetryMaxAttempts(max: Int): Options           = modifyOO(_.copy(retryMaxAttempts = max))
@@ -138,16 +141,25 @@ private[sec] object OperationOptions:
 
 final private[sec] case class ChannelBuilderParams(
   targetOrEndpoint: Either[String, Endpoint],
-  creds: Option[ChannelCredentials]
+  creds: Option[ChannelCredentials],
+  maxInboundMessageSize: Int
 )
 
 private[sec] object ChannelBuilderParams:
 
-  def apply(target: String, creds: Option[ChannelCredentials]): ChannelBuilderParams =
-    ChannelBuilderParams(target.asLeft, creds)
+  def apply(
+    target: String,
+    creds: Option[ChannelCredentials],
+    maxInboundMessageSize: Int
+  ): ChannelBuilderParams =
+    ChannelBuilderParams(target.asLeft, creds, maxInboundMessageSize)
 
-  def apply(endpoint: Endpoint, creds: Option[ChannelCredentials]): ChannelBuilderParams =
-    ChannelBuilderParams(endpoint.asRight, creds)
+  def apply(
+    endpoint: Endpoint,
+    creds: Option[ChannelCredentials],
+    maxInboundMessageSize: Int
+  ): ChannelBuilderParams =
+    ChannelBuilderParams(endpoint.asRight, creds, maxInboundMessageSize)
 
 //======================================================================================================================
 
@@ -161,6 +173,7 @@ private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]]:
   def withCredentials(value: Option[UserCredentials]): B    = modOptions(_.withCredentials(value))
   def withChannelShutdownAwait(value: FiniteDuration): B    = modOptions(_.withChannelShutdownAwait(value))
   def withPrefetchN(value: Int)                             = modOptions(_.withPrefetchN(value))
+  def withMaxInboundMessageSize(bytes: Int): B              = modOptions(_.withMaxInboundMessageSize(bytes))
   def withOperationsRetryDelay(value: FiniteDuration): B    = modOptions(_.withOperationsRetryDelay(value))
   def withOperationsRetryMaxDelay(value: FiniteDuration): B = modOptions(_.withOperationsRetryMaxDelay(value))
   def withOperationsRetryMaxAttempts(value: Int): B         = modOptions(_.withOperationsRetryMaxAttempts(value))

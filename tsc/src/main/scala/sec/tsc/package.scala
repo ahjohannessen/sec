@@ -171,6 +171,7 @@ private[sec] object config:
       certificate,
       credentials,
       o => cfg.durationOpt(s"$rootPath.channel-shutdown-await").fold(o)(o.withChannelShutdownAwait),
+      o => cfg.option(s"$rootPath.max-inbound-message-size", _.getInt).fold(o)(o.withMaxInboundMessageSize),
       o => cfg.option(s"$rootPath.prefetch-n-messages", _.getInt).fold(o)(o.withPrefetchN),
       o => cfg.portOpt(s"$rootPath.port").fold(o)(o.withHttpPort),
       o => cfg.option(s"$ooPath.retry-enabled", _.getBoolean).fold(o)(o.withOperationsRetryEnabled),
