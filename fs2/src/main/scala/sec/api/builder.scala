@@ -55,7 +55,7 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
     F: Async[F]): Resource[F, EsClient[F]] = {
 
     val mkChannelBuilderParams: F[ChannelBuilderParams] =
-      mkCredentials(options.connectionMode).map(ChannelBuilderParams(endpoint, _))
+      mkCredentials(options.connectionMode).map(ChannelBuilderParams(endpoint, _, options.maxInboundMessageSize))
 
     val makeClient: MCB => Resource[F, EsClient[F]] = builder =>
 
@@ -116,7 +116,9 @@ class ClusterBuilder[F[_]] private (
     val log: Logger[F] = logger.withModifiedString(s => s"Cluster > $s")
 
     val builderForTarget: String => F[MCB] = t =>
-      mkCredentials(options.connectionMode) >>= { cc => mcb(ChannelBuilderParams(t, cc)) }
+      mkCredentials(options.connectionMode) >>= { cc =>
+        mcb(ChannelBuilderParams(t, cc, options.maxInboundMessageSize))
+      }
 
     def gossipFn(mc: ManagedChannel): Resource[F, Gossip[F]] = EsClient
       .mkGossipFs2Grpc[F](mc)

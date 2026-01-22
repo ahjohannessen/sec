@@ -288,13 +288,14 @@ class ConfigSuite extends SecSuite:
         """
           | sec {
           | 
-          |   connection-name        = "config-client"
-          |   certificate-path       = "path/to/certificate"
-          |   username               = "mr"
-          |   password               = "mr"
-          |   channel-shutdown-await = 20s
-          |   prefetch-n-messages    = 1
-          |   port                   = 2115
+          |   connection-name          = "config-client"
+          |   certificate-path         = "path/to/certificate"
+          |   username                 = "mr"
+          |   password                 = "mr"
+          |   channel-shutdown-await   = 20s
+          |   prefetch-n-messages      = 1
+              max-inbound-message-size = 16777216
+          |   port                     = 2115
           | 
           |   operations {
           |   
@@ -315,6 +316,7 @@ class ConfigSuite extends SecSuite:
         .withCredentials(UserCredentials("mr", "mr").toOption)
         .withChannelShutdownAwait(20.seconds)
         .withPrefetchN(1)
+        .withMaxInboundMessageSize(16777216)
         .withHttpPort(port"2115")
         .withOperationsRetryEnabled(false)
         .withOperationsRetryDelay(2500.millis)

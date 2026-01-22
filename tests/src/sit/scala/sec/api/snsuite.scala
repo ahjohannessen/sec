@@ -60,5 +60,6 @@ object SnSuite:
     .withCertificate(cert)
     .withChannelShutdownAwait(200.millis)
     .withPrefetchN(4096)
+    .withMaxInboundMessageSize(16 * 1024 * 1024)
     .withLogger(log)
     .resource
