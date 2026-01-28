@@ -17,6 +17,7 @@
 package sec
 
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 import cats.syntax.all.*
 
@@ -35,22 +36,22 @@ private[sec] object utilities:
   def format(duration: Duration): String =
 
     def chooseUnit(fd: FiniteDuration): TimeUnit =
-      if (fd.toDays > 0) DAYS
-      else if (fd.toHours > 0) HOURS
-      else if (fd.toMinutes > 0) MINUTES
-      else if (fd.toSeconds > 0) SECONDS
-      else if (fd.toMillis > 0) MILLISECONDS
-      else if (fd.toMicros > 0) MICROSECONDS
-      else NANOSECONDS
+      if (fd.toDays > 0) TimeUnit.DAYS
+      else if (fd.toHours > 0) TimeUnit.HOURS
+      else if (fd.toMinutes > 0) TimeUnit.MINUTES
+      else if (fd.toSeconds > 0) TimeUnit.SECONDS
+      else if (fd.toMillis > 0) TimeUnit.MILLISECONDS
+      else if (fd.toMicros > 0) TimeUnit.MICROSECONDS
+      else TimeUnit.NANOSECONDS
 
-    def abbreviate(unit: TimeUnit): String = unit match
-      case NANOSECONDS  => "ns"
-      case MICROSECONDS => "μs"
-      case MILLISECONDS => "ms"
-      case SECONDS      => "s"
-      case MINUTES      => "m"
-      case HOURS        => "h"
-      case DAYS         => "d"
+    def abbreviate(tu: TimeUnit): String = tu match
+      case TimeUnit.NANOSECONDS  => "ns"
+      case TimeUnit.MICROSECONDS => "μs"
+      case TimeUnit.MILLISECONDS => "ms"
+      case TimeUnit.SECONDS      => "s"
+      case TimeUnit.MINUTES      => "m"
+      case TimeUnit.HOURS        => "h"
+      case TimeUnit.DAYS         => "d"
 
     def format(d: FiniteDuration): String =
 
