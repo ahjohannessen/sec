@@ -5,7 +5,8 @@ import Dependencies._
 Global / onChangedBuildSource := ReloadOnSourceChanges
 Global / lintUnusedKeysOnLoad := false
 
-lazy val Scala3 = "3.7.4"
+lazy val Scala3     = "3.8.1"
+lazy val jdkRelease = 21
 
 lazy val sec = project
   .in(file("."))
@@ -139,6 +140,7 @@ lazy val docs = project
 
 lazy val commonSettings = Seq(
   scalaVersion := Scala3,
+  tlJdkRelease := Some(jdkRelease),
   scalacOptions ~= (_.filterNot(_ == "-Ykind-projector:underscores")),
   scalacOptions ++= Seq("-Wconf:msg=unused implicit parameter in extension method:s"),
   Compile / doc / scalacOptions ~= (_.filterNot(_ == "-Xfatal-warnings"))
@@ -148,7 +150,7 @@ inThisBuild(
   List(
     scalaVersion := Scala3,
     versionScheme := Some("early-semver"),
-    tlBaseVersion := "0.50",
+    tlBaseVersion := "0.60",
     mergifyStewardConfig ~= { _.map(_.withMergeMinors(true).withAuthor("scala-steward-ahjohannessen[bot]")) },
     organization := "io.github.ahjohannessen",
     organizationName := "Scala Event Sourcing Client for KurrentDB",
@@ -167,7 +169,7 @@ addCommandAlias("compileDocs", "docs/mdoc")
 inThisBuild(
   List(
     githubWorkflowTargetBranches := Seq("main"),
-    githubWorkflowJavaVersions := Seq(JavaSpec.temurin("21")),
+    githubWorkflowJavaVersions := Seq(JavaSpec.temurin(jdkRelease.toString())),
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
