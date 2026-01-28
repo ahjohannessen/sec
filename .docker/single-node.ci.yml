@@ -2,7 +2,7 @@
 services:
 
   kdb:
-    image: "$KURRENTDB_IMAGE"
+    image: "$KDB_IMAGE"
     env_file:
       - ./shared.env
     environment:
@@ -11,7 +11,7 @@ services:
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
     ports:
-      - 2113:2113
+      - "2113:2113"
     networks:
       kdb_single_network:
         ipv4_address: "$SEC_SN_IP"
@@ -22,6 +22,7 @@ services:
 networks:
   kdb_single_network:
     name: kdb-single-net
+    driver: bridge
     ipam:
       driver: default
       config:

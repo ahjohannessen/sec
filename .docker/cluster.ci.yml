@@ -4,7 +4,7 @@ x-common-variables: &common-variables
 services:
 
   kdb1:
-    image: "$KURRENTDB_IMAGE"
+    image: "$KDB_IMAGE"
     env_file:
       - ./shared.env
     environment:
@@ -14,7 +14,7 @@ services:
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
     ports:
-      - 2114:2113
+      - "2114:2113"
     networks:
       kdb_cluster_network:
         ipv4_address: "$SEC_CL_1_IP"
@@ -23,7 +23,7 @@ services:
     restart: on-failure:10
 
   kdb2:
-    image: "$KURRENTDB_IMAGE"
+    image: "$KDB_IMAGE"
     env_file:
       - ./shared.env
     environment:
@@ -33,7 +33,7 @@ services:
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
     ports:
-      - 2115:2113
+      - "2115:2113"
     networks:
       kdb_cluster_network:
         ipv4_address: "$SEC_CL_2_IP"
@@ -42,7 +42,7 @@ services:
     restart: on-failure:10
 
   kdb3:
-    image: "$KURRENTDB_IMAGE"
+    image: "$KDB_IMAGE"
     env_file:
       - ./shared.env
     environment:
@@ -52,7 +52,7 @@ services:
     volumes:
       - "$SEC_GENCERT_CERTS_PATH:/certs"
     ports:
-      - 2116:2113
+      - "2116:2113"
     networks:
       kdb_cluster_network:
         ipv4_address: "$SEC_CL_3_IP"
@@ -63,6 +63,7 @@ services:
 networks:
   kdb_cluster_network:
     name: kdb-cluster-net
+    driver: bridge
     ipam:
       driver: default
       config:
