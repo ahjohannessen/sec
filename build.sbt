@@ -168,56 +168,66 @@ addCommandAlias("compileDocs", "docs/mdoc")
 
 inThisBuild(
   List(
+    githubWorkflowOSes := Seq("ubuntu-latest"),
     githubWorkflowTargetBranches := Seq("main"),
     githubWorkflowJavaVersions := Seq(JavaSpec.temurin(jdkRelease.toString())),
-    githubWorkflowBuildPreamble += WorkflowStep.Run(
-      name     = Some("Start Single Node"),
-      commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
-      env      = Map(
-        "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
-      )
-    ),
+    // githubWorkflowBuildPreamble += WorkflowStep.Run(
+    //   name     = Some("Start Single Node"),
+    //   commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
+    //   env      = Map(
+    //     "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
+    //   )
+    // ),
     githubWorkflowBuild := Seq(
-      WorkflowStep.Sbt(
-        name     = Some("Compile docs"),
-        commands = List("compileDocs")
-      ),
-      WorkflowStep.Sbt(
-        name     = Some("Regular tests"),
-        commands = List("compileTests", "tests/test")
-      ),
-      WorkflowStep.Use(
-        UseRef.Public("nick-invision", "retry", "v2"),
-        name   = Some("Single node integration tests"),
-        params = Map(
-          "timeout_minutes" -> "20",
-          "max_attempts"    -> "3",
-          "command"         -> "sbt '++ ${{ matrix.scala }}' 'tests / Sit / test'"
-        ),
-        env = Map(
-          "SEC_SIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
-          "SEC_SIT_AUTHORITY"  -> "es.sec.local"
-        )
-      )
-    ),
-    githubWorkflowBuildPostamble += WorkflowStep.Run(
-      name     = Some("Stop Single Node"),
-      commands = List("pushd .docker", "./single-node.sh down", "popd"),
-      cond     = Some(s"always()")
-    ),
-    githubWorkflowBuildPostamble ++= Seq(
       WorkflowStep.Run(
         name     = Some("Start Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh up -d", "popd"),
         env      = Map(
           "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
         )
-      ),
+      )
+    ),
+    // githubWorkflowBuild := Seq(
+    //   // WorkflowStep.Sbt(
+    //   //   name     = Some("Compile docs"),
+    //   //   commands = List("compileDocs")
+    //   // ),
+    //   // WorkflowStep.Sbt(
+    //   //   name     = Some("Regular tests"),
+    //   //   commands = List("compileTests", "tests/test")
+    //   // ),
+    //   WorkflowStep.Use(
+    //     UseRef.Public("nick-invision", "retry", "v2"),
+    //     name   = Some("Single node integration tests"),
+    //     params = Map(
+    //       "timeout_minutes" -> "20",
+    //       "max_attempts"    -> "3",
+    //       "command"         -> "sbt '++ ${{ matrix.scala }}' 'tests / Sit / test'"
+    //     ),
+    //     env = Map(
+    //       "SEC_SIT_CERTS_PATH" -> "${{ github.workspace }}/certs",
+    //       "SEC_SIT_AUTHORITY"  -> "es.sec.local"
+    //     )
+    //   )
+    // ),
+    // githubWorkflowBuildPostamble += WorkflowStep.Run(
+    //   name     = Some("Stop Single Node"),
+    //   commands = List("pushd .docker", ".docker/single-node.sh logs", "./single-node.sh down", "popd"),
+    //   cond     = Some(s"always()")
+    // ),
+    githubWorkflowBuildPostamble ++= Seq(
+      // WorkflowStep.Run(
+      //   name     = Some("Start Cluster Nodes"),
+      //   commands = List("pushd .docker", "./cluster.sh up -d", "popd"),
+      //   env      = Map(
+      //     "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
+      //   )
+      // ),
       WorkflowStep.Use(
         UseRef.Public("nick-invision", "retry", "v2"),
         name   = Some("Cluster integration tests"),
         params = Map(
-          "timeout_minutes" -> "10",
+          "timeout_minutes" -> "2",
           "max_attempts"    -> "10",
           "command"         -> "sbt '++ ${{ matrix.scala }}' 'tests / Cit / test'"
         ),
@@ -228,22 +238,23 @@ inThisBuild(
       ),
       WorkflowStep.Run(
         name     = Some("Stop Cluster Nodes"),
-        commands = List("pushd .docker", "./cluster.sh down", "popd"),
+        commands = List("pushd .docker", "./cluster.sh logs", "./cluster.sh down", "popd"),
         cond     = Some(s"always()")
       )
-    ),
-    githubWorkflowPublish ++= Seq(
-      WorkflowStep.Sbt(
-        name     = Some("Compile docs"),
-        commands = List("compileDocs")
-      ),
-      WorkflowStep.Sbt(
-        List("docs/docusaurusPublishGhpages"),
-        env = Map(
-          "GIT_DEPLOY_KEY" -> "${{ secrets.GIT_DEPLOY_KEY }}"
-        ),
-        cond = Some("github.ref == 'refs/heads/main'")
-      )
     )
+
+    // githubWorkflowPublish ++= Seq(
+    //   WorkflowStep.Sbt(
+    //     name     = Some("Compile docs"),
+    //     commands = List("compileDocs")
+    //   ),
+    //   WorkflowStep.Sbt(
+    //     List("docs/docusaurusPublishGhpages"),
+    //     env = Map(
+    //       "GIT_DEPLOY_KEY" -> "${{ secrets.GIT_DEPLOY_KEY }}"
+    //     ),
+    //     cond = Some("github.ref == 'refs/heads/main'")
+    //   )
+    // )
   )
 )

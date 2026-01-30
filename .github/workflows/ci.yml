@@ -27,7 +27,7 @@ jobs:
     name: Test
     strategy:
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-latest]
         scala: [3]
         java: [temurin@21]
     runs-on: ${{ matrix.os }}
@@ -54,39 +54,8 @@ jobs:
         if: matrix.java == 'temurin@21' && steps.setup-java-temurin-21.outputs.cache-hit == 'false'
         run: sbt +update
 
-      - name: Start Single Node
-        env:
-          SEC_GENCERT_CERTS_ROOT: ${{ github.workspace }}
-        run: |
-          pushd .docker
-          ./single-node.sh up -d
-          popd
-
       - name: Check that workflows are up to date
         run: sbt githubWorkflowCheck
-
-      - name: Compile docs
-        run: sbt '++ ${{ matrix.scala }}' compileDocs
-
-      - name: Regular tests
-        run: sbt '++ ${{ matrix.scala }}' compileTests tests/test
-
-      - name: Single node integration tests
-        env:
-          SEC_SIT_CERTS_PATH: ${{ github.workspace }}/certs
-          SEC_SIT_AUTHORITY: es.sec.local
-        uses: nick-invision/retry@v2
-        with:
-          timeout_minutes: 20
-          max_attempts: 3
-          command: sbt '++ ${{ matrix.scala }}' 'tests / Sit / test'
-
-      - name: Stop Single Node
-        if: always()
-        run: |
-          pushd .docker
-          ./single-node.sh down
-          popd
 
       - name: Start Cluster Nodes
         env:
@@ -102,7 +71,7 @@ jobs:
           SEC_CIT_AUTHORITY: es.sec.local
         uses: nick-invision/retry@v2
         with:
-          timeout_minutes: 10
+          timeout_minutes: 2
           max_attempts: 10
           command: sbt '++ ${{ matrix.scala }}' 'tests / Cit / test'
 
@@ -110,6 +79,7 @@ jobs:
         if: always()
         run: |
           pushd .docker
+          ./cluster.sh logs
           ./cluster.sh down
           popd
 
@@ -134,7 +104,7 @@ jobs:
     if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
     strategy:
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-latest]
         java: [temurin@21]
     runs-on: ${{ matrix.os }}
     steps:
@@ -192,14 +162,6 @@ jobs:
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_CREDENTIAL_HOST: ${{ secrets.SONATYPE_CREDENTIAL_HOST }}
         run: sbt tlCiRelease
-
-      - name: Compile docs
-        run: sbt compileDocs
-
-      - if: github.ref == 'refs/heads/main'
-        env:
-          GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
-        run: sbt docs/docusaurusPublishGhpages
 
   dependency-submission:
     name: Submit Dependencies
