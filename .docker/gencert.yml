@@ -17,7 +17,10 @@ services:
        - ./shared.env
      entrypoint: bash
      command: >
-       -c "[ -d /tmp/certs/ca ] || es-gencert-cli create-ca -out /tmp/certs/ca && es-gencert-cli create-node -ca-certificate /tmp/certs/ca/ca.crt -ca-key /tmp/certs/ca/ca.key -out /tmp/certs/node -ip-addresses $SEC_GENCERT_IP_ADDRESSES -dns-names $SEC_GENCERT_DNS_NAMES"
+       -c "
+       es-gencert-cli create-ca -force -out /tmp/certs/ca
+       && es-gencert-cli create-node -force -ca-certificate /tmp/certs/ca/ca.crt -ca-key /tmp/certs/ca/ca.key -out /tmp/certs/node -ip-addresses $SEC_GENCERT_IP_ADDRESSES -dns-names $SEC_GENCERT_DNS_NAMES
+       && find . -type f -print0 | xargs -0 chmod 666"
      user: "1000:1000"
      volumes:
        - "$SEC_GENCERT_CERTS_PATH:/tmp/certs"
