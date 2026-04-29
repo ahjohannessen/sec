@@ -16,7 +16,7 @@ object Dependencies {
     val circe      = "0.14.3"
     val scalaPb    = scalapb.compiler.Version.scalapbVersion
     val grpc       = "1.80.0"
-    val tsConfig   = "1.4.6"
+    val tsConfig   = "1.4.7"
 
     val scalaCheck      = "1.19.0"
     val munitDiscipline = "2.0.0"
