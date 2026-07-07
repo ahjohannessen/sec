@@ -17,6 +17,7 @@
 package sec
 package api
 
+import java.util.concurrent.TimeUnit.MILLISECONDS
 import cats.effect.*
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder.{forAddress, forTarget}
@@ -29,5 +30,8 @@ private[sec] object netty:
         t => p.creds.fold(forTarget(t).usePlaintext())(forTarget(t, _)),
         ep => p.creds.fold(forAddress(ep.address, ep.port).usePlaintext())(forAddress(ep.address, ep.port, _))
       )
+      .keepAliveTime(p.keepAliveTime.toMillis, MILLISECONDS)
+      .keepAliveTimeout(p.keepAliveTimeout.toMillis, MILLISECONDS)
+      .keepAliveWithoutCalls(p.keepAliveWithoutCalls)
       .maxInboundMessageSize(p.maxInboundMessageSize)
   }

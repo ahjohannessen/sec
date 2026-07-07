@@ -454,18 +454,28 @@ object Streams:
           val readAndFilter: Stream[F, O] = streamFn(f).evalFilter(readFilter)
           val readAndUpdate: Stream[F, O] = readAndFilter.evalTap(o => state.set(extractFn(o).some))
 
-          readAndUpdate.recoverWith {
+          Stream.eval(Temporal[F].monotonic) >>= { startedAt =>
+            readAndUpdate.recoverWith {
 
-            case NonFatal(t) if o.retryOn(t) =>
-              if attempts <= maxAttempts then
+              case NonFatal(t) if o.retryOn(t) =>
 
-                val logWarning = logWarn(attempts, d, t).whenA(attempts < maxAttempts)
-                val getCurrent = state.get.map(_.getOrElse(f))
+                // Reset the attempt budget and delay once a reconnect has stayed healthy for at least one backoff
+                // window, so maxAttempts bounds *consecutive* fast failures rather than reconnects over a lifetime.
+                val decide: F[(Int, FiniteDuration, T)] =
+                  for
+                    endedAt <- Temporal[F].monotonic
+                    current <- state.get.map(_.getOrElse(f))
+                  yield
+                    if (endedAt - startedAt) >= o.retryConfig.maxDelay then (1, o.retryConfig.delay, current)
+                    else (attempts, d, current)
 
-                Stream.eval(logWarning *> getCurrent) >>= { c =>
-                  run(c, attempts + 1, nextDelay(d)).delayBy(d)
+                Stream.eval(decide) >>= { case (attempt, delay, c) =>
+                  if attempt <= maxAttempts then
+                    Stream.eval(logWarn(attempt, delay, t).whenA(attempt < maxAttempts)) >>
+                      run(c, attempt + 1, nextDelay(delay)).delayBy(delay)
+                  else Stream.eval(logError(t)) *> Stream.raiseError[F](t)
                 }
-              else Stream.eval(logError(t)) *> Stream.raiseError[F](t)
+            }
           }
 
         run(from, 1, o.retryConfig.delay)
