@@ -31,6 +31,9 @@ private[sec] case class Options(
   operationOptions: OperationOptions,
   connectionMode: ConnectionMode,
   channelShutdownAwait: FiniteDuration,
+  keepAliveTime: FiniteDuration,
+  keepAliveTimeout: FiniteDuration,
+  keepAliveWithoutCalls: Boolean,
   prefetchN: Int,
   httpPort: Port,
   maxInboundMessageSize: Int
@@ -46,6 +49,9 @@ private[sec] object Options:
     operationOptions      = OperationOptions.default,
     connectionMode        = Insecure,
     channelShutdownAwait  = 5.seconds,
+    keepAliveTime         = 10.seconds,
+    keepAliveTimeout      = 5.seconds,
+    keepAliveWithoutCalls = false,
     prefetchN             = 512,
     httpPort              = port"2113",
     maxInboundMessageSize = 8 * 1024 * 1024 // 8MB
@@ -62,6 +68,9 @@ private[sec] object Options:
     def withConnectionName(name: String): Options                   = o.copy(connectionName = name)
     def withCredentials(creds: Option[UserCredentials]): Options    = o.copy(credentials = creds)
     def withChannelShutdownAwait(await: FiniteDuration): Options    = o.copy(channelShutdownAwait = await)
+    def withKeepAliveTime(value: FiniteDuration): Options           = o.copy(keepAliveTime = value)
+    def withKeepAliveTimeout(value: FiniteDuration): Options        = o.copy(keepAliveTimeout = value)
+    def withKeepAliveWithoutCalls(value: Boolean): Options          = o.copy(keepAliveWithoutCalls = value)
     def withPrefetchN(n: Int)                                       = o.copy(prefetchN = math.max(n, 1))
     def withHttpPort(port: Port): Options                           = o.copy(httpPort = port)
     def withMaxInboundMessageSize(bytes: Int)                       = o.copy(maxInboundMessageSize = bytes)
@@ -142,7 +151,10 @@ private[sec] object OperationOptions:
 final private[sec] case class ChannelBuilderParams(
   targetOrEndpoint: Either[String, Endpoint],
   creds: Option[ChannelCredentials],
-  maxInboundMessageSize: Int
+  maxInboundMessageSize: Int,
+  keepAliveTime: FiniteDuration,
+  keepAliveTimeout: FiniteDuration,
+  keepAliveWithoutCalls: Boolean
 )
 
 private[sec] object ChannelBuilderParams:
@@ -150,16 +162,36 @@ private[sec] object ChannelBuilderParams:
   def apply(
     target: String,
     creds: Option[ChannelCredentials],
-    maxInboundMessageSize: Int
+    maxInboundMessageSize: Int,
+    keepAliveTime: FiniteDuration,
+    keepAliveTimeout: FiniteDuration,
+    keepAliveWithoutCalls: Boolean
   ): ChannelBuilderParams =
-    ChannelBuilderParams(target.asLeft, creds, maxInboundMessageSize)
+    ChannelBuilderParams(
+      target.asLeft,
+      creds,
+      maxInboundMessageSize,
+      keepAliveTime,
+      keepAliveTimeout,
+      keepAliveWithoutCalls
+    )
 
   def apply(
     endpoint: Endpoint,
     creds: Option[ChannelCredentials],
-    maxInboundMessageSize: Int
+    maxInboundMessageSize: Int,
+    keepAliveTime: FiniteDuration,
+    keepAliveTimeout: FiniteDuration,
+    keepAliveWithoutCalls: Boolean
   ): ChannelBuilderParams =
-    ChannelBuilderParams(endpoint.asRight, creds, maxInboundMessageSize)
+    ChannelBuilderParams(
+      endpoint.asRight,
+      creds,
+      maxInboundMessageSize,
+      keepAliveTime,
+      keepAliveTimeout,
+      keepAliveWithoutCalls
+    )
 
 //======================================================================================================================
 
@@ -172,6 +204,9 @@ private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]]:
   def withConnectionName(value: String): B                  = modOptions(_.withConnectionName(value))
   def withCredentials(value: Option[UserCredentials]): B    = modOptions(_.withCredentials(value))
   def withChannelShutdownAwait(value: FiniteDuration): B    = modOptions(_.withChannelShutdownAwait(value))
+  def withKeepAliveTime(value: FiniteDuration): B           = modOptions(_.withKeepAliveTime(value))
+  def withKeepAliveTimeout(value: FiniteDuration): B        = modOptions(_.withKeepAliveTimeout(value))
+  def withKeepAliveWithoutCalls(value: Boolean): B          = modOptions(_.withKeepAliveWithoutCalls(value))
   def withPrefetchN(value: Int)                             = modOptions(_.withPrefetchN(value))
   def withMaxInboundMessageSize(bytes: Int): B              = modOptions(_.withMaxInboundMessageSize(bytes))
   def withOperationsRetryDelay(value: FiniteDuration): B    = modOptions(_.withOperationsRetryDelay(value))

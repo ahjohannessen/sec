@@ -21,6 +21,7 @@ import scala.concurrent.duration.*
 import scala.util.control.NoStackTrace
 import cats.Order
 import cats.effect.*
+import cats.effect.testkit.*
 import fs2.Stream
 import org.typelevel.log4cats.noop.NoOpLogger
 import org.typelevel.log4cats.testing.TestingLogger
@@ -118,6 +119,32 @@ class StreamsWithRetrySuite extends SecEffectSuite:
         assertEquals(failures, 5)
       }
     }
+  }
+
+  test("resets the attempt budget after a reconnect that stays healthy past maxDelay") {
+
+    val config = RetryConfig(
+      delay         = 100.millis,
+      maxDelay      = 100.millis,
+      backoffFactor = 1,
+      maxAttempts   = 2,
+      timeout       = None
+    )
+
+    val opts = Opts[IO](retryEnabled = true, config, _ => true, NoOpLogger.impl[IO])
+
+    // Three failures, each after staying connected longer than maxDelay, then a success. With maxAttempts = 2 this
+    // can only complete if every healthy period resets the attempt budget.
+    val program = IO.ref(0).flatMap { attempts =>
+      val source: Int => Stream[IO, Int] = from =>
+        Stream.eval(attempts.updateAndGet(_ + 1)).flatMap { n =>
+          if n <= 3 then Stream.exec(IO.sleep(config.maxDelay + 50.millis)) ++ Stream.raiseError[IO](RetryErr())
+          else Stream.emit(from)
+        }
+      withRetry[IO, Int, Int](0, source, identity, opts, "with-retry", Forwards).compile.toList
+    }
+
+    TestControl.executeEmbed(program).map(assertEquals(_, List(0)))
   }
 
   test("retryOn") {

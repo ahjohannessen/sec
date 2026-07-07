@@ -21,18 +21,18 @@ import sec.utilities.*
 
 class UtilitiesSuite extends SecSuite:
 
-  group("guardNonEmpty") {
+  test("guardNonEmpty") {
     assertEquals(guardNonEmpty("x")(null), Left("x cannot be empty"))
     assertEquals(guardNonEmpty("x")(""), Left("x cannot be empty"))
     assertEquals(guardNonEmpty("x")("wohoo"), Right("wohoo"))
   }
 
-  group("guardNotStartsWith") {
+  test("guardNotStartsWith") {
     assertEquals(guardNotStartsWith("$")("$"), Left("value must not start with $, but is $"))
     assertEquals(guardNotStartsWith("$")("a$"), Right("a$"))
   }
 
-  group("format duration") {
+  test("format duration") {
     assertEquals(format(150.millis), "150.0ms")
     assertEquals(format(1001.millis), "1.001s")
     assertEquals(format(4831.millis), "4.831s")
