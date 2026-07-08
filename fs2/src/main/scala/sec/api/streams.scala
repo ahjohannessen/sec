@@ -441,9 +441,9 @@ object Streams:
 
       Stream.eval(Ref.of[F, Option[T]](None)) >>= { state =>
 
-        val readFilter: O => F[Boolean] = o => {
+        val readFilter: O => F[Boolean] = out => {
 
-          val next: T              = extractFn(o)
+          val next: T              = extractFn(out)
           val filter: T => Boolean = direction.fold(order.gt, order.lt)(next, _)
 
           state.get.map(_.fold(true)(filter))
@@ -452,15 +452,15 @@ object Streams:
         def run(f: T, attempts: Int, d: FiniteDuration): Stream[F, O] =
 
           val readAndFilter: Stream[F, O] = streamFn(f).evalFilter(readFilter)
-          val readAndUpdate: Stream[F, O] = readAndFilter.evalTap(o => state.set(extractFn(o).some))
+          val readAndUpdate: Stream[F, O] = readAndFilter.evalTap(out => state.set(extractFn(out).some))
 
           Stream.eval(Temporal[F].monotonic) >>= { startedAt =>
             readAndUpdate.recoverWith {
 
               case NonFatal(t) if o.retryOn(t) =>
 
-                // Reset the attempt budget and delay once a reconnect has stayed healthy for at least one backoff
-                // window, so maxAttempts bounds *consecutive* fast failures rather than reconnects over a lifetime.
+                // Reset the attempt budget and delay once a reconnect has stayed healthy for at least one full
+                // maxDelay window, so maxAttempts bounds *consecutive* fast failures rather than reconnects over a lifetime.
                 val decide: F[(Int, FiniteDuration, T)] =
                   for
                     endedAt <- Temporal[F].monotonic
@@ -471,6 +471,8 @@ object Streams:
 
                 Stream.eval(decide) >>= { case (attempt, delay, c) =>
                   if attempt <= maxAttempts then
+                    // The maxAttempts-th attempt is the last retry; it is deliberately not warned because the
+                    // failure that follows it hits the exhausted branch below and logs the error instead.
                     Stream.eval(logWarn(attempt, delay, t).whenA(attempt < maxAttempts)) >>
                       run(c, attempt + 1, nextDelay(delay)).delayBy(delay)
                   else Stream.eval(logError(t)) *> Stream.raiseError[F](t)
