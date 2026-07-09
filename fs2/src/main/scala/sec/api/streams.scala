@@ -24,7 +24,7 @@ import cats.data.*
 import cats.effect.*
 import cats.syntax.all.*
 import io.kurrent.dbclient.proto.streams.*
-import fs2.{Pipe, Pull, Stream}
+import fs2.{Pipe, Pull, RaiseThrowable, Stream}
 import org.typelevel.log4cats.Logger
 import sec.api.exceptions.{ResubscriptionRequired, WrongExpectedVersion}
 import sec.api.mapping.streams.incoming.*
@@ -314,8 +314,12 @@ object Streams:
     val opName: String                               = "subscribeToAll"
     val pipeLog: Logger[F]                           = opts.log.withModifiedString(m => s"$opName: $m")
     val mkReq: Option[LogPosition] => ReadReq        = mkSubscribeToAllReq(_, resolveLinkTos, None)
-    val sub: Option[LogPosition] => Stream[F, Event] = ef => f(mkReq(ef)).through(subscriptionAllPipe(pipeLog))
-    val fn: Event => Option[LogPosition]             = _.record.logPosition.some
+    val sub: Option[LogPosition] => Stream[F, Event] =
+      ef =>
+        f(mkReq(ef))
+          .through(subscriptionAllPipe(pipeLog, opts.subscriptionConfirmationTimeout))
+          .through(raiseOnServerCompletion(opName))
+    val fn: Event => Option[LogPosition] = _.record.logPosition.some
 
     withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
 
@@ -331,8 +335,12 @@ object Streams:
     val opName: String                           = "subscribeToAllWithFilter"
     val pipeLog: Logger[F]                       = opts.log.withModifiedString(m => s"$opName: $m")
     val mkReq: Option[LogPosition] => ReadReq    = mkSubscribeToAllReq(_, resolveLinkTos, filterOptions.some)
-    val sub: Option[LogPosition] => Stream[F, O] = ef => f(mkReq(ef)).through(subAllFilteredPipe(pipeLog))
-    val fn: O => Option[LogPosition]             = _.fold(_.logPosition, _.record.logPosition).some
+    val sub: Option[LogPosition] => Stream[F, O] =
+      ef =>
+        f(mkReq(ef))
+          .through(subAllFilteredPipe(pipeLog, opts.subscriptionConfirmationTimeout))
+          .through(raiseOnServerCompletion(opName))
+    val fn: O => Option[LogPosition] = _.fold(_.logPosition, _.record.logPosition).some
 
     withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
 
@@ -347,7 +355,11 @@ object Streams:
     val pipeLog: Logger[F]                       = opts.log.withModifiedString(m => s"$opName[${streamId.render}]: $m")
     val mkReq: Option[StreamPosition] => ReadReq = mkSubscribeToStreamReq(streamId, _, resolveLinkTos)
 
-    val sub: Option[StreamPosition] => Stream[F, Event] = ef => f(mkReq(ef)).through(subscriptionStreamPipe(pipeLog))
+    val sub: Option[StreamPosition] => Stream[F, Event] =
+      ef =>
+        f(mkReq(ef))
+          .through(subscriptionStreamPipe(pipeLog, opts.subscriptionConfirmationTimeout))
+          .through(raiseOnServerCompletion(opName))
 
     val fn: Event => Option[StreamPosition] = _.record.streamPosition.some
 
@@ -386,42 +398,77 @@ object Streams:
 
 //======================================================================================================================
 
-  private[sec] def subConfirmationPipe[F[_]: MonadThrow](logger: Logger[F]): Pipe[F, ReadResp, ReadResp] = in =>
+  /** The subscription confirmation is the one message the server is guaranteed to send immediately on every
+    * subscription. Not receiving it within `confirmationTimeout` means the subscription was never established, e.g. the
+    * request got in during a node shutdown or role change and the server accepted the call but will never feed it. This
+    * is turned into [[ResubscriptionRequired]], which subscription retry options resume from. After the confirmation
+    * the timeout no longer applies, as a quiet stream is legitimately silent.
+    */
+  private[sec] def subConfirmationPipe[F[_]: Temporal](
+    logger: Logger[F],
+    confirmationTimeout: FiniteDuration
+  ): Pipe[F, ReadResp, ReadResp] = in =>
 
     val log: SubscriptionConfirmation => F[Unit] =
       sc => logger.debug(s"$sc received")
 
-    val initialPull = in.pull.uncons1.flatMap {
-      case Some((h, t)) => Pull.eval(reqConfirmation[F](h) >>= log) >> t.pull.echo
-      case None         => Pull.done
-    }
+    val raiseTimeout: Pull[F, Nothing, Unit] =
+      Pull.raiseError[F](ResubscriptionRequired(s"no subscription confirmation received within $confirmationTimeout"))
 
-    initialPull.stream
+    def echo(tp: Pull.Timed[F, ReadResp]): Pull[F, ReadResp, Unit] =
+      tp.uncons.flatMap {
+        case Some((Right(c), next)) => Pull.output(c) >> echo(next)
+        case Some((Left(_), next))  => echo(next) // stray timeout after confirmation, ignore
+        case None                   => Pull.done
+      }
 
-  private[sec] def subscriptionAllPipe[F[_]: MonadThrow](
-    log: Logger[F]
+    def awaitConfirmation(tp: Pull.Timed[F, ReadResp]): Pull[F, ReadResp, Unit] =
+      tp.uncons.flatMap {
+        case Some((Right(c), next)) =>
+          if c.nonEmpty then Pull.eval(reqConfirmation[F](c(0)) >>= log) >> Pull.output(c.drop(1)) >> echo(next)
+          else awaitConfirmation(next)
+        case Some((Left(_), _)) => raiseTimeout
+        case None               => Pull.done
+      }
+
+    in.pull.timed(tp => tp.timeout(confirmationTimeout) >> awaitConfirmation(tp)).stream
+
+  private[sec] def subscriptionAllPipe[F[_]: Temporal](
+    log: Logger[F],
+    confirmationTimeout: FiniteDuration
   ): Pipe[F, ReadResp, Event] =
     _.filterNot(_.isCheckpoint)
-      .through(subConfirmationPipe(log))
+      .through(subConfirmationPipe(log, confirmationTimeout))
       .through(_.filter(_.isEvent).evalMap(reqReadEvent[F]).unNone)
 
-  private[sec] def subscriptionStreamPipe[F[_]: MonadThrow](
-    log: Logger[F]
+  private[sec] def subscriptionStreamPipe[F[_]: Temporal](
+    log: Logger[F],
+    confirmationTimeout: FiniteDuration
   ): Pipe[F, ReadResp, Event] =
-    _.through(subConfirmationPipe(log))
+    _.through(subConfirmationPipe(log, confirmationTimeout))
       .through(_.filter(_.isEvent).evalMap(reqReadEvent[F]).unNone)
 
-  private[sec] def subAllFilteredPipe[F[_]: MonadThrow](
-    log: Logger[F]
+  private[sec] def subAllFilteredPipe[F[_]: Temporal](
+    log: Logger[F],
+    confirmationTimeout: FiniteDuration
   ): Pipe[F, ReadResp, Either[Checkpoint, Event]] =
     // Defensive filtering to guard against ESDB emitting checkpoints
     // with `LogPosition.Exact.MaxValue`, i.e. end of stream.
-    _.through(subConfirmationPipe(log))
+    _.through(subConfirmationPipe(log, confirmationTimeout))
       .through(_.filter(_.isCheckpointOrEvent).evalMap(mkCheckpointOrEvent[F]).unNone)
       .collect {
         case r @ Right(_)                               => r
         case l @ Left(v) if v != Checkpoint.endOfStream => l
       }
+
+  /** Subscriptions are conceptually infinite: the server never legitimately completes one. A normal completion means
+    * the server dropped the subscription without an error (e.g. node shutdown or leader change during a rolling
+    * restart), so it is turned into [[ResubscriptionRequired]], which subscription retry options resume from by
+    * resubscribing at the last observed position. Client-side cancellation is unaffected as an interrupted stream never
+    * evaluates the appended raise.
+    */
+  private[sec] def raiseOnServerCompletion[F[_]: RaiseThrowable, O](opName: String): Pipe[F, O, O] =
+    _ ++ Stream.raiseError[F](ResubscriptionRequired(s"$opName: server completed the subscription"))
 
   private[sec] def withRetry[F[_]: Temporal, T: Order, O](
     from: T,

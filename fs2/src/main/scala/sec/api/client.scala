@@ -150,7 +150,13 @@ object EsClient:
 
   private[sec] def mkOpts[F[_]](oo: OperationOptions, log: Logger[F], prefix: String): Opts[F] =
     val rc = RetryConfig(oo.retryDelay, oo.retryMaxDelay, oo.retryBackoffFactor, oo.retryMaxAttempts, None)
-    Opts[F](oo.retryEnabled, rc, defaultRetryOn, log.withModifiedString(s => s"$prefix > $s"))
+    Opts[F](
+      oo.retryEnabled,
+      rc,
+      defaultRetryOn,
+      log.withModifiedString(s => s"$prefix > $s"),
+      oo.subscriptionConfirmationTimeout
+    )
 
   /// Streams
 
