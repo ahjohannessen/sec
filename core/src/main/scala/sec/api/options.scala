@@ -79,6 +79,8 @@ private[sec] object Options:
     def withOperationsRetryMaxAttempts(max: Int): Options           = modifyOO(_.copy(retryMaxAttempts = max))
     def withOperationsRetryBackoffFactor(factor: Double): Options   = modifyOO(_.copy(retryBackoffFactor = factor))
     def withOperationsRetryEnabled(enabled: Boolean): Options       = modifyOO(_.copy(retryEnabled = enabled))
+    def withSubscriptionConfirmationTimeout(timeout: FiniteDuration): Options =
+      modifyOO(_.copy(subscriptionConfirmationTimeout = timeout))
 
 //======================================================================================================================
 
@@ -133,17 +135,19 @@ final private[sec] case class OperationOptions(
   retryDelay: FiniteDuration,
   retryMaxDelay: FiniteDuration,
   retryBackoffFactor: Double,
-  retryMaxAttempts: Int
+  retryMaxAttempts: Int,
+  subscriptionConfirmationTimeout: FiniteDuration
 )
 
 private[sec] object OperationOptions:
 
   val default: OperationOptions = OperationOptions(
-    retryEnabled       = true,
-    retryDelay         = 250.millis,
-    retryMaxDelay      = 5.seconds,
-    retryBackoffFactor = 1.5,
-    retryMaxAttempts   = 100
+    retryEnabled                    = true,
+    retryDelay                      = 250.millis,
+    retryMaxDelay                   = 5.seconds,
+    retryBackoffFactor              = 1.5,
+    retryMaxAttempts                = 100,
+    subscriptionConfirmationTimeout = 10.seconds
   )
 
 //======================================================================================================================
@@ -215,6 +219,8 @@ private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]]:
   def withOperationsRetryBackoffFactor(value: Double): B    = modOptions(_.withOperationsRetryBackoffFactor(value))
   def withOperationsRetryEnabled: B                         = modOptions(_.withOperationsRetryEnabled(true))
   def withOperationsRetryDisabled: B                        = modOptions(_.withOperationsRetryEnabled(false))
+  def withSubscriptionConfirmationTimeout(value: FiniteDuration): B =
+    modOptions(_.withSubscriptionConfirmationTimeout(value))
 
 //======================================================================================================================
 

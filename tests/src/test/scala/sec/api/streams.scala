@@ -27,6 +27,7 @@ import org.typelevel.log4cats.noop.NoOpLogger
 import org.typelevel.log4cats.testing.TestingLogger
 import sec.api.Direction.Forwards
 import sec.api.Streams.*
+import sec.api.exceptions.ResubscriptionRequired
 import sec.api.retries.RetryConfig
 
 class StreamsWithRetrySuite extends SecEffectSuite:
@@ -145,6 +146,62 @@ class StreamsWithRetrySuite extends SecEffectSuite:
     }
 
     TestControl.executeEmbed(program).map(assertEquals(_, List(0)))
+  }
+
+  test("raiseOnServerCompletion turns normal completion into ResubscriptionRequired") {
+
+    val result = Stream
+      .emits(List(1, 2))
+      .covary[IO]
+      .through(raiseOnServerCompletion("sub"))
+      .attempt
+      .compile
+      .toList
+
+    result.map { r =>
+      assertEquals(r.init, List(Right(1), Right(2)))
+      assert(r.last.fold(_.isInstanceOf[ResubscriptionRequired], _ => false))
+    }
+  }
+
+  test("raiseOnServerCompletion does not fire on client-side cancellation") {
+
+    val program = Stream
+      .never[IO]
+      .through(raiseOnServerCompletion[IO, Unit]("sub"))
+      .interruptAfter(100.millis)
+      .compile
+      .drain
+
+    TestControl.executeEmbed(program)
+  }
+
+  test("resubscribes from last observed position when the server completes a subscription") {
+
+    val config = RetryConfig(
+      delay         = 100.millis,
+      maxDelay      = 500.millis,
+      backoffFactor = 1,
+      maxAttempts   = 3,
+      timeout       = None
+    )
+
+    val opts = Opts[IO](retryEnabled = true, config, _.isInstanceOf[ResubscriptionRequired], NoOpLogger.impl[IO])
+
+    // The server completes the subscription stream normally twice, the third subscription stays live. Elements must
+    // resume after the last observed position with nothing lost or duplicated.
+    val program = IO.ref(0).flatMap { calls =>
+      val source: Option[Int] => Stream[IO, Int] = from =>
+        Stream.eval(calls.updateAndGet(_ + 1)).flatMap { n =>
+          val next = from.fold(1)(_ + 1)
+          val live = Stream.emits(List(next, next + 1)).covary[IO]
+          if n < 3 then live.through(raiseOnServerCompletion("sub"))
+          else (live ++ Stream.never[IO]).through(raiseOnServerCompletion("sub"))
+        }
+      withRetry[IO, Option[Int], Int](None, source, Some(_), opts, "sub", Forwards).take(6).compile.toList
+    }
+
+    TestControl.executeEmbed(program).map(assertEquals(_, List(1, 2, 3, 4, 5, 6)))
   }
 
   test("retryOn") {
@@ -367,6 +424,50 @@ class StreamsWithRetrySuite extends SecEffectSuite:
       b1 *> b2 *> b3 *> b4
 
     }
+  }
+
+class SubConfirmationPipeSuite extends SecEffectSuite:
+
+  import io.kurrent.dbclient.proto.streams as s
+
+  val confirmation: s.ReadResp = s.ReadResp().withConfirmation(s.ReadResp.SubscriptionConfirmation("sub-id"))
+  val other: s.ReadResp        = s.ReadResp()
+
+  def pipe(timeout: FiniteDuration): fs2.Pipe[IO, s.ReadResp, s.ReadResp] =
+    subConfirmationPipe[IO](NoOpLogger.impl[IO], timeout)
+
+  test("consumes the confirmation and echoes the remainder") {
+
+    val in = Stream.emits(List(confirmation, other, other)).covary[IO]
+
+    assertIO(in.through(pipe(1.second)).compile.toList, List(other, other))
+  }
+
+  test("raises ResubscriptionRequired when no confirmation arrives within the timeout") {
+
+    val in: Stream[IO, s.ReadResp] = Stream.never[IO]
+
+    val program = in.through(pipe(1.second)).compile.drain.attempt
+
+    TestControl.executeEmbed(program).map(r => assert(r.swap.exists(_.isInstanceOf[ResubscriptionRequired])))
+  }
+
+  test("raises ResubscriptionRequired when the confirmation arrives after the timeout") {
+
+    val in = Stream.sleep_[IO](2.seconds) ++ Stream.emit(confirmation)
+
+    val program = in.through(pipe(1.second)).compile.drain.attempt
+
+    TestControl.executeEmbed(program).map(r => assert(r.swap.exists(_.isInstanceOf[ResubscriptionRequired])))
+  }
+
+  test("does not time out after confirmation on a quiet stream") {
+
+    val in = Stream.emit(confirmation) ++ Stream.sleep_[IO](1.hour) ++ Stream.emit(other)
+
+    val program = in.through(pipe(1.second)).compile.toList
+
+    TestControl.executeEmbed(program).map(assertEquals(_, List(other)))
   }
 
 object StreamsSpec:

@@ -181,7 +181,11 @@ private[sec] object config:
       o => cfg.durationOpt(s"$ooPath.retry-delay").fold(o)(o.withOperationsRetryDelay),
       o => cfg.durationOpt(s"$ooPath.retry-max-delay").fold(o)(o.withOperationsRetryMaxDelay),
       o => cfg.option(s"$ooPath.retry-backoff-factor", _.getDouble).fold(o)(o.withOperationsRetryBackoffFactor),
-      o => cfg.option(s"$ooPath.retry-max-attempts", _.getInt).fold(o)(o.withOperationsRetryMaxAttempts)
+      o => cfg.option(s"$ooPath.retry-max-attempts", _.getInt).fold(o)(o.withOperationsRetryMaxAttempts),
+      o =>
+        cfg
+          .durationOpt(s"$ooPath.subscription-confirmation-timeout")
+          .fold(o)(o.withSubscriptionConfirmationTimeout)
     )
 
     val mod = modifications.foldK

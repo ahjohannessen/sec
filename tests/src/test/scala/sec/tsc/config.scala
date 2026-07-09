@@ -304,7 +304,9 @@ class ConfigSuite extends SecSuite:
           |     retry-max-delay      = 5s
           |     retry-backoff-factor = 2
           |     retry-max-attempts   = 1000
-          |     
+          |
+          |     subscription-confirmation-timeout = 30s
+          |
           |   }
           | }
           |""".stripMargin
@@ -323,6 +325,7 @@ class ConfigSuite extends SecSuite:
         .withOperationsRetryMaxDelay(5.seconds)
         .withOperationsRetryBackoffFactor(2)
         .withOperationsRetryMaxAttempts(1000)
+        .withSubscriptionConfirmationTimeout(30.seconds)
 
       assertEquals(mkOptions[ErrorOr](cfg), Right(expected))
 

@@ -28,7 +28,8 @@ final private[sec] case class Opts[F[_]](
   retryEnabled: Boolean,
   retryConfig: RetryConfig,
   retryOn: Throwable => Boolean,
-  log: Logger[F]
+  log: Logger[F],
+  subscriptionConfirmationTimeout: FiniteDuration = 10.seconds
 )
 
 private[sec] object Opts:
