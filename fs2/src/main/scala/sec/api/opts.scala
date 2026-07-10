@@ -18,6 +18,7 @@ package sec
 package api
 
 import scala.concurrent.duration.*
+import cats.syntax.all.*
 import cats.effect.Temporal
 import org.typelevel.log4cats.Logger
 import sec.api.retries.*
@@ -29,15 +30,23 @@ final private[sec] case class Opts[F[_]](
   retryConfig: RetryConfig,
   retryOn: Throwable => Boolean,
   log: Logger[F],
-  subscriptionConfirmationTimeout: FiniteDuration = 10.seconds
+  subscriptionConfirmationTimeout: FiniteDuration = 10.seconds,
+  // Notified of errors observed by retrying operations, e.g. so the cluster layer
+  // can refresh stale topology immediately when a NotLeader is seen. Must not raise.
+  refreshHint: Option[Throwable => F[Unit]] = None
 )
 
 private[sec] object Opts:
 
   extension [F[_]](opts: Opts[F])
 
+    def hint(t: Throwable)(using F: Temporal[F]): F[Unit] =
+      opts.refreshHint.fold(F.unit)(f => f(t).attempt.void)
+
     def run[A](fa: F[A], opName: String)(using F: Temporal[F]): F[A] =
-      if opts.retryEnabled then retry[F, A](fa, opName, opts.retryConfig, opts.log)(opts.retryOn) else fa
+      if opts.retryEnabled then
+        retry[F, A](fa.onError { case t => opts.hint(t) }, opName, opts.retryConfig, opts.log)(opts.retryOn)
+      else fa
 
     def logWarn(opName: String)(attempt: Int, delay: FiniteDuration, error: Throwable): F[Unit] =
       retries.logWarn(opts.retryConfig, opName, opts.log)(attempt, delay, error)

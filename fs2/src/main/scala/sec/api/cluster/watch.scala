@@ -22,6 +22,7 @@ import scala.concurrent.duration.*
 import cats.data.*
 import cats.syntax.all.*
 import cats.effect.*
+import cats.effect.std.Queue
 import com.comcast.ip4s.*
 import fs2.Stream
 import org.typelevel.log4cats.Logger
@@ -32,6 +33,11 @@ import sec.api.channel.*
 
 private[sec] trait ClusterWatch[F[_]]:
   def subscribe: Stream[F, ClusterInfo]
+
+  /** Requests an immediate gossip fetch instead of waiting for the next notification interval, e.g. when an operation
+    * observed [[NotLeader]] and cluster topology is likely stale. Coalesced, non-blocking and safe to call often.
+    */
+  def refresh: F[Unit]
 
 private[sec] object ClusterWatch:
 
@@ -85,7 +91,7 @@ private[sec] object ClusterWatch:
 
     for
       store    <- mkCache
-      updates   = mkWatch(store.get, clusterOptions.notificationInterval).subscribe
+      updates   = mkWatch(store.get, clusterOptions.notificationInterval, Async[F].unit).subscribe
       provider <- mkProvider(updates)
       channel  <- mkChannel(provider)
       gossip   <- gossipFn(channel)
@@ -98,31 +104,36 @@ private[sec] object ClusterWatch:
     store: Cache[F],
     log: Logger[F]
   ): Resource[F, ClusterWatch[F]] =
+    Resource.eval(Queue.bounded[F, Unit](1)) >>= { rq =>
 
-    val watch   = mkWatch(store.get, options.notificationInterval)
-    val fetcher = mkFetcher(readFn, options, store.set, log)
-    val create  = Stream.emit(watch).concurrently(fetcher)
+      val watch   = mkWatch(store.get, options.notificationInterval, rq.tryOffer(()).void)
+      val fetcher = mkFetcher(readFn, options, store.set, Stream.fromQueueUnterminated(rq), log)
+      val create  = Stream.emit(watch).concurrently(fetcher)
 
-    create.compile.resource.lastOrError
+      create.compile.resource.lastOrError
+    }
 
-  def mkWatch[F[_]: Temporal](get: F[ClusterInfo], interval: FiniteDuration): ClusterWatch[F] =
+  def mkWatch[F[_]: Temporal](get: F[ClusterInfo], interval: FiniteDuration, refreshSignal: F[Unit]): ClusterWatch[F] =
     new ClusterWatch[F]:
       val subscribe: Stream[F, ClusterInfo] = Stream.eval(get).metered(interval).repeat.changes
+      val refresh: F[Unit]                  = refreshSignal
 
   def mkFetcher[F[_]: Async](
     readFn: F[ClusterInfo],
     co: ClusterOptions,
     setInfo: ClusterInfo => F[Unit],
+    refreshRequests: Stream[F, Unit],
     log: Logger[F]
   ): Stream[F, Unit] =
-    import co._
 
     val action = retry(readFn, "gossip", retryConfig(co), log) {
       case _: Timeout | _: ServerUnavailable | _: NotLeader => true
       case _                                                => false
     }
 
-    Stream.eval(action).metered(notificationInterval).repeat.changes.evalMap(setInfo)
+    val ticks = Stream.fixedDelay[F](co.notificationInterval).merge(refreshRequests)
+
+    ticks.evalMap(_ => action).changes.evalMap(setInfo)
 
   ///
 

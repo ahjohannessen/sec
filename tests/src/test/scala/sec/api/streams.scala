@@ -148,6 +148,41 @@ class StreamsWithRetrySuite extends SecEffectSuite:
     TestControl.executeEmbed(program).map(assertEquals(_, List(0)))
   }
 
+  test("invokes refreshHint on retried errors") {
+
+    val config = RetryConfig(
+      delay         = 100.millis,
+      maxDelay      = 500.millis,
+      backoffFactor = 1,
+      maxAttempts   = 3,
+      timeout       = None
+    )
+
+    val program = for
+      hints <- IO.ref(List.empty[Throwable])
+      opts   = Opts[IO](
+                 retryEnabled = true,
+                 config,
+                 _ => true,
+                 NoOpLogger.impl[IO],
+                 refreshHint = Some(t => hints.update(_ :+ t))
+               )
+      calls <- IO.ref(0)
+      source = (_: Int) =>
+                 Stream.eval(calls.updateAndGet(_ + 1)).flatMap { n =>
+                   if n == 1 then Stream.raiseError[IO](RetryErr()) else Stream.emit(n)
+                 }
+      r     <- withRetry[IO, Int, Int](0, source, identity, opts, "with-retry", Forwards).compile.toList
+      h     <- hints.get
+    yield (r, h)
+
+    TestControl.executeEmbed(program).map { case (r, h) =>
+      assertEquals(r, List(2))
+      assertEquals(h.size, 1)
+      assert(h.head.isInstanceOf[RetryErr])
+    }
+  }
+
   test("raiseOnServerCompletion turns normal completion into ResubscriptionRequired") {
 
     val result = Stream

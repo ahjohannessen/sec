@@ -26,6 +26,7 @@ import org.typelevel.log4cats.Logger
 import io.grpc.{ManagedChannel, ManagedChannelBuilder, NameResolverRegistry}
 import sec.api.channel.*
 import sec.api.cluster.*
+import sec.api.exceptions.NotLeader
 
 //======================================================================================================================
 
@@ -171,9 +172,16 @@ class ClusterBuilder[F[_]] private (
         val mods: Endo[MCB] =
           _.defaultLoadBalancingPolicy("round_robin").overrideAuthority(authority)
 
+        // A NotLeader observed by an operation means cluster topology is stale, so ask the
+        // watch for an immediate gossip fetch instead of awaiting the notification interval.
+        val refreshHint: Throwable => F[Unit] = {
+          case _: NotLeader => cw.refresh
+          case _            => F.unit
+        }
+
         mkProvider >>= builder >>= { b =>
           channel.resource[F](mods(b).build, options.channelShutdownAwait) >>= { mc =>
-            EsClient[F](mc, options, clusterOptions.preference.isLeader, logger)
+            EsClient[F](mc, options, clusterOptions.preference.isLeader, logger, refreshHint.some)
           }
         }
 

@@ -111,10 +111,11 @@ object EsClient:
     mc: ManagedChannel,
     options: Options,
     requiresLeader: Boolean,
-    logger: Logger[F]
+    logger: Logger[F],
+    refreshHint: Option[Throwable => F[Unit]] = None
   ): Resource[F, EsClient[F]] =
     (mkStreamsFs2Grpc[F](mc, options.prefetchN), mkGossipFs2Grpc[F](mc)).mapN { (s, g) =>
-      create[F](s, g, options, requiresLeader, logger)
+      create[F](s, g, options, requiresLeader, logger, refreshHint)
     }
 
   private[sec] def create[F[_]: Async](
@@ -122,13 +123,14 @@ object EsClient:
     gossipFs2Grpc: GossipFs2Grpc[F, Context],
     options: Options,
     requiresLeader: Boolean,
-    logger: Logger[F]
+    logger: Logger[F],
+    refreshHint: Option[Throwable => F[Unit]] = None
   ): EsClient[F] = new EsClient[F]:
 
     val streams: Streams[F] = Streams(
       streamsFs2Grpc,
       mkContext(options, requiresLeader),
-      mkOpts[F](options.operationOptions, logger, "Streams")
+      mkOpts[F](options.operationOptions, logger, "Streams", refreshHint)
     )
 
     val metaStreams: MetaStreams[F] = MetaStreams[F](streams)
@@ -136,7 +138,7 @@ object EsClient:
     val gossip: Gossip[F] = Gossip(
       gossipFs2Grpc,
       mkContext(options, requiresLeader),
-      mkOpts[F](options.operationOptions, logger, "Gossip")
+      mkOpts[F](options.operationOptions, logger, "Gossip", refreshHint)
     )
 
 //======================================================================================================================
@@ -148,14 +150,20 @@ object EsClient:
     case _: ServerUnavailable | _: NotLeader => true
     case _                                   => false
 
-  private[sec] def mkOpts[F[_]](oo: OperationOptions, log: Logger[F], prefix: String): Opts[F] =
+  private[sec] def mkOpts[F[_]](
+    oo: OperationOptions,
+    log: Logger[F],
+    prefix: String,
+    refreshHint: Option[Throwable => F[Unit]] = None
+  ): Opts[F] =
     val rc = RetryConfig(oo.retryDelay, oo.retryMaxDelay, oo.retryBackoffFactor, oo.retryMaxAttempts, None)
     Opts[F](
       oo.retryEnabled,
       rc,
       defaultRetryOn,
       log.withModifiedString(s => s"$prefix > $s"),
-      oo.subscriptionConfirmationTimeout
+      oo.subscriptionConfirmationTimeout,
+      refreshHint
     )
 
   /// Streams
