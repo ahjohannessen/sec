@@ -123,6 +123,30 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances:
 
     }
 
+    test("refresh triggers an immediate gossip fetch") {
+
+      val options = ClusterOptions.default
+        .withNotificationInterval(10.minutes)
+
+      val program = for
+        counterRef <- IO.ref(0)
+        storeRef   <- IO.ref(List.empty[ClusterInfo])
+        log        <- mkLog
+        readFn      = counterRef.update(_ + 1) *> IO(ClusterInfo(Set.empty))
+        result     <- ClusterWatch.create[IO](readFn, options, recordingCache(storeRef), log).use { w =>
+                    for
+                      _  <- IO.sleep(1.second)
+                      c0 <- counterRef.get // no fetch before the first notification interval
+                      _  <- w.refresh
+                      _  <- IO.sleep(1.second)
+                      c1 <- counterRef.get // refresh caused a fetch well before the interval
+                    yield (c0, c1)
+                  }
+      yield result
+
+      TestControl.executeEmbed(program).map(assertEquals(_, (0, 1)))
+    }
+
     test("retry retriable error using retry delay for backoff") {
 
       val options = ClusterOptions.default

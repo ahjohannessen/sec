@@ -510,6 +510,7 @@ object Streams:
                 // maxDelay window, so maxAttempts bounds *consecutive* fast failures rather than reconnects over a lifetime.
                 val decide: F[(Int, FiniteDuration, T)] =
                   for
+                    _       <- o.hint(t)
                     endedAt <- Temporal[F].monotonic
                     current <- state.get.map(_.getOrElse(f))
                   yield
