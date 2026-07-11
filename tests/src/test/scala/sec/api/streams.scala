@@ -161,19 +161,19 @@ class StreamsWithRetrySuite extends SecEffectSuite:
     val program = for
       hints <- IO.ref(List.empty[Throwable])
       opts   = Opts[IO](
-                 retryEnabled = true,
-                 config,
-                 _ => true,
-                 NoOpLogger.impl[IO],
-                 refreshHint = Some(t => hints.update(_ :+ t))
-               )
+               retryEnabled = true,
+               config,
+               _ => true,
+               NoOpLogger.impl[IO],
+               refreshHint = Some(t => hints.update(_ :+ t))
+             )
       calls <- IO.ref(0)
       source = (_: Int) =>
                  Stream.eval(calls.updateAndGet(_ + 1)).flatMap { n =>
                    if n == 1 then Stream.raiseError[IO](RetryErr()) else Stream.emit(n)
                  }
-      r     <- withRetry[IO, Int, Int](0, source, identity, opts, "with-retry", Forwards).compile.toList
-      h     <- hints.get
+      r <- withRetry[IO, Int, Int](0, source, identity, opts, "with-retry", Forwards).compile.toList
+      h <- hints.get
     yield (r, h)
 
     TestControl.executeEmbed(program).map { case (r, h) =>
