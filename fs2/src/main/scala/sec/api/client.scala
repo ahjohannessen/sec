@@ -23,11 +23,13 @@ import cats.data.NonEmptySet
 import cats.effect.{Async, Resource}
 import com.comcast.ip4s.{Hostname, Port}
 import io.kurrent.dbclient.proto.gossip.GossipFs2Grpc
-import io.kurrent.dbclient.proto.streams.StreamsFs2Grpc
+import io.kurrent.dbclient.proto.streams.{ReadReq, ReadResp, StreamsFs2Grpc}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
 import io.grpc.{CallOptions, ManagedChannel}
+import fs2.Stream
 import fs2.grpc.client.ClientOptions
+import sec.api.pool.{GrpcChannelPool, GrpcSlot, Pool, SubscriptionPool}
 import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.grpc.convert.convertToEs
 import sec.api.grpc.metadata.*
@@ -112,11 +114,21 @@ object EsClient:
     options: Options,
     requiresLeader: Boolean,
     logger: Logger[F],
-    refreshHint: Option[Throwable => F[Unit]] = None
+    refreshHint: Option[Throwable => F[Unit]] = None,
+    subscriptionPool: Option[SubscriptionPool[F]] = None
   ): Resource[F, EsClient[F]] =
-    (mkStreamsFs2Grpc[F](mc, options.prefetchN), mkGossipFs2Grpc[F](mc)).mapN { (s, g) =>
-      create[F](s, g, options, requiresLeader, logger, refreshHint)
-    }
+    for
+      s    <- mkStreamsFs2Grpc[F](mc, options.prefetchN)
+      g    <- mkGossipFs2Grpc[F](mc)
+      pool <- subscriptionPool.traverse { sp =>
+                GrpcChannelPool.of[F](
+                  sp.mkChannel,
+                  mkStreamsFs2Grpc[F](_, options.prefetchN),
+                  sp.config,
+                  logger.withModifiedString(s => s"SubscriptionPool > $s")
+                )
+              }
+    yield create[F](s, g, options, requiresLeader, logger, refreshHint, pool)
 
   private[sec] def create[F[_]: Async](
     streamsFs2Grpc: StreamsFs2Grpc[F, Context],
@@ -124,13 +136,29 @@ object EsClient:
     options: Options,
     requiresLeader: Boolean,
     logger: Logger[F],
-    refreshHint: Option[Throwable => F[Unit]] = None
+    refreshHint: Option[Throwable => F[Unit]] = None,
+    subscriptionPool: Option[Pool[F, GrpcSlot[F]]] = None
   ): EsClient[F] = new EsClient[F]:
+
+    // The pool lease lives inside the per-attempt stream on purpose. Subscription retry
+    // re-invokes this function on every attempt, and a failed attempt's stream finalizer
+    // releases its permit before the next attempt acquires one - so a mass reconnect (e.g.
+    // a server GOAWAY dropping every subscription at once) re-places subscriptions onto the
+    // channels they just freed instead of growing the pool. A lease acquired outside this
+    // function would hold its permit across attempts - a mass reconnect would then double
+    // the demanded permits and grow the pool with channels that are never needed again -
+    // and would also pin every retry to the channel picked at construction time, instead of
+    // letting placement prefer healthier channels.
+    private val subscriptionTransport: Option[(ReadReq, Context) => Stream[F, ReadResp]] =
+      subscriptionPool.map { pool => (req, ctx) =>
+        Stream.resource(pool.lease).flatMap(slot => slot.streams.read(req)(using ctx))
+      }
 
     val streams: Streams[F] = Streams(
       streamsFs2Grpc,
       mkContext(options, requiresLeader),
-      mkOpts[F](options.operationOptions, logger, "Streams", refreshHint)
+      mkOpts[F](options.operationOptions, logger, "Streams", refreshHint),
+      subscriptionTransport
     )
 
     val metaStreams: MetaStreams[F] = MetaStreams[F](streams)

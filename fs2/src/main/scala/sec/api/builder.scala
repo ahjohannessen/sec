@@ -27,6 +27,7 @@ import io.grpc.{ManagedChannel, ManagedChannelBuilder, NameResolverRegistry}
 import sec.api.channel.*
 import sec.api.cluster.*
 import sec.api.exceptions.NotLeader
+import sec.api.pool.PoolConfig
 
 //======================================================================================================================
 
@@ -34,6 +35,7 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
   private[sec] val endpoint: Endpoint,
   private[sec] val authority: Option[String],
   options: Options,
+  private[sec] val subscriptionPool: Option[PoolConfig],
   logger: Logger[F]
 ) extends OptionsBuilder[SingleNodeBuilder[F]]:
 
@@ -41,9 +43,10 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
     endpoint: Endpoint = endpoint,
     authority: Option[String] = authority,
     options: Options = options,
+    subscriptionPool: Option[PoolConfig] = subscriptionPool,
     logger: Logger[F] = logger
   ): SingleNodeBuilder[F] =
-    new SingleNodeBuilder[F](endpoint, authority, options, logger) {}
+    new SingleNodeBuilder[F](endpoint, authority, options, subscriptionPool, logger) {}
 
   private[sec] def modOptions(fn: Endo[Options]): SingleNodeBuilder[F] = copy(options = fn(options))
 
@@ -51,6 +54,11 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
   def withAuthority(value: String): SingleNodeBuilder[F]  = copy(authority = value.some)
   def withNoAuthority: SingleNodeBuilder[F]               = copy(authority = None)
   def withLogger(value: Logger[F]): SingleNodeBuilder[F]  = copy(logger = value)
+
+  /** Routes subscriptions over a pool of dedicated channels, capped at `value.streamsPerChannel` concurrent
+    * subscriptions per channel. Reads, appends and gossip stay on the regular channel. See [[sec.api.pool.PoolConfig]].
+    */
+  def withSubscriptionPool(value: PoolConfig): SingleNodeBuilder[F] = copy(subscriptionPool = value.some)
 
   private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](mcb: ChannelBuilderParams => F[MCB])(using
     F: Async[F]): Resource[F, EsClient[F]] = {
@@ -66,16 +74,24 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
           options.keepAliveWithoutCalls
         ))
 
-    val makeClient: MCB => Resource[F, EsClient[F]] = builder =>
+    val mods: Endo[MCB] =
+      b => authority.fold(b)(a => b.overrideAuthority(a))
 
-      val mods: Endo[MCB] =
-        b => authority.fold(b)(a => b.overrideAuthority(a))
+    // Credential material is resolved once into params; building a channel from
+    // them is pure construction, safe to run under the pool lock when growing.
+    Resource.eval(mkChannelBuilderParams) >>= { params =>
 
-      channel
-        .resource[F](mods(builder).build, options.channelShutdownAwait)
-        .flatMap(EsClient[F](_, options, requiresLeader = false, logger))
+      val mkChannel: Resource[F, ManagedChannel] =
+        channel.mk(mcb(params), mods, options.channelShutdownAwait)
 
-    Resource.eval(mkChannelBuilderParams).evalMap(mcb) >>= makeClient
+      mkChannel >>= { mc =>
+        EsClient[F](mc,
+                    options,
+                    requiresLeader = false,
+                    logger,
+                    subscriptionPool = subscriptionPool.map(pool.SubscriptionPool(_, mkChannel)))
+      }
+    }
   }
 
 object SingleNodeBuilder:
@@ -86,7 +102,7 @@ object SingleNodeBuilder:
     options: Options,
     logger: Logger[F]
   ): SingleNodeBuilder[F] =
-    new SingleNodeBuilder[F](endpoint, authority, options, logger) {}
+    new SingleNodeBuilder[F](endpoint, authority, options, None, logger) {}
 
 //======================================================================================================================
 
@@ -95,6 +111,7 @@ class ClusterBuilder[F[_]] private (
   private[sec] val authority: String,
   options: Options,
   clusterOptions: ClusterOptions,
+  private[sec] val subscriptionPool: Option[PoolConfig],
   logger: Logger[F],
   endpointResolver: EndpointResolver[F]
 ) extends OptionsBuilder[ClusterBuilder[F]]
@@ -105,10 +122,11 @@ class ClusterBuilder[F[_]] private (
     authority: String = authority,
     options: Options = options,
     clusterOptions: ClusterOptions = clusterOptions,
+    subscriptionPool: Option[PoolConfig] = subscriptionPool,
     logger: Logger[F] = logger,
     endpointResolver: EndpointResolver[F] = endpointResolver
   ): ClusterBuilder[F] =
-    new ClusterBuilder[F](endpoints, authority, options, clusterOptions, logger, endpointResolver) {}
+    new ClusterBuilder[F](endpoints, authority, options, clusterOptions, subscriptionPool, logger, endpointResolver) {}
 
   private[sec] def modOptions(fn: Endo[Options]): ClusterBuilder[F]         = copy(options = fn(options))
   private[sec] def modCOptions(fn: Endo[ClusterOptions]): ClusterBuilder[F] = copy(clusterOptions = fn(clusterOptions))
@@ -118,73 +136,90 @@ class ClusterBuilder[F[_]] private (
   def withAuthority(value: String): ClusterBuilder[F] = copy(authority = value)
   def withLogger(value: Logger[F]): ClusterBuilder[F] = copy(logger = value)
 
+  /** Routes subscriptions over a pool of dedicated channels, capped at `value.streamsPerChannel` concurrent
+    * subscriptions per channel. Reads, appends and gossip stay on the regular channel. Pooled channels resolve nodes
+    * through the same cluster watch as the regular channel. See [[sec.api.pool.PoolConfig]].
+    */
+  def withSubscriptionPool(value: PoolConfig): ClusterBuilder[F] = copy(subscriptionPool = value.some)
+
   private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](
     mcb: ChannelBuilderParams => F[MCB]
   )(using F: Async[F]): Resource[F, EsClient[F]] =
 
     val log: Logger[F] = logger.withModifiedString(s => s"Cluster > $s")
 
-    val builderForTarget: String => F[MCB] = t =>
-      mkCredentials(options.connectionMode) >>= { cc =>
+    // Credential material is resolved once up front; building channels from it is
+    // pure construction, safe to run under the pool lock when growing.
+    Resource.eval(mkCredentials[F](options.connectionMode)) >>= { creds =>
+
+      val builderForTarget: String => F[MCB] = t =>
         mcb(
           ChannelBuilderParams(
             t,
-            cc,
+            creds,
             options.maxInboundMessageSize,
             options.keepAliveTime,
             options.keepAliveTimeout,
             options.keepAliveWithoutCalls
           ))
-      }
 
-    def gossipFn(mc: ManagedChannel): Resource[F, Gossip[F]] = EsClient
-      .mkGossipFs2Grpc[F](mc)
-      .map(g =>
-        Gossip(
-          g,
-          EsClient.mkContext(options, requiresLeader = false),
-          EsClient.mkOpts[F](options.operationOptions.copy(retryEnabled = false), log, "gossip")
-        ))
+      def gossipFn(mc: ManagedChannel): Resource[F, Gossip[F]] = EsClient
+        .mkGossipFs2Grpc[F](mc)
+        .map(g =>
+          Gossip(
+            g,
+            EsClient.mkContext(options, requiresLeader = false),
+            EsClient.mkOpts[F](options.operationOptions.copy(retryEnabled = false), log, "gossip")
+          ))
 
-    val resolveSeed: Resource[F, NonEmptySet[Endpoint]] =
+      val resolveSeed: Resource[F, NonEmptySet[Endpoint]] =
 
-      def resolveEndpoints(vd: ClusterEndpoints.ViaDns) =
-        ClusterWatch.resolveEndpoints[F](
-          vd.clusterDns,
-          endpointResolver.resolveEndpoints(_, options.httpPort),
-          clusterOptions,
-          logger
-        )
+        def resolveEndpoints(vd: ClusterEndpoints.ViaDns) =
+          ClusterWatch.resolveEndpoints[F](
+            vd.clusterDns,
+            endpointResolver.resolveEndpoints(_, options.httpPort),
+            clusterOptions,
+            logger
+          )
 
-      endpoints.fold(resolveEndpoints, _.endpoints.pure[F]).toResource
+        endpoints.fold(resolveEndpoints, _.endpoints.pure[F]).toResource
 
-    resolveSeed >>= { seed =>
+      resolveSeed >>= { seed =>
 
-      ClusterWatch(builderForTarget, options, clusterOptions, gossipFn, seed, authority, log) >>= { cw =>
+        ClusterWatch(builderForTarget, options, clusterOptions, gossipFn, seed, authority, log) >>= { cw =>
 
-        val mkProvider: Resource[F, ResolverProvider[F]] = ResolverProvider
-          .bestNodes[F](authority, clusterOptions.preference, cw.subscribe, log)
-          .evalTap(p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
+          val mkProvider: Resource[F, ResolverProvider[F]] = ResolverProvider
+            .bestNodes[F](authority, clusterOptions.preference, cw.subscribe, log)
+            .evalTap(p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
 
-        def builder(p: ResolverProvider[F]): Resource[F, MCB] =
-          Resource.eval(builderForTarget(s"${p.scheme}:///"))
+          val mods: Endo[MCB] =
+            _.defaultLoadBalancingPolicy("round_robin").overrideAuthority(authority)
 
-        val mods: Endo[MCB] =
-          _.defaultLoadBalancingPolicy("round_robin").overrideAuthority(authority)
-
-        // A NotLeader observed by an operation means cluster topology is stale, so ask the
-        // watch for an immediate gossip fetch instead of awaiting the notification interval.
-        val refreshHint: Throwable => F[Unit] = {
-          case _: NotLeader => cw.refresh
-          case _            => F.unit
-        }
-
-        mkProvider >>= builder >>= { b =>
-          channel.resource[F](mods(b).build, options.channelShutdownAwait) >>= { mc =>
-            EsClient[F](mc, options, clusterOptions.preference.isLeader, logger, refreshHint.some)
+          // A NotLeader observed by an operation means cluster topology is stale, so ask the
+          // watch for an immediate gossip fetch instead of awaiting the notification interval.
+          val refreshHint: Throwable => F[Unit] = {
+            case _: NotLeader => cw.refresh
+            case _            => F.unit
           }
-        }
 
+          mkProvider >>= { p =>
+
+            val mkChannel: Resource[F, ManagedChannel] =
+              channel.mk(builderForTarget(s"${p.scheme}:///"), mods, options.channelShutdownAwait)
+
+            mkChannel >>= { mc =>
+              EsClient[F](
+                mc,
+                options,
+                clusterOptions.preference.isLeader,
+                logger,
+                refreshHint.some,
+                subscriptionPool.map(pool.SubscriptionPool(_, mkChannel))
+              )
+            }
+          }
+
+        }
       }
     }
 
@@ -198,6 +233,6 @@ object ClusterBuilder:
     logger: Logger[F],
     endpointResolver: EndpointResolver[F]
   ): ClusterBuilder[F] =
-    new ClusterBuilder[F](endpoints, authority, options, clusterOptions, logger, endpointResolver)
+    new ClusterBuilder[F](endpoints, authority, options, clusterOptions, None, logger, endpointResolver)
 
 //======================================================================================================================
