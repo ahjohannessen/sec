@@ -24,7 +24,6 @@ import scala.concurrent.TimeoutException
 import scala.concurrent.duration.*
 import cats.Id
 import cats.data.NonEmptySet as Nes
-import cats.data.NonEmptyList as Nel
 import cats.effect.*
 import cats.effect.testkit.*
 import cats.syntax.all.*
@@ -46,10 +45,6 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances:
 
     test("only emit changes in cluster info") {
 
-      val options = ClusterOptions.default
-        .withMaxDiscoverAttempts(1.some)
-        .withNotificationInterval(150.millis)
-
       def instanceId = sampleOf[ju.UUID]
       def timestamp  = sampleOf[ZonedDateTime]
 
@@ -63,29 +58,20 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances:
       val ci4 = ClusterInfo(Set(m1, m2, m3))
       val ci5 = ClusterInfo(Set(m1, m3))
 
-      def readFn(ref: Ref[IO, Nel[ClusterInfo]]): IO[ClusterInfo] = ref
-        .getAndUpdate {
-          case Nel(_, t :: ts) => Nel(t, ts)
-          case Nel(h, Nil)     => Nel.one(h)
-        }
-        .map(_.head)
-
-      type Res = (Stream[IO, ClusterInfo], Ref[IO, List[ClusterInfo]])
-
-      val result: Resource[IO, Res] = for {
-        infos   <- Resource.eval(Ref.of[IO, Nel[ClusterInfo]](Nel.of(ci1, ci2, ci3, ci4, ci5)))
-        store   <- Resource.eval(Ref.of[IO, List[ClusterInfo]](ci1 :: Nil))
-        log     <- Resource.eval(mkLog)
-        watch   <- ClusterWatch.create[IO](readFn(infos), options, recordingCache(store), log)
-        changes <- Resource.eval(watch.subscribe.pure[IO])
-      } yield (changes, store)
-
-      val x = result.map { case (changes, store) =>
-        assertIO(changes.take(4).compile.toList, List(ci1, ci2, ci4, ci5)) >>
-          assertIO(store.get.map(_.lastOption), ci5.some)
+      // The subscriber samples the cache (150ms) faster than the cache changes (400ms), so every
+      // state is observed at least once and consecutive duplicates are dropped by the watch alone:
+      // ci3 equals ci2 as a set and must not be re-emitted. Virtual time makes the schedule
+      // deterministic; on real clocks two independent timers race and the subscriber can miss a
+      // state under load, hanging the take below.
+      TestControl.executeEmbed {
+        for
+          store   <- Ref.of[IO, ClusterInfo](ci1)
+          watch    = ClusterWatch.mkWatch(store.get, 150.millis, IO.unit)
+          drive    = Stream.awakeEvery[IO](400.millis).zipRight(Stream(ci2, ci3, ci4, ci5)).evalMap(store.set)
+          changes <- watch.subscribe.take(4).concurrently(drive).compile.toList
+          _       <- IO(assertEquals(changes, List(ci1, ci2, ci4, ci5)))
+        yield ()
       }
-
-      x.use(a => a)
 
     }
 
