@@ -27,6 +27,7 @@ import org.typelevel.log4cats.noop.NoOpLogger
 import sec.tsc.config.*
 import sec.api.*
 import sec.api.cluster.*
+import sec.api.pool.{Limit, PoolConfig}
 
 class ConfigSuite extends SecSuite:
 
@@ -366,6 +367,160 @@ class ConfigSuite extends SecSuite:
       )
 
       assertEquals(mkOptions[ErrorOr](cfg3), Options.default.withInsecureMode.asRight)
+
+    }
+
+  }
+
+  group("mkPoolConfig") {
+
+    test("no config") {
+      assertEquals(mkPoolConfig[ErrorOr](ConfigFactory.parseString("")), Right(None))
+    }
+
+    test("streams-per-channel is required - no silent default") {
+
+      val cfg = ConfigFactory.parseString(
+        """
+          | sec.subscription-pool {
+          |   enabled      = true
+          |   max-channels = 5
+          | }
+          |""".stripMargin
+      )
+
+      assertEquals(mkPoolConfig[ErrorOr](cfg), Right(None))
+
+    }
+
+    test("config - bounded") {
+
+      val cfg1 = ConfigFactory.parseString(
+        """
+          | sec.subscription-pool {
+          |   streams-per-channel = 100
+          | }
+          |""".stripMargin
+      )
+
+      assertEquals(mkPoolConfig[ErrorOr](cfg1), PoolConfig(100, Limit.Bounded()).map(_.some))
+
+      val cfg2 = ConfigFactory.parseString(
+        """
+          | sec.subscription-pool {
+          |   streams-per-channel = 100
+          |   limit               = bounded
+          |   max-channels        = 5
+          | }
+          |""".stripMargin
+      )
+
+      assertEquals(mkPoolConfig[ErrorOr](cfg2), PoolConfig(100, Limit.Bounded(5)).map(_.some))
+
+    }
+
+    test("config - unbounded") {
+
+      val cfg1 = ConfigFactory.parseString(
+        """
+          | sec.subscription-pool {
+          |   streams-per-channel = 100
+          |   limit               = unbounded
+          | }
+          |""".stripMargin
+      )
+
+      assertEquals(mkPoolConfig[ErrorOr](cfg1), PoolConfig(100, Limit.Unbounded()).map(_.some))
+
+      val cfg2 = ConfigFactory.parseString(
+        """
+          | sec.subscription-pool {
+          |   streams-per-channel = 100
+          |   limit               = unbounded
+          |   sanity-cap          = 20
+          | }
+          |""".stripMargin
+      )
+
+      assertEquals(mkPoolConfig[ErrorOr](cfg2), PoolConfig(100, Limit.Unbounded(20)).map(_.some))
+
+    }
+
+    test("enabled = false is the kill-switch") {
+
+      val cfg = ConfigFactory.parseString(
+        """
+          | sec.subscription-pool {
+          |   enabled             = false
+          |   streams-per-channel = 100
+          |   max-channels        = 5
+          | }
+          |""".stripMargin
+      )
+
+      assertEquals(mkPoolConfig[ErrorOr](cfg), Right(None))
+
+    }
+
+    test("strict parsing - malformed values raise instead of failing open") {
+
+      def poolCfg(body: String) =
+        ConfigFactory.parseString(s"sec.subscription-pool { $body }")
+
+      // a mangled kill-switch must not silently leave the pool running
+      assert(mkPoolConfig[ErrorOr](poolCfg("enabled = flase, streams-per-channel = 100")).isLeft)
+      // a limit typo must not silently fall back to bounded
+      assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 100, limit = unbouned")).isLeft)
+      // non-numeric values raise
+      assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = many")).isLeft)
+      // PoolConfig validation surfaces through the parser
+      assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 0")).isLeft)
+      assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 100, max-channels = 0")).isLeft)
+
+    }
+
+  }
+
+  group("mkBuilder with subscription pool") {
+
+    val noopL = NoOpLogger[ErrorOr]
+    val noopR = EndpointResolver.noop[ErrorOr]
+
+    val poolCfg =
+      """
+        | sec.subscription-pool {
+        |   streams-per-channel = 100
+        |   max-channels        = 5
+        | }
+        |""".stripMargin
+
+    test("single node") {
+
+      mkBuilder[ErrorOr](ConfigFactory.parseString(poolCfg), noopL, noopR) match {
+        case Left(e)               => fail(e.getMessage, e)
+        case Right(Left(_))        => fail("did not expect cluster builder")
+        case Right(Right(builder)) =>
+          assertEquals(builder.subscriptionPool, PoolConfig(100, Limit.Bounded(5)).toOption)
+      }
+
+    }
+
+    test("cluster") {
+
+      val cfg = ConfigFactory.parseString(
+        s"""
+           | sec.authority   = "example.org"
+           | sec.cluster.dns = "active.example.org"
+           |$poolCfg
+           |""".stripMargin
+      )
+
+      mkBuilder[ErrorOr](cfg, noopL, noopR) match {
+        case Left(e)              => fail(e.getMessage, e)
+        case Right(Right(_))      => fail("did not expect single node builder")
+        case Right(Left(builder)) =>
+          assertEquals(builder.subscriptionPool, PoolConfig(100, Limit.Bounded(5)).toOption)
+      }
 
     }
 

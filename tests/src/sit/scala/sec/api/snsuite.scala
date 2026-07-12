@@ -41,7 +41,7 @@ trait SnSuite extends ClientSuite:
 
   def mkSnakeCase: String => String = helpers.text.mkSnakeCase
 
-  final val makeResource: Resource[IO, EsClient[IO]] = SnSuite.mkClient[IO](log)
+  def makeResource: Resource[IO, EsClient[IO]] = SnSuite.mkClient[IO](log)
 
 object SnSuite:
 
@@ -54,12 +54,16 @@ object SnSuite:
 
   //
 
-  def mkClient[F[_]: Async](log: Logger[F]): Resource[F, EsClient[F]] = EsClient
-    .singleNode[F](Endpoint(address, port))
-    .withAuthority(authority)
-    .withCertificate(cert)
-    .withChannelShutdownAwait(200.millis)
-    .withPrefetchN(4096)
-    .withMaxInboundMessageSize(16 * 1024 * 1024)
-    .withLogger(log)
-    .resource
+  def mkClient[F[_]: Async](
+    log: Logger[F],
+    mod: SingleNodeBuilder[F] => SingleNodeBuilder[F] = identity[SingleNodeBuilder[F]]
+  ): Resource[F, EsClient[F]] = mod(
+    EsClient
+      .singleNode[F](Endpoint(address, port))
+      .withAuthority(authority)
+      .withCertificate(cert)
+      .withChannelShutdownAwait(200.millis)
+      .withPrefetchN(4096)
+      .withMaxInboundMessageSize(16 * 1024 * 1024)
+      .withLogger(log)
+  ).resource

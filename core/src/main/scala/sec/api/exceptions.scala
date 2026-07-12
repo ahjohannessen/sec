@@ -36,6 +36,9 @@ object exceptions:
   final case class ServerUnavailable(msg: String) extends EsException(msg)
   final case class ResubscriptionRequired(msg: String) extends EsException(msg)
 
+  final case class SubscriptionPoolExhausted(channels: Int)
+    extends EsException(s"All $channels pooled subscription channels are at capacity - refusing to queue silently.")
+
   final case class NotLeader(
     host: Option[String],
     port: Option[Int]
