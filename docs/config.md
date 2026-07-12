@@ -74,3 +74,7 @@ sec.subscription-pool {
 
 The pool only activates when `streams-per-channel` is present. `enabled = false` is an operational kill-switch: it
 turns the pool off - restoring single-channel behavior - without having to remove the rest of the section.
+
+While a pool is active, @libName@ also observes the regular channel and warns when its in-flight calls approach
+`streams-per-channel`, since sustained saturation there usually indicates a long-lived read that belongs on a
+subscription.
