@@ -206,6 +206,11 @@ trait Streams[F[_]]:
 
   /** Returns an [[sec.api.streams.Reads]] instance. This is useful when you need more granularity from `readAll` or
     * `readStream` operations.
+    *
+    * @note
+    *   [[sec.api.streams.Reads]] always uses the regular channel. When a subscription pool is configured, a hand-rolled
+    *   infinite read built on top of [[sec.api.streams.Reads]] bypasses the pool's concurrent-stream protection - use
+    *   the `subscribeTo*` operations for long-lived streams.
     */
   def messageReads: Reads[F]
 
@@ -216,7 +221,8 @@ object Streams:
   private[sec] def apply[F[_]: Temporal, C](
     client: StreamsFs2Grpc[F, C],
     mkCtx: Option[UserCredentials] => C,
-    opts: Opts[F]
+    opts: Opts[F],
+    subscriptionTransport: Option[(ReadReq, C) => Stream[F, ReadResp]] = None
   ): Streams[F] = new Streams[F]:
 
     private given C = mkCtx(None)
@@ -225,6 +231,12 @@ object Streams:
     private val delete = client.delete(_)
     private val tomb   = client.tombstone(_)
 
+    // Subscriptions are infinite streams and may route over a pooled transport (see sec.api.pool)
+    // instead of the ops channel. Reads/appends/gossip stay on the dedicated ops channel: transient
+    // calls must not ratchet a never-shrinking pool, and brief queueing is harmless for calls that end.
+    private val subRead: ReadReq => Stream[F, ReadResp] =
+      subscriptionTransport.fold(read)(f => f(_, summon[C]))
+
     private val subscriptionOpts: Opts[F] =
       opts.copy(retryOn = th => opts.retryOn(th) || th.isInstanceOf[ResubscriptionRequired])
 
@@ -232,21 +244,21 @@ object Streams:
       exclusiveFrom: Option[LogPosition],
       resolveLinkTos: Boolean
     ): Stream[F, Event] =
-      subscribeToAll0[F](exclusiveFrom, resolveLinkTos, subscriptionOpts)(read)
+      subscribeToAll0[F](exclusiveFrom, resolveLinkTos, subscriptionOpts)(subRead)
 
     def subscribeToAll(
       exclusiveFrom: Option[LogPosition],
       filterOptions: SubscriptionFilterOptions,
       resolveLinkTos: Boolean
     ): Stream[F, Either[Checkpoint, Event]] =
-      subscribeToAll0[F](exclusiveFrom, filterOptions, resolveLinkTos, subscriptionOpts)(read)
+      subscribeToAll0[F](exclusiveFrom, filterOptions, resolveLinkTos, subscriptionOpts)(subRead)
 
     def subscribeToStream(
       streamId: StreamId,
       exclusiveFrom: Option[StreamPosition],
       resolveLinkTos: Boolean
     ): Stream[F, Event] =
-      subscribeToStream0[F](streamId, exclusiveFrom, resolveLinkTos, subscriptionOpts)(read)
+      subscribeToStream0[F](streamId, exclusiveFrom, resolveLinkTos, subscriptionOpts)(subRead)
 
     def readAll(
       from: LogPosition,
@@ -298,7 +310,7 @@ object Streams:
     def withCredentials(
       creds: UserCredentials
     ): Streams[F] =
-      Streams[F, C](client, _ => mkCtx(creds.some), opts)
+      Streams[F, C](client, _ => mkCtx(creds.some), opts, subscriptionTransport)
 
     val messageReads: Reads[F] =
       Reads[F, C](client, mkCtx)

@@ -31,6 +31,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
 import sec.api.*
 import sec.api.cluster.*
+import sec.api.pool.{Limit, PoolConfig}
 
 private[sec] object config:
 
@@ -38,6 +39,7 @@ private[sec] object config:
   private val ooPath   = s"$rootPath.operations"
   private val clPath   = s"$rootPath.cluster"
   private val coPath   = s"$clPath.options"
+  private val spPath   = s"$rootPath.subscription-pool"
 
   //
 
@@ -70,14 +72,21 @@ private[sec] object config:
     er: EndpointResolver[F]
   ): F[Either[ClusterBuilder[F], SingleNodeBuilder[F]]] = {
 
-    def singleNode(o: Options): SingleNodeBuilder[F] =
-      mkSingleNodeBuilder[F](o, cfg).withLogger(logger)
+    mkPoolConfig[F](cfg) >>= { pool =>
 
-    def cluster(o: Options): F[Option[ClusterBuilder[F]]] =
-      mkClusterOptions[F](cfg).map(co =>
-        mkClusterBuilder[F](o, co, cfg).map(b => b.withLogger(logger).withEndpointResolver(er)))
+      def singleNode(o: Options): SingleNodeBuilder[F] =
+        val b = mkSingleNodeBuilder[F](o, cfg).withLogger(logger)
+        pool.fold(b)(b.withSubscriptionPool)
 
-    mkOptions[F](cfg) >>= { o => cluster(o).map(_.toLeft(singleNode(o))) }
+      def cluster(o: Options): F[Option[ClusterBuilder[F]]] =
+        mkClusterOptions[F](cfg).map(co =>
+          mkClusterBuilder[F](o, co, cfg).map { b =>
+            val cb = b.withLogger(logger).withEndpointResolver(er)
+            pool.fold(cb)(cb.withSubscriptionPool)
+          })
+
+      mkOptions[F](cfg) >>= { o => cluster(o).map(_.toLeft(singleNode(o))) }
+    }
 
   }
 
@@ -194,6 +203,34 @@ private[sec] object config:
 
   //
 
+  /** The pool only activates when `streams-per-channel` is present: it must mirror the server-side HTTP/2
+    * concurrent-stream limit and deliberately has no default. `enabled = false` is the operational kill-switch: it
+    * turns the pool off without having to remove the rest of the section.
+    *
+    * Unlike the other config readers, this one is strict: a malformed value raises instead of being treated as absent.
+    * The kill-switch must not fail open - `enabled = flase` silently leaving the pool running is worse than refusing to
+    * start - and a mangled `streams-per-channel` or `limit` must not silently change the pool's failure mode.
+    */
+  def mkPoolConfig[F[_]: ApplicativeThrow](cfg: Config): F[Option[PoolConfig]] =
+
+    val result: Either[Throwable, Option[PoolConfig]] = for
+      enabled <- cfg.strictOption(s"$spPath.enabled", _.getBoolean).map(_.getOrElse(true))
+      kind    <- cfg.strictOption(s"$spPath.limit", _.getString).map(_.map(_.trim.toLowerCase).getOrElse("bounded"))
+      limit   <- kind match
+                 case "bounded" =>
+                   cfg.strictOption(s"$spPath.max-channels", _.getInt).map(_.fold(Limit.Bounded())(Limit.Bounded(_)))
+                 case "unbounded" =>
+                   cfg.strictOption(s"$spPath.sanity-cap", _.getInt).map(_.fold(Limit.Unbounded())(Limit.Unbounded(_)))
+                 case other =>
+                   InvalidInput(s"$spPath.limit must be bounded or unbounded, it was $other.").asLeft
+      spc  <- cfg.strictOption(s"$spPath.streams-per-channel", _.getInt)
+      pool <- spc.filter(_ => enabled).traverse(PoolConfig(_, limit))
+    yield pool
+
+    result.liftTo[F]
+
+  //
+
   def mkClusterOptions[F[_]: ApplicativeThrow](cfg: Config): F[ClusterOptions] =
 
     val nodePreference: Endo[ClusterOptions] = o =>
@@ -236,5 +273,12 @@ private[sec] object config:
 
     private[config] def option[T](path: String, f: Config => (String => T)): Option[T] =
       if cfg.hasPath(path) then Either.catchNonFatal(f(cfg)(path)).toOption else None
+
+    /** Unlike [[option]], a present-but-malformed value surfaces as a Left instead of being treated as absent. For
+      * settings where falling back to a default on a typo is worse than refusing to start - e.g. a kill-switch that
+      * would otherwise fail open, or a limit that must mirror a server-side value.
+      */
+    private[config] def strictOption[T](path: String, f: Config => (String => T)): Either[Throwable, Option[T]] =
+      if cfg.hasPath(path) then Either.catchNonFatal(f(cfg)(path)).map(_.some) else none.asRight
 
 end config

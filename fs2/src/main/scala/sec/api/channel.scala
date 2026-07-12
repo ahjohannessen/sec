@@ -18,6 +18,7 @@ package sec.api
 
 import java.io.{File, InputStream}
 import scala.concurrent.duration.*
+import cats.Endo
 import cats.syntax.all.*
 import cats.effect.{Resource, Sync}
 import scodec.bits.ByteVector
@@ -47,6 +48,13 @@ private[sec] object channel:
       case Secure(cert) => cert.fold(fromFile, fromB64).map(_.some)
 
   //
+
+  def mk[F[_]: Sync, MCB <: ManagedChannelBuilder[MCB]](
+    builder: F[MCB],
+    mods: Endo[MCB],
+    shutdownAwait: FiniteDuration
+  ): Resource[F, ManagedChannel] =
+    Resource.eval(builder) >>= { b => resource[F](mods(b).build, shutdownAwait) }
 
   def resource[F[_]: Sync](acquire: => ManagedChannel, shutdownAwait: FiniteDuration): Resource[F, ManagedChannel] =
     resourceWithShutdown[F](acquire) { ch =>
