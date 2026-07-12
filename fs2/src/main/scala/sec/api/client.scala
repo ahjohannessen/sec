@@ -26,10 +26,11 @@ import io.kurrent.dbclient.proto.gossip.GossipFs2Grpc
 import io.kurrent.dbclient.proto.streams.{ReadReq, ReadResp, StreamsFs2Grpc}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
-import io.grpc.{CallOptions, ManagedChannel}
+import io.grpc.{CallOptions, ManagedChannel, Metadata}
 import fs2.Stream
-import fs2.grpc.client.ClientOptions
-import sec.api.pool.{GrpcChannelPool, GrpcSlot, Pool, SubscriptionPool}
+import fs2.grpc.client.{ClientAspect, ClientAspectMiddleware, ClientOptions}
+import cats.effect.std.Dispatcher
+import sec.api.pool.{CallCounter, GrpcChannelPool, GrpcSlot, Pool, SubscriptionPool}
 import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.grpc.convert.convertToEs
 import sec.api.grpc.metadata.*
@@ -118,8 +119,14 @@ object EsClient:
     subscriptionPool: Option[SubscriptionPool[F]] = None
   ): Resource[F, EsClient[F]] =
     for
-      s    <- mkStreamsFs2Grpc[F](mc, options.prefetchN)
-      g    <- mkGossipFs2Grpc[F](mc)
+      // Pure observation on the ops channel, only when a pool bounds subscriptions: brief queueing
+      // of calls that end is harmless, but sustained saturation indicates pathology - e.g. a
+      // hand-rolled infinite read that belongs on the pooled subscription transport.
+      counter <- Resource.eval(subscriptionPool.traverse { sp =>
+                   CallCounter.of[F](sp.config.streamsPerChannel, logger.withModifiedString(s => s"OpsChannel > $s"))
+                 })
+      s    <- mkStreamsFs2Grpc[F](mc, options.prefetchN, middleware = counter.map(_.middleware))
+      g    <- mkGossipFs2Grpc[F](mc, middleware = counter.map(_.middleware))
       pool <- subscriptionPool.traverse { sp =>
                 GrpcChannelPool.of[F](
                   sp.mkChannel,
@@ -199,27 +206,34 @@ object EsClient:
   private[sec] def mkStreamsFs2Grpc[F[_]: Async](
     mc: ManagedChannel,
     prefetchN: Int,
-    fn: Endo[CallOptions] = identity
+    fn: Endo[CallOptions] = identity,
+    middleware: Option[ClientAspectMiddleware[F, Metadata]] = None
   ): Resource[F, StreamsFs2Grpc[F, Context]] =
-    StreamsFs2Grpc.clientResource[F, Context](
-      mc,
-      _.toMetadata,
-      ClientOptions.default
-        .configureCallOptions(fn)
-        .withErrorAdapter(Function.unlift(convertToEs))
-        .withPrefetchN(prefetchN)
-    )
+
+    val clientOptions = ClientOptions.default
+      .configureCallOptions(fn)
+      .withErrorAdapter(Function.unlift(convertToEs))
+      .withPrefetchN(prefetchN)
+
+    Dispatcher.parallel[F].map(StreamsFs2Grpc.mkClientFull[F, F, Context](_, mc, aspect(middleware), clientOptions))
 
   /// Gossip
 
   private[sec] def mkGossipFs2Grpc[F[_]: Async](
     mc: ManagedChannel,
-    fn: Endo[CallOptions] = identity
+    fn: Endo[CallOptions] = identity,
+    middleware: Option[ClientAspectMiddleware[F, Metadata]] = None
   ): Resource[F, GossipFs2Grpc[F, Context]] =
-    GossipFs2Grpc.clientResource[F, Context](
-      mc,
-      _.toMetadata,
-      ClientOptions.default
-        .configureCallOptions(fn)
-        .withErrorAdapter(Function.unlift(convertToEs))
-    )
+
+    val clientOptions = ClientOptions.default
+      .configureCallOptions(fn)
+      .withErrorAdapter(Function.unlift(convertToEs))
+
+    Dispatcher.parallel[F].map(GossipFs2Grpc.mkClientFull[F, F, Context](_, mc, aspect(middleware), clientOptions))
+
+  /** What `clientResource` builds internally - a dedicated dispatcher and the default aspect with sec's
+    * Context-to-Metadata threading - with the middleware, when given, wrapped around every call.
+    */
+  private def aspect[F[_]: Async](mw: Option[ClientAspectMiddleware[F, Metadata]]): ClientAspect[F, F, Context] =
+    val base: ClientAspect[F, F, Metadata] = new ClientAspect.Default[F] {}
+    mw.fold(base)(ClientAspectMiddleware.wrap(_, base)).contraModify((c: Context) => c.toMetadata.pure[F])
