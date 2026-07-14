@@ -66,11 +66,14 @@ the pool is configured as follows:
 sec.subscription-pool {
   enabled             = true      # required - the pool is off by default
   streams-per-channel = 100      # required - the pool stays off without it
-  limit               = bounded  # bounded | unbounded
-  max-channels        = 10       # used when limit = bounded
-  sanity-cap          = 10       # used when limit = unbounded
+  limit               = bounded  # bounded | unbounded; absent = bounded with 10 channels
+  max-channels        = 10       # required when limit = bounded
+  sanity-cap          = 10       # required when limit = unbounded
 }
 ```
+
+Naming a `limit` kind requires its size: `limit = bounded` without `max-channels` (or `unbounded` without
+`sanity-cap`) is rejected at startup. Leaving `limit` out entirely gives the documented default.
 
 The pool is disabled by default: it only activates when both `enabled = true` and `streams-per-channel` are present.
 An absent `sec.subscription-pool` section means no pool. Setting `enabled = false` doubles as an operational

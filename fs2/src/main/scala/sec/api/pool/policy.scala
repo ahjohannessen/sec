@@ -25,10 +25,17 @@ import cats.syntax.all.*
 enum Limit:
 
   /** Grow to at most `max` channels, then fail fast with [[sec.api.exceptions.SubscriptionPoolExhausted]]. */
-  case Bounded(max: Int = 10)
+  case Bounded(max: Int)
 
   /** Grow forever; log at error level for every growth past `sanityCap`. */
-  case Unbounded(sanityCap: Int = 10)
+  case Unbounded(sanityCap: Int)
+
+object Limit:
+
+  /** Ten channels is an order of magnitude above a healthy subscription count for a single client at typical
+    * streams-per-channel values - a pool that wants to grow past it indicates a subscription leak, not load.
+    */
+  val default: Limit = Bounded(max = 10)
 
 /** Configuration for the subscription channel pool. */
 sealed abstract case class PoolConfig(streamsPerChannel: Int, limit: Limit)
@@ -41,9 +48,9 @@ object PoolConfig:
     *   silent default could quietly disagree with the server - which is the class of failure the pool exists to
     *   eliminate.
     * @param limit
-    *   growth limit, see [[Limit]]. Its `max` / `sanityCap` must be greater than or equal to 1.
+    *   growth limit, see [[Limit]] and [[Limit.default]]. Its `max` / `sanityCap` must be greater than or equal to 1.
     */
-  def apply(streamsPerChannel: Int, limit: Limit = Limit.Bounded()): Either[InvalidInput, PoolConfig] =
+  def apply(streamsPerChannel: Int, limit: Limit): Either[InvalidInput, PoolConfig] =
 
     val guardLimit: Either[InvalidInput, Limit] = limit match
       case Limit.Bounded(max) if max < 1 =>
@@ -56,7 +63,7 @@ object PoolConfig:
     else guardLimit.map(new PoolConfig(streamsPerChannel, _) {})
 
   /** As [[apply]], with the validation error lifted into `F`. */
-  def of[F[_]: ApplicativeThrow](streamsPerChannel: Int, limit: Limit = Limit.Bounded()): F[PoolConfig] =
+  def of[F[_]: ApplicativeThrow](streamsPerChannel: Int, limit: Limit): F[PoolConfig] =
     apply(streamsPerChannel, limit).liftTo[F]
 
 private[sec] case class SlotView(index: Int, free: Int, healthy: Boolean)
