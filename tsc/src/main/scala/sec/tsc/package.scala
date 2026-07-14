@@ -203,18 +203,20 @@ private[sec] object config:
 
   //
 
-  /** The pool only activates when `streams-per-channel` is present: it must mirror the server-side HTTP/2
-    * concurrent-stream limit and deliberately has no default. `enabled = false` is the operational kill-switch: it
-    * turns the pool off without having to remove the rest of the section.
+  /** The pool is disabled unless explicitly opted in: it only activates when `enabled = true` AND `streams-per-channel`
+    * are both present. An absent `sec.subscription-pool` section - or a present one without `enabled = true` - means no
+    * pool. `streams-per-channel` deliberately has no default: it must mirror the server-side HTTP/2 concurrent-stream
+    * limit. Setting `enabled = false` doubles as the operational kill-switch: it turns the pool off without having to
+    * remove the rest of the section.
     *
     * Unlike the other config readers, this one is strict: a malformed value raises instead of being treated as absent.
-    * The kill-switch must not fail open - `enabled = flase` silently leaving the pool running is worse than refusing to
-    * start - and a mangled `streams-per-channel` or `limit` must not silently change the pool's failure mode.
+    * The switch must not misfire silently - `enabled = ture` quietly leaving the pool off, or a mangled
+    * `streams-per-channel` or `limit` silently changing the pool's failure mode, is worse than refusing to start.
     */
   def mkPoolConfig[F[_]: ApplicativeThrow](cfg: Config): F[Option[PoolConfig]] =
 
     val result: Either[Throwable, Option[PoolConfig]] = for
-      enabled <- cfg.strictOption(s"$spPath.enabled", _.getBoolean).map(_.getOrElse(true))
+      enabled <- cfg.strictOption(s"$spPath.enabled", _.getBoolean).map(_.getOrElse(false))
       kind    <- cfg.strictOption(s"$spPath.limit", _.getString).map(_.map(_.trim.toLowerCase).getOrElse("bounded"))
       limit   <- kind match
                  case "bounded" =>
@@ -223,9 +225,11 @@ private[sec] object config:
                    cfg.strictOption(s"$spPath.sanity-cap", _.getInt).map(_.fold(Limit.Unbounded())(Limit.Unbounded(_)))
                  case other =>
                    InvalidInput(s"$spPath.limit must be bounded or unbounded, it was $other.").asLeft
-      spc  <- cfg.strictOption(s"$spPath.streams-per-channel", _.getInt)
-      pool <- spc.filter(_ => enabled).traverse(PoolConfig(_, limit))
-    yield pool
+      spc <- cfg.strictOption(s"$spPath.streams-per-channel", _.getInt)
+      // Everything written in the section is validated even when the pool is not enabled -
+      // a disabled-but-invalid section must fail at startup, not on the day the switch flips.
+      pool <- spc.traverse(PoolConfig(_, limit))
+    yield pool.filter(_ => enabled)
 
     result.liftTo[F]
 
