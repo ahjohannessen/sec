@@ -21,7 +21,6 @@ package pool
 import cats.~>
 import cats.syntax.all.*
 import cats.effect.{Concurrent, Ref, Resource}
-import cats.effect.syntax.all.*
 import fs2.Stream
 import fs2.grpc.client.{ClientAspectMiddleware, ClientCallContext}
 import io.grpc.Metadata
