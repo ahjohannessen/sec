@@ -64,7 +64,7 @@ the pool is configured as follows:
 
 ```hocon
 sec.subscription-pool {
-  enabled             = true      # kill-switch, default true
+  enabled             = true      # required - the pool is off by default
   streams-per-channel = 100      # required - the pool stays off without it
   limit               = bounded  # bounded | unbounded
   max-channels        = 10       # used when limit = bounded
@@ -72,8 +72,10 @@ sec.subscription-pool {
 }
 ```
 
-The pool only activates when `streams-per-channel` is present. `enabled = false` is an operational kill-switch: it
-turns the pool off - restoring single-channel behavior - without having to remove the rest of the section.
+The pool is disabled by default: it only activates when both `enabled = true` and `streams-per-channel` are present.
+An absent `sec.subscription-pool` section means no pool. Setting `enabled = false` doubles as an operational
+kill-switch: it turns the pool off - restoring single-channel behavior - without having to remove the rest of the
+section.
 
 While a pool is active, @libName@ also observes the regular channel and warns when its in-flight calls approach
 `streams-per-channel`, since sustained saturation there usually indicates a long-lived read that belongs on a

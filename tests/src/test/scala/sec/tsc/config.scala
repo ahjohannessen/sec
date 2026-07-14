@@ -398,6 +398,7 @@ class ConfigSuite extends SecSuite:
       val cfg1 = ConfigFactory.parseString(
         """
           | sec.subscription-pool {
+          |   enabled             = true
           |   streams-per-channel = 100
           | }
           |""".stripMargin
@@ -408,6 +409,7 @@ class ConfigSuite extends SecSuite:
       val cfg2 = ConfigFactory.parseString(
         """
           | sec.subscription-pool {
+          |   enabled             = true
           |   streams-per-channel = 100
           |   limit               = bounded
           |   max-channels        = 5
@@ -424,6 +426,7 @@ class ConfigSuite extends SecSuite:
       val cfg1 = ConfigFactory.parseString(
         """
           | sec.subscription-pool {
+          |   enabled             = true
           |   streams-per-channel = 100
           |   limit               = unbounded
           | }
@@ -435,6 +438,7 @@ class ConfigSuite extends SecSuite:
       val cfg2 = ConfigFactory.parseString(
         """
           | sec.subscription-pool {
+          |   enabled             = true
           |   streams-per-channel = 100
           |   limit               = unbounded
           |   sanity-cap          = 20
@@ -446,9 +450,18 @@ class ConfigSuite extends SecSuite:
 
     }
 
-    test("enabled = false is the kill-switch") {
+    test("disabled unless explicitly opted in via enabled = true") {
 
-      val cfg = ConfigFactory.parseString(
+      val withoutEnabled = ConfigFactory.parseString(
+        """
+          | sec.subscription-pool {
+          |   streams-per-channel = 100
+          |   max-channels        = 5
+          | }
+          |""".stripMargin
+      )
+
+      val killSwitch = ConfigFactory.parseString(
         """
           | sec.subscription-pool {
           |   enabled             = false
@@ -458,7 +471,8 @@ class ConfigSuite extends SecSuite:
           |""".stripMargin
       )
 
-      assertEquals(mkPoolConfig[ErrorOr](cfg), Right(None))
+      assertEquals(mkPoolConfig[ErrorOr](withoutEnabled), Right(None))
+      assertEquals(mkPoolConfig[ErrorOr](killSwitch), Right(None))
 
     }
 
@@ -467,8 +481,9 @@ class ConfigSuite extends SecSuite:
       def poolCfg(body: String) =
         ConfigFactory.parseString(s"sec.subscription-pool { $body }")
 
-      // a mangled kill-switch must not silently leave the pool running
+      // a mangled switch must not be silently treated as absent, in either direction
       assert(mkPoolConfig[ErrorOr](poolCfg("enabled = flase, streams-per-channel = 100")).isLeft)
+      assert(mkPoolConfig[ErrorOr](poolCfg("enabled = ture, streams-per-channel = 100")).isLeft)
       // a limit typo must not silently fall back to bounded
       assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 100, limit = unbouned")).isLeft)
       // non-numeric values raise
@@ -489,6 +504,7 @@ class ConfigSuite extends SecSuite:
     val poolCfg =
       """
         | sec.subscription-pool {
+        |   enabled             = true
         |   streams-per-channel = 100
         |   max-channels        = 5
         | }
