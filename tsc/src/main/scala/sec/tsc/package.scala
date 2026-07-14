@@ -217,14 +217,27 @@ private[sec] object config:
 
     val result: Either[Throwable, Option[PoolConfig]] = for
       enabled <- cfg.strictOption(s"$spPath.enabled", _.getBoolean).map(_.getOrElse(false))
-      kind    <- cfg.strictOption(s"$spPath.limit", _.getString).map(_.map(_.trim.toLowerCase).getOrElse("bounded"))
-      limit   <- kind match
-                 case "bounded" =>
-                   cfg.strictOption(s"$spPath.max-channels", _.getInt).map(_.fold(Limit.Bounded())(Limit.Bounded(_)))
-                 case "unbounded" =>
-                   cfg.strictOption(s"$spPath.sanity-cap", _.getInt).map(_.fold(Limit.Unbounded())(Limit.Unbounded(_)))
-                 case other =>
+      kind    <- cfg.strictOption(s"$spPath.limit", _.getString).map(_.map(_.trim.toLowerCase))
+      max     <- cfg.strictOption(s"$spPath.max-channels", _.getInt)
+      cap     <- cfg.strictOption(s"$spPath.sanity-cap", _.getInt)
+      // An absent limit means the documented default; an explicit limit kind must be specified
+      // fully, and a size key must belong to the named kind. Anything else is half a config
+      // in which some written value would be silently ignored.
+      limit <- (kind, max, cap) match
+                 case (None, None, None)                 => Limit.default.asRight
+                 case (Some("bounded"), Some(m), None)   => Limit.Bounded(m).asRight
+                 case (Some("unbounded"), None, Some(c)) => Limit.Unbounded(c).asRight
+                 case (Some("bounded"), None, None)      =>
+                   InvalidInput(s"$spPath.limit = bounded requires $spPath.max-channels.").asLeft
+                 case (Some("unbounded"), None, None) =>
+                   InvalidInput(s"$spPath.limit = unbounded requires $spPath.sanity-cap.").asLeft
+                 case (Some(k @ ("bounded" | "unbounded")), _, _) =>
+                   InvalidInput(
+                     s"$spPath.limit = $k only takes ${if k == "bounded" then "max-channels" else "sanity-cap"}.").asLeft
+                 case (Some(other), _, _) =>
                    InvalidInput(s"$spPath.limit must be bounded or unbounded, it was $other.").asLeft
+                 case (None, _, _) =>
+                   InvalidInput(s"$spPath.max-channels and sanity-cap require $spPath.limit to name the kind.").asLeft
       spc <- cfg.strictOption(s"$spPath.streams-per-channel", _.getInt)
       // Everything written in the section is validated even when the pool is not enabled -
       // a disabled-but-invalid section must fail at startup, not on the day the switch flips.

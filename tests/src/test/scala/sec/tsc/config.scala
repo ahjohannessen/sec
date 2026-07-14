@@ -383,8 +383,7 @@ class ConfigSuite extends SecSuite:
       val cfg = ConfigFactory.parseString(
         """
           | sec.subscription-pool {
-          |   enabled      = true
-          |   max-channels = 5
+          |   enabled = true
           | }
           |""".stripMargin
       )
@@ -404,7 +403,7 @@ class ConfigSuite extends SecSuite:
           |""".stripMargin
       )
 
-      assertEquals(mkPoolConfig[ErrorOr](cfg1), PoolConfig(100, Limit.Bounded()).map(_.some))
+      assertEquals(mkPoolConfig[ErrorOr](cfg1), PoolConfig(100, Limit.default).map(_.some))
 
       val cfg2 = ConfigFactory.parseString(
         """
@@ -422,18 +421,6 @@ class ConfigSuite extends SecSuite:
     }
 
     test("config - unbounded") {
-
-      val cfg1 = ConfigFactory.parseString(
-        """
-          | sec.subscription-pool {
-          |   enabled             = true
-          |   streams-per-channel = 100
-          |   limit               = unbounded
-          | }
-          |""".stripMargin
-      )
-
-      assertEquals(mkPoolConfig[ErrorOr](cfg1), PoolConfig(100, Limit.Unbounded()).map(_.some))
 
       val cfg2 = ConfigFactory.parseString(
         """
@@ -456,7 +443,6 @@ class ConfigSuite extends SecSuite:
         """
           | sec.subscription-pool {
           |   streams-per-channel = 100
-          |   max-channels        = 5
           | }
           |""".stripMargin
       )
@@ -466,7 +452,6 @@ class ConfigSuite extends SecSuite:
           | sec.subscription-pool {
           |   enabled             = false
           |   streams-per-channel = 100
-          |   max-channels        = 5
           | }
           |""".stripMargin
       )
@@ -486,11 +471,21 @@ class ConfigSuite extends SecSuite:
       assert(mkPoolConfig[ErrorOr](poolCfg("enabled = ture, streams-per-channel = 100")).isLeft)
       // a limit typo must not silently fall back to bounded
       assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 100, limit = unbouned")).isLeft)
+      // naming a limit kind without its size is half a config
+      assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 100, limit = bounded")).isLeft)
+      assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 100, limit = unbounded")).isLeft)
       // non-numeric values raise
       assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = many")).isLeft)
       // PoolConfig validation surfaces through the parser
       assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 0")).isLeft)
-      assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 100, max-channels = 0")).isLeft)
+      assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 100, limit = bounded, max-channels = 0")).isLeft)
+      // a size key without its kind - or with the wrong kind - would otherwise be silently ignored
+      assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 100, max-channels = 5")).isLeft)
+      assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 100, sanity-cap = 5")).isLeft)
+      assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 100, limit = bounded, sanity-cap = 5")).isLeft)
+      assert(
+        mkPoolConfig[ErrorOr](
+          poolCfg("streams-per-channel = 100, limit = unbounded, max-channels = 5, sanity-cap = 5")).isLeft)
 
     }
 
@@ -506,6 +501,7 @@ class ConfigSuite extends SecSuite:
         | sec.subscription-pool {
         |   enabled             = true
         |   streams-per-channel = 100
+        |   limit               = bounded
         |   max-channels        = 5
         | }
         |""".stripMargin

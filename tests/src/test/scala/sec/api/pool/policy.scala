@@ -24,8 +24,8 @@ import org.scalacheck.Prop.forAll
 class PoolPolicySuite extends SecScalaCheckSuite:
 
   test("PoolConfig rejects non-positive streams-per-channel and limits") {
-    assert(PoolConfig(0).isLeft)
-    assert(PoolConfig(-1).isLeft)
+    assert(PoolConfig(0, Limit.default).isLeft)
+    assert(PoolConfig(-1, Limit.default).isLeft)
     assert(PoolConfig(1, Limit.Bounded(0)).isLeft)
     assert(PoolConfig(1, Limit.Unbounded(0)).isLeft)
     assert(PoolConfig(1, Limit.Bounded(1)).isRight)
