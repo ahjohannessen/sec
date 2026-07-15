@@ -244,25 +244,6 @@ inThisBuild(
         ),
         cond = Some("github.ref == 'refs/heads/main'")
       )
-    ),
-    // sbt-typelevel pins the steward validation job to temurin@11, but current
-    // scala-steward artifacts are built for JDK 17+ and fail to launch there.
-    githubWorkflowAddedJobs ~= (_.map { job =>
-      if (job.id == "validate-steward")
-        WorkflowJob(
-          "validate-steward",
-          "Validate Steward Config",
-          WorkflowStep.Checkout ::
-            WorkflowStep.SetupJava(List(JavaSpec.temurin(jdkRelease.toString)), enableCaching = false) :::
-            WorkflowStep.Use(
-              UseRef.Public("coursier", "setup-action", "v1"),
-              Map("apps" -> "scala-steward")
-            ) ::
-            WorkflowStep.Run(List("scala-steward validate-repo-config .scala-steward.conf")) :: Nil,
-          scalas = List.empty,
-          javas  = List(JavaSpec.temurin(jdkRelease.toString))
-        )
-      else job
-    })
+    )
   )
 )
