@@ -25,9 +25,9 @@ import sec.syntax.all.*
 import sec.api.exceptions.SubscriptionPoolExhausted
 import sec.api.pool.{Limit, PoolConfig}
 
-/** End-to-end coverage of the pooled subscription transport: subscriptions route over dedicated
-  * channels with at most `streamsPerChannel` concurrent streams each, growing the pool as needed,
-  * while reads and appends stay on the regular channel.
+/** End-to-end coverage of the pooled subscription transport: subscriptions route over dedicated channels with at most
+  * `streamsPerChannel` concurrent streams each, growing the pool as needed, while reads and appends stay on the regular
+  * channel.
   */
 class SubscriptionPoolSuite extends SnSuite:
 
@@ -60,7 +60,8 @@ class SubscriptionPoolSuite extends SnSuite:
         .toList
         .flatMap { received =>
           IO(assertEquals(received, events.toList)) *>
-            streams.readStream(id, StreamPosition.Start, Direction.Forwards, events.size.toLong, false)
+            streams
+              .readStream(id, StreamPosition.Start, Direction.Forwards, events.size.toLong, false)
               .compile
               .count
               .flatMap(n => IO(assertEquals(n, events.size.toLong)))
