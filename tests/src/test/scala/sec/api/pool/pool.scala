@@ -23,11 +23,19 @@ import cats.syntax.all.*
 import cats.effect.{IO, Ref, Resource}
 import cats.effect.std.Random
 import cats.effect.testkit.TestControl
+import cats.effect.unsafe.IORuntimeConfig
 
 /** Each test maps to an invariant of [[Pool]]. Do not weaken tests to pass; fix the pool instead.
   * TestControl.executeEmbed doubles as a deadlock detector: non-terminating programs fail, not hang.
   */
 class PoolSuite extends SecEffectSuite:
+
+  /** Cancellation observed at every unmasked run-loop iteration, preemption every other. The default
+    * threshold (512) makes the gap between a permit being taken and the entry being committed
+    * practically unobservable under TestControl while remaining real in production - under this
+    * config an unmasked acquire deterministically loses a pending-cancelled slot before commit.
+    */
+  val aggressiveRt: IORuntimeConfig = IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 2)
 
   def poolConfig(streamsPerChannel: Int, limit: Limit): PoolConfig =
     PoolConfig(streamsPerChannel, limit).fold(e => fail(e.getMessage), identity)
@@ -78,7 +86,7 @@ class PoolSuite extends SecEffectSuite:
   }
 
   test("conservation under chaos: random hold/failure/cancellation leaks nothing") {
-    TestControl.executeEmbed {
+    TestControl.executeEmbed(
       (probe, Random.scalaUtilRandom[IO]).flatMapN { (p, rnd) =>
         testPool(p, poolConfig(4, Limit.Unbounded(3))).use { pool =>
           val op: IO[Unit] =
@@ -96,34 +104,42 @@ class PoolSuite extends SecEffectSuite:
             IO.sleep(1.second) *>
             pool.stats.flatMap(s => IO(assert(s.forall(_ == 0), s"leaked permits: $s")))
         }
-      }
-    }
+      },
+      aggressiveRt
+    )
   }
 
   test("cancellation racing acquire itself leaks nothing") {
-    TestControl.executeEmbed {
+    TestControl.executeEmbed(
       probe.flatMap { p =>
+        // With preemption every other iteration the cancel is signaled while the fiber is
+        // mid-acquire, exercising the gap between a successful tryAcquire and the commit.
         testPool(p, poolConfig(2, Limit.Unbounded(10))).use { pool =>
           pool.lease.use_.start.flatMap(_.cancel).replicateA_(100) *>
             pool.stats.flatMap(s => IO(assert(s.forall(_ == 0), s"leaked: $s")))
-        }
-      }
-    }
+        } *> (p.created.get, p.closed.get).flatMapN((c, cl) => IO(assertEquals(c, cl)))
+      },
+      aggressiveRt
+    )
   }
 
   test("cancellation during growth leaks neither permits nor channels") {
-    TestControl.executeEmbed {
+    TestControl.executeEmbed(
       probe.flatMap { p =>
-        // mkDelay widens the growth window so the cancel lands while construction
-        // is in flight (test injection only - real mk must not do I/O).
+        // mkDelay widens the growth window so the cancel is pending while construction is in
+        // flight (test injection only - real mk must not do I/O). Under aggressiveRt the pending
+        // cancel is observed at the first unmasked stage after construction - on an unmasked
+        // acquire that is deterministically after the slot is built but before it is committed,
+        // losing the slot - so this test is red unless the acquire is masked end-to-end.
         testPool(p, poolConfig(2, Limit.Bounded(5)), mkDelay = 5.millis).use { pool =>
           pool.lease.use_.start
             .flatMap(f => IO.sleep(1.milli) *> f.cancel)
             .replicateA_(10) *>
             pool.stats.flatMap(s => IO(assert(s.forall(_ == 0), s"leaked permits: $s")))
         } *> (p.created.get, p.closed.get).flatMapN((c, cl) => IO(assertEquals(c, cl)))
-      }
-    }
+      },
+      aggressiveRt
+    )
   }
 
   test("reconnect storm never grows the pool") {
@@ -164,4 +180,35 @@ class PoolSuite extends SecEffectSuite:
         }
       }
     }
+  }
+
+  test("close is a state transition: a late lease fails loudly instead of growing into the void") {
+    TestControl.executeEmbed(
+      probe.flatMap { p =>
+        testPool(p, poolConfig(2, Limit.Bounded(5))).allocated.flatMap { case (pool, close) =>
+          pool.lease.use_ *> close *>
+            pool.lease.use_.attempt.flatMap {
+              case Left(_: IllegalStateException) => IO.unit
+              case other                          => IO(fail(s"expected IllegalStateException, got $other"))
+            } *> (p.created.get, p.closed.get).flatMapN((c, cl) => IO(assertEquals(c, cl)))
+        }
+      },
+      aggressiveRt
+    )
+  }
+
+  test("close racing an in-flight acquire: the slot is either committed and closed, or never built") {
+    TestControl.executeEmbed(
+      probe.flatMap { p =>
+        // The acquire is mid-construction (mkDelay) when close begins. Close must serialize with
+        // it through the cell's lock: the committed slot lands in close's snapshot and is closed.
+        // A snapshot read taken before the commit would miss the slot and leak the channel.
+        testPool(p, poolConfig(2, Limit.Bounded(5)), mkDelay = 5.millis).allocated.flatMap { case (pool, close) =>
+          pool.lease.use(_ => IO.sleep(10.millis)).start.flatMap { f =>
+            IO.sleep(1.milli) *> close *> f.join.void
+          } *> (p.created.get, p.closed.get).flatMapN((c, cl) => IO(assertEquals(c, cl)))
+        }
+      },
+      aggressiveRt
+    )
   }
