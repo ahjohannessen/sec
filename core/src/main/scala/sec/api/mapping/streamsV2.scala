@@ -18,6 +18,7 @@ package sec
 package api
 package mapping
 
+import cats.MonadThrow
 import cats.data.NonEmptyList
 import cats.syntax.all.*
 import com.google.protobuf.struct as ps
@@ -71,16 +72,23 @@ private[sec] object streamsV2:
     )
 
   /** Recovers typed stream ids by joining response revisions with the request's appends. */
-  def mkMultiAppendResult(
+  def mkMultiAppendResult[F[_]: MonadThrow](
     appends: NonEmptyList[StreamAppend]
-  )(resp: pv2.AppendRecordsResponse): Attempt[MultiAppendResult] =
+  )(resp: pv2.AppendRecordsResponse): F[MultiAppendResult] =
     val byName = appends.toList.map(a => a.streamId.stringValue -> a.streamId).toMap
     resp.revisions.toList
       .traverse { r =>
         byName
           .get(r.stream)
-          .toRight(s"Unexpected stream '${r.stream}' in AppendRecordsResponse")
           .map(id => id -> StreamPosition(r.revision))
+          .fold(shared.mkError[(StreamId.Id, StreamPosition.Exact)](
+            s"Unexpected stream '${r.stream}' in AppendRecordsResponse"
+          ))(_.asRight)
       }
-      .flatMap(rs => NonEmptyList.fromList(rs).toRight("AppendRecordsResponse contained no revisions"))
+      .flatMap { rs =>
+        NonEmptyList.fromList(rs).fold(shared.mkError[NonEmptyList[(StreamId.Id, StreamPosition.Exact)]](
+          "AppendRecordsResponse contained no revisions"
+        ))(_.asRight)
+      }
       .map(MultiAppendResult(resp.position, _))
+      .liftTo[F]

@@ -180,6 +180,43 @@ class V2AppendSpikeSuite extends FSuite:
     }
   }
 
+  test("phase 3: multiStreamAppend through the client API raises typed exceptions") {
+    mkClient().use { client =>
+      import cats.data.NonEmptyList as CNel
+      import sec.api.v2.*
+
+      val aId = genStreamId("fit_v2_api_a_")
+      val bId = genStreamId("fit_v2_api_b_")
+
+      def rec = Record(
+        java.util.UUID.randomUUID(),
+        Schema.json(schemaName),
+        scodec.bits.ByteVector.view(payload.getBytes("UTF-8")),
+        Properties.empty
+      )
+
+      val appends = CNel.of(
+        StreamAppend(aId, StreamState.NoStream, CNel.one(rec)),
+        StreamAppend(bId, StreamState.NoStream, CNel.of(rec, rec))
+      )
+
+      for
+        r   <- client.streams.multiStreamAppend(appends)
+        _   <- IO(assertEquals(
+                 r.revisions.toList.toMap,
+                 Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L))
+               ))
+        // The error adapter must surface a violated guard as the typed exception directly.
+        bad  = CNel.one(StreamAppend(genStreamId("fit_v2_api_c_"), StreamState.NoStream, CNel.one(rec)))
+        res <- client.streams.multiStreamAppend(bad, List(StreamGuard(aId, StreamState.NoStream))).attempt
+        _   <- IO(res match
+                 case Left(v: exceptions.v2.AppendConsistencyViolation) =>
+                   assertEquals(v.violations.map(_.streamId), List(aId.stringValue))
+                 case other => fail(s"expected typed AppendConsistencyViolation, got $other"))
+      yield ()
+    }
+  }
+
   test("v2 multi-stream append is atomic; a violated check fails the whole request") {
     (v2Stub, mkClient()).tupled.use { case (stub, client) =>
       given Metadata = new Metadata()

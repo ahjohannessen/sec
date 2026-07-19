@@ -64,15 +64,17 @@ class StreamsV2MappingSuite extends SecSuite:
     val a       = sid("v2m_r_")
     val appends = NonEmptyList.one(StreamAppend(a, StreamState.NoStream, NonEmptyList.one(rec)))
 
+    type A[T] = Either[Throwable, T]
+
     val ok = pv2.AppendRecordsResponse(position = 42L, revisions = Seq(pv2.StreamRevision(a.stringValue, 0L)))
     assertEquals(
-      streamsV2.mkMultiAppendResult(appends)(ok),
+      streamsV2.mkMultiAppendResult[A](appends)(ok),
       Right(MultiAppendResult(42L, NonEmptyList.one(a -> StreamPosition(0L))))
     )
 
     val unknown = pv2.AppendRecordsResponse(position = 42L, revisions = Seq(pv2.StreamRevision("other", 0L)))
-    assert(streamsV2.mkMultiAppendResult(appends)(unknown).isLeft)
+    assert(streamsV2.mkMultiAppendResult[A](appends)(unknown).isLeft)
 
     val empty = pv2.AppendRecordsResponse(position = 42L, revisions = Seq.empty)
-    assert(streamsV2.mkMultiAppendResult(appends)(empty).isLeft)
+    assert(streamsV2.mkMultiAppendResult[A](appends)(empty).isLeft)
   }

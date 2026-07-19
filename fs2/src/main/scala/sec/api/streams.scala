@@ -24,6 +24,8 @@ import cats.data.*
 import cats.effect.*
 import cats.syntax.all.*
 import io.kurrent.dbclient.proto.streams.*
+import io.kurrentdb.protocol.v2.streams.StreamsServiceFs2Grpc
+import io.kurrentdb.protocol.v2.streams.{AppendRecordsRequest as V2AppendReq, AppendRecordsResponse as V2AppendResp}
 import fs2.{Pipe, Pull, RaiseThrowable, Stream}
 import org.typelevel.log4cats.Logger
 import sec.api.exceptions.{ResubscriptionRequired, WrongExpectedVersion}
@@ -158,6 +160,22 @@ trait Streams[F[_]]:
     data: NonEmptyList[EventData]
   ): F[WriteResult]
 
+  /** Experimental - appends records to one or more streams atomically via the v2 protocol, which the
+    * server must support and have enabled. Every written stream carries a mandatory [[StreamState]]
+    * expectation and [[sec.api.v2.StreamGuard]] expresses conditions on streams that are not written
+    * to. Failure to fulfill a check is manifested by raising
+    * [[sec.api.exceptions.v2.AppendConsistencyViolation]].
+    *
+    * @param appends
+    *   the streams to append to, each with an expectation and its records. See [[sec.api.v2.StreamAppend]].
+    * @param guards
+    *   consistency conditions on unwritten streams. See [[sec.api.v2.StreamGuard]].
+    */
+  def multiStreamAppend(
+    appends: NonEmptyList[v2.StreamAppend],
+    guards: List[v2.StreamGuard] = Nil
+  ): F[v2.MultiAppendResult]
+
   /** Deletes a stream and returns [[DeleteResult]] with current log position after a successful operation. Failure to
     * fulfill the expected state is manifested by raising [[sec.api.exceptions.WrongExpectedState]].
     *
@@ -220,16 +238,18 @@ object Streams:
 
   private[sec] def apply[F[_]: Temporal, C](
     client: StreamsFs2Grpc[F, C],
+    clientV2: StreamsServiceFs2Grpc[F, C],
     mkCtx: Option[UserCredentials] => C,
     opts: Opts[F],
     subscriptionTransport: Option[(ReadReq, C) => Stream[F, ReadResp]] = None
   ): Streams[F] = new Streams[F]:
 
     private given C = mkCtx(None)
-    private val read   = client.read(_)
-    private val append = client.append(_)
-    private val delete = client.delete(_)
-    private val tomb   = client.tombstone(_)
+    private val read     = client.read(_)
+    private val append   = client.append(_)
+    private val appendV2 = clientV2.appendRecords(_)
+    private val delete   = client.delete(_)
+    private val tomb     = client.tombstone(_)
 
     // Subscriptions are infinite streams and may route over a pooled transport (see sec.api.pool)
     // instead of the ops channel. Reads/appends/gossip stay on the dedicated ops channel: transient
@@ -294,6 +314,12 @@ object Streams:
       data: NonEmptyList[EventData]
     ): F[WriteResult] =
       appendToStream0[F](streamId, expectedState, data, opts)(append)
+
+    def multiStreamAppend(
+      appends: NonEmptyList[v2.StreamAppend],
+      guards: List[v2.StreamGuard]
+    ): F[v2.MultiAppendResult] =
+      multiStreamAppend0[F](appends, guards, opts)(appendV2)
 
     def delete(
       streamId: StreamId,
@@ -389,6 +415,15 @@ object Streams:
     val operation: F[AppendResp] = f(Stream.emit(header) ++ Stream.emits(events))
 
     opts.run(operation, "appendToStream") >>= { ar => mkWriteResult[F](streamId, ar) }
+
+  private[sec] def multiStreamAppend0[F[_]: Temporal](
+    appends: NonEmptyList[v2.StreamAppend],
+    guards: List[v2.StreamGuard],
+    opts: Opts[F]
+  )(f: V2AppendReq => F[V2AppendResp]): F[v2.MultiAppendResult] =
+
+    val req = mapping.streamsV2.mkAppendRecordsRequest(appends, guards)
+    opts.run(f(req), "multiStreamAppend") >>= mapping.streamsV2.mkMultiAppendResult[F](appends)
 
   private[sec] def delete0[F[_]: Temporal](
     streamId: StreamId,

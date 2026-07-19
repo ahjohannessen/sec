@@ -24,6 +24,7 @@ import cats.effect.{Async, Resource}
 import com.comcast.ip4s.{Hostname, Port}
 import io.kurrent.dbclient.proto.gossip.GossipFs2Grpc
 import io.kurrent.dbclient.proto.streams.{ReadReq, ReadResp, StreamsFs2Grpc}
+import io.kurrentdb.protocol.v2.streams.StreamsServiceFs2Grpc
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.noop.NoOpLogger
 import io.grpc.{CallOptions, ManagedChannel, Metadata}
@@ -33,6 +34,7 @@ import cats.effect.std.Dispatcher
 import sec.api.pool.{CallCounter, GrpcChannelPool, GrpcSlot, Pool, SubscriptionPool}
 import sec.api.exceptions.{NotLeader, ServerUnavailable}
 import sec.api.grpc.convert.convertToEs
+import sec.api.grpc.convertV2
 import sec.api.grpc.metadata.*
 import sec.api.retries.RetryConfig
 import sec.api.cluster.ClusterEndpoints
@@ -126,6 +128,7 @@ object EsClient:
                    CallCounter.of[F](sp.config.streamsPerChannel, logger.withModifiedString(s => s"OpsChannel > $s"))
                  })
       s    <- mkStreamsFs2Grpc[F](mc, options.prefetchN, middleware = counter.map(_.middleware))
+      s2   <- mkStreamsV2Fs2Grpc[F](mc, middleware = counter.map(_.middleware))
       g    <- mkGossipFs2Grpc[F](mc, middleware = counter.map(_.middleware))
       pool <- subscriptionPool.traverse { sp =>
                 GrpcChannelPool.of[F](
@@ -135,10 +138,11 @@ object EsClient:
                   logger.withModifiedString(s => s"SubscriptionPool > $s")
                 )
               }
-    yield create[F](s, g, options, requiresLeader, logger, refreshHint, pool)
+    yield create[F](s, s2, g, options, requiresLeader, logger, refreshHint, pool)
 
   private[sec] def create[F[_]: Async](
     streamsFs2Grpc: StreamsFs2Grpc[F, Context],
+    streamsV2Fs2Grpc: StreamsServiceFs2Grpc[F, Context],
     gossipFs2Grpc: GossipFs2Grpc[F, Context],
     options: Options,
     requiresLeader: Boolean,
@@ -163,6 +167,7 @@ object EsClient:
 
     val streams: Streams[F] = Streams(
       streamsFs2Grpc,
+      streamsV2Fs2Grpc,
       mkContext(options, requiresLeader),
       mkOpts[F](options.operationOptions, logger, "Streams", refreshHint),
       subscriptionTransport
@@ -216,6 +221,22 @@ object EsClient:
       .withPrefetchN(prefetchN)
 
     Dispatcher.parallel[F].map(StreamsFs2Grpc.mkClientFull[F, F, Context](_, mc, aspect(middleware), clientOptions))
+
+  private[sec] def mkStreamsV2Fs2Grpc[F[_]: Async](
+    mc: ManagedChannel,
+    fn: Endo[CallOptions] = identity,
+    middleware: Option[ClientAspectMiddleware[F, Metadata]] = None
+  ): Resource[F, StreamsServiceFs2Grpc[F, Context]] =
+
+    // v2 errors carry structured details (see convertV2); anything unrecognized falls back to
+    // the common v1 conversion, e.g. server unavailability.
+    val clientOptions = ClientOptions.default
+      .configureCallOptions(fn)
+      .withErrorAdapter(Function.unlift(ex => convertV2.convertToEs(ex) orElse convertToEs(ex)))
+
+    Dispatcher
+      .parallel[F]
+      .map(StreamsServiceFs2Grpc.mkClientFull[F, F, Context](_, mc, aspect(middleware), clientOptions))
 
   /// Gossip
 
