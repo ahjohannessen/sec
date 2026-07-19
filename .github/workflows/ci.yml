@@ -113,6 +113,10 @@ jobs:
           ./cluster.sh down
           popd
 
+      - name: Fault injection tests
+        timeout-minutes: 10
+        run: sbt '++ ${{ matrix.scala }}' 'tests / Fit / test'
+
       - name: Make target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
         run: mkdir -p fs2-netty/target fs2/target tsc/target core/target project/target

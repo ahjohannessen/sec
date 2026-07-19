@@ -82,20 +82,22 @@ lazy val tsc = project
 
 lazy val SingleNodeITest = config("sit") extend Test
 lazy val ClusterITest    = config("cit") extend Test
+lazy val FaultITest      = config("fit") extend Test
 
 lazy val tests = project
   .in(file("tests"))
   .enablePlugins(BuildInfoPlugin, AutomateHeaderPlugin, NoPublishPlugin)
-  .configs(SingleNodeITest, ClusterITest)
+  .configs(SingleNodeITest, ClusterITest, FaultITest)
   .settings(commonSettings)
   .settings(inConfig(SingleNodeITest)(Defaults.testSettings))
   .settings(inConfig(ClusterITest)(Defaults.testSettings))
+  .settings(inConfig(FaultITest)(Defaults.testSettings))
   .settings(
     logBuffered := false,
     parallelExecution := true,
     buildInfoPackage := "sec",
     buildInfoKeys := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
-    Test / headerSources ++= (SingleNodeITest / sources).value ++ (ClusterITest / sources).value,
+    Test / headerSources ++= (SingleNodeITest / sources).value ++ (ClusterITest / sources).value ++ (FaultITest / sources).value,
     libraryDependencies :=
       compileM(
         fs2Io,
@@ -107,7 +109,8 @@ lazy val tests = project
         catsEffectTestkit,
         log4catsSlf4j,
         log4catsTesting,
-        logback
+        logback,
+        testcontainers
       )
   )
   .dependsOn(core, `fs2-netty`)
@@ -163,7 +166,7 @@ inThisBuild(
 
 //==== Github Actions ==================================================================================================
 
-addCommandAlias("compileTests", "tests / Test / compile; tests / Sit / compile; tests / Cit / compile;")
+addCommandAlias("compileTests", "tests / Test / compile; tests / Sit / compile; tests / Cit / compile; tests / Fit / compile;")
 addCommandAlias("compileDocs", "docs/mdoc")
 
 inThisBuild(
@@ -230,6 +233,11 @@ inThisBuild(
         name     = Some("Stop Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh down", "popd"),
         cond     = Some(s"always()")
+      ),
+      WorkflowStep.Sbt(
+        commands       = List("tests / Fit / test"),
+        name           = Some("Fault injection tests"),
+        timeoutMinutes = Some(10)
       )
     ),
     githubWorkflowPublish ++= Seq(
