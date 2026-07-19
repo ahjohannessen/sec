@@ -53,10 +53,17 @@ class PoolSuite extends SecEffectSuite:
     mkDelay: FiniteDuration = 0.millis,
     onGrow: GrowEvent => IO[Unit] = _ => IO.unit
   ) =
+    // The acquire is masked like the real mk: channel and Dispatcher allocation contain internal
+    // uncancelable regions. A cancel signaled during construction therefore stays pending until
+    // construction completes - required for the cancellation tests to exercise the gap between a
+    // built slot and its commit, rather than aborting harmlessly inside the sleep. Verified by
+    // mutation: with a polled acquire in lease, these tests go red (see PR discussion).
     val mk = Resource.make(
-      IO.sleep(mkDelay) *> failMk.fold(IO.pure(false))(_.get).flatMap { fail =>
-        if fail then IO.raiseError(new RuntimeException("mk boom"))
-        else p.created.updateAndGet(_ + 1)
+      IO.uncancelable { _ =>
+        IO.sleep(mkDelay) *> failMk.fold(IO.pure(false))(_.get).flatMap { fail =>
+          if fail then IO.raiseError(new RuntimeException("mk boom"))
+          else p.created.updateAndGet(_ + 1)
+        }
       }
     )(_ => p.closed.update(_ + 1))
     Pool.of[IO, Int](mk, id => p.down.get.map(!_.contains(id)), cfg, onGrow)
