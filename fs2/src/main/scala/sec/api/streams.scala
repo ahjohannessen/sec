@@ -336,7 +336,7 @@ object Streams:
     def withCredentials(
       creds: UserCredentials
     ): Streams[F] =
-      Streams[F, C](client, _ => mkCtx(creds.some), opts, subscriptionTransport)
+      Streams[F, C](client, clientV2, _ => mkCtx(creds.some), opts, subscriptionTransport)
 
     val messageReads: Reads[F] =
       Reads[F, C](client, mkCtx)
