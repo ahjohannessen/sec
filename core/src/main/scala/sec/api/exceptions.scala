@@ -103,3 +103,37 @@ object exceptions:
 
     final case class MaximumSubscribersReached(streamId: String, groupName: String)
       extends EsException(s"Maximum subscriptions reached for subscription group '$groupName' on stream '$streamId.'")
+
+  // Multi-stream append. Constructed from structured google.rpc.Status details of the v2
+  // protocol, see [[sec.api.grpc.convertV2]].
+
+  case class DuplicateStreams(streamIds: List[String])
+    extends EsException(s"Multi-stream append requires distinct streams; duplicates: ${streamIds.mkString(", ")}.")
+
+  case class StreamAlreadyExists(streamId: String)
+    extends EsException(s"Event stream '$streamId' already exists.")
+
+  case class StreamTombstoned(streamId: String)
+    extends EsException(s"Event stream '$streamId' is tombstoned.")
+
+  /** expected / actual use StreamState sentinel encoding: -1 NoStream, -2 Any, -4 StreamExists, >= 0 exact. */
+  case class StreamRevisionConflict(streamId: String, expected: Long, actual: Long)
+    extends EsException(s"Stream '$streamId' revision conflict: expected $expected, actual $actual.")
+
+  case class AppendRecordSizeExceeded(streamId: String, recordId: String, size: Int, maxSize: Int)
+    extends EsException(s"Record '$recordId' for stream '$streamId' is $size bytes, exceeding max of $maxSize.")
+
+  case class AppendTransactionSizeExceeded(size: Int, maxSize: Int)
+    extends EsException(s"Append transaction is $size bytes, exceeding max of $maxSize.")
+
+  case class AppendConsistencyViolation(violations: List[AppendConsistencyViolation.StreamStateViolation])
+    extends EsException(AppendConsistencyViolation.mkMsg(violations))
+
+  object AppendConsistencyViolation:
+
+    /** expected / actual use StreamState sentinel encoding: -1 NoStream, -2 Any, -4 StreamExists, >= 0 exact. */
+    case class StreamStateViolation(streamId: String, expected: Long, actual: Long)
+
+    private[sec] def mkMsg(vs: List[StreamStateViolation]): String =
+      val detail = vs.map(v => s"'${v.streamId}' expected ${v.expected}, actual ${v.actual}").mkString("; ")
+      s"Append failed due to consistency violations: $detail."
