@@ -21,7 +21,7 @@ import cats.syntax.all.*
 import cats.effect.{IO, Resource}
 import com.google.protobuf.ByteString
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
-import io.grpc.{ManagedChannel, Metadata, Status, StatusRuntimeException}
+import io.grpc.{Metadata, Status, StatusRuntimeException}
 import io.kurrentdb.protocol.v2.streams.*
 import scodec.bits.ByteVector
 import sec.api.exceptions.StreamNotFound
