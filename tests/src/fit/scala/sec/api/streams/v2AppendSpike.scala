@@ -129,6 +129,57 @@ class V2AppendSpikeSuite extends FSuite:
     }
   }
 
+  test("phase 2 mapping end-to-end: typed appends, guards, and result decoding") {
+    (v2Stub, mkClient()).tupled.use { case (stub, client) =>
+      given Metadata = new Metadata()
+      import cats.data.NonEmptyList as CNel
+      import sec.api.v2.*
+
+      val aId = genStreamId("fit_v2_map_a_")
+      val bId = genStreamId("fit_v2_map_b_")
+      val gId = genStreamId("fit_v2_map_g_")
+      val cId = genStreamId("fit_v2_map_c_")
+
+      def rec = Record(
+        java.util.UUID.randomUUID(),
+        Schema.json(schemaName),
+        scodec.bits.ByteVector.view(payload.getBytes("UTF-8")),
+        Properties.of("tenant" -> PropertyValue.Str("acme")).fold(m => fail(m), identity)
+      )
+
+      val appends = CNel.of(
+        StreamAppend(aId, StreamState.NoStream, CNel.one(rec)),
+        StreamAppend(bId, StreamState.NoStream, CNel.of(rec, rec))
+      )
+
+      // Guard on an unwritten stream, trivially satisfied (gId does not exist yet).
+      val ok = mapping.streamsV2.mkAppendRecordsRequest(appends, List(StreamGuard(gId, StreamState.NoStream)))
+
+      // Violated guard: require gId to exist - it still does not - and assert the violation
+      // names the guarded stream, proving guards work server-side for unwritten streams.
+      val badAppends = CNel.one(StreamAppend(cId, StreamState.NoStream, CNel.one(rec)))
+      val badGuard   = StreamGuard(gId, StreamState.StreamExists)
+      val bad        = mapping.streamsV2.mkAppendRecordsRequest(badAppends, List(badGuard))
+
+      for
+        resp   <- explained(stub.appendRecords(ok))
+        result <- IO.fromEither(mapping.streamsV2.mkMultiAppendResult(appends)(resp).leftMap(new AssertionError(_)))
+        _      <- IO(assertEquals(
+                    result.revisions.toList.toMap,
+                    Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L))
+                  ))
+        res    <- explained(stub.appendRecords(bad)).attempt
+        _      <- IO(res match
+                    case Left(e: StatusRuntimeException) =>
+                      grpc.convertV2.convertToEs(e) match
+                        case Some(v: exceptions.v2.AppendConsistencyViolation) =>
+                          assertEquals(v.violations.map(_.streamId), List(gId.stringValue))
+                        case other => fail(s"expected AppendConsistencyViolation naming the guard, got $other")
+                    case other => fail(s"expected guard violation, got $other"))
+      yield ()
+    }
+  }
+
   test("v2 multi-stream append is atomic; a violated check fails the whole request") {
     (v2Stub, mkClient()).tupled.use { case (stub, client) =>
       given Metadata = new Metadata()
