@@ -22,7 +22,7 @@ import cats.effect.{IO, Resource}
 import com.google.protobuf.ByteString
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.{ManagedChannel, Metadata, Status, StatusRuntimeException}
-import kurrentdb.protocol.v2.streams.*
+import io.kurrentdb.protocol.v2.streams.*
 import scodec.bits.ByteVector
 import sec.api.exceptions.StreamNotFound
 

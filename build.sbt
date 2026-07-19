@@ -145,7 +145,11 @@ lazy val commonSettings = Seq(
   scalaVersion := Scala3,
   tlJdkRelease := Some(jdkRelease),
   scalacOptions ~= (_.filterNot(_ == "-Ykind-projector:underscores")),
-  scalacOptions ++= Seq("-Wconf:msg=unused implicit parameter in extension method:s"),
+  scalacOptions ++= Seq(
+    "-Wconf:msg=unused implicit parameter in extension method:s",
+    // Generated sources (scalapb / fs2-grpc) are not ours to lint; CI runs with fatal warnings.
+    "-Wconf:src=src_managed/.*:s"
+  ),
   Compile / doc / scalacOptions ~= (_.filterNot(_ == "-Xfatal-warnings"))
 )
 
