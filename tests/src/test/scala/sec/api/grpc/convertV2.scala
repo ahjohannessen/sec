@@ -31,7 +31,7 @@ class ConvertV2Suite extends SecSuite:
 
   private def sre(details: PbAny*): StatusRuntimeException =
     val md = new Metadata()
-    md.put(detailsKey, PbStatus(code = com.google.rpc.Code.FAILED_PRECONDITION, details = details.toSeq).toByteArray)
+    md.put(detailsKey, PbStatus(code = com.google.rpc.Code.FAILED_PRECONDITION, details = details.headOption).toByteArray)
     new StatusRuntimeException(Status.FAILED_PRECONDITION, md)
 
   test("consistency violation details map to AppendConsistencyViolation with per-stream info") {
