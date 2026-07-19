@@ -149,6 +149,15 @@ class V2AppendSpikeSuite extends FSuite:
         _    <- IO(assert(resp.revisions.forall(_.revision == 0L), s"expected revision 0 on both: $resp"))
         res  <- explained(stub.appendRecords(bad)).attempt
         _    <- IO(assert(res.isLeft, s"expected consistency violation, got $res"))
+        _    <- IO(res match
+                  case Left(e: StatusRuntimeException) =>
+                    // Phase 1 end-to-end: the structured details from a real server must convert.
+                    grpc.convertV2.convertToEs(e) match
+                      case Some(v: exceptions.v2.AppendConsistencyViolation) =>
+                        assertEquals(v.violations.map(_.streamId), List(a))
+                        assertEquals(v.violations.map(_.actual), List(0L))
+                      case other => fail(s"expected AppendConsistencyViolation from convertV2, got $other")
+                  case other => fail(s"expected StatusRuntimeException, got $other"))
         _    <- res.swap.toOption.traverse_ {
                   case e: StatusRuntimeException =>
                     // Phase 1 gate: text-only descriptions would force parsing messages; structured
