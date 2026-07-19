@@ -30,10 +30,8 @@ import cats.effect.unsafe.IORuntimeConfig
   */
 class PoolSuite extends SecEffectSuite:
 
-  /** Cancellation observed at every unmasked run-loop iteration, preemption every other. The default
-    * threshold (512) makes the gap between a permit being taken and the entry being committed
-    * practically unobservable under TestControl while remaining real in production - under this
-    * config an unmasked acquire deterministically loses a pending-cancelled slot before commit.
+  /** Cancellation observed at every unmasked run-loop iteration, with preemption every other iteration.
+    * This makes the cancellation invariant tests exercise far more interleavings under TestControl.
     */
   val aggressiveRt: IORuntimeConfig = IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 2)
 
@@ -48,14 +46,20 @@ class PoolSuite extends SecEffectSuite:
   /** Slots are Ints; construction/closure counted; health via Ref; optional construction failure via Ref; optional
     * construction delay to widen the growth window for cancellation injection.
     */
-  def testPool(p: Probe, cfg: PoolConfig, failMk: Option[Ref[IO, Boolean]] = None, mkDelay: FiniteDuration = 0.millis) =
+  def testPool(
+    p: Probe,
+    cfg: PoolConfig,
+    failMk: Option[Ref[IO, Boolean]] = None,
+    mkDelay: FiniteDuration = 0.millis,
+    onGrow: GrowEvent => IO[Unit] = _ => IO.unit
+  ) =
     val mk = Resource.make(
       IO.sleep(mkDelay) *> failMk.fold(IO.pure(false))(_.get).flatMap { fail =>
         if fail then IO.raiseError(new RuntimeException("mk boom"))
         else p.created.updateAndGet(_ + 1)
       }
     )(_ => p.closed.update(_ + 1))
-    Pool.of[IO, Int](mk, id => p.down.get.map(!_.contains(id)), cfg, _ => IO.unit)
+    Pool.of[IO, Int](mk, id => p.down.get.map(!_.contains(id)), cfg, onGrow)
 
   test("growth is exactly ceil(k / streamsPerChannel); shutdown closes all") {
     TestControl.executeEmbed {
@@ -112,8 +116,7 @@ class PoolSuite extends SecEffectSuite:
   test("cancellation racing acquire itself leaks nothing") {
     TestControl.executeEmbed(
       probe.flatMap { p =>
-        // With preemption every other iteration the cancel is signaled while the fiber is
-        // mid-acquire, exercising the gap between a successful tryAcquire and the commit.
+        // With frequent preemption the cancel is often signaled while the fiber is mid-acquire.
         testPool(p, poolConfig(2, Limit.Unbounded(10))).use { pool =>
           pool.lease.use_.start.flatMap(_.cancel).replicateA_(100) *>
             pool.stats.flatMap(s => IO(assert(s.forall(_ == 0), s"leaked: $s")))
@@ -126,11 +129,8 @@ class PoolSuite extends SecEffectSuite:
   test("cancellation during growth leaks neither permits nor channels") {
     TestControl.executeEmbed(
       probe.flatMap { p =>
-        // mkDelay widens the growth window so the cancel is pending while construction is in
-        // flight (test injection only - real mk must not do I/O). Under aggressiveRt the pending
-        // cancel is observed at the first unmasked stage after construction - on an unmasked
-        // acquire that is deterministically after the slot is built but before it is committed,
-        // losing the slot - so this test is red unless the acquire is masked end-to-end.
+        // mkDelay widens the growth window so cancellation races slot construction
+        // (test injection only - real mk must not do I/O).
         testPool(p, poolConfig(2, Limit.Bounded(5)), mkDelay = 5.millis).use { pool =>
           pool.lease.use_.start
             .flatMap(f => IO.sleep(1.milli) *> f.cancel)
@@ -161,6 +161,31 @@ class PoolSuite extends SecEffectSuite:
             failing.set(false) *>
             pool.lease.use(_ => pool.stats.flatMap(s => IO(assertEquals(s.sum, 1))))
         }
+      }
+    }
+  }
+
+  test("onGrow failure releases the acquired permit") {
+    TestControl.executeEmbed {
+      (probe, IO.ref(true)).flatMapN { (p, failGrow) =>
+        val hook: GrowEvent => IO[Unit] = _ =>
+          failGrow.get.flatMap { fail =>
+            if fail then IO.raiseError(new RuntimeException("onGrow boom"))
+            else IO.unit
+          }
+
+        testPool(p, poolConfig(1, Limit.Bounded(1)), onGrow = hook).use { pool =>
+          for
+            failed       <- pool.lease.use_.attempt
+            _            <- IO(assert(failed.isLeft))
+            afterFailure <- pool.stats
+            _            <- IO(assertEquals(afterFailure, Vector(0)))
+            _            <- failGrow.set(false)
+            _            <- pool.lease.use_
+            afterSuccess <- pool.stats
+            _            <- IO(assertEquals(afterSuccess, Vector(0)))
+          yield ()
+        } *> (p.created.get, p.closed.get).flatMapN((created, closed) => IO(assertEquals(created, closed)))
       }
     }
   }

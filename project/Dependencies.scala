@@ -22,6 +22,7 @@ object Dependencies {
     val munitDiscipline = "2.0.0"
     val munitEffect     = "2.2.0"
     val munit           = "1.3.4"
+    val testcontainers  = "2.0.5"
 
   }
 
@@ -58,6 +59,7 @@ object Dependencies {
   val logback         = "ch.qos.logback" % "logback-classic"  % versions.logback
   val log4catsTesting = "org.typelevel" %% "log4cats-testing" % versions.log4cats
   val log4catsSlf4j   = "org.typelevel" %% "log4cats-slf4j"   % versions.log4cats
+  val testcontainers  = "org.testcontainers" % "testcontainers" % versions.testcontainers
 
   // Misc
 

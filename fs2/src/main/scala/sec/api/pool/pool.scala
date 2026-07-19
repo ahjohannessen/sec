@@ -93,22 +93,21 @@ private[sec] object Pool:
           Vector.empty[Int].pure[F]
       }
 
-    // The acquire is masked end-to-end. AtomicCell.evalModify runs its body cancelably (only the
-    // mutex release is guaranteed) and Resource.make polls its acquire, so an unmasked acquire has
-    // windows where cancellation lands after a permit is taken - or a slot is built - but before
-    // the entry is committed and the release finalizer is registered, silently leaking capacity.
-    // The runtime observes cancellation between any two unmasked stages (every
-    // cancelationCheckThreshold run-loop iterations), so the windows are narrow but real.
-    // Masking is safe because everything under the cell's lock is non-blocking by the invariant
-    // documented on [[of]]; the cost is that a canceler waits out a short, bounded acquire.
+    // Resource.make runs its acquire uncancelably; unlike makeFull, its
+    // allocator ignores Poll. Thus acquireEntry remains masked through the
+    // AtomicCell commit and until the permit-release finalizer is installed.
+    // The growth callback deliberately runs afterwards: if it fails or is
+    // canceled, the permit acquired below is released.
     def lease: Resource[F, A] =
-      Resource.make(F.uncancelable(_ => acquireEntry))(_.permits.release).map(_.value)
+      Resource
+        .make(acquireEntry) { case (entry, _) => entry.permits.release }
+        .evalTap { case (_, grown) => grown.traverse_(onGrow) }
+        .map { case (entry, _) => entry.value }
 
-    // Runs fully masked, see lease. Everything inside evalModify runs while holding the cell's
-    // lock: only non-blocking permit tryAcquire, pure policy and lazy construction happen there.
-    // The decision is returned as a value; logging and error raising happen after the lock is
-    // released - still inside the mask, so an acquired entry always reaches Resource.make.
-    private def acquireEntry: F[Entry[F, A]] =
+    // Everything inside evalModify runs while holding the cell's lock: only non-blocking permit tryAcquire,
+    // pure policy and lazy construction happen there. The decision is returned as a value; callbacks and
+    // error raising happen after the lock is released.
+    private def acquireEntry: F[(Entry[F, A], Option[GrowEvent])] =
       state
         .evalModify[Outcome[F, A]] {
           case c @ State.Closed()  => (c, Outcome.Closed[F, A]()).pure[F]
@@ -127,7 +126,7 @@ private[sec] object Pool:
             }
         }
         .flatMap {
-          case Outcome.Acquired(e, grown) => grown.traverse_(onGrow).as(e)
+          case Outcome.Acquired(e, grown) => (e, grown).pure[F]
           case Outcome.Rejected(n)        => exceptions.SubscriptionPoolExhausted(n).raiseError
           case Outcome.Closed()           =>
             new IllegalStateException("Pool is closed - lease attempted after its resource was finalized.").raiseError
@@ -140,10 +139,8 @@ private[sec] object Pool:
 
     // The only blocking `.acquire` in the pool, and it never actually waits: the semaphore is
     // freshly created with all permits available. Everything else uses non-blocking tryAcquire,
-    // which is what makes holding the cell's lock around this code safe. Runs inside the acquire
-    // mask (see lease); the mask must reach past the AtomicCell commit for construction to be
-    // safe, so it lives on lease rather than here - a slot built here is either committed and
-    // closable, or never built.
+    // which is what makes holding the cell's lock around this code safe. Resource.make keeps this
+    // acquisition masked until the entry is committed and its permit-release finalizer is registered.
     private def mkEntry: F[Entry[F, A]] =
       for
         ac  <- mk.allocated
