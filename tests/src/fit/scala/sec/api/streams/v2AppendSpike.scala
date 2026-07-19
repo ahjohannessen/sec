@@ -20,6 +20,7 @@ package api
 import cats.syntax.all.*
 import cats.effect.{IO, Resource}
 import com.google.protobuf.ByteString
+import com.google.protobuf.struct.Value
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.{Metadata, Status, StatusRuntimeException}
 import io.kurrentdb.protocol.v2.streams.*
@@ -99,6 +100,35 @@ class V2AppendSpikeSuite extends FSuite:
     }
   }
 
+  test("v2 user properties materialize in the v1 metadata view") {
+    (v2Stub, mkClient()).tupled.use { case (stub, client) =>
+      given Metadata = new Metadata()
+
+      val sid  = genStreamId("fit_v2_props_")
+      val name = sid.stringValue
+      // Phase 2 gate: v2 has no raw metadata bytes; the server synthesizes v1 metadata as JSON with
+      // $schema.* keys. This decides whether user properties merge into that same object.
+      val rec = record(name).copy(properties =
+        Map(
+          "tenant"  -> Value(Value.Kind.StringValue("acme")),
+          "attempt" -> Value(Value.Kind.NumberValue(2)),
+          "replay"  -> Value(Value.Kind.BoolValue(true))
+        )
+      )
+
+      for
+        _    <- explained(stub.appendRecords(AppendRecordsRequest(Seq(rec), Seq(noStream(name)))))
+        evs  <- client.streams
+                  .readStream(sid, StreamPosition.Start, Direction.Forwards, 10L, resolveLinkTos = false)
+                  .compile
+                  .toList
+        json  = new String(evs.head.record.eventData.metadata.toArray, "UTF-8")
+        _    <- IO.println(s"[spike] metadata with user properties: $json")
+        _    <- IO(assert(json.contains("tenant"), s"user properties should surface in v1 metadata; got: $json"))
+      yield ()
+    }
+  }
+
   test("v2 multi-stream append is atomic; a violated check fails the whole request") {
     (v2Stub, mkClient()).tupled.use { case (stub, client) =>
       given Metadata = new Metadata()
@@ -119,8 +149,18 @@ class V2AppendSpikeSuite extends FSuite:
         _    <- IO(assert(resp.revisions.forall(_.revision == 0L), s"expected revision 0 on both: $resp"))
         res  <- explained(stub.appendRecords(bad)).attempt
         _    <- IO(assert(res.isLeft, s"expected consistency violation, got $res"))
-        _    <- res.swap.toOption.traverse_ { t =>
-                  IO.println(s"[spike] conflict error shape: ${t.getClass.getName}: ${t.getMessage}")
+        _    <- res.swap.toOption.traverse_ {
+                  case e: StatusRuntimeException =>
+                    // Phase 1 gate: text-only descriptions would force parsing messages; structured
+                    // details (google.rpc.Status in the standard trailer) enable typed exceptions.
+                    val key     = Metadata.Key.of("grpc-status-details-bin", Metadata.BINARY_BYTE_MARSHALLER)
+                    val details = Option(e.getTrailers)
+                      .flatMap(t => Option(t.get(key)))
+                      .map(bytes => com.google.rpc.Status.parseFrom(bytes).details.map(_.typeUrl).mkString(", "))
+                    IO.println(s"[spike] conflict: ${e.getStatus.getCode}: ${e.getStatus.getDescription}") *>
+                      IO.println(s"[spike] structured details: ${details.getOrElse("<none in trailers>")}")
+                  case t =>
+                    IO.println(s"[spike] conflict error shape: ${t.getClass.getName}: ${t.getMessage}")
                 }
         cRes <- client.streams
                   .readStream(cId, StreamPosition.Start, Direction.Forwards, 10L, resolveLinkTos = false)
