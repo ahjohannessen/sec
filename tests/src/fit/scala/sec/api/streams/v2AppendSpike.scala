@@ -163,7 +163,7 @@ class V2AppendSpikeSuite extends FSuite:
 
       for
         resp   <- explained(stub.appendRecords(ok))
-        result <- IO.fromEither(mapping.streamsV2.mkMultiAppendResult(appends)(resp).leftMap(new AssertionError(_)))
+        result <- mapping.streamsV2.mkMultiAppendResult[IO](appends)(resp)
         _      <- IO(assertEquals(
                     result.revisions.toList.toMap,
                     Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L))
