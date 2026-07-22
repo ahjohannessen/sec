@@ -24,7 +24,7 @@ import exceptions.StreamNotFound
 /** Checkpoint result used with server-side filtering in KurrentDB. Contains the [[LogPosition.Exact]] when the
   * checkpoint was made.
   */
-final case class Checkpoint(
+case class Checkpoint(
   logPosition: LogPosition.Exact
 )
 
@@ -42,20 +42,20 @@ object Checkpoint:
 /** The current last [[StreamPosition.Exact]] of the stream appended to and its corresponding [[LogPosition.Exact]] in
   * the transaction log.
   */
-final case class WriteResult(
+case class WriteResult(
   streamPosition: StreamPosition.Exact,
   logPosition: LogPosition.Exact
 )
 
 /** The [[LogPosition.Exact]] of the delete in the transaction log.
   */
-final case class DeleteResult(
+case class DeleteResult(
   logPosition: LogPosition.Exact
 )
 
 /** The [[LogPosition.Exact]] of the tombstone in the transaction log.
   */
-final case class TombstoneResult(
+case class TombstoneResult(
   logPosition: LogPosition.Exact
 )
 
@@ -80,10 +80,10 @@ final private[sec] case class SubscriptionConfirmation(
 sealed trait StreamMessage
 object StreamMessage:
 
-  final case class StreamEvent(event: Event) extends StreamMessage
-  final case class FirstStreamPosition(position: StreamPosition) extends StreamMessage
-  final case class LastStreamPosition(position: StreamPosition) extends StreamMessage
-  final case class NotFound(streamId: StreamId) extends StreamMessage
+  case class StreamEvent(event: Event) extends StreamMessage
+  case class FirstStreamPosition(position: StreamPosition) extends StreamMessage
+  case class LastStreamPosition(position: StreamPosition) extends StreamMessage
+  case class NotFound(streamId: StreamId) extends StreamMessage
   object NotFound:
     extension (nf: NotFound) def toException: StreamNotFound = StreamNotFound(nf.streamId.render)
 
@@ -122,8 +122,8 @@ object StreamMessage:
 sealed trait AllMessage
 object AllMessage:
 
-  final case class AllEvent(event: Event) extends AllMessage
-  final case class LastAllStreamPosition(position: LogPosition) extends AllMessage
+  case class AllEvent(event: Event) extends AllMessage
+  case class LastAllStreamPosition(position: LogPosition) extends AllMessage
 
   //
 

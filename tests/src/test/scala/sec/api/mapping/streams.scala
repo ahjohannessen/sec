@@ -1122,7 +1122,7 @@ object StreamsMappingSuite {
   def bv(data: String): ByteVector =
     encodeToBV(data).unsafe
 
-  final case class EventAndLink(
+  case class EventAndLink(
     event: EventRecord,
     eventProto: s.ReadResp.ReadEvent.RecordedEvent,
     link: EventRecord,

@@ -80,5 +80,5 @@ case class StreamGuard(streamId: StreamId.Id, expected: StreamState)
   */
 case class MultiAppendResult(
   position: LogPosition.Exact,
-  revisions: NonEmptyList[(StreamId.Id, StreamPosition.Exact)]
+  streamPositions: NonEmptyList[(StreamId.Id, StreamPosition.Exact)]
 )

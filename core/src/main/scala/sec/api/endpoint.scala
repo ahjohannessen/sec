@@ -24,7 +24,7 @@ import io.grpc.{Attributes, EquivalentAddressGroup}
 /** Endpoint can be an IP Socket Address consisting of an IP address and port number. It can also be a hostname and a
   * port number, in which case an attempt will be made to resolve the hostname.
   */
-final case class Endpoint(
+case class Endpoint(
   address: String,
   port: Int
 )

@@ -18,7 +18,7 @@ package sec
 package api
 package mapping
 
-import cats.MonadThrow
+import cats.ApplicativeThrow
 import cats.data.NonEmptyList
 import cats.syntax.all.*
 import com.google.protobuf.struct as ps
@@ -26,8 +26,10 @@ import io.kurrentdb.protocol.v2.streams as pv2
 
 private[sec] object streamsV2:
 
-  /** StreamState sentinel encoding used by v2 checks: -1 NoStream, -2 Any, -4 StreamExists,
-    * otherwise the exact revision.
+  /** StreamState sentinel encoding used by v2 checks: -1 NoStream, -4 StreamExists, otherwise the
+    * exact stream position. The server also knows Deleted (-5) and Tombstoned (-6), which the sec
+    * model does not yet express; -2 (Any) exists in the v1 vocabulary only and is rejected by the
+    * server - Any is expressed by omitting the check, see [[mkAppendRecordsRequest]].
     */
   def mkExpectedState(ss: StreamState): Long = ss match
     case StreamState.NoStream     => -1L
@@ -62,16 +64,19 @@ private[sec] object streamsV2:
         pv2.ConsistencyCheck.StreamStateCheck(stream = streamId.stringValue, expectedState = mkExpectedState(expected))
       )
 
-  /** Every written stream carries exactly one check; guards add checks for unwritten streams. */
+  /** Every written stream carries at most one check; guards add checks for unwritten streams.
+    * The v2 protocol has no Any sentinel - the server rejects -2 with INVALID_ARGUMENT - so Any
+    * is expressed by omitting the check, and an Any guard is vacuous and not sent.
+    */
   def mkAppendRecordsRequest(appends: NonEmptyList[StreamAppend], guards: List[StreamGuard]): pv2.AppendRecordsRequest =
     pv2.AppendRecordsRequest(
       records = appends.toList.flatMap(a => a.records.toList.map(mkAppendRecord(a.streamId, _))),
-      checks  = appends.toList.map(a => mkCheck(a.streamId, a.expected)) ++
-        guards.map(g => mkCheck(g.streamId, g.expected))
+      checks  = appends.toList.collect { case a if a.expected != StreamState.Any => mkCheck(a.streamId, a.expected) } ++
+        guards.collect { case g if g.expected != StreamState.Any => mkCheck(g.streamId, g.expected) }
     )
 
   /** Recovers typed stream ids by joining response revisions with the request's appends. */
-  def mkMultiAppendResult[F[_]: MonadThrow](
+  def mkMultiAppendResult[F[_]: ApplicativeThrow](
     appends: NonEmptyList[StreamAppend]
   )(resp: pv2.AppendRecordsResponse): F[MultiAppendResult] =
     val byName = appends.toList.map(a => a.streamId.stringValue -> a.streamId).toMap
@@ -86,14 +91,14 @@ private[sec] object streamsV2:
       }
       .flatMap { rs =>
         NonEmptyList.fromList(rs).fold(shared.mkError[NonEmptyList[(StreamId.Id, StreamPosition.Exact)]](
-          "AppendRecordsResponse contained no revisions"
+          "AppendRecordsResponse contained no stream positions"
         ))(_.asRight)
       }
       .flatMap { rs =>
         val missing = appends.toList.map(_.streamId.stringValue).toSet -- rs.toList.map(_._1.stringValue).toSet
         if missing.isEmpty then rs.asRight
         else shared.mkError[NonEmptyList[(StreamId.Id, StreamPosition.Exact)]](
-          s"AppendRecordsResponse missing revisions for: ${missing.mkString(", ")}"
+          s"AppendRecordsResponse missing stream positions for: ${missing.mkString(", ")}"
         )
       }
       .map(MultiAppendResult(LogPosition.exact(resp.position, resp.position), _))

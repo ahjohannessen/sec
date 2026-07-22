@@ -37,7 +37,7 @@ import EventFilter.*
   *   - [[EventFilter.RegexFilter]] when you wish to filter with a regular expression. An example of this is
   *     `RegexFilter("^[^$].*")` when you for do not wish to retrieve events starting with `$`.
   */
-final case class EventFilter(
+case class EventFilter(
   kind: Kind,
   option: Either[NonEmptyList[PrefixFilter], RegexFilter]
 )
@@ -62,8 +62,8 @@ object EventFilter:
   //
 
   sealed trait Expression
-  final case class PrefixFilter(value: String) extends Expression
-  final case class RegexFilter(value: String) extends Expression
+  case class PrefixFilter(value: String) extends Expression
+  case class RegexFilter(value: String) extends Expression
 
   object RegexFilter:
     val excludeSystemEvents: RegexFilter = apply("^[^$].*".r)

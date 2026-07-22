@@ -57,7 +57,7 @@ private[sec] object retries:
 
 //======================================================================================================================
 
-  final case class Timeout(after: FiniteDuration) extends RuntimeException(s"Timed out after ${format(after)}.")
+  case class Timeout(after: FiniteDuration) extends RuntimeException(s"Timed out after ${format(after)}.")
 
 //======================================================================================================================
 

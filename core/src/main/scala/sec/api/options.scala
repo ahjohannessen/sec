@@ -87,10 +87,10 @@ private[sec] object Options:
 sealed private[sec] trait ConnectionMode
 private[sec] object ConnectionMode:
 
-  final case class CertB64(value: String) extends AnyVal
+  case class CertB64(value: String) extends AnyVal
 
   case object Insecure extends ConnectionMode
-  final case class Secure(cert: Either[File, CertB64]) extends ConnectionMode
+  case class Secure(cert: Either[File, CertB64]) extends ConnectionMode
   object Secure:
     def apply(file: File): Secure     = Secure(file.asLeft)
     def apply(base64: String): Secure = Secure(CertB64(base64).asRight)

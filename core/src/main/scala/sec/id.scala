@@ -33,7 +33,7 @@ sealed trait StreamId
 object StreamId:
 
   sealed trait Id extends StreamId
-  final case class MetaId(id: Id) extends StreamId
+  case class MetaId(id: Id) extends StreamId
 
   sealed abstract case class System(name: String) extends Id
   private[sec] object System:

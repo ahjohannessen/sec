@@ -79,7 +79,7 @@ object StreamPosition:
 
   val Start: Exact = Exact(ULong.min)
 
-  final case class Exact(value: ULong) extends StreamPosition with StreamState
+  case class Exact(value: ULong) extends StreamPosition with StreamState
   object Exact:
     def fromUnsigned(value: Long): Exact = Exact(ULong(value))
 

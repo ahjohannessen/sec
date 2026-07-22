@@ -80,7 +80,7 @@ object Event:
   * @param created
   *   the creation date of the event in [[java.time.ZonedDateTime]].
   */
-final case class EventRecord(
+case class EventRecord(
   streamId: StreamId,
   streamPosition: StreamPosition.Exact,
   logPosition: LogPosition.Exact,
@@ -112,7 +112,7 @@ object EventRecord:
   * @param link
   *   the link event to the resolved event.
   */
-final case class ResolvedEvent(
+case class ResolvedEvent(
   event: EventRecord,
   link: EventRecord
 ) extends Event
@@ -214,7 +214,7 @@ object EventType:
   * @param contentType
   *   the [[ContentType]] of encoded data and metadata.
   */
-final case class EventData(
+case class EventData(
   eventType: EventType,
   eventId: UUID,
   data: ByteVector,

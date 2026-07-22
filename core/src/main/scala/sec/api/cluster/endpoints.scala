@@ -29,7 +29,7 @@ private[sec] object ClusterEndpoints:
     * @param clusterDns
     *   DNS name to use for discovering endpoints.
     */
-  final case class ViaDns(
+  case class ViaDns(
     clusterDns: Hostname
   ) extends ClusterEndpoints
 
@@ -38,7 +38,7 @@ private[sec] object ClusterEndpoints:
     * @param endpoints
     *   Endpoints that provide cluster info.
     */
-  final case class ViaSeed(
+  case class ViaSeed(
     endpoints: NonEmptySet[Endpoint]
   ) extends ClusterEndpoints
 
