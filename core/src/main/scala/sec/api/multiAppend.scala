@@ -41,9 +41,12 @@ enum SchemaFormat:
   case Json, Protobuf, Avro, Bytes
 
 enum PropertyValue:
+  case Null
   case Str(value: String)
   case Num(value: Double)
   case Bool(value: Boolean)
+  case Arr(values: List[PropertyValue])
+  case Obj(fields: Properties)
 
 /** Validated user properties. Keys must be non-empty and must not use the reserved `$` prefix -
   * the server owns that namespace (`$schema.name`, `$schema.format`, ...).

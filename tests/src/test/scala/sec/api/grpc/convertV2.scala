@@ -18,6 +18,7 @@ package sec
 package api
 package grpc
 
+import cats.data.NonEmptyList
 import com.google.protobuf.any.Any as PbAny
 import com.google.rpc.Status as PbStatus
 import io.grpc.{Metadata, Status, StatusRuntimeException}
@@ -65,7 +66,10 @@ class ConvertV2Suite extends SecSuite:
       PbAny.pack(v2e.StreamAlreadyExistsErrorDetails("s"))             -> StreamAlreadyExists("s"),
       PbAny.pack(v2e.StreamTombstonedErrorDetails("s"))                -> StreamTombstoned("s"),
       PbAny.pack(v2e.StreamDeletedErrorDetails("s"))                   -> StreamDeleted("s"),
-      PbAny.pack(v2e.StreamNotFoundErrorDetails("s"))                  -> StreamNotFound("s")
+      PbAny.pack(v2e.StreamNotFoundErrorDetails("s"))                  -> StreamNotFound("s"),
+      PbAny.pack(
+        com.google.rpc.BadRequest(Seq(com.google.rpc.BadRequest.FieldViolation("checks", "each stream may appear once")))
+      ) -> InvalidRequest(NonEmptyList.one(FieldViolation("checks", "each stream may appear once")))
     )
     cases.foreach { case (any, expected) =>
       assertEquals(convertV2.convertToEs(sre(any)), Some(expected), s"for ${any.typeUrl}")
