@@ -15,7 +15,7 @@ object Dependencies {
     val unum       = "2.0.0"
     val circe      = "0.14.3"
     val scalaPb    = scalapb.compiler.Version.scalapbVersion
-    val grpc       = "1.82.2"
+    val grpc       = "1.83.0"
     val tsConfig   = "1.4.9"
 
     val scalaCheck      = "1.19.0"
@@ -56,10 +56,10 @@ object Dependencies {
   val munitEffect       = "org.typelevel"  %% "munit-cats-effect"   % versions.munitEffect
   val catsEffectTestkit = "org.typelevel"  %% "cats-effect-testkit" % versions.catsEffect
 
-  val logback         = "ch.qos.logback" % "logback-classic"  % versions.logback
-  val log4catsTesting = "org.typelevel" %% "log4cats-testing" % versions.log4cats
-  val log4catsSlf4j   = "org.typelevel" %% "log4cats-slf4j"   % versions.log4cats
-  val testcontainers  = "org.testcontainers" % "testcontainers" % versions.testcontainers
+  val logback         = "ch.qos.logback"     % "logback-classic"  % versions.logback
+  val log4catsTesting = "org.typelevel"     %% "log4cats-testing" % versions.log4cats
+  val log4catsSlf4j   = "org.typelevel"     %% "log4cats-slf4j"   % versions.log4cats
+  val testcontainers  = "org.testcontainers" % "testcontainers"   % versions.testcontainers
 
   // Misc
 
