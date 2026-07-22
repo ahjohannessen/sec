@@ -66,7 +66,7 @@ private[sec] object streamsV2:
 
   /** Every written stream carries at most one check; guards add checks for unwritten streams.
     * The v2 protocol has no Any sentinel - the server rejects -2 with INVALID_ARGUMENT - so Any
-    * is expressed by omitting the check, and an Any guard is vacuous and not sent.
+    * is expressed by omitting the check, for both appends and guards.
     */
   def mkAppendRecordsRequest(appends: NonEmptyList[StreamAppend], guards: List[StreamGuard]): pv2.AppendRecordsRequest =
     pv2.AppendRecordsRequest(

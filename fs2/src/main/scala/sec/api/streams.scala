@@ -180,7 +180,7 @@ trait Streams[F[_]]:
     * [[sec.api.exceptions.AppendConsistencyViolation]]. A stream may appear only once across
     * appends and guards; a duplicate is rejected by the server. A
     * [[StreamState.Any]] expectation produces no check on the wire - the v2 protocol expresses
-    * Any as absence - which also renders an Any guard vacuous.
+    * Any as absence.
     *
     * @param appends
     *   the streams to append to, each with an expectation and its records. See [[sec.api.StreamAppend]].
@@ -189,7 +189,7 @@ trait Streams[F[_]]:
     */
   def multiStreamAppend(
     appends: NonEmptyList[StreamAppend],
-    guards: List[StreamGuard] = Nil
+    guards: List[StreamGuard]
   ): F[MultiAppendResult]
 
   /** Deletes a stream and returns [[DeleteResult]] with current log position after a successful operation. Failure to
@@ -249,6 +249,10 @@ trait Streams[F[_]]:
   def messageReads: Reads[F]
 
 object Streams:
+
+  extension [F[_]](streams: Streams[F])
+    def multiStreamAppend(appends: NonEmptyList[StreamAppend]): F[MultiAppendResult] =
+      streams.multiStreamAppend(appends, Nil)
 
 //======================================================================================================================
 

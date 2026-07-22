@@ -27,7 +27,7 @@ Every written stream carries a mandatory `StreamState` expectation via `StreamAp
 `StreamGuard` expresses conditions on unwritten streams. A stream may appear only once across
 appends and guards, and a duplicate is rejected by the server. A `StreamState.Any` expectation
 produces no check on the wire - the v2 protocol has
-no Any sentinel and expresses it as absence - which also makes an Any guard vacuous.
+no Any sentinel and expresses it as absence.
 
 ### Example
 
