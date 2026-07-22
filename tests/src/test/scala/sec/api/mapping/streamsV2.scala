@@ -18,18 +18,15 @@ package sec
 package api
 package mapping
 
-import java.util.UUID
 import cats.data.NonEmptyList
 import io.kurrentdb.protocol.v2.streams as pv2
-import scodec.bits.ByteVector
 import sec.arbitraries.*
 
 class StreamsV2MappingSuite extends SecSuite:
 
   private def sid(prefix: String): StreamId.Id = sampleOfGen(idGen.genStreamIdNormal(prefix))
 
-  private def rec: RecordData =
-    RecordData(UUID.randomUUID(), Schema.json("t"), ByteVector.view("{}".getBytes("UTF-8")), Properties.empty)
+  private def rec: RecordData = sampleOf[RecordData]
 
   test("expected state uses StreamState sentinel encoding") {
     assertEquals(streamsV2.mkExpectedState(StreamState.NoStream), -1L)
@@ -44,17 +41,20 @@ class StreamsV2MappingSuite extends SecSuite:
     assert(Properties.of("tenant" -> PropertyValue.Str("acme"), "attempt" -> PropertyValue.Num(2)).isRight)
   }
 
-  test("request couples one check to every written stream and appends guards after") {
-    val (a, b, g) = (sid("v2m_a_"), sid("v2m_b_"), sid("v2m_g_"))
-    val appends   = NonEmptyList.of(
+  test("request couples checks to written streams, appends guards, and omits Any") {
+    val (a, b, c, g) = (sid("v2m_a_"), sid("v2m_b_"), sid("v2m_c_"), sid("v2m_g_"))
+    val appends      = NonEmptyList.of(
       StreamAppend(a, StreamState.NoStream, NonEmptyList.of(rec, rec)),
-      StreamAppend(b, StreamPosition(3L), NonEmptyList.one(rec))
+      StreamAppend(b, StreamPosition(3L), NonEmptyList.one(rec)),
+      StreamAppend(c, StreamState.Any, NonEmptyList.one(rec))
     )
-    val req = streamsV2.mkAppendRecordsRequest(appends, List(StreamGuard(g, StreamState.StreamExists)))
+    val guards = List(StreamGuard(g, StreamState.StreamExists), StreamGuard(sid("v2m_v_"), StreamState.Any))
+    val req    = streamsV2.mkAppendRecordsRequest(appends, guards)
 
-    assertEquals(req.records.map(_.stream).toList, List(a, a, b).map(_.stringValue))
+    assertEquals(req.records.map(_.stream).toList, List(a, a, b, c).map(_.stringValue))
+    // Any appears in neither writes nor guards: absence of a check is the v2 encoding of Any.
     assertEquals(
-      req.checks.toList.flatMap(_.`type`.streamState).map(c => c.stream -> c.expectedState),
+      req.checks.toList.flatMap(_.`type`.streamState).map(x => x.stream -> x.expectedState),
       List(a.stringValue -> -1L, b.stringValue -> 3L, g.stringValue -> -4L)
     )
   }

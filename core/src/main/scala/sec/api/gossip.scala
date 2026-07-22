@@ -25,7 +25,7 @@ import cats.implicits.*
 
 /** Used for information about the nodes in an KurrentDB cluster.
   */
-final case class ClusterInfo(
+case class ClusterInfo(
   members: Set[MemberInfo]
 )
 
@@ -40,7 +40,7 @@ object ClusterInfo:
 
   extension (ci: ClusterInfo) def render: String = ClusterInfo.renderClusterInfo(ci)
 
-final case class MemberInfo(
+case class MemberInfo(
   instanceId: ju.UUID,
   timestamp: ZonedDateTime,
   state: VNodeState,

@@ -166,7 +166,7 @@ trait Streams[F[_]]:
     * Appends records to one or more streams atomically; the server must support and have enabled
     * the v2 protocol. Every written stream carries a mandatory [[StreamState]] expectation, and
     * [[sec.api.StreamGuard]] expresses conditions on streams that are read from but not written
-    * to: below, the reservation is appended only if the flight stream is still at revision 42,
+    * to: below, the reservation is appended only if the flight stream is still at stream position 42,
     * although nothing is written to it (dynamic consistency boundary).
     *
     * {{{
@@ -177,8 +177,10 @@ trait Streams[F[_]]:
     * }}}
     *
     * Failure to fulfill a check is manifested by raising
-    * [[sec.api.exceptions.AppendConsistencyViolation]]. Streams must be distinct across appends
-    * and guards; duplicates raise [[sec.api.exceptions.DuplicateStreams]].
+    * [[sec.api.exceptions.AppendConsistencyViolation]]. A stream may appear only once across
+    * appends and guards; a duplicate is rejected by the server. A
+    * [[StreamState.Any]] expectation produces no check on the wire - the v2 protocol expresses
+    * Any as absence - which also renders an Any guard vacuous.
     *
     * @param appends
     *   the streams to append to, each with an expectation and its records. See [[sec.api.StreamAppend]].
@@ -436,17 +438,11 @@ object Streams:
     opts: Opts[F]
   )(f: V2AppendReq => F[V2AppendResp]): F[MultiAppendResult] =
 
-    // Duplicates across appends and guards would place multiple, potentially conflicting, checks
-    // on one stream - an illegal state the collection types cannot rule out, so it is rejected here.
-    val ids  = appends.toList.map(_.streamId.stringValue) ++ guards.map(_.streamId.stringValue)
-    val dups = ids.groupBy(identity).collect { case (id, xs) if xs.sizeIs > 1 => id }.toList.sorted
-
-    dups match
-      case Nil =>
-        val req = mapping.streamsV2.mkAppendRecordsRequest(appends, guards)
-        opts.run(f(req), "multiStreamAppend") >>= mapping.streamsV2.mkMultiAppendResult[F](appends)
-      case ds =>
-        exceptions.DuplicateStreams(ds).raiseError
+    // A stream may appear only once across a request's consistency checks; this is enforced by
+    // the server (AppendRecordsRequestValidator, ordinal case-insensitive), so we send the request
+    // and surface its rejection rather than replicate - and risk drifting from - that rule.
+    val req = mapping.streamsV2.mkAppendRecordsRequest(appends, guards)
+    opts.run(f(req), "multiStreamAppend") >>= mapping.streamsV2.mkMultiAppendResult[F](appends)
 
   private[sec] def delete0[F[_]: Temporal](
     streamId: StreamId,

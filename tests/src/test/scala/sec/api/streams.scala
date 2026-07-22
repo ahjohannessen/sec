@@ -506,4 +506,4 @@ class SubConfirmationPipeSuite extends SecEffectSuite:
   }
 
 object StreamsSpec:
-  final case class RetryErr(msg: String = "") extends RuntimeException(msg) with NoStackTrace
+  case class RetryErr(msg: String = "") extends RuntimeException(msg) with NoStackTrace

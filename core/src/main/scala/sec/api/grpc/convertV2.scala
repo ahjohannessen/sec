@@ -57,7 +57,7 @@ private[sec] object convertV2:
       })
     } orElse
       unpackAs[v2e.StreamRevisionConflictErrorDetails](a).map { d =>
-        StreamRevisionConflict(d.stream, d.expectedRevision, d.actualRevision)
+        StreamPositionConflict(d.stream, d.expectedRevision, d.actualRevision)
       } orElse
       unpackAs[v2e.AppendRecordSizeExceededErrorDetails](a).map { d =>
         AppendRecordSizeExceeded(d.stream, d.recordId, d.size, d.maxSize)

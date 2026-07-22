@@ -17,6 +17,7 @@
 package sec
 package api
 
+import java.util as ju
 import cats.syntax.all.*
 import cats.effect.{IO, Resource}
 import com.google.protobuf.ByteString
@@ -26,6 +27,7 @@ import io.grpc.{Metadata, Status, StatusRuntimeException}
 import io.kurrentdb.protocol.v2.streams.*
 import scodec.bits.ByteVector
 import sec.api.exceptions.StreamNotFound
+import sec.arbitraries.*
 
 /** Fault-harness coverage for v2 multi-stream append against a real node: v1 read roundtrip of
   * v2-written records, user-property metadata synthesis, request atomicity, guard semantics on
@@ -46,7 +48,7 @@ class MultiStreamAppendSuite extends FSuite:
 
   private def record(stream: String): AppendRecord =
     AppendRecord(
-      recordId   = Some(java.util.UUID.randomUUID().toString),
+      recordId   = Some(sampleOf[ju.UUID].toString),
       properties = Map.empty,
       schema     = Some(SchemaInfo(format = SchemaFormat.SCHEMA_FORMAT_JSON, name = schemaName)),
       data       = ByteString.copyFromUtf8(payload),
@@ -139,7 +141,7 @@ class MultiStreamAppendSuite extends FSuite:
       val cId = genStreamId("fit_v2_map_c_")
 
       def rec = RecordData(
-        java.util.UUID.randomUUID(),
+        sampleOf[ju.UUID],
         Schema.json(schemaName),
         scodec.bits.ByteVector.view(payload.getBytes("UTF-8")),
         Properties.of("tenant" -> PropertyValue.Str("acme")).fold(m => fail(m), identity)
@@ -163,7 +165,7 @@ class MultiStreamAppendSuite extends FSuite:
         resp   <- explained(stub.appendRecords(ok))
         result <- mapping.streamsV2.mkMultiAppendResult[IO](appends)(resp)
         _      <- IO(assertEquals(
-                    result.revisions.toList.toMap,
+                    result.streamPositions.toList.toMap,
                     Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L))
                   ))
         res    <- explained(stub.appendRecords(bad)).attempt
@@ -186,7 +188,7 @@ class MultiStreamAppendSuite extends FSuite:
       val bId = genStreamId("fit_v2_api_b_")
 
       def rec = RecordData(
-        java.util.UUID.randomUUID(),
+        sampleOf[ju.UUID],
         Schema.json(schemaName),
         scodec.bits.ByteVector.view(payload.getBytes("UTF-8")),
         Properties.empty
@@ -200,7 +202,7 @@ class MultiStreamAppendSuite extends FSuite:
       for
         r   <- client.streams.multiStreamAppend(appends)
         _   <- IO(assertEquals(
-                 r.revisions.toList.toMap,
+                 r.streamPositions.toList.toMap,
                  Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L))
                ))
         // The error adapter must surface a violated guard as the typed exception directly.
@@ -214,22 +216,210 @@ class MultiStreamAppendSuite extends FSuite:
     }
   }
 
-  test("duplicate streams across appends and guards are rejected client-side") {
+  test("all violated checks are reported, not only the first") {
     mkClient().use { client =>
       import cats.data.NonEmptyList as CNel
 
-      val aId = genStreamId("fit_v2_dup_")
-      val rec = RecordData(
-        java.util.UUID.randomUUID(),
+      val aId = genStreamId("fit_v2_viol_a_")
+      val bId = genStreamId("fit_v2_viol_b_")
+
+      def rec = RecordData(
+        sampleOf[ju.UUID],
         Schema.json(schemaName),
         scodec.bits.ByteVector.view(payload.getBytes("UTF-8")),
         Properties.empty
       )
 
-      val appends = CNel.one(StreamAppend(aId, StreamState.NoStream, CNel.one(rec)))
-      client.streams.multiStreamAppend(appends, List(StreamGuard(aId, StreamState.NoStream))).attempt.map {
-        case Left(exceptions.DuplicateStreams(ids)) => assertEquals(ids, List(aId.stringValue))
-        case other                                     => fail(s"expected DuplicateStreams, got $other")
+      // Both streams expect existence, neither exists: the details must carry both violations,
+      // per the errors.proto contract that all violated checks are included.
+      val appends = CNel.of(
+        StreamAppend(aId, StreamState.StreamExists, CNel.one(rec)),
+        StreamAppend(bId, StreamState.StreamExists, CNel.one(rec))
+      )
+
+      client.streams.multiStreamAppend(appends).attempt.map {
+        case Left(v: exceptions.AppendConsistencyViolation) =>
+          assertEquals(
+            v.violations.map(x => (x.streamId, x.expected, x.actual)).toSet,
+            Set((aId.stringValue, -4L, -1L), (bId.stringValue, -4L, -1L))
+          )
+        case other => fail(s"expected AppendConsistencyViolation with both streams, got $other")
+      }
+    }
+  }
+
+  test("exact stream position expectations are violated precisely and honored when correct") {
+    mkClient().use { client =>
+      import cats.data.NonEmptyList as CNel
+
+      val cId = genStreamId("fit_v2_exact_")
+
+      def rec = RecordData(
+        sampleOf[ju.UUID],
+        Schema.json(schemaName),
+        scodec.bits.ByteVector.view(payload.getBytes("UTF-8")),
+        Properties.empty
+      )
+
+      def append(expected: StreamState) =
+        client.streams.multiStreamAppend(CNel.one(StreamAppend(cId, expected, CNel.one(rec))))
+
+      for
+        _   <- append(StreamState.NoStream) // stream position 0
+        res <- append(StreamPosition(5L)).attempt
+        _   <- IO(res match
+                 case Left(v: exceptions.AppendConsistencyViolation) =>
+                   assertEquals(
+                     v.violations.map(x => (x.streamId, x.expected, x.actual)),
+                     List((cId.stringValue, 5L, 0L))
+                   )
+                 case other => fail(s"expected violation with exact expected/actual, got $other"))
+        ok  <- append(StreamPosition(0L))
+        _   <- IO(assertEquals(ok.streamPositions.toList, List(cId -> StreamPosition(1L))))
+      yield ()
+    }
+  }
+
+  test("appends to tombstoned streams fail as a consistency violation") {
+    mkClient().use { client =>
+      import cats.data.NonEmptyList as CNel
+
+      val dId = genStreamId("fit_v2_tomb_")
+
+      def rec = RecordData(
+        sampleOf[ju.UUID],
+        Schema.json(schemaName),
+        scodec.bits.ByteVector.view(payload.getBytes("UTF-8")),
+        Properties.empty
+      )
+
+      // The server refuses an append to a tombstoned stream as a consistency violation whose
+      // actual state is the Tombstoned sentinel (-6), not a tombstone-typed detail, so convertV2
+      // surfaces AppendConsistencyViolation rather than StreamTombstoned. (The dotnet client
+      // promotes actual -6/-5 to a typed exception; sec does not yet - see follow-up.)
+      for
+        _   <- client.streams.appendToStream(dId, StreamState.NoStream, genEvents(1))
+        _   <- client.streams.tombstone(dId, StreamState.StreamExists)
+        res <- client.streams
+                 .multiStreamAppend(CNel.one(StreamAppend(dId, StreamState.NoStream, CNel.one(rec))))
+                 .attempt
+        _   <- IO(res match
+                 case Left(e: exceptions.AppendConsistencyViolation) =>
+                   assertEquals(e.violations.map(v => (v.streamId, v.expected, v.actual)), List((dId.stringValue, -1L, -6L)))
+                 case other => fail(s"expected AppendConsistencyViolation, got $other"))
+      yield ()
+    }
+  }
+
+  test("write expectations across stream states follow the server matrix") {
+    mkClient().use { client =>
+      import cats.data.NonEmptyList as CNel
+      import StreamState.{Any, NoStream, StreamExists}
+
+      def rec = RecordData(
+        sampleOf[ju.UUID],
+        Schema.json(schemaName),
+        scodec.bits.ByteVector.view(payload.getBytes("UTF-8")),
+        Properties.empty
+      )
+
+      def notFound: IO[StreamId.Id]   = IO(genStreamId("fit_v2_wm_"))
+      def atZero: IO[StreamId.Id]     =
+        notFound.flatTap(id => client.streams.appendToStream(id, NoStream, genEvents(1)))
+      def deleted: IO[StreamId.Id]    =
+        atZero.flatTap(id => client.streams.delete(id, StreamExists))
+      def tombstoned: IO[StreamId.Id] =
+        atZero.flatTap(id => client.streams.tombstone(id, StreamExists))
+
+      def write(id: StreamId.Id, expected: StreamState): IO[Boolean] =
+        client.streams
+          .multiStreamAppend(CNel.one(StreamAppend(id, expected, CNel.one(rec))))
+          .attempt
+          .map(_.isRight)
+
+      // Expected outcomes per the matrix pinned by the official clients. Exception types are
+      // covered by the targeted tests; here the semantics under test is accept/reject per cell.
+      val cases: List[(String, StreamState, IO[StreamId.Id], Boolean)] = List(
+        ("NoStream on not-found", NoStream, notFound, true),
+        ("NoStream on existing", NoStream, atZero, false),
+        ("NoStream on deleted", NoStream, deleted, true),
+        ("NoStream on tombstoned", NoStream, tombstoned, false),
+        ("Any on not-found", Any, notFound, true),
+        ("Any on existing", Any, atZero, true),
+        ("Any on deleted", Any, deleted, true),
+        ("Any on tombstoned", Any, tombstoned, false),
+        ("StreamExists on not-found", StreamExists, notFound, false),
+        ("StreamExists on existing", StreamExists, atZero, true),
+        ("StreamExists on deleted", StreamExists, deleted, false),
+        ("StreamExists on tombstoned", StreamExists, tombstoned, false),
+        ("exact on not-found", StreamPosition(0L), notFound, false),
+        ("exact on existing", StreamPosition(0L), atZero, true),
+        // A soft-deleted stream keeps its last surviving position, so an exact expectation matching
+        // it is honoured and the append succeeds - the write and guard matrices agree here. True
+        // only because atZero leaves the survivor at revision 0 and we expect exactly 0.
+        ("exact on deleted", StreamPosition(0L), deleted, true),
+        ("exact on tombstoned", StreamPosition(0L), tombstoned, false)
+      )
+
+      cases.traverse_ { case (desc, expected, mkStream, succeeds) =>
+        mkStream.flatMap(write(_, expected)).map(r => assertEquals(r, succeeds, desc))
+      }
+    }
+  }
+
+  test("guard expectations across stream states follow the server matrix") {
+    mkClient().use { client =>
+      import cats.data.NonEmptyList as CNel
+      import StreamState.{NoStream, StreamExists}
+
+      def rec = RecordData(
+        sampleOf[ju.UUID],
+        Schema.json(schemaName),
+        scodec.bits.ByteVector.view(payload.getBytes("UTF-8")),
+        Properties.empty
+      )
+
+      def notFound: IO[StreamId.Id]   = IO(genStreamId("fit_v2_gm_"))
+      def atZero: IO[StreamId.Id]     =
+        notFound.flatTap(id => client.streams.appendToStream(id, NoStream, genEvents(1)))
+      def deleted: IO[StreamId.Id]    =
+        atZero.flatTap(id => client.streams.delete(id, StreamExists))
+      def tombstoned: IO[StreamId.Id] =
+        atZero.flatTap(id => client.streams.tombstone(id, StreamExists))
+
+      def guarded(guard: StreamGuard): IO[Boolean] =
+        client.streams
+          .multiStreamAppend(
+            CNel.one(StreamAppend(genStreamId("fit_v2_gmw_"), NoStream, CNel.one(rec))),
+            List(guard)
+          )
+          .attempt
+          .map(_.isRight)
+
+      // Note the asymmetry with the write matrix: a NoStream guard passes on a tombstoned
+      // stream - checks treat tombstoned as nonexistent - while writes reject it outright.
+      val cases: List[(String, StreamState, IO[StreamId.Id], Boolean)] = List(
+        ("NoStream guard on not-found", NoStream, notFound, true),
+        ("NoStream guard on existing", NoStream, atZero, false),
+        ("NoStream guard on deleted", NoStream, deleted, true),
+        ("NoStream guard on tombstoned", NoStream, tombstoned, true),
+        ("StreamExists guard on not-found", StreamExists, notFound, false),
+        ("StreamExists guard on existing", StreamExists, atZero, true),
+        ("StreamExists guard on deleted", StreamExists, deleted, false),
+        ("StreamExists guard on tombstoned", StreamExists, tombstoned, false),
+        ("exact guard on not-found", StreamPosition(0L), notFound, false),
+        ("exact guard on existing", StreamPosition(0L), atZero, true),
+        // A check on a soft-deleted stream is evaluated against its last surviving position, so an
+        // exact check matching it passes; NoStream also passes (a check treats deleted as absent)
+        // and StreamExists fails. Confirmed against the server's AppendRecords CheckOnly suite
+        // (WhenExpectingRevision/NoStream/Exists). True here only because atZero leaves the
+        // survivor at revision 0 and we check exactly 0.
+        ("exact guard on deleted", StreamPosition(0L), deleted, true),
+        ("exact guard on tombstoned", StreamPosition(0L), tombstoned, false)
+      )
+
+      cases.traverse_ { case (desc, expected, mkStream, succeeds) =>
+        mkStream.flatMap(id => guarded(StreamGuard(id, expected))).map(r => assertEquals(r, succeeds, desc))
       }
     }
   }

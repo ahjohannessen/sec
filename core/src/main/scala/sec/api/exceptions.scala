@@ -29,17 +29,17 @@ object exceptions:
 
   case object AccessDenied extends EsException("Access Denied.")
   case object InvalidTransaction extends EsException("Invalid Transaction.")
-  final case class UserNotFound(loginName: String) extends EsException(s"User '$loginName' was not found.")
-  final case class StreamDeleted(streamId: String) extends EsException(s"Event stream '$streamId' is deleted.")
-  final case class StreamNotFound(streamId: String) extends EsException(s"Event stream '$streamId' was not found.")
-  final case class UnknownError(msg: String) extends EsException(msg)
-  final case class ServerUnavailable(msg: String) extends EsException(msg)
-  final case class ResubscriptionRequired(msg: String) extends EsException(msg)
+  case class UserNotFound(loginName: String) extends EsException(s"User '$loginName' was not found.")
+  case class StreamDeleted(streamId: String) extends EsException(s"Event stream '$streamId' is deleted.")
+  case class StreamNotFound(streamId: String) extends EsException(s"Event stream '$streamId' was not found.")
+  case class UnknownError(msg: String) extends EsException(msg)
+  case class ServerUnavailable(msg: String) extends EsException(msg)
+  case class ResubscriptionRequired(msg: String) extends EsException(msg)
 
-  final case class SubscriptionPoolExhausted(channels: Int)
+  case class SubscriptionPoolExhausted(channels: Int)
     extends EsException(s"All $channels pooled subscription channels are at capacity - refusing to queue silently.")
 
-  final case class NotLeader(
+  case class NotLeader(
     host: Option[String],
     port: Option[Int]
   ) extends EsException(NotLeader.msg(host, port))
@@ -48,13 +48,13 @@ object exceptions:
     def msg(host: Option[String], port: Option[Int]): String =
       s"Not leader. Leader at ${host.getOrElse("<unknown>")}:${port.getOrElse("<unknown>")}."
 
-  final case class MaximumAppendSizeExceeded(size: Option[Int]) extends EsException(MaximumAppendSizeExceeded.msg(size))
+  case class MaximumAppendSizeExceeded(size: Option[Int]) extends EsException(MaximumAppendSizeExceeded.msg(size))
 
   object MaximumAppendSizeExceeded:
     def msg(maxSize: Option[Int]): String =
       s"Maximum append size ${maxSize.map(max => s"of $max bytes ").getOrElse("")}exceeded."
 
-  final case class WrongExpectedState(
+  case class WrongExpectedState(
     sid: StreamId,
     expected: StreamState,
     actual: StreamState
@@ -66,7 +66,7 @@ object exceptions:
       s"Wrong expected state for stream: ${sid.render}, expected: ${expected.render}, actual: ${actual.render}"
 
   // TODO: Remove when ESDB does not transport this via response headers
-  final case class WrongExpectedVersion(
+  case class WrongExpectedVersion(
     streamId: String,
     expected: Option[Long],
     actual: Option[Long]
@@ -89,26 +89,23 @@ object exceptions:
 
   object PersistentSubscription:
 
-    final case class Failed(streamId: String, groupName: String, reason: String)
+    case class Failed(streamId: String, groupName: String, reason: String)
       extends EsException(s"Subscription group $groupName on stream $streamId failed: '$reason'.")
 
-    final case class Exists(streamId: String, groupName: String)
+    case class Exists(streamId: String, groupName: String)
       extends EsException(s"Subscription group $groupName on stream $streamId exists.")
 
-    final case class NotFound(streamId: String, groupName: String)
+    case class NotFound(streamId: String, groupName: String)
       extends EsException(s"Subscription group '$groupName' on stream '$streamId' does not exist.")
 
-    final case class Dropped(streamId: String, groupName: String)
+    case class Dropped(streamId: String, groupName: String)
       extends EsException(s"Subscription group '$groupName' on stream '$streamId' was dropped by server.")
 
-    final case class MaximumSubscribersReached(streamId: String, groupName: String)
+    case class MaximumSubscribersReached(streamId: String, groupName: String)
       extends EsException(s"Maximum subscriptions reached for subscription group '$groupName' on stream '$streamId.'")
 
   // Multi-stream append. Constructed from structured google.rpc.Status details of the v2
   // protocol, see [[sec.api.grpc.convertV2]].
-
-  case class DuplicateStreams(streamIds: List[String])
-    extends EsException(s"Multi-stream append requires distinct streams; duplicates: ${streamIds.mkString(", ")}.")
 
   case class StreamAlreadyExists(streamId: String)
     extends EsException(s"Event stream '$streamId' already exists.")
@@ -117,8 +114,8 @@ object exceptions:
     extends EsException(s"Event stream '$streamId' is tombstoned.")
 
   /** expected / actual use StreamState sentinel encoding: -1 NoStream, -2 Any, -4 StreamExists, >= 0 exact. */
-  case class StreamRevisionConflict(streamId: String, expected: Long, actual: Long)
-    extends EsException(s"Stream '$streamId' revision conflict: expected $expected, actual $actual.")
+  case class StreamPositionConflict(streamId: String, expected: Long, actual: Long)
+    extends EsException(s"Stream '$streamId' position conflict: expected $expected, actual $actual.")
 
   case class AppendRecordSizeExceeded(streamId: String, recordId: String, size: Int, maxSize: Int)
     extends EsException(s"Record '$recordId' for stream '$streamId' is $size bytes, exceeding max of $maxSize.")

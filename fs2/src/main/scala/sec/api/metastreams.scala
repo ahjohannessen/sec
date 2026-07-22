@@ -271,7 +271,7 @@ object MetaStreams:
   type ReadResult[T]           = Result[Option[T]]
   private[sec] type MetaResult = Result[StreamMetadata]
 
-  final case class Result[T](
+  case class Result[T](
     streamPosition: StreamPosition.Exact,
     data: T
   )

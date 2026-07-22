@@ -477,10 +477,10 @@ private[sec] object streams:
 
       import ReadResp.Content as c
 
-      final case class EventR(event: Option[sec.Event]) extends AllResult
-      final case class CheckpointR(checkpoint: Checkpoint) extends AllResult
-      final case class ConfirmationR(confirmation: SubscriptionConfirmation) extends AllResult
-      final case class LastPositionR(position: LogPosition) extends AllResult
+      case class EventR(event: Option[sec.Event]) extends AllResult
+      case class CheckpointR(checkpoint: Checkpoint) extends AllResult
+      case class ConfirmationR(confirmation: SubscriptionConfirmation) extends AllResult
+      case class LastPositionR(position: LogPosition) extends AllResult
 
       def fromWire[F[_]](p: ReadResp)(implicit F: MonadThrow[F]): F[AllResult] = p.content match
         case c.Event(v)                 => mkEvent[F](v).map(EventR(_))
@@ -518,12 +518,12 @@ private[sec] object streams:
 
       import ReadResp.Content as c
 
-      final case class EventR(event: Option[sec.Event]) extends StreamResult
-      final case class CheckpointR(checkpoint: Checkpoint) extends StreamResult
-      final case class ConfirmationR(confirmation: SubscriptionConfirmation) extends StreamResult
-      final case class StreamNotFoundR(streamId: StreamId) extends StreamResult
-      final case class FirstPositionR(position: StreamPosition) extends StreamResult
-      final case class LastPositionR(position: StreamPosition) extends StreamResult
+      case class EventR(event: Option[sec.Event]) extends StreamResult
+      case class CheckpointR(checkpoint: Checkpoint) extends StreamResult
+      case class ConfirmationR(confirmation: SubscriptionConfirmation) extends StreamResult
+      case class StreamNotFoundR(streamId: StreamId) extends StreamResult
+      case class FirstPositionR(position: StreamPosition) extends StreamResult
+      case class LastPositionR(position: StreamPosition) extends StreamResult
 
       def fromWire[F[_]](p: ReadResp)(implicit F: MonadThrow[F]): F[StreamResult] = p.content match
         case c.Event(v)               => mkEvent[F](v).map(EventR(_))

@@ -17,10 +17,11 @@
 package sec
 package api
 
-import java.util.UUID
+import java.util as ju
 import cats.data.NonEmptyList
 import cats.effect.IO
 import scodec.bits.ByteVector
+import sec.arbitraries.*
 
 /** Complements the fit coverage, which runs insecure: this exercises multiStreamAppend on the
   * TLS + credentials path, so the v2 stub's Context handling (auth, authority) is verified too.
@@ -33,7 +34,7 @@ class MultiStreamAppendSuite extends SnSuite:
     val bId = genStreamId("sit_msa_b_")
 
     def rec = RecordData(
-      UUID.randomUUID(),
+      sampleOf[ju.UUID],
       Schema.json("sit-msa-event"),
       ByteVector.view("{}".getBytes("UTF-8")),
       Properties.empty
@@ -47,8 +48,8 @@ class MultiStreamAppendSuite extends SnSuite:
     for
       r    <- client.streams.multiStreamAppend(appends)
       _    <- IO(assert(
-                r.revisions.toList.toMap == Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L)),
-                s"unexpected revisions: ${r.revisions}"
+                r.streamPositions.toList.toMap == Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L)),
+                s"unexpected stream positions: ${r.streamPositions}"
               ))
       read <- client.streams
                 .readStream(aId, StreamPosition.Start, Direction.Forwards, 10L, resolveLinkTos = false)

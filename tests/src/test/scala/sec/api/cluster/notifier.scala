@@ -170,7 +170,7 @@ class NotifierSuite extends SecEffectSuite:
 
 object NotifierSuite:
 
-  final case class RecordingListener[F[_]](recordings: Ref[F, List[Nel[Endpoint]]]) extends Listener[F]:
+  case class RecordingListener[F[_]](recordings: Ref[F, List[Nel[Endpoint]]]) extends Listener[F]:
     def onResult(result: Nel[Endpoint]): F[Unit] = recordings.update(_ :+ result)
 
   def mkUpdates[F[_]](

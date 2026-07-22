@@ -270,7 +270,7 @@ end MetaState
   * @param metaWriteRoles
   *   Roles and users permitted to write stream metadata.
   */
-final case class StreamAcl(
+case class StreamAcl(
   readRoles: Set[String],
   writeRoles: Set[String],
   deleteRoles: Set[String],

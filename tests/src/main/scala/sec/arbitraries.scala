@@ -297,4 +297,46 @@ object arbitraries {
     Gen.listOfN(5, arbMemberInfo.arbitrary).map(ms => ClusterInfo(ms.toSet))
   }
 
+//======================================================================================================================
+// Multi-Stream Append
+//======================================================================================================================
+
+  private[sec] object multiAppendGen {
+
+    import scodec.bits.ByteVector
+    import sec.api.{Properties, PropertyValue, RecordData, Schema, SchemaFormat}
+
+    val schemaFormat: Gen[SchemaFormat] =
+      Gen.oneOf(SchemaFormat.values.toIndexedSeq)
+
+    val schema: Gen[Schema] =
+      for
+        name   <- Gen.identifier
+        format <- schemaFormat
+      yield Schema(s"sec-$name", format)
+
+    val propertyValue: Gen[PropertyValue] = Gen.oneOf(
+      Gen.alphaNumStr.map(PropertyValue.Str(_)),
+      Arbitrary.arbitrary[Double].map(PropertyValue.Num(_)),
+      Arbitrary.arbitrary[Boolean].map(PropertyValue.Bool(_))
+    )
+
+    val properties: Gen[Properties] = Gen
+      .mapOf(Gen.zip(Gen.identifier, propertyValue))
+      .map(kvs => Properties.of(kvs.toList*).fold(sys.error, identity))
+
+    val recordData: Gen[RecordData] =
+      for
+        id    <- Gen.uuid
+        s     <- schema
+        data  <- Gen.listOf(Arbitrary.arbitrary[Byte]).map(ByteVector(_))
+        props <- properties
+      yield RecordData(id, s, data, props)
+  }
+
+  implicit val arbSchemaFormat: Arbitrary[sec.api.SchemaFormat]   = Arbitrary(multiAppendGen.schemaFormat)
+  implicit val arbPropertyValue: Arbitrary[sec.api.PropertyValue] = Arbitrary(multiAppendGen.propertyValue)
+  implicit val arbProperties: Arbitrary[sec.api.Properties]       = Arbitrary(multiAppendGen.properties)
+  implicit val arbRecordData: Arbitrary[sec.api.RecordData]       = Arbitrary(multiAppendGen.recordData)
+
 }

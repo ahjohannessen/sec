@@ -24,12 +24,14 @@ view as a JSON object of the user properties merged with reserved `$`-prefixed s
 is why `Properties.of` rejects keys using the `$` namespace.
 
 Every written stream carries a mandatory `StreamState` expectation via `StreamAppend`, and
-`StreamGuard` expresses conditions on unwritten streams. Streams must be distinct across appends
-and guards.
+`StreamGuard` expresses conditions on unwritten streams. A stream may appear only once across
+appends and guards, and a duplicate is rejected by the server. A `StreamState.Any` expectation
+produces no check on the wire - the v2 protocol has
+no Any sentinel and expresses it as absence - which also makes an Any guard vacuous.
 
 ### Example
 
-Below, a seat reservation is appended only if the flight stream is still at the revision observed
+Below, a seat reservation is appended only if the flight stream is still at the stream position observed
 when the decision was made — although nothing is written to the flight stream:
 
 ```scala mdoc:compile-only
@@ -66,7 +68,7 @@ object MultiAppend extends IOApp:
                        ),
                        guards = List(StreamGuard(flight, StreamPosition(42L)))
                      )
-      _           <- IO.println(s"committed at ${result.position}, revisions ${result.revisions}")
+      _           <- IO.println(s"committed at ${result.position}, streamPositions ${result.streamPositions}")
     yield ()
 ```
 
@@ -77,8 +79,7 @@ A successful append yields a `MultiAppendResult` with the transaction's single `
 `StreamPosition.Exact` per written stream.
 
 A violated expectation or guard raises `AppendConsistencyViolation`, naming each violating stream
-with its expected and actual state. Other failures surface as `StreamRevisionConflict`,
-`AppendRecordSizeExceeded`, `AppendTransactionSizeExceeded`, `StreamAlreadyExists`,
-`StreamTombstoned`, or — for duplicate streams in the request, rejected client side —
-`DuplicateStreams`. Streams that do not exist or are deleted raise the same `StreamNotFound` and
+with its expected and actual state. Other failures surface as `StreamPositionConflict`,
+`AppendRecordSizeExceeded`, `AppendTransactionSizeExceeded`, `StreamAlreadyExists`, or
+`StreamTombstoned`. Streams that do not exist or are deleted raise the same `StreamNotFound` and
 `StreamDeleted` as the v1 operations.
