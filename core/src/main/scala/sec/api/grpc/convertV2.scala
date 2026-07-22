@@ -49,15 +49,20 @@ private[sec] object convertV2:
     if a.is[A] then Either.catchNonFatal(a.unpack[A]).toOption else None
 
   private def fromDetail(a: PbAny): Option[EsException] =
-    unpackAs[v2e.AppendConsistencyViolationErrorDetails](a).map { d =>
-      AppendConsistencyViolation(d.violations.toList.flatMap { cv =>
-        cv.`type`.streamState.map { ss =>
-          AppendConsistencyViolation.StreamStateViolation(ss.stream, ss.expectedState, ss.actualState)
+    unpackAs[v2e.AppendConsistencyViolationErrorDetails](a).flatMap { d =>
+      d.violations.toList
+        .flatMap(_.`type`.streamState)
+        .traverse { ss =>
+          (expectedCondition(ss.expectedState), actualCondition(ss.actualState)).mapN { (e, ac) =>
+            AppendConsistencyViolation.StreamConditionViolation(ss.stream, e, ac)
+          }
         }
-      })
+        .map(AppendConsistencyViolation(_))
     } orElse
-      unpackAs[v2e.StreamRevisionConflictErrorDetails](a).map { d =>
-        StreamPositionConflict(d.stream, d.expectedRevision, d.actualRevision)
+      unpackAs[v2e.StreamRevisionConflictErrorDetails](a).flatMap { d =>
+        (expectedCondition(d.expectedRevision), actualCondition(d.actualRevision)).mapN { (e, ac) =>
+          StreamConditionMismatch(d.stream, e, ac)
+        }
       } orElse
       unpackAs[v2e.AppendRecordSizeExceededErrorDetails](a).map { d =>
         AppendRecordSizeExceeded(d.stream, d.recordId, d.size, d.maxSize)
@@ -69,3 +74,18 @@ private[sec] object convertV2:
       unpackAs[v2e.StreamTombstonedErrorDetails](a).map(d => StreamTombstoned(d.stream)) orElse
       unpackAs[v2e.StreamDeletedErrorDetails](a).map(d => StreamDeleted(d.stream)) orElse
       unpackAs[v2e.StreamNotFoundErrorDetails](a).map(d => StreamNotFound(d.stream))
+
+  private def expectedCondition(v: Long): Option[ExpectedCondition] = v match
+    case -1          => ExpectedCondition.NoStream.some
+    case -4          => ExpectedCondition.StreamExists.some
+    case -5          => ExpectedCondition.SoftDeleted.some
+    case -6          => ExpectedCondition.Tombstoned.some
+    case n if n >= 0 => ExpectedCondition.AtPosition(StreamPosition(n)).some
+    case _           => none
+
+  private def actualCondition(v: Long): Option[ActualCondition] = v match
+    case -1          => ActualCondition.NotFound.some
+    case -5          => ActualCondition.SoftDeleted.some
+    case -6          => ActualCondition.Tombstoned.some
+    case n if n >= 0 => ActualCondition.AtPosition(StreamPosition(n)).some
+    case _           => none

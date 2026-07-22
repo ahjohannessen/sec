@@ -79,7 +79,7 @@ A successful append yields a `MultiAppendResult` with the transaction's single `
 `StreamPosition.Exact` per written stream.
 
 A violated expectation or guard raises `AppendConsistencyViolation`, naming each violating stream
-with its expected and actual state. Other failures surface as `StreamPositionConflict`,
+with its expected and actual state. Other failures surface as `StreamConditionMismatch`,
 `AppendRecordSizeExceeded`, `AppendTransactionSizeExceeded`, `StreamAlreadyExists`, or
 `StreamTombstoned`. Streams that do not exist or are deleted raise the same `StreamNotFound` and
 `StreamDeleted` as the v1 operations.

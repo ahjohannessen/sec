@@ -445,8 +445,22 @@ object Streams:
     // A stream may appear only once across a request's consistency checks; this is enforced by
     // the server (AppendRecordsRequestValidator, ordinal case-insensitive), so we send the request
     // and surface its rejection rather than replicate - and risk drifting from - that rule.
-    val req = mapping.streamsV2.mkAppendRecordsRequest(appends, guards)
-    opts.run(f(req), "multiStreamAppend") >>= mapping.streamsV2.mkMultiAppendResult[F](appends)
+    val targets = appends.toList.map(_.streamId.stringValue).toSet
+    val req     = mapping.streamsV2.mkAppendRecordsRequest(appends, guards)
+
+    // A tombstoned or soft-deleted append target surfaces as a consistency violation; promote it to
+    // the corresponding typed exception, scoped to append targets (a guard keeps the violation).
+    (opts.run(f(req), "multiStreamAppend") >>= mapping.streamsV2.mkMultiAppendResult[F](appends))
+      .adaptError {
+        case exceptions.AppendConsistencyViolation(vs) =>
+          vs.collectFirst {
+            case exceptions.AppendConsistencyViolation.StreamConditionViolation(s, _, ActualCondition.Tombstoned) if targets(s) =>
+              exceptions.StreamTombstoned(s)
+          }.orElse(vs.collectFirst {
+            case exceptions.AppendConsistencyViolation.StreamConditionViolation(s, _, ActualCondition.SoftDeleted) if targets(s) =>
+              exceptions.StreamDeleted(s)
+          }).getOrElse(exceptions.AppendConsistencyViolation(vs))
+      }
 
   private[sec] def delete0[F[_]: Temporal](
     streamId: StreamId,

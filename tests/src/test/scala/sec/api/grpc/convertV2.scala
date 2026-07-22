@@ -47,13 +47,18 @@ class ConvertV2Suite extends SecSuite:
     )
     assertEquals(
       convertV2.convertToEs(sre(PbAny.pack(d))),
-      Some(AppendConsistencyViolation(List(AppendConsistencyViolation.StreamStateViolation("s1", -1L, 0L))))
+      Some(
+        AppendConsistencyViolation(
+          List(AppendConsistencyViolation.StreamConditionViolation("s1", ExpectedCondition.NoStream, ActualCondition.AtPosition(StreamPosition(0L))))
+        )
+      )
     )
   }
 
   test("revision conflict, size exceeded and stream lifecycle details map to their exceptions") {
     val cases: List[(PbAny, EsException)] = List(
-      PbAny.pack(v2e.StreamRevisionConflictErrorDetails("s", 3L, 5L)) -> StreamPositionConflict("s", 3L, 5L),
+      PbAny.pack(v2e.StreamRevisionConflictErrorDetails("s", 3L, 5L)) ->
+        StreamConditionMismatch("s", ExpectedCondition.AtPosition(StreamPosition(3L)), ActualCondition.AtPosition(StreamPosition(5L))),
       PbAny.pack(v2e.AppendRecordSizeExceededErrorDetails("s", "r", 10, 5)) ->
         AppendRecordSizeExceeded("s", "r", 10, 5),
       PbAny.pack(v2e.AppendTransactionSizeExceededErrorDetails(10, 5)) -> AppendTransactionSizeExceeded(10, 5),
