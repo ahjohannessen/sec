@@ -113,9 +113,8 @@ object exceptions:
   case class StreamTombstoned(streamId: String)
     extends EsException(s"Event stream '$streamId' is tombstoned.")
 
-  /** expected / actual use StreamState sentinel encoding: -1 NoStream, -2 Any, -4 StreamExists, >= 0 exact. */
-  case class StreamPositionConflict(streamId: String, expected: Long, actual: Long)
-    extends EsException(s"Stream '$streamId' position conflict: expected $expected, actual $actual.")
+  case class StreamConditionMismatch(streamId: String, expected: ExpectedCondition, actual: ActualCondition)
+    extends EsException(s"Stream '$streamId' condition mismatch: expected ${expected.render}, actual ${actual.render}.")
 
   case class AppendRecordSizeExceeded(streamId: String, recordId: String, size: Int, maxSize: Int)
     extends EsException(s"Record '$recordId' for stream '$streamId' is $size bytes, exceeding max of $maxSize.")
@@ -123,14 +122,13 @@ object exceptions:
   case class AppendTransactionSizeExceeded(size: Int, maxSize: Int)
     extends EsException(s"Append transaction is $size bytes, exceeding max of $maxSize.")
 
-  case class AppendConsistencyViolation(violations: List[AppendConsistencyViolation.StreamStateViolation])
+  case class AppendConsistencyViolation(violations: List[AppendConsistencyViolation.StreamConditionViolation])
     extends EsException(AppendConsistencyViolation.mkMsg(violations))
 
   object AppendConsistencyViolation:
 
-    /** expected / actual use StreamState sentinel encoding: -1 NoStream, -2 Any, -4 StreamExists, >= 0 exact. */
-    case class StreamStateViolation(streamId: String, expected: Long, actual: Long)
+    case class StreamConditionViolation(streamId: String, expected: ExpectedCondition, actual: ActualCondition)
 
-    private[sec] def mkMsg(vs: List[StreamStateViolation]): String =
-      val detail = vs.map(v => s"'${v.streamId}' expected ${v.expected}, actual ${v.actual}").mkString("; ")
+    private[sec] def mkMsg(vs: List[StreamConditionViolation]): String =
+      val detail = vs.map(v => s"'${v.streamId}' expected ${v.expected.render}, actual ${v.actual.render}").mkString("; ")
       s"Append failed due to consistency violations: $detail."

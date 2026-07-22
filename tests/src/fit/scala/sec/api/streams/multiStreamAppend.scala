@@ -241,7 +241,10 @@ class MultiStreamAppendSuite extends FSuite:
         case Left(v: exceptions.AppendConsistencyViolation) =>
           assertEquals(
             v.violations.map(x => (x.streamId, x.expected, x.actual)).toSet,
-            Set((aId.stringValue, -4L, -1L), (bId.stringValue, -4L, -1L))
+            Set(
+              (aId.stringValue, ExpectedCondition.StreamExists, ActualCondition.NotFound),
+              (bId.stringValue, ExpectedCondition.StreamExists, ActualCondition.NotFound)
+            )
           )
         case other => fail(s"expected AppendConsistencyViolation with both streams, got $other")
       }
@@ -271,7 +274,9 @@ class MultiStreamAppendSuite extends FSuite:
                  case Left(v: exceptions.AppendConsistencyViolation) =>
                    assertEquals(
                      v.violations.map(x => (x.streamId, x.expected, x.actual)),
-                     List((cId.stringValue, 5L, 0L))
+                     List(
+                       (cId.stringValue, ExpectedCondition.AtPosition(StreamPosition(5L)), ActualCondition.AtPosition(StreamPosition(0L)))
+                     )
                    )
                  case other => fail(s"expected violation with exact expected/actual, got $other"))
         ok  <- append(StreamPosition(0L))
@@ -280,7 +285,7 @@ class MultiStreamAppendSuite extends FSuite:
     }
   }
 
-  test("appends to tombstoned streams fail as a consistency violation") {
+  test("appends to tombstoned streams are promoted to StreamTombstoned") {
     mkClient().use { client =>
       import cats.data.NonEmptyList as CNel
 
@@ -293,10 +298,9 @@ class MultiStreamAppendSuite extends FSuite:
         Properties.empty
       )
 
-      // The server refuses an append to a tombstoned stream as a consistency violation whose
-      // actual state is the Tombstoned sentinel (-6), not a tombstone-typed detail, so convertV2
-      // surfaces AppendConsistencyViolation rather than StreamTombstoned. (The dotnet client
-      // promotes actual -6/-5 to a typed exception; sec does not yet - see follow-up.)
+      // The server refuses an append to a tombstoned stream as a consistency violation whose actual
+      // condition is Tombstoned; multiStreamAppend0 promotes that to StreamTombstoned for an append
+      // target (a guard would keep the AppendConsistencyViolation).
       for
         _   <- client.streams.appendToStream(dId, StreamState.NoStream, genEvents(1))
         _   <- client.streams.tombstone(dId, StreamState.StreamExists)
@@ -304,9 +308,8 @@ class MultiStreamAppendSuite extends FSuite:
                  .multiStreamAppend(CNel.one(StreamAppend(dId, StreamState.NoStream, CNel.one(rec))))
                  .attempt
         _   <- IO(res match
-                 case Left(e: exceptions.AppendConsistencyViolation) =>
-                   assertEquals(e.violations.map(v => (v.streamId, v.expected, v.actual)), List((dId.stringValue, -1L, -6L)))
-                 case other => fail(s"expected AppendConsistencyViolation, got $other"))
+                 case Left(e: exceptions.StreamTombstoned) => assertEquals(e.streamId, dId.stringValue)
+                 case other => fail(s"expected StreamTombstoned, got $other"))
       yield ()
     }
   }
@@ -450,7 +453,7 @@ class MultiStreamAppendSuite extends FSuite:
                     grpc.convertV2.convertToEs(e) match
                       case Some(v: exceptions.AppendConsistencyViolation) =>
                         assertEquals(v.violations.map(_.streamId), List(a))
-                        assertEquals(v.violations.map(_.actual), List(0L))
+                        assertEquals(v.violations.map(_.actual), List(ActualCondition.AtPosition(StreamPosition(0L))))
                       case other => fail(s"expected AppendConsistencyViolation from convertV2, got $other")
                   case other => fail(s"expected StatusRuntimeException, got $other"))
         _    <- res.swap.toOption.traverse_ {
