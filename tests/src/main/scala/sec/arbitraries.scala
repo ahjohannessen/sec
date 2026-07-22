@@ -315,11 +315,23 @@ object arbitraries {
         format <- schemaFormat
       yield Schema(s"sec-$name", format)
 
-    val propertyValue: Gen[PropertyValue] = Gen.oneOf(
-      Gen.alphaNumStr.map(PropertyValue.Str(_)),
-      Arbitrary.arbitrary[Double].map(PropertyValue.Num(_)),
-      Arbitrary.arbitrary[Boolean].map(PropertyValue.Bool(_))
-    )
+    def propertyValueOf(depth: Int): Gen[PropertyValue] =
+      val scalar = Gen.oneOf(
+        Gen.const(PropertyValue.Null),
+        Gen.alphaNumStr.map(PropertyValue.Str(_)),
+        Arbitrary.arbitrary[Double].map(PropertyValue.Num(_)),
+        Arbitrary.arbitrary[Boolean].map(PropertyValue.Bool(_))
+      )
+      if depth <= 0 then scalar
+      else
+        Gen.oneOf(
+          scalar,
+          Gen.choose(0, 3).flatMap(Gen.listOfN(_, propertyValueOf(depth - 1))).map(PropertyValue.Arr(_)),
+          Gen.mapOf(Gen.zip(Gen.identifier, propertyValueOf(depth - 1)))
+            .map(m => PropertyValue.Obj(Properties.of(m.toList*).fold(sys.error, identity)))
+        )
+
+    val propertyValue: Gen[PropertyValue] = propertyValueOf(2)
 
     val properties: Gen[Properties] = Gen
       .mapOf(Gen.zip(Gen.identifier, propertyValue))

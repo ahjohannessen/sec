@@ -82,4 +82,5 @@ A violated expectation or guard raises `AppendConsistencyViolation`, naming each
 with its expected and actual state. Other failures surface as `StreamConditionMismatch`,
 `AppendRecordSizeExceeded`, `AppendTransactionSizeExceeded`, `StreamAlreadyExists`, or
 `StreamTombstoned`. Streams that do not exist or are deleted raise the same `StreamNotFound` and
-`StreamDeleted` as the v1 operations.
+`StreamDeleted` as the v1 operations. A malformed request - a duplicate stream, an empty property
+key - is rejected by the server as `InvalidRequest`, carrying the per-field violations.

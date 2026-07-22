@@ -17,6 +17,7 @@
 package sec
 package api
 
+import cats.data.NonEmptyList
 import scala.util.control.NoStackTrace
 
 object exceptions:
@@ -121,6 +122,17 @@ object exceptions:
 
   case class AppendTransactionSizeExceeded(size: Int, maxSize: Int)
     extends EsException(s"Append transaction is $size bytes, exceeding max of $maxSize.")
+
+  case class FieldViolation(field: String, description: String)
+
+  case class InvalidRequest(violations: NonEmptyList[FieldViolation])
+    extends EsException(InvalidRequest.mkMsg(violations))
+
+  object InvalidRequest:
+    private[sec] def mkMsg(vs: NonEmptyList[FieldViolation]): String =
+      vs.toList
+        .map(v => if v.field.isEmpty then v.description else s"${v.field}: ${v.description}")
+        .mkString("Request validation failed: ", "; ", ".")
 
   case class AppendConsistencyViolation(violations: List[AppendConsistencyViolation.StreamConditionViolation])
     extends EsException(AppendConsistencyViolation.mkMsg(violations))

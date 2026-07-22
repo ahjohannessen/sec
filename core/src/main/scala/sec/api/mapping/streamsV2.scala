@@ -44,9 +44,12 @@ private[sec] object streamsV2:
     case SchemaFormat.Bytes    => pv2.SchemaFormat.SCHEMA_FORMAT_BYTES
 
   def mkValue(p: PropertyValue): ps.Value = p match
+    case PropertyValue.Null    => ps.Value(ps.Value.Kind.NullValue(ps.NullValue.NULL_VALUE))
     case PropertyValue.Str(v)  => ps.Value(ps.Value.Kind.StringValue(v))
     case PropertyValue.Num(v)  => ps.Value(ps.Value.Kind.NumberValue(v))
     case PropertyValue.Bool(v) => ps.Value(ps.Value.Kind.BoolValue(v))
+    case PropertyValue.Arr(vs) => ps.Value(ps.Value.Kind.ListValue(ps.ListValue(vs.map(mkValue))))
+    case PropertyValue.Obj(fs) => ps.Value(ps.Value.Kind.StructValue(ps.Struct(fs.toMap.view.mapValues(mkValue).toMap)))
 
   def mkAppendRecord(streamId: StreamId.Id, r: RecordData): pv2.AppendRecord =
     pv2.AppendRecord(

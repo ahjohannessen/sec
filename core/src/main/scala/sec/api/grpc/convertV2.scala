@@ -18,6 +18,7 @@ package sec
 package api
 package grpc
 
+import cats.data.NonEmptyList
 import cats.syntax.all.*
 import com.google.protobuf.any.Any as PbAny
 import com.google.rpc.Status as PbStatus
@@ -73,7 +74,12 @@ private[sec] object convertV2:
       unpackAs[v2e.StreamAlreadyExistsErrorDetails](a).map(d => StreamAlreadyExists(d.stream)) orElse
       unpackAs[v2e.StreamTombstonedErrorDetails](a).map(d => StreamTombstoned(d.stream)) orElse
       unpackAs[v2e.StreamDeletedErrorDetails](a).map(d => StreamDeleted(d.stream)) orElse
-      unpackAs[v2e.StreamNotFoundErrorDetails](a).map(d => StreamNotFound(d.stream))
+      unpackAs[v2e.StreamNotFoundErrorDetails](a).map(d => StreamNotFound(d.stream)) orElse
+      unpackAs[com.google.rpc.BadRequest](a).flatMap { br =>
+        NonEmptyList
+          .fromList(br.fieldViolations.toList.map(fv => FieldViolation(fv.field, fv.description)))
+          .map(InvalidRequest(_))
+      }
 
   private def expectedCondition(v: Long): Option[ExpectedCondition] = v match
     case -1          => ExpectedCondition.NoStream.some
