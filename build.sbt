@@ -170,7 +170,8 @@ inThisBuild(
 
 //==== Github Actions ==================================================================================================
 
-addCommandAlias("compileTests", "tests / Test / compile; tests / Sit / compile; tests / Cit / compile; tests / Fit / compile;")
+addCommandAlias("compileTests",
+                "tests / Test / compile; tests / Sit / compile; tests / Cit / compile; tests / Fit / compile;")
 addCommandAlias("compileDocs", "docs/mdoc")
 
 inThisBuild(

@@ -25,8 +25,8 @@ import sec.syntax.all.*
 import sec.api.exceptions.ResubscriptionRequired
 import sec.api.pool.{Limit, PoolConfig}
 
-/** Fault-injection coverage against a real node: the failure modes the pool exists for, which unit tests and a
-  * healthy integration node cannot provoke.
+/** Fault-injection coverage against a real node: the failure modes the pool exists for, which unit tests and a healthy
+  * integration node cannot provoke.
   */
 class PoolFaultsSuite extends FSuite:
 
@@ -69,16 +69,17 @@ class PoolFaultsSuite extends FSuite:
                   case Left(_: ResubscriptionRequired) => true
                   case _                               => false
                 }
-      other   = u.collect { case Left(t) if !t.isInstanceOf[ResubscriptionRequired] => t }
-      _      <- IO(assert(other.isEmpty, s"unexpected failures: $other"))
-      _      <- IO(assertEquals(
-                  stalled,
-                  subscribers - maxStreams,
-                  s"expected exactly ${subscribers - maxStreams} subscriptions stalled beyond the configured " +
-                    s"HTTP/2 stream limit of $maxStreams"
-                ))
-      p      <- pooled.use(outcomes(_, "fit_msc_pooled"))
-      _      <- IO(assert(p.forall(_.isRight), s"pooled subscriptions failed: ${p.collect { case Left(t) => t }}"))
+      other = u.collect { case Left(t) if !t.isInstanceOf[ResubscriptionRequired] => t }
+      _    <- IO(assert(other.isEmpty, s"unexpected failures: $other"))
+      _    <- IO(
+             assertEquals(
+               stalled,
+               subscribers - maxStreams,
+               s"expected exactly ${subscribers - maxStreams} subscriptions stalled beyond the configured " +
+                 s"HTTP/2 stream limit of $maxStreams"
+             ))
+      p <- pooled.use(outcomes(_, "fit_msc_pooled"))
+      _ <- IO(assert(p.forall(_.isRight), s"pooled subscriptions failed: ${p.collect { case Left(t) => t }}"))
     yield ()
   }
 
@@ -103,24 +104,24 @@ class PoolFaultsSuite extends FSuite:
         for
           firstSeen <- ids.traverse(_ => Deferred[IO, Unit])
           subs      <- ids.zip(firstSeen).parTraverse { case (id, seen) =>
-                         supervisor.supervise(
-                           client.streams
-                             .subscribeToStream(id, None)
-                             .evalTap(_ => seen.complete(()).void)
-                             .take(2)
-                             .compile
-                             .toList
-                         )
-                       }
-          first     <- ids.parTraverse(id => client.streams.appendToStream(id, NoStream, genEvents(1)))
-          _         <- firstSeen.parTraverse_(_.get).timeout(15.seconds)
-          _         <- node.restart
-          second    <- ids.parTraverse(id => client.streams.appendToStream(id, StreamState.Any, genEvents(1)))
-          recs      <- subs.parTraverse(_.joinWithNever).timeout(45.seconds)
-          expected  = first.zip(second).map { case (before, after) =>
-                         List(before.streamPosition, after.streamPosition)
-                       }
-          _         <- IO(assertEquals(recs.map(_.map(event => Event.streamPosition(event))), expected))
+                    supervisor.supervise(
+                      client.streams
+                        .subscribeToStream(id, None)
+                        .evalTap(_ => seen.complete(()).void)
+                        .take(2)
+                        .compile
+                        .toList
+                    )
+                  }
+          first   <- ids.parTraverse(id => client.streams.appendToStream(id, NoStream, genEvents(1)))
+          _       <- firstSeen.parTraverse_(_.get).timeout(15.seconds)
+          _       <- node.restart
+          second  <- ids.parTraverse(id => client.streams.appendToStream(id, StreamState.Any, genEvents(1)))
+          recs    <- subs.parTraverse(_.joinWithNever).timeout(45.seconds)
+          expected = first.zip(second).map { case (before, after) =>
+                       List(before.streamPosition, after.streamPosition)
+                     }
+          _ <- IO(assertEquals(recs.map(_.map(event => Event.streamPosition(event))), expected))
         yield ()
       }
     }

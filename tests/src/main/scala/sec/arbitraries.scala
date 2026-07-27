@@ -327,7 +327,8 @@ object arbitraries {
         Gen.oneOf(
           scalar,
           Gen.choose(0, 3).flatMap(Gen.listOfN(_, propertyValueOf(depth - 1))).map(PropertyValue.Arr(_)),
-          Gen.mapOf(Gen.zip(Gen.identifier, propertyValueOf(depth - 1)))
+          Gen
+            .mapOf(Gen.zip(Gen.identifier, propertyValueOf(depth - 1)))
             .map(m => PropertyValue.Obj(Properties.of(m.toList*).fold(sys.error, identity)))
         )
 

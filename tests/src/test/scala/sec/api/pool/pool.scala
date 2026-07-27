@@ -30,8 +30,8 @@ import cats.effect.unsafe.IORuntimeConfig
   */
 class PoolSuite extends SecEffectSuite:
 
-  /** Cancellation observed at every unmasked run-loop iteration, with preemption every other iteration.
-    * This makes the cancellation invariant tests exercise far more interleavings under TestControl.
+  /** Cancellation observed at every unmasked run-loop iteration, with preemption every other iteration. This makes the
+    * cancellation invariant tests exercise far more interleavings under TestControl.
     */
   val aggressiveRt: IORuntimeConfig = IORuntimeConfig(cancelationCheckThreshold = 1, autoYieldThreshold = 2)
 

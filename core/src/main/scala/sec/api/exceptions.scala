@@ -108,11 +108,9 @@ object exceptions:
   // Multi-stream append. Constructed from structured google.rpc.Status details of the v2
   // protocol, see [[sec.api.grpc.convertV2]].
 
-  case class StreamAlreadyExists(streamId: String)
-    extends EsException(s"Event stream '$streamId' already exists.")
+  case class StreamAlreadyExists(streamId: String) extends EsException(s"Event stream '$streamId' already exists.")
 
-  case class StreamTombstoned(streamId: String)
-    extends EsException(s"Event stream '$streamId' is tombstoned.")
+  case class StreamTombstoned(streamId: String) extends EsException(s"Event stream '$streamId' is tombstoned.")
 
   case class StreamConditionMismatch(streamId: String, expected: ExpectedCondition, actual: ActualCondition)
     extends EsException(s"Stream '$streamId' condition mismatch: expected ${expected.render}, actual ${actual.render}.")
@@ -142,5 +140,6 @@ object exceptions:
     case class StreamConditionViolation(streamId: String, expected: ExpectedCondition, actual: ActualCondition)
 
     private[sec] def mkMsg(vs: List[StreamConditionViolation]): String =
-      val detail = vs.map(v => s"'${v.streamId}' expected ${v.expected.render}, actual ${v.actual.render}").mkString("; ")
+      val detail =
+        vs.map(v => s"'${v.streamId}' expected ${v.expected.render}, actual ${v.actual.render}").mkString("; ")
       s"Append failed due to consistency violations: $detail."

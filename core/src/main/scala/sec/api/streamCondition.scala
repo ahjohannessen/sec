@@ -18,19 +18,19 @@ package sec
 package api
 
 /** The expected condition of a stream in a consistency check, echoed back in an
-  * [[sec.api.exceptions.AppendConsistencyViolation]]. Any is absent by design: it is expressed as
-  * the absence of a check and rejected as an explicit expected value.
+  * [[sec.api.exceptions.AppendConsistencyViolation]]. Any is absent by design: it is expressed as the absence of a
+  * check and rejected as an explicit expected value.
   */
 enum ExpectedCondition:
   case NoStream, StreamExists, SoftDeleted, Tombstoned
   case AtPosition(position: StreamPosition.Exact)
 
   def render: String = this match
-    case NoStream        => "NoStream"
-    case StreamExists    => "StreamExists"
-    case SoftDeleted     => "SoftDeleted"
-    case Tombstoned      => "Tombstoned"
-    case AtPosition(p)   => s"position ${p.value.render}"
+    case NoStream      => "NoStream"
+    case StreamExists  => "StreamExists"
+    case SoftDeleted   => "SoftDeleted"
+    case Tombstoned    => "Tombstoned"
+    case AtPosition(p) => s"position ${p.value.render}"
 
 /** The actual condition of a stream reported in an [[sec.api.exceptions.AppendConsistencyViolation]]. */
 enum ActualCondition:
