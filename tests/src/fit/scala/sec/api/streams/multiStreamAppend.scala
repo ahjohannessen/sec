@@ -29,10 +29,10 @@ import scodec.bits.ByteVector
 import sec.api.exceptions.StreamNotFound
 import sec.arbitraries.*
 
-/** Fault-harness coverage for v2 multi-stream append against a real node: v1 read roundtrip of
-  * v2-written records, user-property metadata synthesis, request atomicity, guard semantics on
-  * unwritten streams, and typed error surfacing through the client API. The raw-stub tests
-  * intentionally remain: they pin the wire-level behavior the public API is built on.
+/** Fault-harness coverage for v2 multi-stream append against a real node: v1 read roundtrip of v2-written records,
+  * user-property metadata synthesis, request atomicity, guard semantics on unwritten streams, and typed error surfacing
+  * through the client API. The raw-stub tests intentionally remain: they pin the wire-level behavior the public API is
+  * built on.
   */
 class MultiStreamAppendSuite extends FSuite:
 
@@ -81,22 +81,24 @@ class MultiStreamAppendSuite extends FSuite:
         _    <- IO(assertEquals(resp.revisions.toList, List(StreamRevision(name, 0L))))
         _    <- IO(assert(resp.position >= 0L, s"expected a log position, got ${resp.position}"))
         evs  <- client.streams
-                  .readStream(sid, StreamPosition.Start, Direction.Forwards, 10L, resolveLinkTos = false)
-                  .compile
-                  .toList
-        _    <- IO(assertEquals(evs.size, 1, s"expected one event via v1 read, got: $evs"))
-        ed    = evs.head.record.eventData
-        _    <- IO(assertEquals(
-                  ed.data,
-                  ByteVector.view(payload.getBytes("UTF-8")),
-                  "payload bytes must roundtrip v2-append -> v1-read unchanged"
-                ))
-        _    <- IO(assertEquals(
-                  ed.eventType.stringValue,
-                  schemaName,
-                  s"hypothesis: v1 eventType == v2 schema name; actual mapping: ${ed.eventType.stringValue}"
-                ))
-        _    <- IO.println(s"[v2] v1 view of v2 record: contentType=${ed.contentType}, metadata=${ed.metadata}")
+                 .readStream(sid, StreamPosition.Start, Direction.Forwards, 10L, resolveLinkTos = false)
+                 .compile
+                 .toList
+        _ <- IO(assertEquals(evs.size, 1, s"expected one event via v1 read, got: $evs"))
+        ed = evs.head.record.eventData
+        _ <- IO(
+               assertEquals(
+                 ed.data,
+                 ByteVector.view(payload.getBytes("UTF-8")),
+                 "payload bytes must roundtrip v2-append -> v1-read unchanged"
+               ))
+        _ <- IO(
+               assertEquals(
+                 ed.eventType.stringValue,
+                 schemaName,
+                 s"hypothesis: v1 eventType == v2 schema name; actual mapping: ${ed.eventType.stringValue}"
+               ))
+        _ <- IO.println(s"[v2] v1 view of v2 record: contentType=${ed.contentType}, metadata=${ed.metadata}")
       yield ()
     }
   }
@@ -109,23 +111,21 @@ class MultiStreamAppendSuite extends FSuite:
       val name = sid.stringValue
       // v2 has no raw metadata bytes: the server synthesizes v1 metadata as JSON with
       // $schema.* keys. This decides whether user properties merge into that same object.
-      val rec = record(name).copy(properties =
-        Map(
-          "tenant"  -> Value(Value.Kind.StringValue("acme")),
-          "attempt" -> Value(Value.Kind.NumberValue(2)),
-          "replay"  -> Value(Value.Kind.BoolValue(true))
-        )
-      )
+      val rec = record(name).copy(properties = Map(
+        "tenant"  -> Value(Value.Kind.StringValue("acme")),
+        "attempt" -> Value(Value.Kind.NumberValue(2)),
+        "replay"  -> Value(Value.Kind.BoolValue(true))
+      ))
 
       for
-        _    <- explained(stub.appendRecords(AppendRecordsRequest(Seq(rec), Seq(noStream(name)))))
-        evs  <- client.streams
-                  .readStream(sid, StreamPosition.Start, Direction.Forwards, 10L, resolveLinkTos = false)
-                  .compile
-                  .toList
-        json  = new String(evs.head.record.eventData.metadata.toArray, "UTF-8")
-        _    <- IO.println(s"[v2] metadata with user properties: $json")
-        _    <- IO(assert(json.contains("tenant"), s"user properties should surface in v1 metadata; got: $json"))
+        _   <- explained(stub.appendRecords(AppendRecordsRequest(Seq(rec), Seq(noStream(name)))))
+        evs <- client.streams
+                 .readStream(sid, StreamPosition.Start, Direction.Forwards, 10L, resolveLinkTos = false)
+                 .compile
+                 .toList
+        json = new String(evs.head.record.eventData.metadata.toArray, "UTF-8")
+        _   <- IO.println(s"[v2] metadata with user properties: $json")
+        _   <- IO(assert(json.contains("tenant"), s"user properties should surface in v1 metadata; got: $json"))
       yield ()
     }
   }
@@ -164,18 +164,19 @@ class MultiStreamAppendSuite extends FSuite:
       for
         resp   <- explained(stub.appendRecords(ok))
         result <- mapping.streamsV2.mkMultiAppendResult[IO](appends)(resp)
-        _      <- IO(assertEquals(
-                    result.streamPositions.toList.toMap,
-                    Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L))
-                  ))
-        res    <- explained(stub.appendRecords(bad)).attempt
-        _      <- IO(res match
-                    case Left(e: StatusRuntimeException) =>
-                      grpc.convertV2.convertToEs(e) match
-                        case Some(v: exceptions.AppendConsistencyViolation) =>
-                          assertEquals(v.violations.map(_.streamId), List(gId.stringValue))
-                        case other => fail(s"expected AppendConsistencyViolation naming the guard, got $other")
-                    case other => fail(s"expected guard violation, got $other"))
+        _      <- IO(
+               assertEquals(
+                 result.streamPositions.toList.toMap,
+                 Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L))
+               ))
+        res <- explained(stub.appendRecords(bad)).attempt
+        _   <- IO(res match
+               case Left(e: StatusRuntimeException) =>
+                 grpc.convertV2.convertToEs(e) match
+                   case Some(v: exceptions.AppendConsistencyViolation) =>
+                     assertEquals(v.violations.map(_.streamId), List(gId.stringValue))
+                   case other => fail(s"expected AppendConsistencyViolation naming the guard, got $other")
+               case other => fail(s"expected guard violation, got $other"))
       yield ()
     }
   }
@@ -200,8 +201,9 @@ class MultiStreamAppendSuite extends FSuite:
       )
 
       for
-        r   <- client.streams.multiStreamAppend(appends)
-        _   <- IO(assertEquals(
+        r <- client.streams.multiStreamAppend(appends)
+        _ <- IO(
+               assertEquals(
                  r.streamPositions.toList.toMap,
                  Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L))
                ))
@@ -209,9 +211,9 @@ class MultiStreamAppendSuite extends FSuite:
         bad  = CNel.one(StreamAppend(genStreamId("fit_v2_api_c_"), StreamState.NoStream, CNel.one(rec)))
         res <- client.streams.multiStreamAppend(bad, List(StreamGuard(aId, StreamState.NoStream))).attempt
         _   <- IO(res match
-                 case Left(v: exceptions.AppendConsistencyViolation) =>
-                   assertEquals(v.violations.map(_.streamId), List(aId.stringValue))
-                 case other => fail(s"expected typed AppendConsistencyViolation, got $other"))
+               case Left(v: exceptions.AppendConsistencyViolation) =>
+                 assertEquals(v.violations.map(_.streamId), List(aId.stringValue))
+               case other => fail(s"expected typed AppendConsistencyViolation, got $other"))
       yield ()
     }
   }
@@ -271,16 +273,18 @@ class MultiStreamAppendSuite extends FSuite:
         _   <- append(StreamState.NoStream) // stream position 0
         res <- append(StreamPosition(5L)).attempt
         _   <- IO(res match
-                 case Left(v: exceptions.AppendConsistencyViolation) =>
-                   assertEquals(
-                     v.violations.map(x => (x.streamId, x.expected, x.actual)),
-                     List(
-                       (cId.stringValue, ExpectedCondition.AtPosition(StreamPosition(5L)), ActualCondition.AtPosition(StreamPosition(0L)))
-                     )
+               case Left(v: exceptions.AppendConsistencyViolation) =>
+                 assertEquals(
+                   v.violations.map(x => (x.streamId, x.expected, x.actual)),
+                   List(
+                     (cId.stringValue,
+                      ExpectedCondition.AtPosition(StreamPosition(5L)),
+                      ActualCondition.AtPosition(StreamPosition(0L)))
                    )
-                 case other => fail(s"expected violation with exact expected/actual, got $other"))
-        ok  <- append(StreamPosition(0L))
-        _   <- IO(assertEquals(ok.streamPositions.toList, List(cId -> StreamPosition(1L))))
+                 )
+               case other => fail(s"expected violation with exact expected/actual, got $other"))
+        ok <- append(StreamPosition(0L))
+        _  <- IO(assertEquals(ok.streamPositions.toList, List(cId -> StreamPosition(1L))))
       yield ()
     }
   }
@@ -307,9 +311,9 @@ class MultiStreamAppendSuite extends FSuite:
         res <- client.streams
                  .multiStreamAppend(CNel.one(StreamAppend(dId, StreamState.NoStream, CNel.one(rec))))
                  .attempt
-        _   <- IO(res match
-                 case Left(e: exceptions.StreamTombstoned) => assertEquals(e.streamId, dId.stringValue)
-                 case other => fail(s"expected StreamTombstoned, got $other"))
+        _ <- IO(res match
+               case Left(e: exceptions.StreamTombstoned) => assertEquals(e.streamId, dId.stringValue)
+               case other                                => fail(s"expected StreamTombstoned, got $other"))
       yield ()
     }
   }
@@ -326,10 +330,10 @@ class MultiStreamAppendSuite extends FSuite:
         Properties.empty
       )
 
-      def notFound: IO[StreamId.Id]   = IO(genStreamId("fit_v2_wm_"))
-      def atZero: IO[StreamId.Id]     =
+      def notFound: IO[StreamId.Id] = IO(genStreamId("fit_v2_wm_"))
+      def atZero: IO[StreamId.Id]   =
         notFound.flatTap(id => client.streams.appendToStream(id, NoStream, genEvents(1)))
-      def deleted: IO[StreamId.Id]    =
+      def deleted: IO[StreamId.Id] =
         atZero.flatTap(id => client.streams.delete(id, StreamExists))
       def tombstoned: IO[StreamId.Id] =
         atZero.flatTap(id => client.streams.tombstone(id, StreamExists))
@@ -382,10 +386,10 @@ class MultiStreamAppendSuite extends FSuite:
         Properties.empty
       )
 
-      def notFound: IO[StreamId.Id]   = IO(genStreamId("fit_v2_gm_"))
-      def atZero: IO[StreamId.Id]     =
+      def notFound: IO[StreamId.Id] = IO(genStreamId("fit_v2_gm_"))
+      def atZero: IO[StreamId.Id]   =
         notFound.flatTap(id => client.streams.appendToStream(id, NoStream, genEvents(1)))
-      def deleted: IO[StreamId.Id]    =
+      def deleted: IO[StreamId.Id] =
         atZero.flatTap(id => client.streams.delete(id, StreamExists))
       def tombstoned: IO[StreamId.Id] =
         atZero.flatTap(id => client.streams.tombstone(id, StreamExists))
@@ -437,7 +441,7 @@ class MultiStreamAppendSuite extends FSuite:
       val cId = genStreamId("fit_v2_ms_c_")
       val c   = cId.stringValue
 
-      val ok  = AppendRecordsRequest(Seq(record(a), record(b)), Seq(noStream(a), noStream(b)))
+      val ok = AppendRecordsRequest(Seq(record(a), record(b)), Seq(noStream(a), noStream(b)))
       // a exists after `ok`, so its NoStream check must fail - and c must not be written.
       val bad = AppendRecordsRequest(Seq(record(c), record(a)), Seq(noStream(c), noStream(a)))
 
@@ -448,35 +452,35 @@ class MultiStreamAppendSuite extends FSuite:
         res  <- explained(stub.appendRecords(bad)).attempt
         _    <- IO(assert(res.isLeft, s"expected consistency violation, got $res"))
         _    <- IO(res match
-                  case Left(e: StatusRuntimeException) =>
-                    // The structured details from a real server must convert.
-                    grpc.convertV2.convertToEs(e) match
-                      case Some(v: exceptions.AppendConsistencyViolation) =>
-                        assertEquals(v.violations.map(_.streamId), List(a))
-                        assertEquals(v.violations.map(_.actual), List(ActualCondition.AtPosition(StreamPosition(0L))))
-                      case other => fail(s"expected AppendConsistencyViolation from convertV2, got $other")
-                  case other => fail(s"expected StatusRuntimeException, got $other"))
-        _    <- res.swap.toOption.traverse_ {
-                  case e: StatusRuntimeException =>
-                    // Text-only descriptions would force parsing messages; structured
-                    // details (google.rpc.Status in the standard trailer) enable typed exceptions.
-                    val key     = Metadata.Key.of("grpc-status-details-bin", Metadata.BINARY_BYTE_MARSHALLER)
-                    val details = Option(e.getTrailers)
-                      .flatMap(t => Option(t.get(key)))
-                      .map(bytes => com.google.rpc.Status.parseFrom(bytes).details.map(_.typeUrl).mkString(", "))
-                    IO.println(s"[v2] conflict: ${e.getStatus.getCode}: ${e.getStatus.getDescription}") *>
-                      IO.println(s"[v2] structured details: ${details.getOrElse("<none in trailers>")}")
-                  case t =>
-                    IO.println(s"[v2] conflict error shape: ${t.getClass.getName}: ${t.getMessage}")
-                }
+               case Left(e: StatusRuntimeException) =>
+                 // The structured details from a real server must convert.
+                 grpc.convertV2.convertToEs(e) match
+                   case Some(v: exceptions.AppendConsistencyViolation) =>
+                     assertEquals(v.violations.map(_.streamId), List(a))
+                     assertEquals(v.violations.map(_.actual), List(ActualCondition.AtPosition(StreamPosition(0L))))
+                   case other => fail(s"expected AppendConsistencyViolation from convertV2, got $other")
+               case other => fail(s"expected StatusRuntimeException, got $other"))
+        _ <- res.swap.toOption.traverse_ {
+               case e: StatusRuntimeException =>
+                 // Text-only descriptions would force parsing messages; structured
+                 // details (google.rpc.Status in the standard trailer) enable typed exceptions.
+                 val key     = Metadata.Key.of("grpc-status-details-bin", Metadata.BINARY_BYTE_MARSHALLER)
+                 val details = Option(e.getTrailers)
+                   .flatMap(t => Option(t.get(key)))
+                   .map(bytes => com.google.rpc.Status.parseFrom(bytes).details.map(_.typeUrl).mkString(", "))
+                 IO.println(s"[v2] conflict: ${e.getStatus.getCode}: ${e.getStatus.getDescription}") *>
+                   IO.println(s"[v2] structured details: ${details.getOrElse("<none in trailers>")}")
+               case t =>
+                 IO.println(s"[v2] conflict error shape: ${t.getClass.getName}: ${t.getMessage}")
+             }
         cRes <- client.streams
                   .readStream(cId, StreamPosition.Start, Direction.Forwards, 10L, resolveLinkTos = false)
                   .compile
                   .toList
                   .attempt
-        _    <- IO(cRes match
-                  case Left(_: StreamNotFound) => ()
-                  case other                   => fail(s"atomicity violated: stream $c should not exist, got $other"))
+        _ <- IO(cRes match
+               case Left(_: StreamNotFound) => ()
+               case other                   => fail(s"atomicity violated: stream $c should not exist, got $other"))
       yield ()
     }
   }

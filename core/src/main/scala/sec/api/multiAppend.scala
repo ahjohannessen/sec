@@ -21,9 +21,9 @@ import java.util.UUID
 import cats.data.NonEmptyList
 import scodec.bits.ByteVector
 
-/** A record for [[Streams.multiStreamAppend]]. Unlike [[EventData]] there are no raw metadata
-  * bytes: the server synthesizes the v1 metadata view as a JSON object of [[RecordData.properties]]
-  * merged with reserved `$`-prefixed schema keys, and [[Schema.name]] surfaces as the v1 eventType.
+/** A record for [[Streams.multiStreamAppend]]. Unlike [[EventData]] there are no raw metadata bytes: the server
+  * synthesizes the v1 metadata view as a JSON object of [[RecordData.properties]] merged with reserved `$`-prefixed
+  * schema keys, and [[Schema.name]] surfaces as the v1 eventType.
   */
 case class RecordData(
   recordId: UUID,
@@ -48,8 +48,8 @@ enum PropertyValue:
   case Arr(values: List[PropertyValue])
   case Obj(fields: Properties)
 
-/** Validated user properties. Keys must be non-empty and must not use the reserved `$` prefix -
-  * the server owns that namespace (`$schema.name`, `$schema.format`, ...).
+/** Validated user properties. Keys must be non-empty and must not use the reserved `$` prefix - the server owns that
+  * namespace (`$schema.name`, `$schema.format`, ...).
   */
 case class Properties private (toMap: Map[String, PropertyValue]):
   def isEmpty: Boolean = toMap.isEmpty
@@ -63,8 +63,8 @@ object Properties:
     if bad.isEmpty then Right(new Properties(kvs.toMap))
     else Left(s"Invalid property keys (empty or reserved '$$' prefix): ${bad.mkString(", ")}")
 
-/** Append to one stream with a mandatory expectation: unlike the raw protocol, where records and
-  * checks are independent lists, a check is always attached to every written stream.
+/** Append to one stream with a mandatory expectation: unlike the raw protocol, where records and checks are independent
+  * lists, a check is always attached to every written stream.
   */
 case class StreamAppend(
   streamId: StreamId.Id,
@@ -72,14 +72,14 @@ case class StreamAppend(
   records: NonEmptyList[RecordData]
 )
 
-/** A consistency condition on a stream that is not written to (dynamic consistency boundary):
-  * the whole append succeeds only if the guarded stream satisfies [[StreamGuard.expected]].
+/** A consistency condition on a stream that is not written to (dynamic consistency boundary): the whole append succeeds
+  * only if the guarded stream satisfies [[StreamGuard.expected]].
   */
 case class StreamGuard(streamId: StreamId.Id, expected: StreamState)
 
 /** @param position
-  *   the log position of the committed transaction. The v2 protocol reports a single position,
-  *   unlike v1's commit / prepare pair; it is mapped as commit == prepare.
+  *   the log position of the committed transaction. The v2 protocol reports a single position, unlike v1's commit /
+  *   prepare pair; it is mapped as commit == prepare.
   */
 case class MultiAppendResult(
   position: LogPosition.Exact,

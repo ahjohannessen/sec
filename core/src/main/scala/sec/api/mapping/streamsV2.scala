@@ -26,10 +26,10 @@ import io.kurrentdb.protocol.v2.streams as pv2
 
 private[sec] object streamsV2:
 
-  /** StreamState sentinel encoding used by v2 checks: -1 NoStream, -4 StreamExists, otherwise the
-    * exact stream position. The server also knows Deleted (-5) and Tombstoned (-6), which the sec
-    * model does not yet express; -2 (Any) exists in the v1 vocabulary only and is rejected by the
-    * server - Any is expressed by omitting the check, see [[mkAppendRecordsRequest]].
+  /** StreamState sentinel encoding used by v2 checks: -1 NoStream, -4 StreamExists, otherwise the exact stream
+    * position. The server also knows Deleted (-5) and Tombstoned (-6), which the sec model does not yet express; -2
+    * (Any) exists in the v1 vocabulary only and is rejected by the server - Any is expressed by omitting the check, see
+    * [[mkAppendRecordsRequest]].
     */
   def mkExpectedState(ss: StreamState): Long = ss match
     case StreamState.NoStream     => -1L
@@ -67,9 +67,9 @@ private[sec] object streamsV2:
         pv2.ConsistencyCheck.StreamStateCheck(stream = streamId.stringValue, expectedState = mkExpectedState(expected))
       )
 
-  /** Every written stream carries at most one check; guards add checks for unwritten streams.
-    * The v2 protocol has no Any sentinel - the server rejects -2 with INVALID_ARGUMENT - so Any
-    * is expressed by omitting the check, for both appends and guards.
+  /** Every written stream carries at most one check; guards add checks for unwritten streams. The v2 protocol has no
+    * Any sentinel - the server rejects -2 with INVALID_ARGUMENT - so Any is expressed by omitting the check, for both
+    * appends and guards.
     */
   def mkAppendRecordsRequest(appends: NonEmptyList[StreamAppend], guards: List[StreamGuard]): pv2.AppendRecordsRequest =
     pv2.AppendRecordsRequest(
@@ -93,16 +93,20 @@ private[sec] object streamsV2:
           ))(_.asRight)
       }
       .flatMap { rs =>
-        NonEmptyList.fromList(rs).fold(shared.mkError[NonEmptyList[(StreamId.Id, StreamPosition.Exact)]](
-          "AppendRecordsResponse contained no stream positions"
-        ))(_.asRight)
+        NonEmptyList
+          .fromList(rs)
+          .fold(
+            shared.mkError[NonEmptyList[(StreamId.Id, StreamPosition.Exact)]](
+              "AppendRecordsResponse contained no stream positions"
+            ))(_.asRight)
       }
       .flatMap { rs =>
         val missing = appends.toList.map(_.streamId.stringValue).toSet -- rs.toList.map(_._1.stringValue).toSet
         if missing.isEmpty then rs.asRight
-        else shared.mkError[NonEmptyList[(StreamId.Id, StreamPosition.Exact)]](
-          s"AppendRecordsResponse missing stream positions for: ${missing.mkString(", ")}"
-        )
+        else
+          shared.mkError[NonEmptyList[(StreamId.Id, StreamPosition.Exact)]](
+            s"AppendRecordsResponse missing stream positions for: ${missing.mkString(", ")}"
+          )
       }
       .map(MultiAppendResult(LogPosition.exact(resp.position, resp.position), _))
       .liftTo[F]

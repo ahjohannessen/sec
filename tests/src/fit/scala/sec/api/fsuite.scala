@@ -29,16 +29,16 @@ import org.testcontainers.utility.DockerImageName
 import sec.arbitraries.*
 
 /** A single KurrentDB node under test-controlled fault injection. Insecure and disk-backed on purpose: TLS is
-  * irrelevant to the transport behavior under test, and [[KdbNode.restart]] must preserve stream state - a mem-db
-  * reset would legitimately stall subscribers holding positions.
+  * irrelevant to the transport behavior under test, and [[KdbNode.restart]] must preserve stream state - a mem-db reset
+  * would legitimately stall subscribers holding positions.
   */
 final class KdbNode private (container: KdbNode.Kdb):
 
   def endpoint: Endpoint = Endpoint(container.getHost, container.getMappedPort(KdbNode.grpcPort))
 
-  /** Restarts the node in-place via the docker daemon - same container, same filesystem layer, same port mapping -
-    * and awaits readiness. Every live gRPC connection receives a real GOAWAY / connection loss: the fault the
-    * subscription pool must absorb by re-placing onto freed permits instead of growing or stalling.
+  /** Restarts the node in-place via the docker daemon - same container, same filesystem layer, same port mapping - and
+    * awaits readiness. Every live gRPC connection receives a real GOAWAY / connection loss: the fault the subscription
+    * pool must absorb by re-placing onto freed permits instead of growing or stalling.
     */
   def restart: IO[Unit] =
     IO.blocking(container.getDockerClient.restartContainerCmd(container.getContainerId).exec()).void *>
@@ -47,7 +47,7 @@ final class KdbNode private (container: KdbNode.Kdb):
   private def awaitReady: IO[Unit] =
     val url     = s"http://${container.getHost}:${container.getMappedPort(KdbNode.grpcPort)}/health/live"
     val timeout = 30.seconds
-    val probe = IO.blocking {
+    val probe   = IO.blocking {
       val conn = URI.create(url).toURL.openConnection().asInstanceOf[HttpURLConnection]
       conn.setConnectTimeout(1000)
       conn.setReadTimeout(1000)
@@ -111,7 +111,7 @@ object KdbNode:
 
   val resource: Resource[IO, KdbNode] = Resource
     .make(IO.blocking {
-      val socket = new java.net.ServerSocket(0)
+      val socket   = new java.net.ServerSocket(0)
       val hostPort =
         try socket.getLocalPort
         finally socket.close()

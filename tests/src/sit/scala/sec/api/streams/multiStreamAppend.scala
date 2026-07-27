@@ -23,8 +23,8 @@ import cats.effect.IO
 import scodec.bits.ByteVector
 import sec.arbitraries.*
 
-/** Complements the fit coverage, which runs insecure: this exercises multiStreamAppend on the
-  * TLS + credentials path, so the v2 stub's Context handling (auth, authority) is verified too.
+/** Complements the fit coverage, which runs insecure: this exercises multiStreamAppend on the TLS + credentials path,
+  * so the v2 stub's Context handling (auth, authority) is verified too.
   */
 class MultiStreamAppendSuite extends SnSuite:
 
@@ -46,32 +46,34 @@ class MultiStreamAppendSuite extends SnSuite:
     )
 
     for
-      r    <- client.streams.multiStreamAppend(appends)
-      _    <- IO(assert(
-                r.streamPositions.toList.toMap == Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L)),
-                s"unexpected stream positions: ${r.streamPositions}"
-              ))
+      r <- client.streams.multiStreamAppend(appends)
+      _ <- IO(
+             assert(
+               r.streamPositions.toList.toMap == Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L)),
+               s"unexpected stream positions: ${r.streamPositions}"
+             ))
       read <- client.streams
                 .readStream(aId, StreamPosition.Start, Direction.Forwards, 10L, resolveLinkTos = false)
                 .compile
                 .toList
-      _    <- IO(assertEquals(read.map(_.record.eventData.eventType.stringValue), List("sit-msa-event")))
+      _ <- IO(assertEquals(read.map(_.record.eventData.eventType.stringValue), List("sit-msa-event")))
       // Single-record transaction: the event's log position must equal the reported transaction
       // position, verifying the commit == prepare mapping of the v2 single-position response.
-      cId  = genStreamId("sit_msa_c_")
-      rc  <- client.streams.multiStreamAppend(NonEmptyList.one(
-               StreamAppend(cId, StreamState.NoStream, NonEmptyList.one(rec))
-             ))
+      cId = genStreamId("sit_msa_c_")
+      rc <- client.streams.multiStreamAppend(
+              NonEmptyList.one(
+                StreamAppend(cId, StreamState.NoStream, NonEmptyList.one(rec))
+              ))
       cEv <- client.streams
                .readStream(cId, StreamPosition.Start, Direction.Forwards, 1L, resolveLinkTos = false)
                .compile
                .lastOrError
       _   <- IO(assertEquals(cEv.record.logPosition, rc.position))
-      bad   = NonEmptyList.one(StreamAppend(aId, StreamState.NoStream, NonEmptyList.one(rec)))
-      res  <- client.streams.multiStreamAppend(bad).attempt
-      _    <- IO(res match
-                case Left(v: exceptions.AppendConsistencyViolation) =>
-                  assertEquals(v.violations.map(_.streamId), List(aId.stringValue))
-                case other => fail(s"expected AppendConsistencyViolation, got $other"))
+      bad  = NonEmptyList.one(StreamAppend(aId, StreamState.NoStream, NonEmptyList.one(rec)))
+      res <- client.streams.multiStreamAppend(bad).attempt
+      _   <- IO(res match
+             case Left(v: exceptions.AppendConsistencyViolation) =>
+               assertEquals(v.violations.map(_.streamId), List(aId.stringValue))
+             case other => fail(s"expected AppendConsistencyViolation, got $other"))
     yield ()
   }

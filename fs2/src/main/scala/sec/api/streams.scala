@@ -160,14 +160,13 @@ trait Streams[F[_]]:
     data: NonEmptyList[EventData]
   ): F[WriteResult]
 
-  /** Experimental - the underlying v2 protocol is marked unstable by KurrentDB and may change;
-    * this API may change with it.
+  /** Experimental - the underlying v2 protocol is marked unstable by KurrentDB and may change; this API may change with
+    * it.
     *
-    * Appends records to one or more streams atomically; the server must support and have enabled
-    * the v2 protocol. Every written stream carries a mandatory [[StreamState]] expectation, and
-    * [[sec.api.StreamGuard]] expresses conditions on streams that are read from but not written
-    * to: below, the reservation is appended only if the flight stream is still at stream position 42,
-    * although nothing is written to it (dynamic consistency boundary).
+    * Appends records to one or more streams atomically; the server must support and have enabled the v2 protocol. Every
+    * written stream carries a mandatory [[StreamState]] expectation, and [[sec.api.StreamGuard]] expresses conditions
+    * on streams that are read from but not written to: below, the reservation is appended only if the flight stream is
+    * still at stream position 42, although nothing is written to it (dynamic consistency boundary).
     *
     * {{{
     * client.streams.multiStreamAppend(
@@ -176,11 +175,9 @@ trait Streams[F[_]]:
     * )
     * }}}
     *
-    * Failure to fulfill a check is manifested by raising
-    * [[sec.api.exceptions.AppendConsistencyViolation]]. A stream may appear only once across
-    * appends and guards; a duplicate is rejected by the server. A
-    * [[StreamState.Any]] expectation produces no check on the wire - the v2 protocol expresses
-    * Any as absence.
+    * Failure to fulfill a check is manifested by raising [[sec.api.exceptions.AppendConsistencyViolation]]. A stream
+    * may appear only once across appends and guards; a duplicate is rejected by the server. A [[StreamState.Any]]
+    * expectation produces no check on the wire - the v2 protocol expresses Any as absence.
     *
     * @param appends
     *   the streams to append to, each with an expectation and its records. See [[sec.api.StreamAppend]].
@@ -451,15 +448,16 @@ object Streams:
     // A tombstoned or soft-deleted append target surfaces as a consistency violation; promote it to
     // the corresponding typed exception, scoped to append targets (a guard keeps the violation).
     (opts.run(f(req), "multiStreamAppend") >>= mapping.streamsV2.mkMultiAppendResult[F](appends))
-      .adaptError {
-        case exceptions.AppendConsistencyViolation(vs) =>
-          vs.collectFirst {
-            case exceptions.AppendConsistencyViolation.StreamConditionViolation(s, _, ActualCondition.Tombstoned) if targets(s) =>
-              exceptions.StreamTombstoned(s)
-          }.orElse(vs.collectFirst {
-            case exceptions.AppendConsistencyViolation.StreamConditionViolation(s, _, ActualCondition.SoftDeleted) if targets(s) =>
-              exceptions.StreamDeleted(s)
-          }).getOrElse(exceptions.AppendConsistencyViolation(vs))
+      .adaptError { case exceptions.AppendConsistencyViolation(vs) =>
+        vs.collectFirst {
+          case exceptions.AppendConsistencyViolation.StreamConditionViolation(s, _, ActualCondition.Tombstoned)
+              if targets(s) =>
+            exceptions.StreamTombstoned(s)
+        }.orElse(vs.collectFirst {
+          case exceptions.AppendConsistencyViolation.StreamConditionViolation(s, _, ActualCondition.SoftDeleted)
+              if targets(s) =>
+            exceptions.StreamDeleted(s)
+        }).getOrElse(exceptions.AppendConsistencyViolation(vs))
       }
 
   private[sec] def delete0[F[_]: Temporal](

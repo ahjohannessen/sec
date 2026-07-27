@@ -26,17 +26,16 @@ import io.grpc.{Metadata, StatusRuntimeException}
 import io.kurrentdb.protocol.v2.streams.errors as v2e
 import sec.api.exceptions.*
 
-/** Converts v2 protocol errors to typed exceptions. Unlike v1, which uses bespoke string trailers,
-  * v2 carries structured details: a google.rpc.Status in the standard `grpc-status-details-bin`
-  * trailer, holding packed messages from `kurrentdb/protocol/v2/streams/errors.proto`.
+/** Converts v2 protocol errors to typed exceptions. Unlike v1, which uses bespoke string trailers, v2 carries
+  * structured details: a google.rpc.Status in the standard `grpc-status-details-bin` trailer, holding packed messages
+  * from `kurrentdb/protocol/v2/streams/errors.proto`.
   */
 private[sec] object convertV2:
 
   private val statusDetails: Metadata.Key[Array[Byte]] =
     Metadata.Key.of("grpc-status-details-bin", Metadata.BINARY_BYTE_MARSHALLER)
 
-  /** None when no recognized structured details are present - callers fall back to status-code
-    * level handling.
+  /** None when no recognized structured details are present - callers fall back to status-code level handling.
     */
   val convertToEs: StatusRuntimeException => Option[EsException] = ex =>
     for
