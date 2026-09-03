@@ -21,7 +21,7 @@ object Dependencies {
     val scalaCheck      = "1.20.0"
     val munitDiscipline = "2.0.0"
     val munitEffect     = "2.2.0"
-    val munit           = "1.3.5"
+    val munit           = "1.3.6"
     val testcontainers  = "2.0.5"
 
   }
