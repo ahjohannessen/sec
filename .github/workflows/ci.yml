@@ -16,6 +16,7 @@ on:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  KURRENTDB_LICENSING__LICENSE_KEY: ${{ secrets.KURRENTDB_LICENSING__LICENSE_KEY }}
 
 
 concurrency:
@@ -89,6 +90,7 @@ jobs:
           popd
 
       - name: Start Cluster Nodes
+        if: env.KURRENTDB_LICENSING__LICENSE_KEY != ''
         env:
           SEC_GENCERT_CERTS_ROOT: ${{ github.workspace }}
         run: |
@@ -97,6 +99,7 @@ jobs:
           popd
 
       - name: Cluster integration tests
+        if: env.KURRENTDB_LICENSING__LICENSE_KEY != ''
         env:
           SEC_CIT_CERTS_PATH: ${{ github.workspace }}/certs
           SEC_CIT_AUTHORITY: es.sec.local

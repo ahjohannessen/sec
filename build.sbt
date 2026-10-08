@@ -8,6 +8,9 @@ Global / lintUnusedKeysOnLoad := false
 lazy val Scala3     = "3.9.0"
 lazy val jdkRelease = 21
 
+// Multi-node KurrentDB (26.2+) requires a license key, which is unavailable to fork and Dependabot PRs.
+lazy val clusterLicensed = "env.KURRENTDB_LICENSING__LICENSE_KEY != ''"
+
 lazy val sec = project
   .in(file("."))
   .enablePlugins(NoPublishPlugin)
@@ -178,6 +181,7 @@ inThisBuild(
   List(
     githubWorkflowTargetBranches := Seq("main"),
     githubWorkflowJavaVersions := Seq(JavaSpec.temurin(jdkRelease.toString())),
+    githubWorkflowEnv += "KURRENTDB_LICENSING__LICENSE_KEY" -> "${{ secrets.KURRENTDB_LICENSING__LICENSE_KEY }}",
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),
       commands = List("pushd .docker", "./single-node.sh up -d", "popd"),
@@ -217,6 +221,7 @@ inThisBuild(
       WorkflowStep.Run(
         name     = Some("Start Cluster Nodes"),
         commands = List("pushd .docker", "./cluster.sh up -d", "popd"),
+        cond     = Some(clusterLicensed),
         env      = Map(
           "SEC_GENCERT_CERTS_ROOT" -> "${{ github.workspace }}"
         )
@@ -224,6 +229,7 @@ inThisBuild(
       WorkflowStep.Use(
         UseRef.Public("nick-invision", "retry", "v2"),
         name   = Some("Cluster integration tests"),
+        cond   = Some(clusterLicensed),
         params = Map(
           "timeout_minutes" -> "10",
           "max_attempts"    -> "10",

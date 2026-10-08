@@ -97,7 +97,7 @@ final class KdbNode private (container: KdbNode.Kdb):
 object KdbNode:
 
   final private val grpcPort = 2113
-  final private val image    = sys.env.getOrElse("KDB_IMAGE", "docker.io/kurrentplatform/kurrentdb:26.1")
+  final private val image    = sys.env.getOrElse("KDB_IMAGE", "docker.io/kurrentplatform/kurrentdb:26.2")
 
   private[api] val maxStreams: Int =
     sys.env.get("SEC_FIT_MAX_STREAMS").fold(8) { raw =>
