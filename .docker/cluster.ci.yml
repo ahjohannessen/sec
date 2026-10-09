@@ -1,5 +1,6 @@
 x-common-variables: &common-variables
   KURRENTDB_CLUSTER_SIZE: "3"
+  KURRENTDB_LICENSING__LICENSE_KEY: "${KURRENTDB_LICENSING__LICENSE_KEY:-}"
 
 services:
 
@@ -18,6 +19,7 @@ services:
     networks:
       kdb_cluster_network:
         ipv4_address: "$SEC_CL_1_IP"
+        mac_address: "$SEC_CL_1_MAC"
     depends_on:
       - cert-gen
     restart: on-failure:10
@@ -37,6 +39,7 @@ services:
     networks:
       kdb_cluster_network:
         ipv4_address: "$SEC_CL_2_IP"
+        mac_address: "$SEC_CL_2_MAC"
     depends_on:
       - cert-gen
     restart: on-failure:10
@@ -56,6 +59,7 @@ services:
     networks:
       kdb_cluster_network:
         ipv4_address: "$SEC_CL_3_IP"
+        mac_address: "$SEC_CL_3_MAC"
     depends_on:
       - cert-gen
     restart: on-failure:10
