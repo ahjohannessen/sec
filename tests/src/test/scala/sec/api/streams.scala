@@ -52,7 +52,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
       }
 
       val opts   = Opts[IO](retryEnabled = true, config, _ => true, NoOpLogger.impl[IO])
-      val result = withRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
+      val result = readWithRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
 
       assertIO(result.compile.toList, List(1))
     }
@@ -82,7 +82,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
       }
 
       val opts   = Opts[IO](retryEnabled = true, config, _ => true, NoOpLogger.impl[IO])
-      val result = withRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
+      val result = readWithRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
 
       result.compile.toList.map { r =>
         assertEquals(failures, 5)
@@ -113,7 +113,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
       }
 
       val opts   = Opts[IO](retryEnabled = true, config, _ => true, NoOpLogger.impl[IO])
-      val result = withRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
+      val result = readWithRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
 
       result.compile.toList.attempt.map { att =>
         assertEquals(att, Left(RetryErr("5")))
@@ -142,7 +142,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
           if n <= 3 then Stream.exec(IO.sleep(config.maxDelay + 50.millis)) ++ Stream.raiseError[IO](RetryErr())
           else Stream.emit(from)
         }
-      withRetry[IO, Int, Int](0, source, identity, opts, "with-retry", Forwards).compile.toList
+      readWithRetry[IO, Int, Int](0, source, identity, opts, "with-retry", Forwards).compile.toList
     }
 
     TestControl.executeEmbed(program).map(assertEquals(_, List(0)))
@@ -172,7 +172,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
                  Stream.eval(calls.updateAndGet(_ + 1)).flatMap { n =>
                    if n == 1 then Stream.raiseError[IO](RetryErr()) else Stream.emit(n)
                  }
-      r <- withRetry[IO, Int, Int](0, source, identity, opts, "with-retry", Forwards).compile.toList
+      r <- readWithRetry[IO, Int, Int](0, source, identity, opts, "with-retry", Forwards).compile.toList
       h <- hints.get
     yield (r, h)
 
@@ -233,7 +233,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
           if n < 3 then live.through(raiseOnServerCompletion("sub"))
           else (live ++ Stream.never[IO]).through(raiseOnServerCompletion("sub"))
         }
-      withRetry[IO, Option[Int], Int](None, source, Some(_), opts, "sub", Forwards).take(6).compile.toList
+      readWithRetry[IO, Option[Int], Int](None, source, Some(_), opts, "sub", Forwards).take(6).compile.toList
     }
 
     TestControl.executeEmbed(program).map(assertEquals(_, List(1, 2, 3, 4, 5, 6)))
@@ -263,7 +263,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
       }
 
       val opts   = Opts[IO](retryEnabled = true, config, _.getMessage != "fatal", NoOpLogger.impl[IO])
-      val result = withRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
+      val result = readWithRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
 
       result.compile.toList.attempt.map { att =>
 
@@ -306,7 +306,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
       }
 
       val opts   = Opts[IO](retryEnabled = true, config, _ => true, NoOpLogger.impl[IO])
-      val result = withRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
+      val result = readWithRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
 
       result.compile.lastOrError.attempt.map { att =>
         assertEquals(getDelays, List[Long](1, 2, 4, 8, 8))
@@ -337,7 +337,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
     }
 
     val opts   = Opts[IO](retryEnabled = false, config, _ => true, NoOpLogger.impl[IO])
-    val result = withRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
+    val result = readWithRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
 
     assertIO(result.compile.toList.attempt, Left(RetryErr("successes: 0")))
   }
@@ -358,7 +358,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
 
     IO.defer {
 
-      val stream = withRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
+      val stream = readWithRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
 
       assertIO(stream.compile.toList.attempt, Left(RetryErr("OhNoes")))
 
@@ -412,7 +412,7 @@ class StreamsWithRetrySuite extends SecEffectSuite:
           Stream.eval(IO.delay { hasFailed = true }) >> init ++ before ++ Stream.raiseError[IO](RetryErr())
       }
 
-      withRetry[IO, T, T](first, source, identity, opts, "with-retry", direction).compile.toList
+      readWithRetry[IO, T, T](first, source, identity, opts, "with-retry", direction).compile.toList
     }
 
     test("forwards") {
@@ -509,12 +509,29 @@ class SubscriptionRetrySuite extends SecEffectSuite:
 
   import io.kurrent.dbclient.proto.streams as s
 
-  private val config  = RetryConfig(100.millis, 5.seconds, 2, maxAttempts = 2, timeout = None)
-  private val timeout = 10.seconds
-  private val opts    = Opts[IO](true, config, _.isInstanceOf[ResubscriptionRequired], NoOpLogger.impl[IO], timeout)
+  private val config = RetryConfig(
+    delay         = 100.millis,
+    maxDelay      = 5.seconds,
+    backoffFactor = 2,
+    maxAttempts   = 2,
+    timeout       = None
+  )
+  private val confirmationTimeout = 10.seconds
+  private val opts                = Opts[IO](
+    retryEnabled                    = true,
+    retryConfig                     = config,
+    retryOn                         = _.isInstanceOf[ResubscriptionRequired],
+    log                             = NoOpLogger.impl[IO],
+    subscriptionConfirmationTimeout = confirmationTimeout
+  )
 
   private def subscribe(responses: Stream[IO, s.ReadResp]): IO[Unit] =
-    subscribeToStream0[IO](StreamId.Streams, None, false, opts)(_ => responses).compile.drain
+    subscribeToStream0[IO](
+      streamId       = StreamId.Streams,
+      exclusiveFrom  = None,
+      resolveLinkTos = false,
+      opts           = opts
+    )(_ => responses).compile.drain
 
   test("a subscription that never confirms exhausts the retry budget") {
     val program = for
@@ -522,7 +539,8 @@ class SubscriptionRetrySuite extends SecEffectSuite:
       result <- subscribe(Stream.exec(calls.update(_ + 1)) ++ Stream.never[IO]).timeout(1.minute).attempt
       count  <- calls.get
     yield
-      assertEquals(result, Left(ResubscriptionRequired(s"no subscription confirmation received within $timeout")))
+      assertEquals(result,
+                   Left(ResubscriptionRequired(s"no subscription confirmation received within $confirmationTimeout")))
       assertEquals(count, 3)
 
     TestControl.executeEmbed(program)
@@ -540,7 +558,8 @@ class SubscriptionRetrySuite extends SecEffectSuite:
       result <- subscribe(responses).timeout(1.minute).attempt
       count  <- calls.get
     yield
-      assertEquals(result, Left(ResubscriptionRequired(s"no subscription confirmation received within $timeout")))
+      assertEquals(result,
+                   Left(ResubscriptionRequired(s"no subscription confirmation received within $confirmationTimeout")))
       assertEquals(count, 5)
 
     TestControl.executeEmbed(program)
@@ -551,7 +570,7 @@ class SubscriptionRetrySuite extends SecEffectSuite:
 
     val program = for
       calls  <- IO.ref(0)
-      result <- subscribeToAll0[IO](None, false, opts) { _ =>
+      result <- subscribeToAll0[IO](exclusiveFrom = None, resolveLinkTos = false, opts = opts) { _ =>
                   Stream.exec(calls.update(_ + 1)) ++ Stream.sleep_[IO](config.maxDelay) ++ Stream.emit(confirmation)
                 }.compile.drain.timeout(1.minute).attempt
       count <- calls.get
