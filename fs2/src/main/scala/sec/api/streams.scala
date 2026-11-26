@@ -366,17 +366,17 @@ object Streams:
     opts: Opts[F]
   )(f: ReadReq => Stream[F, ReadResp]): Stream[F, Event] =
 
-    val opName: String                               = "subscribeToAll"
-    val pipeLog: Logger[F]                           = opts.log.withModifiedString(m => s"$opName: $m")
-    val mkReq: Option[LogPosition] => ReadReq        = mkSubscribeToAllReq(_, resolveLinkTos, None)
-    val sub: Option[LogPosition] => Stream[F, Event] =
-      ef =>
+    val opName: String                                          = "subscribeToAll"
+    val pipeLog: Logger[F]                                      = opts.log.withModifiedString(m => s"$opName: $m")
+    val mkReq: Option[LogPosition] => ReadReq                   = mkSubscribeToAllReq(_, resolveLinkTos, None)
+    val sub: (Option[LogPosition], F[Unit]) => Stream[F, Event] =
+      (ef, onConfirmed) =>
         f(mkReq(ef))
-          .through(subscriptionAllPipe(pipeLog, opts.subscriptionConfirmationTimeout))
+          .through(subscriptionAllPipe(pipeLog, opts.subscriptionConfirmationTimeout, onConfirmed))
           .through(raiseOnServerCompletion(opName))
     val fn: Event => Option[LogPosition] = _.record.logPosition.some
 
-    withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
+    resumeFromLastPosition(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
 
   private[sec] def subscribeToAll0[F[_]: Temporal](
     exclusiveFrom: Option[LogPosition],
@@ -387,17 +387,17 @@ object Streams:
 
     type O = Either[Checkpoint, Event]
 
-    val opName: String                           = "subscribeToAllWithFilter"
-    val pipeLog: Logger[F]                       = opts.log.withModifiedString(m => s"$opName: $m")
-    val mkReq: Option[LogPosition] => ReadReq    = mkSubscribeToAllReq(_, resolveLinkTos, filterOptions.some)
-    val sub: Option[LogPosition] => Stream[F, O] =
-      ef =>
+    val opName: String                                      = "subscribeToAllWithFilter"
+    val pipeLog: Logger[F]                                  = opts.log.withModifiedString(m => s"$opName: $m")
+    val mkReq: Option[LogPosition] => ReadReq               = mkSubscribeToAllReq(_, resolveLinkTos, filterOptions.some)
+    val sub: (Option[LogPosition], F[Unit]) => Stream[F, O] =
+      (ef, onConfirmed) =>
         f(mkReq(ef))
-          .through(subAllFilteredPipe(pipeLog, opts.subscriptionConfirmationTimeout))
+          .through(subAllFilteredPipe(pipeLog, opts.subscriptionConfirmationTimeout, onConfirmed))
           .through(raiseOnServerCompletion(opName))
     val fn: O => Option[LogPosition] = _.fold(_.logPosition, _.record.logPosition).some
 
-    withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
+    resumeFromLastPosition(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
 
   private[sec] def subscribeToStream0[F[_]: Temporal](
     streamId: StreamId,
@@ -410,15 +410,15 @@ object Streams:
     val pipeLog: Logger[F]                       = opts.log.withModifiedString(m => s"$opName[${streamId.render}]: $m")
     val mkReq: Option[StreamPosition] => ReadReq = mkSubscribeToStreamReq(streamId, _, resolveLinkTos)
 
-    val sub: Option[StreamPosition] => Stream[F, Event] =
-      ef =>
+    val sub: (Option[StreamPosition], F[Unit]) => Stream[F, Event] =
+      (ef, onConfirmed) =>
         f(mkReq(ef))
-          .through(subscriptionStreamPipe(pipeLog, opts.subscriptionConfirmationTimeout))
+          .through(subscriptionStreamPipe(pipeLog, opts.subscriptionConfirmationTimeout, onConfirmed))
           .through(raiseOnServerCompletion(opName))
 
     val fn: Event => Option[StreamPosition] = _.record.streamPosition.some
 
-    withRetry(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
+    resumeFromLastPosition(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
 
   private[sec] def appendToStream0[F[_]: Temporal](
     streamId: StreamId,
@@ -488,11 +488,12 @@ object Streams:
     */
   private[sec] def subConfirmationPipe[F[_]: Temporal](
     logger: Logger[F],
-    confirmationTimeout: FiniteDuration
+    confirmationTimeout: FiniteDuration,
+    onConfirmed: F[Unit]
   ): Pipe[F, ReadResp, ReadResp] = in =>
 
-    val log: SubscriptionConfirmation => F[Unit] =
-      sc => logger.debug(s"$sc received")
+    def confirm(response: ReadResp): F[Unit] =
+      reqConfirmation[F](response).flatMap(sc => onConfirmed *> logger.debug(s"$sc received"))
 
     val raiseTimeout: Pull[F, Nothing, Unit] =
       Pull.raiseError[F](ResubscriptionRequired(s"no subscription confirmation received within $confirmationTimeout"))
@@ -507,7 +508,7 @@ object Streams:
     def awaitConfirmation(tp: Pull.Timed[F, ReadResp]): Pull[F, ReadResp, Unit] =
       tp.uncons.flatMap {
         case Some((Right(c), next)) =>
-          if c.nonEmpty then Pull.eval(reqConfirmation[F](c(0)) >>= log) >> Pull.output(c.drop(1)) >> echo(next)
+          if c.nonEmpty then Pull.eval(confirm(c(0))) >> Pull.output(c.drop(1)) >> echo(next)
           else awaitConfirmation(next)
         case Some((Left(_), _)) => raiseTimeout
         case None               => Pull.done
@@ -517,26 +518,29 @@ object Streams:
 
   private[sec] def subscriptionAllPipe[F[_]: Temporal](
     log: Logger[F],
-    confirmationTimeout: FiniteDuration
+    confirmationTimeout: FiniteDuration,
+    onConfirmed: F[Unit]
   ): Pipe[F, ReadResp, Event] =
     _.filterNot(_.isCheckpoint)
-      .through(subConfirmationPipe(log, confirmationTimeout))
+      .through(subConfirmationPipe(log, confirmationTimeout, onConfirmed))
       .through(_.filter(_.isEvent).evalMap(reqReadEvent[F]).unNone)
 
   private[sec] def subscriptionStreamPipe[F[_]: Temporal](
     log: Logger[F],
-    confirmationTimeout: FiniteDuration
+    confirmationTimeout: FiniteDuration,
+    onConfirmed: F[Unit]
   ): Pipe[F, ReadResp, Event] =
-    _.through(subConfirmationPipe(log, confirmationTimeout))
+    _.through(subConfirmationPipe(log, confirmationTimeout, onConfirmed))
       .through(_.filter(_.isEvent).evalMap(reqReadEvent[F]).unNone)
 
   private[sec] def subAllFilteredPipe[F[_]: Temporal](
     log: Logger[F],
-    confirmationTimeout: FiniteDuration
+    confirmationTimeout: FiniteDuration,
+    onConfirmed: F[Unit]
   ): Pipe[F, ReadResp, Either[Checkpoint, Event]] =
     // Defensive filtering to guard against ESDB emitting checkpoints
     // with `LogPosition.Exact.MaxValue`, i.e. end of stream.
-    _.through(subConfirmationPipe(log, confirmationTimeout))
+    _.through(subConfirmationPipe(log, confirmationTimeout, onConfirmed))
       .through(_.filter(_.isCheckpointOrEvent).evalMap(mkCheckpointOrEvent[F]).unNone)
       .collect {
         case r @ Right(_)                               => r
@@ -555,6 +559,21 @@ object Streams:
   private[sec] def withRetry[F[_]: Temporal, T: Order, O](
     from: T,
     streamFn: T => Stream[F, O],
+    extractFn: O => T,
+    o: Opts[F],
+    opName: String,
+    direction: Direction
+  ): Stream[F, O] =
+    resumeFromLastPosition(from,
+                           (pos, started) => Stream.exec(started) ++ streamFn(pos),
+                           extractFn,
+                           o,
+                           opName,
+                           direction)
+
+  private def resumeFromLastPosition[F[_]: Temporal, T: Order, O](
+    from: T,
+    streamFn: (T, F[Unit]) => Stream[F, O],
     extractFn: O => T,
     o: Opts[F],
     opName: String,
@@ -580,23 +599,26 @@ object Streams:
 
         def run(f: T, attempts: Int, d: FiniteDuration): Stream[F, O] =
 
-          val readAndFilter: Stream[F, O] = streamFn(f).evalFilter(readFilter)
-          val readAndUpdate: Stream[F, O] = readAndFilter.evalTap(out => state.set(extractFn(out).some))
+          Stream.eval(Ref.of[F, Option[FiniteDuration]](None)) >>= { establishedAt =>
+            val markEstablished = Temporal[F].monotonic.flatMap(now => establishedAt.set(Some(now)))
+            val readAndFilter   = streamFn(f, markEstablished).evalFilter(readFilter)
+            val readAndUpdate   = readAndFilter.evalTap(out => state.set(extractFn(out).some))
 
-          Stream.eval(Temporal[F].monotonic) >>= { startedAt =>
             readAndUpdate.recoverWith {
 
               case NonFatal(t) if o.retryOn(t) =>
 
-                // Reset the attempt budget and delay once a reconnect has stayed healthy for at least one full
-                // maxDelay window, so maxAttempts bounds *consecutive* fast failures rather than reconnects over a lifetime.
+                // Reset after a healthy interval so maxAttempts bounds consecutive failures across reconnects.
+                // For reads the interval starts with the attempt. For subscriptions it starts at confirmation.
                 val decide: F[(Int, FiniteDuration, T)] =
                   for
                     _       <- o.hint(t)
+                    started <- establishedAt.get
                     endedAt <- Temporal[F].monotonic
                     current <- state.get.map(_.getOrElse(f))
                   yield
-                    if (endedAt - startedAt) >= o.retryConfig.maxDelay then (1, o.retryConfig.delay, current)
+                    if started.exists(since => endedAt - since >= o.retryConfig.maxDelay) then
+                      (1, o.retryConfig.delay, current)
                     else (attempts, d, current)
 
                 Stream.eval(decide) >>= { case (attempt, delay, c) =>
@@ -612,7 +634,7 @@ object Streams:
 
         run(from, 1, o.retryConfig.delay)
       }
-    else streamFn(from)
+    else streamFn(from, Temporal[F].unit)
 
 //======================================================================================================================
 

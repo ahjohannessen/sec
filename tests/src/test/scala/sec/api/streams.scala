@@ -469,7 +469,7 @@ class SubConfirmationPipeSuite extends SecEffectSuite:
   val other: s.ReadResp        = s.ReadResp()
 
   def pipe(timeout: FiniteDuration): fs2.Pipe[IO, s.ReadResp, s.ReadResp] =
-    subConfirmationPipe[IO](NoOpLogger.impl[IO], timeout)
+    subConfirmationPipe[IO](NoOpLogger.impl[IO], timeout, IO.unit)
 
   test("consumes the confirmation and echoes the remainder") {
 
@@ -503,6 +503,63 @@ class SubConfirmationPipeSuite extends SecEffectSuite:
     val program = in.through(pipe(1.second)).compile.toList
 
     TestControl.executeEmbed(program).map(assertEquals(_, List(other)))
+  }
+
+class SubscriptionRetrySuite extends SecEffectSuite:
+
+  import io.kurrent.dbclient.proto.streams as s
+
+  private val config  = RetryConfig(100.millis, 5.seconds, 2, maxAttempts = 2, timeout = None)
+  private val timeout = 10.seconds
+  private val opts    = Opts[IO](true, config, _.isInstanceOf[ResubscriptionRequired], NoOpLogger.impl[IO], timeout)
+
+  private def subscribe(responses: Stream[IO, s.ReadResp]): IO[Unit] =
+    subscribeToStream0[IO](StreamId.Streams, None, false, opts)(_ => responses).compile.drain
+
+  test("a subscription that never confirms exhausts the retry budget") {
+    val program = for
+      calls  <- IO.ref(0)
+      result <- subscribe(Stream.exec(calls.update(_ + 1)) ++ Stream.never[IO]).timeout(1.minute).attempt
+      count  <- calls.get
+    yield
+      assertEquals(result, Left(ResubscriptionRequired(s"no subscription confirmation received within $timeout")))
+      assertEquals(count, 3)
+
+    TestControl.executeEmbed(program)
+  }
+
+  test("a confirmed quiet subscription restores the retry budget when the server drops it") {
+    val confirmation = s.ReadResp().withConfirmation(s.ReadResp.SubscriptionConfirmation("sub-id"))
+
+    val program = for
+      calls    <- IO.ref(0)
+      responses = Stream.eval(calls.updateAndGet(_ + 1)).flatMap { n =>
+                    if n == 3 then Stream.emit(confirmation) ++ Stream.sleep_[IO](config.maxDelay)
+                    else Stream.never[IO]
+                  }
+      result <- subscribe(responses).timeout(1.minute).attempt
+      count  <- calls.get
+    yield
+      assertEquals(result, Left(ResubscriptionRequired(s"no subscription confirmation received within $timeout")))
+      assertEquals(count, 5)
+
+    TestControl.executeEmbed(program)
+  }
+
+  test("waiting for confirmation does not count as time spent connected") {
+    val confirmation = s.ReadResp().withConfirmation(s.ReadResp.SubscriptionConfirmation("sub-id"))
+
+    val program = for
+      calls  <- IO.ref(0)
+      result <- subscribeToAll0[IO](None, false, opts) { _ =>
+                  Stream.exec(calls.update(_ + 1)) ++ Stream.sleep_[IO](config.maxDelay) ++ Stream.emit(confirmation)
+                }.compile.drain.timeout(1.minute).attempt
+      count <- calls.get
+    yield
+      assertEquals(result, Left(ResubscriptionRequired("subscribeToAll: server completed the subscription")))
+      assertEquals(count, 3)
+
+    TestControl.executeEmbed(program)
   }
 
 object StreamsSpec:
