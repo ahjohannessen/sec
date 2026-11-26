@@ -308,7 +308,7 @@ object Streams:
         .readAllMessages(_, direction, maxCount, resolveLinkTos)
         .mapFilter(_.event.map(_.event))
 
-      withRetry[F, LogPosition, Event](from, read, _.record.logPosition, opts, "readAll", direction)
+      readWithRetry[F, LogPosition, Event](from, read, _.record.logPosition, opts, "readAll", direction)
 
     def readStream(
       streamId: StreamId,
@@ -323,7 +323,7 @@ object Streams:
         .evalTap(sm => sm.notFound.fold(sm.pure[F])(_.toException.raiseError))
         .mapFilter(_.event.map(_.event))
 
-      withRetry[F, StreamPosition, Event](from, read, _.record.streamPosition, opts, "readStream", direction)
+      readWithRetry[F, StreamPosition, Event](from, read, _.record.streamPosition, opts, "readStream", direction)
 
     def appendToStream(
       streamId: StreamId,
@@ -376,7 +376,7 @@ object Streams:
           .through(raiseOnServerCompletion(opName))
     val fn: Event => Option[LogPosition] = _.record.logPosition.some
 
-    resumeFromLastPosition(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
+    retryStream(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
 
   private[sec] def subscribeToAll0[F[_]: Temporal](
     exclusiveFrom: Option[LogPosition],
@@ -397,7 +397,7 @@ object Streams:
           .through(raiseOnServerCompletion(opName))
     val fn: O => Option[LogPosition] = _.fold(_.logPosition, _.record.logPosition).some
 
-    resumeFromLastPosition(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
+    retryStream(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
 
   private[sec] def subscribeToStream0[F[_]: Temporal](
     streamId: StreamId,
@@ -418,7 +418,7 @@ object Streams:
 
     val fn: Event => Option[StreamPosition] = _.record.streamPosition.some
 
-    resumeFromLastPosition(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
+    retryStream(exclusiveFrom, sub, fn, opts, opName, Direction.Forwards)
 
   private[sec] def appendToStream0[F[_]: Temporal](
     streamId: StreamId,
@@ -556,7 +556,7 @@ object Streams:
   private[sec] def raiseOnServerCompletion[F[_]: RaiseThrowable, O](opName: String): Pipe[F, O, O] =
     _ ++ Stream.raiseError[F](ResubscriptionRequired(s"$opName: server completed the subscription"))
 
-  private[sec] def withRetry[F[_]: Temporal, T: Order, O](
+  private[sec] def readWithRetry[F[_]: Temporal, T: Order, O](
     from: T,
     streamFn: T => Stream[F, O],
     extractFn: O => T,
@@ -564,14 +564,9 @@ object Streams:
     opName: String,
     direction: Direction
   ): Stream[F, O] =
-    resumeFromLastPosition(from,
-                           (pos, started) => Stream.exec(started) ++ streamFn(pos),
-                           extractFn,
-                           o,
-                           opName,
-                           direction)
+    retryStream(from, (pos, started) => Stream.exec(started) ++ streamFn(pos), extractFn, o, opName, direction)
 
-  private def resumeFromLastPosition[F[_]: Temporal, T: Order, O](
+  private def retryStream[F[_]: Temporal, T: Order, O](
     from: T,
     streamFn: (T, F[Unit]) => Stream[F, O],
     extractFn: O => T,
@@ -599,8 +594,8 @@ object Streams:
 
         def run(f: T, attempts: Int, d: FiniteDuration): Stream[F, O] =
 
-          Stream.eval(Ref.of[F, Option[FiniteDuration]](None)) >>= { establishedAt =>
-            val markEstablished = Temporal[F].monotonic.flatMap(now => establishedAt.set(Some(now)))
+          Stream.eval(Ref.of[F, Option[FiniteDuration]](None)) >>= { healthySinceRef =>
+            val markEstablished = Temporal[F].monotonic.flatMap(now => healthySinceRef.set(Some(now)))
             val readAndFilter   = streamFn(f, markEstablished).evalFilter(readFilter)
             val readAndUpdate   = readAndFilter.evalTap(out => state.set(extractFn(out).some))
 
@@ -612,12 +607,12 @@ object Streams:
                 // For reads the interval starts with the attempt. For subscriptions it starts at confirmation.
                 val decide: F[(Int, FiniteDuration, T)] =
                   for
-                    _       <- o.hint(t)
-                    started <- establishedAt.get
-                    endedAt <- Temporal[F].monotonic
-                    current <- state.get.map(_.getOrElse(f))
+                    _            <- o.hint(t)
+                    healthySince <- healthySinceRef.get
+                    endedAt      <- Temporal[F].monotonic
+                    current      <- state.get.map(_.getOrElse(f))
                   yield
-                    if started.exists(since => endedAt - since >= o.retryConfig.maxDelay) then
+                    if healthySince.exists(since => endedAt - since >= o.retryConfig.maxDelay) then
                       (1, o.retryConfig.delay, current)
                     else (attempts, d, current)
 
