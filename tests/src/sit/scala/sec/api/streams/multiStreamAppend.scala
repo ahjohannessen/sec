@@ -51,7 +51,8 @@ class MultiStreamAppendSuite extends SnSuite:
              assert(
                r.streamPositions.toList.toMap == Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L)),
                s"unexpected stream positions: ${r.streamPositions}"
-             ))
+             )
+           )
       read <- client.streams
                 .readStream(aId, StreamPosition.Start, Direction.Forwards, 10L, resolveLinkTos = false)
                 .compile
@@ -63,7 +64,8 @@ class MultiStreamAppendSuite extends SnSuite:
       rc <- client.streams.multiStreamAppend(
               NonEmptyList.one(
                 StreamAppend(cId, StreamState.NoStream, NonEmptyList.one(rec))
-              ))
+              )
+            )
       cEv <- client.streams
                .readStream(cId, StreamPosition.Start, Direction.Forwards, 1L, resolveLinkTos = false)
                .compile

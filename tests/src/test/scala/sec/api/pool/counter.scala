@@ -60,9 +60,7 @@ class CallCounterSuite extends SecEffectSuite:
       counted(10).flatMap { (log, c) =>
         val spike = c.count(IO.sleep(1.milli)).start.replicateA(9).flatMap(_.traverse_(_.joinWithNever))
         spike *> spike *>
-          (warns(log), resumes(log)).flatMapN { (w, r) =>
-            IO(assertEquals(w, 2)) *> IO(assertEquals(r, 2))
-          }
+          (warns(log), resumes(log)).flatMapN { (w, r) => IO(assertEquals(w, 2)) *> IO(assertEquals(r, 2)) }
       }
     }
   }
@@ -88,9 +86,7 @@ class CallCounterSuite extends SecEffectSuite:
       counted(2).flatMap { (log, c) =>
         // warnAt = 1: a single in-flight stream trips the warn immediately
         c.countStream(fs2.Stream.eval(IO.sleep(5.millis))).compile.drain *>
-          (warns(log), resumes(log)).flatMapN { (w, r) =>
-            IO(assertEquals(w, 1)) *> IO(assertEquals(r, 1))
-          }
+          (warns(log), resumes(log)).flatMapN { (w, r) => IO(assertEquals(w, 1)) *> IO(assertEquals(r, 1)) }
       }
     }
   }

@@ -105,7 +105,6 @@ private[sec] object ClusterWatch:
     log: Logger[F]
   ): Resource[F, ClusterWatch[F]] =
     Resource.eval(Queue.bounded[F, Unit](1)) >>= { rq =>
-
       val watch   = mkWatch(store.get, options.notificationInterval, rq.tryOffer(()).void)
       val fetcher = mkFetcher(readFn, options, store.set, Stream.fromQueueUnterminated(rq), log)
       val create  = Stream.emit(watch).concurrently(fetcher)
@@ -161,5 +160,5 @@ private[sec] object ClusterWatch:
 
 //
 
-final private[sec] case class EndpointsResolveError(clusterDns: Hostname)
+private[sec] final case class EndpointsResolveError(clusterDns: Hostname)
   extends RuntimeException(s"No endpoints returned from $clusterDns")

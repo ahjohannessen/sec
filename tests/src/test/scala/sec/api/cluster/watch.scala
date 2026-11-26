@@ -154,7 +154,6 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances:
       } yield counterRef
 
       TestControl.execute(program.allocated) >>= { control =>
-
         def assertCount(
           outcome: Option[Outcome[Id, Throwable, (Ref[IO, Int], IO[Unit])]],
           expected: Int
@@ -210,9 +209,7 @@ class ClusterWatchSuite extends SecEffectSuite with TestInstances:
       hn.toString match {
         case "fail.org" => IO.raiseError(new RuntimeException("OhNoes"))
         case _          =>
-          ref.updateAndGet(_ + 1) >>= { c =>
-            if (returnAfter <= c) IO(List(ep1, ep2, ep3)) else IO(Nil)
-          }
+          ref.updateAndGet(_ + 1) >>= { c => if (returnAfter <= c) IO(List(ep1, ep2, ep3)) else IO(Nil) }
       }
 
     test("dns") {

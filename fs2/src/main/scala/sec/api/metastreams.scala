@@ -294,9 +294,9 @@ object MetaStreams:
     def setMaxAge(id: Id, es: StreamState, ma: Option[MaxAge]): F[WriteResult] =
       modify(id, es, _.setMaxAge(ma))
 
-    def getMaxCount(id: Id): F[Option[ReadResult[MaxCount]]]               = getResult(id, _.maxCount)
-    def setMaxCount(id: Id, es: StreamState, mc: MaxCount): F[WriteResult] = setMaxCount(id, es, mc.some)
-    def unsetMaxCount(id: Id, expectedState: StreamState): F[WriteResult]  = setMaxCount(id, expectedState, None)
+    def getMaxCount(id: Id): F[Option[ReadResult[MaxCount]]]                       = getResult(id, _.maxCount)
+    def setMaxCount(id: Id, es: StreamState, mc: MaxCount): F[WriteResult]         = setMaxCount(id, es, mc.some)
+    def unsetMaxCount(id: Id, expectedState: StreamState): F[WriteResult]          = setMaxCount(id, expectedState, None)
     def setMaxCount(id: Id, es: StreamState, mc: Option[MaxCount]): F[WriteResult] =
       modify(id, es, _.setMaxCount(mc))
 
@@ -311,9 +311,9 @@ object MetaStreams:
     def unsetAcl(id: Id, es: StreamState): F[WriteResult]                       = setAcl(id, es, None)
     def setAcl(id: Id, es: StreamState, acl: Option[StreamAcl]): F[WriteResult] = modify(id, es, _.setAcl(acl))
 
-    def getTruncateBefore(id: Id): F[Option[ReadResult[Exact]]]               = getResult(id, _.truncateBefore)
-    def setTruncateBefore(id: Id, es: StreamState, tb: Exact): F[WriteResult] = setTruncateBefore(id, es, tb.some)
-    def unsetTruncateBefore(id: Id, es: StreamState): F[WriteResult]          = setTruncateBefore(id, es, None)
+    def getTruncateBefore(id: Id): F[Option[ReadResult[Exact]]]                       = getResult(id, _.truncateBefore)
+    def setTruncateBefore(id: Id, es: StreamState, tb: Exact): F[WriteResult]         = setTruncateBefore(id, es, tb.some)
+    def unsetTruncateBefore(id: Id, es: StreamState): F[WriteResult]                  = setTruncateBefore(id, es, None)
     def setTruncateBefore(id: Id, es: StreamState, tb: Option[Exact]): F[WriteResult] =
       modify(id, es, _.setTruncateBefore(tb))
 

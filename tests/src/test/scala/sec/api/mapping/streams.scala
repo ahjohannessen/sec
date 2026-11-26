@@ -35,11 +35,11 @@ import sec.helpers.text.encodeToBV
 
 class StreamsMappingSuite extends SecScalaCheckSuite {
 
-  import StreamsMappingSuite._
+  import StreamsMappingSuite.*
 
   group("outgoing") {
 
-    import outgoing._
+    import outgoing.*
     import s.ReadReq.Options.AllOptions.AllOption
     import s.ReadReq.Options.StreamOptions.RevisionOption
 
@@ -82,7 +82,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
     test("mapReadEventFilter") {
 
-      import EventFilter._
+      import EventFilter.*
       import s.ReadReq.Options.FilterOptions
       import s.ReadReq.Options.FilterOptions.Expression
       import s.ReadReq.Options.FilterOption.{Filter, NoFilter}
@@ -175,7 +175,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
     }
 
     test("mkSubscribeToStreamReq") {
-      import StreamPosition._
+      import StreamPosition.*
 
       val sid = StreamId("abc").unsafeGet
 
@@ -204,8 +204,8 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
     test("mkSubscribeToAllReq") {
 
-      import LogPosition._
-      import EventFilter._
+      import LogPosition.*
+      import EventFilter.*
 
       def test(exclusiveFrom: Option[LogPosition], resolveLinkTos: Boolean, filter: Option[SubscriptionFilterOptions]) =
         assertEquals(
@@ -343,7 +343,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
     test("mkAppendProposalsReq") {
 
       import grpc.constants.Metadata.{ContentType, ContentTypes, Type}
-      import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
+      import ContentTypes.{ApplicationJson as Json, ApplicationOctetStream as Binary}
 
       def test(nel: NonEmptyList[EventData]) = {
         assertEquals(
@@ -409,7 +409,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
     test("mkBatchAppendProposal") {
 
       import grpc.constants.Metadata.{ContentType, ContentTypes, Type}
-      import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
+      import ContentTypes.{ApplicationJson as Json, ApplicationOctetStream as Binary}
 
       def test(e: sec.EventData) =
         assertEquals(
@@ -433,9 +433,9 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
   group("incoming") {
 
-    import incoming._
+    import incoming.*
     import grpc.constants.Metadata.{ContentType, ContentTypes, Created, Type}
-    import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
+    import ContentTypes.{ApplicationJson as Json, ApplicationOctetStream as Binary}
 
     val empty = ps.Empty()
 
@@ -464,8 +464,10 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
         assertEquals(mkEvent[ErrorOr](readEvent.withEvent(eventProto)), er.some.asRight)
 
         // Event & Link => ResolvedEvent
-        assertEquals(mkEvent[ErrorOr](readEvent.withEvent(eventProto).withLink(linkProto)),
-                     ResolvedEvent(er, lr).some.asRight)
+        assertEquals(
+          mkEvent[ErrorOr](readEvent.withEvent(eventProto).withLink(linkProto)),
+          ResolvedEvent(er, lr).some.asRight
+        )
 
         // No Event & No Link => None
         assertEquals(mkEvent[ErrorOr](readEvent), Option.empty[Event].asRight)
@@ -476,8 +478,10 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
         // Require read event
         assertEquals(reqReadEvent[ErrorOr](s.ReadResp().withEvent(readEvent.withEvent(eventProto))), er.some.asRight)
 
-        assertEquals(reqReadEvent[ErrorOr](s.ReadResp()),
-                     ProtoResultError("Required value ReadEvent missing or invalid.").asLeft)
+        assertEquals(
+          reqReadEvent[ErrorOr](s.ReadResp()),
+          ProtoResultError("Required value ReadEvent missing or invalid.").asLeft
+        )
 
       }
 
@@ -773,7 +777,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 
     test("mkBatchWriteResult") {
 
-      import com.google.rpc._
+      import com.google.rpc.*
       import com.google.protobuf.any.Any
 
       val empty = com.google.protobuf.empty.Empty()
@@ -829,7 +833,9 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
               Status.of(
                 Code.ALREADY_EXISTS,
                 "WrongExpectedVersion",
-                Any.pack(ps.WrongExpectedVersion().withExpectedStreamPosition(1L).withCurrentStreamRevision(2L)).some))
+                Any.pack(ps.WrongExpectedVersion().withExpectedStreamPosition(1L).withCurrentStreamRevision(2L)).some
+              )
+            )
         ),
         exceptions.WrongExpectedState(sec.StreamId("abc").unsafeGet, StreamPosition(1L), StreamPosition(2L)).asLeft
       )
@@ -865,7 +871,8 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
       assertEquals(
         mkBatchWriteResult[ErrorOr](
           bar.withError(
-            Status.of(Code.FAILED_PRECONDITION, "InvalidTransaction", Any.pack(ps.InvalidTransaction()).some))
+            Status.of(Code.FAILED_PRECONDITION, "InvalidTransaction", Any.pack(ps.InvalidTransaction()).some)
+          )
         ),
         exceptions.InvalidTransaction.asLeft
       )
@@ -873,9 +880,9 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
       assertEquals(
         mkBatchWriteResult[ErrorOr](
           bar.withError(
-            Status.of(Code.INVALID_ARGUMENT,
-                      "MaximumAppendSizeExceeded",
-                      Any.pack(ps.MaximumAppendSizeExceeded(1024)).some))
+            Status
+              .of(Code.INVALID_ARGUMENT, "MaximumAppendSizeExceeded", Any.pack(ps.MaximumAppendSizeExceeded(1024)).some)
+          )
         ),
         exceptions.MaximumAppendSizeExceeded(1024.some).asLeft
       )
@@ -1117,7 +1124,7 @@ class StreamsMappingSuite extends SecScalaCheckSuite {
 object StreamsMappingSuite {
 
   import grpc.constants.Metadata.{ContentType, ContentTypes, Created, Type}
-  import ContentTypes.{ApplicationJson => Json, ApplicationOctetStream => Binary}
+  import ContentTypes.{ApplicationJson as Json, ApplicationOctetStream as Binary}
 
   def bv(data: String): ByteVector =
     encodeToBV(data).unsafe

@@ -30,7 +30,7 @@ import cats.Eq
 sealed trait Direction
 object Direction:
 
-  case object Forwards extends Direction
+  case object Forwards  extends Direction
   case object Backwards extends Direction
 
   extension (d: Direction)

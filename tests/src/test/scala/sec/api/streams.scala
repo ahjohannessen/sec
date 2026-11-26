@@ -266,7 +266,6 @@ class StreamsWithRetrySuite extends SecEffectSuite:
       val result = readWithRetry[IO, Int, Int](0, _ => Stream.eval(action), identity, opts, "with-retry", Forwards)
 
       result.compile.toList.attempt.map { att =>
-
         assertEquals(att, Left(RetryErr("fatal")))
         assertEquals(successes, 0)
         assertEquals(failures, 6)
@@ -363,12 +362,12 @@ class StreamsWithRetrySuite extends SecEffectSuite:
       assertIO(stream.compile.toList.attempt, Left(RetryErr("OhNoes")))
 
     } *> logger.logged.map { logs =>
-
       val warnings = logs.collect { case w: TestingLogger.WARN => w }
       val errors   = logs.collect { case e: TestingLogger.ERROR => e }
 
       val expectedWarnings = (1 until 5).map(i =>
-        TestingLogger.WARN(s"with-retry failed, attempt $i of 5, retrying in 100.0ms - OhNoes", None))
+        TestingLogger.WARN(s"with-retry failed, attempt $i of 5, retrying in 100.0ms - OhNoes", None)
+      )
 
       val expectedErrors = List(TestingLogger.ERROR(s"with-retry failed after 5 attempts - OhNoes", None))
 
@@ -539,8 +538,10 @@ class SubscriptionRetrySuite extends SecEffectSuite:
       result <- subscribe(Stream.exec(calls.update(_ + 1)) ++ Stream.never[IO]).timeout(1.minute).attempt
       count  <- calls.get
     yield
-      assertEquals(result,
-                   Left(ResubscriptionRequired(s"no subscription confirmation received within $confirmationTimeout")))
+      assertEquals(
+        result,
+        Left(ResubscriptionRequired(s"no subscription confirmation received within $confirmationTimeout"))
+      )
       assertEquals(count, 3)
 
     TestControl.executeEmbed(program)
@@ -558,8 +559,10 @@ class SubscriptionRetrySuite extends SecEffectSuite:
       result <- subscribe(responses).timeout(1.minute).attempt
       count  <- calls.get
     yield
-      assertEquals(result,
-                   Left(ResubscriptionRequired(s"no subscription confirmation received within $confirmationTimeout")))
+      assertEquals(
+        result,
+        Left(ResubscriptionRequired(s"no subscription confirmation received within $confirmationTimeout"))
+      )
       assertEquals(count, 5)
 
     TestControl.executeEmbed(program)

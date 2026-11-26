@@ -25,7 +25,7 @@ import io.circe.syntax.*
 
 //======================================================================================================================
 
-final private[sec] case class StreamMetadata(
+private[sec] final case class StreamMetadata(
   state: MetaState,
   custom: Option[JsonObject]
 )
@@ -60,7 +60,7 @@ private[sec] object StreamMetadata:
     def withCacheControl(value: CacheControl): StreamMetadata        = sm.setCacheControl(value.some)
     def withAcl(value: StreamAcl): StreamMetadata                    = sm.setAcl(value.some)
     def withCustom(value: JsonObject): StreamMetadata                = sm.setCustom(value.some)
-    def withCustom(value: (String, Json)*): StreamMetadata = sm.withCustom(JsonObject.fromMap(Map.from(value)))
+    def withCustom(value: (String, Json)*): StreamMetadata           = sm.withCustom(JsonObject.fromMap(Map.from(value)))
 
     //
 
@@ -173,7 +173,7 @@ object CacheControl:
   * @note
   *   More details are here https://docs.kurrent.io/server/v25.0/features/streams.html#deleting-streams-and-events
   */
-final private[sec] case class MetaState(
+private[sec] final case class MetaState(
   maxAge: Option[MaxAge],
   maxCount: Option[MaxCount],
   truncateBefore: Option[StreamPosition.Exact],
@@ -190,10 +190,10 @@ private[sec] object MetaState:
   private[sec] given Codec.AsObject[MetaState] =
     new Codec.AsObject[MetaState]:
 
-      import Decoder.{decodeInt => di, decodeLong => dl}
-      import Encoder.{encodeInt => ei, encodeLong => el}
+      import Decoder.{decodeInt as di, decodeLong as dl}
+      import Encoder.{encodeInt as ei, encodeLong as el}
 
-      final private val cfd: Codec[FiniteDuration] =
+      private final val cfd: Codec[FiniteDuration] =
         Codec.from(dl.map(FiniteDuration(_, SECONDS)), el.contramap(_.toSeconds))
 
       given Codec[MaxAge] =

@@ -36,8 +36,8 @@ import sec.arbitraries.*
   */
 class MultiStreamAppendSuite extends FSuite:
 
-  final private val schemaName = "fit-spike-event"
-  final private val payload    = """{"n":1}"""
+  private final val schemaName = "fit-spike-event"
+  private final val payload    = """{"n":1}"""
 
   private def v2Stub: Resource[IO, StreamsServiceFs2Grpc[IO, Metadata]] =
     Resource
@@ -91,13 +91,15 @@ class MultiStreamAppendSuite extends FSuite:
                  ed.data,
                  ByteVector.view(payload.getBytes("UTF-8")),
                  "payload bytes must roundtrip v2-append -> v1-read unchanged"
-               ))
+               )
+             )
         _ <- IO(
                assertEquals(
                  ed.eventType.stringValue,
                  schemaName,
                  s"hypothesis: v1 eventType == v2 schema name; actual mapping: ${ed.eventType.stringValue}"
-               ))
+               )
+             )
         _ <- IO.println(s"[v2] v1 view of v2 record: contentType=${ed.contentType}, metadata=${ed.metadata}")
       yield ()
     }
@@ -111,11 +113,13 @@ class MultiStreamAppendSuite extends FSuite:
       val name = sid.stringValue
       // v2 has no raw metadata bytes: the server synthesizes v1 metadata as JSON with
       // $schema.* keys. This decides whether user properties merge into that same object.
-      val rec = record(name).copy(properties = Map(
-        "tenant"  -> Value(Value.Kind.StringValue("acme")),
-        "attempt" -> Value(Value.Kind.NumberValue(2)),
-        "replay"  -> Value(Value.Kind.BoolValue(true))
-      ))
+      val rec = record(name).copy(properties =
+        Map(
+          "tenant"  -> Value(Value.Kind.StringValue("acme")),
+          "attempt" -> Value(Value.Kind.NumberValue(2)),
+          "replay"  -> Value(Value.Kind.BoolValue(true))
+        )
+      )
 
       for
         _   <- explained(stub.appendRecords(AppendRecordsRequest(Seq(rec), Seq(noStream(name)))))
@@ -168,7 +172,8 @@ class MultiStreamAppendSuite extends FSuite:
                assertEquals(
                  result.streamPositions.toList.toMap,
                  Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L))
-               ))
+               )
+             )
         res <- explained(stub.appendRecords(bad)).attempt
         _   <- IO(res match
                case Left(e: StatusRuntimeException) =>
@@ -206,7 +211,8 @@ class MultiStreamAppendSuite extends FSuite:
                assertEquals(
                  r.streamPositions.toList.toMap,
                  Map(aId -> StreamPosition(0L), bId -> StreamPosition(1L))
-               ))
+               )
+             )
         // The error adapter must surface a violated guard as the typed exception directly.
         bad  = CNel.one(StreamAppend(genStreamId("fit_v2_api_c_"), StreamState.NoStream, CNel.one(rec)))
         res <- client.streams.multiStreamAppend(bad, List(StreamGuard(aId, StreamState.NoStream))).attempt
@@ -277,9 +283,11 @@ class MultiStreamAppendSuite extends FSuite:
                  assertEquals(
                    v.violations.map(x => (x.streamId, x.expected, x.actual)),
                    List(
-                     (cId.stringValue,
-                      ExpectedCondition.AtPosition(StreamPosition(5L)),
-                      ActualCondition.AtPosition(StreamPosition(0L)))
+                     (
+                       cId.stringValue,
+                       ExpectedCondition.AtPosition(StreamPosition(5L)),
+                       ActualCondition.AtPosition(StreamPosition(0L))
+                     )
                    )
                  )
                case other => fail(s"expected violation with exact expected/actual, got $other"))

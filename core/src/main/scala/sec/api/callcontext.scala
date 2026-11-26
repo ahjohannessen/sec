@@ -17,11 +17,11 @@
 package sec
 package api
 
-import cats.syntax.all._
+import cats.syntax.all.*
 
 //======================================================================================================================
 
-final private[sec] case class Context(
+private[sec] final case class Context(
   connectionName: String,
   userCreds: Option[UserCredentials],
   requiresLeader: Boolean

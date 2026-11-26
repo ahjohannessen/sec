@@ -151,7 +151,8 @@ class ReadAllSuite extends SnSuite:
             encode(s"$number@${deletedId.stringValue}"),
             ByteVector.empty,
             ContentType.Binary
-          ))
+          )
+        )
 
       def append(id: StreamId, data: Nel[EventData]) =
         streams.appendToStream(id, Any, data)

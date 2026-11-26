@@ -32,27 +32,34 @@ class ConvertV2Suite extends SecSuite:
 
   private def sre(details: PbAny*): StatusRuntimeException =
     val md = new Metadata()
-    md.put(detailsKey,
-           PbStatus(code = com.google.rpc.Code.FAILED_PRECONDITION, details = details.headOption).toByteArray)
+    md.put(
+      detailsKey,
+      PbStatus(code = com.google.rpc.Code.FAILED_PRECONDITION, details = details.headOption).toByteArray
+    )
     new StatusRuntimeException(Status.FAILED_PRECONDITION, md)
 
   test("consistency violation details map to AppendConsistencyViolation with per-stream info") {
-    val d = v2e.AppendConsistencyViolationErrorDetails(violations = Seq(
-      v2e.ConsistencyViolation(
-        checkIndex = 1,
-        `type`     = v2e.ConsistencyViolation.Type.StreamState(
-          v2e.ConsistencyViolation.StreamStateViolation(stream = "s1", expectedState = -1L, actualState = 0L)
+    val d = v2e.AppendConsistencyViolationErrorDetails(violations =
+      Seq(
+        v2e.ConsistencyViolation(
+          checkIndex = 1,
+          `type`     = v2e.ConsistencyViolation.Type.StreamState(
+            v2e.ConsistencyViolation.StreamStateViolation(stream = "s1", expectedState = -1L, actualState = 0L)
+          )
         )
       )
-    ))
+    )
     assertEquals(
       convertV2.convertToEs(sre(PbAny.pack(d))),
       Some(
         AppendConsistencyViolation(
           List(
-            AppendConsistencyViolation.StreamConditionViolation("s1",
-                                                                ExpectedCondition.NoStream,
-                                                                ActualCondition.AtPosition(StreamPosition(0L))))
+            AppendConsistencyViolation.StreamConditionViolation(
+              "s1",
+              ExpectedCondition.NoStream,
+              ActualCondition.AtPosition(StreamPosition(0L))
+            )
+          )
         )
       )
     )
@@ -61,9 +68,11 @@ class ConvertV2Suite extends SecSuite:
   test("revision conflict, size exceeded and stream lifecycle details map to their exceptions") {
     val cases: List[(PbAny, EsException)] = List(
       PbAny.pack(v2e.StreamRevisionConflictErrorDetails("s", 3L, 5L)) ->
-        StreamConditionMismatch("s",
-                                ExpectedCondition.AtPosition(StreamPosition(3L)),
-                                ActualCondition.AtPosition(StreamPosition(5L))),
+        StreamConditionMismatch(
+          "s",
+          ExpectedCondition.AtPosition(StreamPosition(3L)),
+          ActualCondition.AtPosition(StreamPosition(5L))
+        ),
       PbAny.pack(v2e.AppendRecordSizeExceededErrorDetails("s", "r", 10, 5)) ->
         AppendRecordSizeExceeded("s", "r", 10, 5),
       PbAny.pack(v2e.AppendTransactionSizeExceededErrorDetails(10, 5)) -> AppendTransactionSizeExceeded(10, 5),
@@ -73,7 +82,8 @@ class ConvertV2Suite extends SecSuite:
       PbAny.pack(v2e.StreamNotFoundErrorDetails("s"))                  -> StreamNotFound("s"),
       PbAny.pack(
         com.google.rpc.BadRequest(
-          Seq(com.google.rpc.BadRequest.FieldViolation("checks", "each stream may appear once")))
+          Seq(com.google.rpc.BadRequest.FieldViolation("checks", "each stream may appear once"))
+        )
       ) -> InvalidRequest(NonEmptyList.one(FieldViolation("checks", "each stream may appear once")))
     )
     cases.foreach { case (any, expected) =>

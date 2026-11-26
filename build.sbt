@@ -30,7 +30,7 @@ lazy val core = project
         compileM(cats, scodecBits, ip4s, unum, circe, scalaPb) ++
         protobufM(scalaPb),
     Compile / PB.protoSources := Seq((LocalRootProject / baseDirectory).value / "protobuf"),
-    Compile / PB.targets := Seq(
+    Compile / PB.targets      := Seq(
       scalapb.gen(
         flatPackage   = true,
         grpc          = false,
@@ -96,10 +96,10 @@ lazy val tests = project
   .settings(inConfig(ClusterITest)(Defaults.testSettings))
   .settings(inConfig(FaultITest)(Defaults.testSettings))
   .settings(
-    logBuffered := false,
+    logBuffered       := false,
     parallelExecution := true,
-    buildInfoPackage := "sec",
-    buildInfoKeys := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
+    buildInfoPackage  := "sec",
+    buildInfoKeys     := Seq(BuildInfoKey("certsPath" -> file("").getAbsoluteFile.toPath / "certs")),
     Test / headerSources ++= (SingleNodeITest / sources).value ++ (ClusterITest / sources).value ++ (FaultITest / sources).value,
     libraryDependencies :=
       compileM(
@@ -126,8 +126,8 @@ lazy val docs = project
   .dependsOn(`fs2-netty`)
   .settings(commonSettings)
   .settings(
-    moduleName := "sec-docs",
-    mdocIn := file("docs"),
+    moduleName    := "sec-docs",
+    mdocIn        := file("docs"),
     mdocVariables := Map(
       "libName"       -> "sec",
       "libVersion"    -> version.value.takeWhile(c => !(c == '+' || c == '-')), // strip off the SNAPSHOT business
@@ -158,13 +158,13 @@ lazy val commonSettings = Seq(
 
 inThisBuild(
   List(
-    scalaVersion := Scala3,
+    scalaVersion  := Scala3,
     versionScheme := Some("early-semver"),
     tlBaseVersion := "0.63",
     mergifyStewardConfig ~= { _.map(_.withMergeMinors(true).withAuthor("scala-steward-ahjohannessen[bot]")) },
-    organization := "io.github.ahjohannessen",
+    organization     := "io.github.ahjohannessen",
     organizationName := "Scala Event Sourcing Client for KurrentDB",
-    startYear := Some(2020),
+    startYear        := Some(2020),
     developers +=
       tlGitHubDev("ahjohannessen", "Alex Henning Johannessen"),
     shellPrompt := Prompt.enrichedShellPrompt
@@ -173,14 +173,16 @@ inThisBuild(
 
 //==== Github Actions ==================================================================================================
 
-addCommandAlias("compileTests",
-                "tests / Test / compile; tests / Sit / compile; tests / Cit / compile; tests / Fit / compile;")
+addCommandAlias(
+  "compileTests",
+  "tests / Test / compile; tests / Sit / compile; tests / Cit / compile; tests / Fit / compile;"
+)
 addCommandAlias("compileDocs", "docs/mdoc")
 
 inThisBuild(
   List(
-    githubWorkflowTargetBranches := Seq("main"),
-    githubWorkflowJavaVersions := Seq(JavaSpec.temurin(jdkRelease.toString())),
+    githubWorkflowTargetBranches                            := Seq("main"),
+    githubWorkflowJavaVersions                              := Seq(JavaSpec.temurin(jdkRelease.toString())),
     githubWorkflowEnv += "KURRENTDB_LICENSING__LICENSE_KEY" -> "${{ secrets.KURRENTDB_LICENSING__LICENSE_KEY }}",
     githubWorkflowBuildPreamble += WorkflowStep.Run(
       name     = Some("Start Single Node"),

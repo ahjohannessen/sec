@@ -185,8 +185,8 @@ object EventType:
     case sd if sd.startsWith(systemPrefix) => system(sd.substring(systemPrefixLength))
     case ud                                => normal(ud)
 
-  final private[sec] val systemPrefix: String    = "$"
-  final private[sec] val systemPrefixLength: Int = systemPrefix.length
+  private[sec] final val systemPrefix: String    = "$"
+  private[sec] final val systemPrefixLength: Int = systemPrefix.length
 
   extension (et: EventType)
 
@@ -313,7 +313,7 @@ sealed trait ContentType
 object ContentType:
 
   case object Binary extends ContentType
-  case object Json extends ContentType
+  case object Json   extends ContentType
 
   extension (ct: ContentType)
 

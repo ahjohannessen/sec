@@ -1,5 +1,5 @@
-import sbt._
-import scala.Console._
+import sbt.*
+import scala.Console.*
 
 object Prompt {
 

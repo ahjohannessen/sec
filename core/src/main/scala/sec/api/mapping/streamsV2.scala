@@ -88,9 +88,11 @@ private[sec] object streamsV2:
         byName
           .get(r.stream)
           .map(id => id -> StreamPosition(r.revision))
-          .fold(shared.mkError[(StreamId.Id, StreamPosition.Exact)](
-            s"Unexpected stream '${r.stream}' in AppendRecordsResponse"
-          ))(_.asRight)
+          .fold(
+            shared.mkError[(StreamId.Id, StreamPosition.Exact)](
+              s"Unexpected stream '${r.stream}' in AppendRecordsResponse"
+            )
+          )(_.asRight)
       }
       .flatMap { rs =>
         NonEmptyList
@@ -98,7 +100,8 @@ private[sec] object streamsV2:
           .fold(
             shared.mkError[NonEmptyList[(StreamId.Id, StreamPosition.Exact)]](
               "AppendRecordsResponse contained no stream positions"
-            ))(_.asRight)
+            )
+          )(_.asRight)
       }
       .flatMap { rs =>
         val missing = appends.toList.map(_.streamId.stringValue).toSet -- rs.toList.map(_._1.stringValue).toSet

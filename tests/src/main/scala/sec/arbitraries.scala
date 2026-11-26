@@ -61,11 +61,10 @@ object arbitraries {
   given arbStreamPosition: Arbitrary[StreamPosition] =
     Arbitrary[StreamPosition](Gen.oneOf(List(StreamPosition.End, sampleOf[StreamPosition.Exact])))
 
-  given arbLogPositionExact: Arbitrary[LogPosition.Exact] = Arbitrary[LogPosition.Exact](
-    for
-      c <- Gen.chooseNum(0L, Long.MaxValue)
-      p <- Gen.chooseNum(0L, 10L).map(c - _).suchThat(_ >= 0)
-    yield LogPosition.Exact(c, p).leftMap(require(false, _)).toOption.get)
+  given arbLogPositionExact: Arbitrary[LogPosition.Exact] = Arbitrary[LogPosition.Exact](for
+    c <- Gen.chooseNum(0L, Long.MaxValue)
+    p <- Gen.chooseNum(0L, 10L).map(c - _).suchThat(_ >= 0)
+  yield LogPosition.Exact(c, p).leftMap(require(false, _)).toOption.get)
 
   given arbLogPosition: Arbitrary[LogPosition] =
     Arbitrary[LogPosition](Gen.oneOf(List(LogPosition.End, sampleOf[LogPosition.Exact])))

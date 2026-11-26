@@ -33,8 +33,8 @@ class PoolFaultsSuite extends FSuite:
   import StreamState.*
 
   /** The value configured on the Kestrel server by [[KdbNode]]. */
-  final private val maxStreams  = KdbNode.maxStreams
-  final private val subscribers = maxStreams + 5
+  private final val maxStreams  = KdbNode.maxStreams
+  private final val subscribers = maxStreams + 5
 
   test("beyond MAX_CONCURRENT_STREAMS: unpooled subscriptions stall loudly, pooled all confirm") {
 
@@ -77,7 +77,8 @@ class PoolFaultsSuite extends FSuite:
                subscribers - maxStreams,
                s"expected exactly ${subscribers - maxStreams} subscriptions stalled beyond the configured " +
                  s"HTTP/2 stream limit of $maxStreams"
-             ))
+             )
+           )
       p <- pooled.use(outcomes(_, "fit_msc_pooled"))
       _ <- IO(assert(p.forall(_.isRight), s"pooled subscriptions failed: ${p.collect { case Left(t) => t }}"))
     yield ()

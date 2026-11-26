@@ -43,9 +43,7 @@ class PoolPolicySuite extends SecScalaCheckSuite:
       .map(_.zipWithIndex.map((v, i) => v.copy(index = i)).toVector)
 
   property("placementOrder is a permutation of all indices") {
-    forAll(slotsGen) { slots =>
-      PoolPolicy.placementOrder(slots).sorted == slots.indices.toList
-    }
+    forAll(slotsGen) { slots => PoolPolicy.placementOrder(slots).sorted == slots.indices.toList }
   }
 
   property("every healthy slot precedes every unhealthy slot") {
@@ -58,9 +56,7 @@ class PoolPolicySuite extends SecScalaCheckSuite:
   property("within equal health, most-free comes first") {
     forAll(slotsGen) { slots =>
       val order = PoolPolicy.placementOrder(slots).map(slots(_))
-      order.zip(order.drop(1)).forall { (a, b) =>
-        a.healthy != b.healthy || a.free >= b.free
-      }
+      order.zip(order.drop(1)).forall { (a, b) => a.healthy != b.healthy || a.free >= b.free }
     }
   }
 

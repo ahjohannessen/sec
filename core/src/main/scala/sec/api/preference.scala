@@ -35,8 +35,8 @@ import cats.syntax.all.*
 sealed trait NodePreference
 object NodePreference:
 
-  case object Leader extends NodePreference
-  case object Follower extends NodePreference
+  case object Leader          extends NodePreference
+  case object Follower        extends NodePreference
   case object ReadOnlyReplica extends NodePreference
 
   given Eq[NodePreference] = Eq.fromUniversalEquals[NodePreference]

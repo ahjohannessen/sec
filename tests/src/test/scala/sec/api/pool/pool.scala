@@ -73,9 +73,9 @@ class PoolSuite extends SecEffectSuite:
       probe.flatMap { p =>
         testPool(p, poolConfig(3, Limit.Bounded(10))).use { pool =>
           (1 to 7).toList.traverse(_ => pool.lease.allocated).flatMap { leases =>
-            pool.stats.flatMap { s =>
-              IO(assertEquals(s.sum, 7)) *> IO(assertEquals(s.size, 3))
-            } *> leases.traverse_(_._2)
+            pool.stats.flatMap { s => IO(assertEquals(s.sum, 7)) *> IO(assertEquals(s.size, 3)) } *> leases.traverse_(
+              _._2
+            )
           }
         } *> (p.created.get, p.closed.get).flatMapN((c, cl) => IO(assertEquals(c, cl)))
       }
@@ -89,7 +89,7 @@ class PoolSuite extends SecEffectSuite:
           (1 to 4).toList.traverse(_ => pool.lease.allocated) *>
             pool.lease.use_.attempt.flatMap {
               case Left(exceptions.SubscriptionPoolExhausted(2)) => IO.unit
-              case other => IO(fail(s"expected SubscriptionPoolExhausted(2), got $other"))
+              case other                                         => IO(fail(s"expected SubscriptionPoolExhausted(2), got $other"))
             }
         }
       }
@@ -231,16 +231,17 @@ class PoolSuite extends SecEffectSuite:
 
   test("close racing an in-flight acquire: the slot is either committed and closed, or never built") {
     TestControl.executeEmbed(
-      probe.flatMap { p =>
-        // The acquire is mid-construction (mkDelay) when close begins. Close must serialize with
-        // it through the cell's lock: the committed slot lands in close's snapshot and is closed.
-        // A snapshot read taken before the commit would miss the slot and leak the channel.
-        testPool(p, poolConfig(2, Limit.Bounded(5)), mkDelay = 5.millis).allocated.flatMap { case (pool, close) =>
-          pool.lease.use(_ => IO.sleep(10.millis)).start.flatMap { f =>
-            IO.sleep(1.milli) *> close *> f.join.void
-          } *> (p.created.get, p.closed.get).flatMapN((c, cl) => IO(assertEquals(c, cl)))
-        }
-      },
+      probe
+        .flatMap { p =>
+          // The acquire is mid-construction (mkDelay) when close begins. Close must serialize with
+          // it through the cell's lock: the committed slot lands in close's snapshot and is closed.
+          // A snapshot read taken before the commit would miss the slot and leak the channel.
+          testPool(p, poolConfig(2, Limit.Bounded(5)), mkDelay = 5.millis).allocated.flatMap { case (pool, close) =>
+            pool.lease.use(_ => IO.sleep(10.millis)).start.flatMap { f =>
+              IO.sleep(1.milli) *> close *> f.join.void
+            } *> (p.created.get, p.closed.get).flatMapN((c, cl) => IO(assertEquals(c, cl)))
+          }
+        },
       aggressiveRt
     )
   }

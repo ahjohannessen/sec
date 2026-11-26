@@ -239,12 +239,12 @@ class RetriesSuite extends SecEffectSuite with TestInstances:
     }
 
     val t2 = logger.logged.map { logs =>
-
       val warnings = logs.collect { case w: TestingLogger.WARN => w }
       val errors   = logs.collect { case e: TestingLogger.ERROR => e }
 
       val expectedWarnings = (1 until 10).map(i =>
-        TestingLogger.WARN(s"retry-suite failed, attempt $i of 10, retrying in 100.0ms - Oops", None))
+        TestingLogger.WARN(s"retry-suite failed, attempt $i of 10, retrying in 100.0ms - Oops", None)
+      )
 
       val expectedErrors = List(TestingLogger.ERROR(s"retry-suite failed after 10 attempts - Oops", None))
 

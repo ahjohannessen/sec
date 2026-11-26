@@ -73,7 +73,6 @@ private[sec] object config:
   ): F[Either[ClusterBuilder[F], SingleNodeBuilder[F]]] = {
 
     mkPoolConfig[F](cfg) >>= { pool =>
-
       def singleNode(o: Options): SingleNodeBuilder[F] =
         val b = mkSingleNodeBuilder[F](o, cfg).withLogger(logger)
         pool.fold(b)(b.withSubscriptionPool)
@@ -83,7 +82,8 @@ private[sec] object config:
           mkClusterBuilder[F](o, co, cfg).map { b =>
             val cb = b.withLogger(logger).withEndpointResolver(er)
             pool.fold(cb)(cb.withSubscriptionPool)
-          })
+          }
+        )
 
       mkOptions[F](cfg) >>= { o => cluster(o).map(_.toLeft(singleNode(o))) }
     }
@@ -154,7 +154,6 @@ private[sec] object config:
   def mkOptions[F[_]: ApplicativeThrow](cfg: Config): F[Options] =
 
     val certificate: Endo[Options] = o =>
-
       val certFile: Option[File] = cfg
         .option(s"$rootPath.certificate-path", _.getString)
         .filter(_.trim.nonEmpty)
@@ -233,7 +232,8 @@ private[sec] object config:
                    InvalidInput(s"$spPath.limit = unbounded requires $spPath.sanity-cap.").asLeft
                  case (Some(k @ ("bounded" | "unbounded")), _, _) =>
                    InvalidInput(
-                     s"$spPath.limit = $k only takes ${if k == "bounded" then "max-channels" else "sanity-cap"}.").asLeft
+                     s"$spPath.limit = $k only takes ${if k == "bounded" then "max-channels" else "sanity-cap"}."
+                   ).asLeft
                  case (Some(other), _, _) =>
                    InvalidInput(s"$spPath.limit must be bounded or unbounded, it was $other.").asLeft
                  case (None, _, _) =>

@@ -25,7 +25,7 @@ import sec.api.retries.*
 
 //======================================================================================================================
 
-final private[sec] case class Opts[F[_]](
+private[sec] final case class Opts[F[_]](
   retryEnabled: Boolean,
   retryConfig: RetryConfig,
   retryOn: Throwable => Boolean,

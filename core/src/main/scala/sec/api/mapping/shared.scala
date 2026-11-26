@@ -45,9 +45,7 @@ private[sec] object shared:
     mkStreamId[F](sid.getOrElse(ps.StreamIdentifier()))
 
   def mkStreamId[F[_]: MonadThrow](sid: ps.StreamIdentifier): F[StreamId] =
-    sid.utf8[F] >>= { sidStr =>
-      StreamId.stringToStreamId(sidStr).leftMap(ProtoResultError(_)).liftTo[F]
-    }
+    sid.utf8[F] >>= { sidStr => StreamId.stringToStreamId(sidStr).leftMap(ProtoResultError(_)).liftTo[F] }
 
   //
 

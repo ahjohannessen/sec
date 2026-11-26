@@ -28,13 +28,13 @@ object exceptions:
   ) extends RuntimeException(msg, cause.orNull)
     with NoStackTrace
 
-  case object AccessDenied extends EsException("Access Denied.")
-  case object InvalidTransaction extends EsException("Invalid Transaction.")
-  case class UserNotFound(loginName: String) extends EsException(s"User '$loginName' was not found.")
-  case class StreamDeleted(streamId: String) extends EsException(s"Event stream '$streamId' is deleted.")
-  case class StreamNotFound(streamId: String) extends EsException(s"Event stream '$streamId' was not found.")
-  case class UnknownError(msg: String) extends EsException(msg)
-  case class ServerUnavailable(msg: String) extends EsException(msg)
+  case object AccessDenied                       extends EsException("Access Denied.")
+  case object InvalidTransaction                 extends EsException("Invalid Transaction.")
+  case class UserNotFound(loginName: String)     extends EsException(s"User '$loginName' was not found.")
+  case class StreamDeleted(streamId: String)     extends EsException(s"Event stream '$streamId' is deleted.")
+  case class StreamNotFound(streamId: String)    extends EsException(s"Event stream '$streamId' was not found.")
+  case class UnknownError(msg: String)           extends EsException(msg)
+  case class ServerUnavailable(msg: String)      extends EsException(msg)
   case class ResubscriptionRequired(msg: String) extends EsException(msg)
 
   case class SubscriptionPoolExhausted(channels: Int)

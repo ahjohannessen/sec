@@ -32,7 +32,7 @@ import sec.utilities.{guardNonEmpty, guardNotStartsWith}
 sealed trait StreamId
 object StreamId:
 
-  sealed trait Id extends StreamId
+  sealed trait Id           extends StreamId
   case class MetaId(id: Id) extends StreamId
 
   sealed abstract case class System(name: String) extends Id

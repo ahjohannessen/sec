@@ -80,7 +80,6 @@ private[sec] object Notifier:
       halt: SignallingRef[F, Boolean],
       observer: ChangeObserver[F]
     ): Notifier[F] = (l: Listener[F]) =>
-
       def update(ci: ClusterInfo): F[Unit] =
         endpoints.get >>= { before =>
           val after  = determineNext(ci, seed)
@@ -119,7 +118,6 @@ private[sec] object Notifier:
       updates: Stream[F, ClusterInfo],
       halt: SignallingRef[F, Boolean]
     ): Notifier[F] = (l: Listener[F]) =>
-
       def update(ci: ClusterInfo): F[Unit] = determineNext(ci, np) >>= {
         case Nil     => ().pure[F]
         case x :: xs => l.onResult(Nel(x, xs).map(_.httpEndpoint))
@@ -132,7 +130,6 @@ private[sec] object Notifier:
     ): (ClusterInfo, NodePreference) => F[List[MemberInfo]] =
       (ci, np) =>
         inner(ci, np).flatTap { ms =>
-
           def render(mi: MemberInfo): String = {
             val endpoint = mi.httpEndpoint.render
             val state    = mi.state.render

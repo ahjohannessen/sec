@@ -323,12 +323,13 @@ private[sec] object streams:
       val eventData   = (eventType, eventId, contentType).mapN((t, i, ct) => EventData(t, i, data, customMeta, ct))
 
       (streamId, position, logPosition, eventData, created).mapN((id, p, lp, ed, c) =>
-        sec.EventRecord(id, p, lp, ed, c))
+        sec.EventRecord(id, p, lp, ed, c)
+      )
 
     def mkContentType[F[_]](ct: String)(implicit F: ApplicativeThrow[F]): F[ContentType] = ct match
       case ContentTypes.ApplicationOctetStream => F.pure(sec.ContentType.Binary)
       case ContentTypes.ApplicationJson        => F.pure(sec.ContentType.Json)
-      case unknown => F.raiseError(ProtoResultError(s"Required value $ContentType missing or invalid: $unknown"))
+      case unknown                             => F.raiseError(ProtoResultError(s"Required value $ContentType missing or invalid: $unknown"))
 
     def mkEventType[F[_]: ApplicativeThrow](name: String): F[EventType] =
       EventType.stringToEventType(Option(name).getOrElse("")).leftMap(ProtoResultError(_)).liftTo[F]
@@ -348,8 +349,8 @@ private[sec] object streams:
 
         val streamPositionExact: Either[Throwable, StreamPosition.Exact] = s.value.currentRevisionOption match
           case Success.CurrentRevisionOption.CurrentRevision(v) => StreamPosition(v).asRight
-          case Success.CurrentRevisionOption.NoStream(_) => mkError("Did not expect NoStream when using NonEmptyList")
-          case Success.CurrentRevisionOption.Empty       => mkError("CurrentRevisionOption is missing")
+          case Success.CurrentRevisionOption.NoStream(_)        => mkError("Did not expect NoStream when using NonEmptyList")
+          case Success.CurrentRevisionOption.Empty              => mkError("CurrentRevisionOption is missing")
 
         (streamPositionExact, logPositionExact).mapN((r, p) => WriteResult(r, p))
 
@@ -378,8 +379,8 @@ private[sec] object streams:
 
     def mkBatchWriteResult[F[_]](bar: BatchAppendResp)(implicit F: MonadThrow[F]): F[WriteResult] =
 
-      import BatchAppendResp._
-      import com.google.rpc._
+      import BatchAppendResp.*
+      import com.google.rpc.*
 
       def success(s: Success): Either[Throwable, WriteResult] = {
 
@@ -391,8 +392,8 @@ private[sec] object streams:
 
         val streamPositionExact: Either[Throwable, StreamPosition.Exact] = s.currentRevisionOption match {
           case Success.CurrentRevisionOption.CurrentRevision(v) => StreamPosition(v).asRight
-          case Success.CurrentRevisionOption.NoStream(_) => mkError("Did not expect NoStream when using NonEmptyList")
-          case Success.CurrentRevisionOption.Empty       => mkError("CurrentRevisionOption is missing")
+          case Success.CurrentRevisionOption.NoStream(_)        => mkError("Did not expect NoStream when using NonEmptyList")
+          case Success.CurrentRevisionOption.Empty              => mkError("CurrentRevisionOption is missing")
         }
 
         (streamPositionExact, logPositionExact).mapN((r, p) => WriteResult(r, p))
@@ -477,10 +478,10 @@ private[sec] object streams:
 
       import ReadResp.Content as c
 
-      case class EventR(event: Option[sec.Event]) extends AllResult
-      case class CheckpointR(checkpoint: Checkpoint) extends AllResult
+      case class EventR(event: Option[sec.Event])                      extends AllResult
+      case class CheckpointR(checkpoint: Checkpoint)                   extends AllResult
       case class ConfirmationR(confirmation: SubscriptionConfirmation) extends AllResult
-      case class LastPositionR(position: LogPosition) extends AllResult
+      case class LastPositionR(position: LogPosition)                  extends AllResult
 
       def fromWire[F[_]](p: ReadResp)(implicit F: MonadThrow[F]): F[AllResult] = p.content match
         case c.Event(v)                 => mkEvent[F](v).map(EventR(_))
@@ -518,12 +519,12 @@ private[sec] object streams:
 
       import ReadResp.Content as c
 
-      case class EventR(event: Option[sec.Event]) extends StreamResult
-      case class CheckpointR(checkpoint: Checkpoint) extends StreamResult
+      case class EventR(event: Option[sec.Event])                      extends StreamResult
+      case class CheckpointR(checkpoint: Checkpoint)                   extends StreamResult
       case class ConfirmationR(confirmation: SubscriptionConfirmation) extends StreamResult
-      case class StreamNotFoundR(streamId: StreamId) extends StreamResult
-      case class FirstPositionR(position: StreamPosition) extends StreamResult
-      case class LastPositionR(position: StreamPosition) extends StreamResult
+      case class StreamNotFoundR(streamId: StreamId)                   extends StreamResult
+      case class FirstPositionR(position: StreamPosition)              extends StreamResult
+      case class LastPositionR(position: StreamPosition)               extends StreamResult
 
       def fromWire[F[_]](p: ReadResp)(implicit F: MonadThrow[F]): F[StreamResult] = p.content match
         case c.Event(v)               => mkEvent[F](v).map(EventR(_))

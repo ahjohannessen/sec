@@ -27,7 +27,6 @@ import sec.api.mapping.time.*
 private[sec] object gossip:
 
   val mkVNodeState: p.MemberInfo.VNodeState => Attempt[VNodeState] = s =>
-
     val result = s.asRecognized.map {
       case p.MemberInfo.VNodeState.Initializing       => VNodeState.Initializing
       case p.MemberInfo.VNodeState.DiscoverLeader     => VNodeState.DiscoverLeader
@@ -57,9 +56,7 @@ private[sec] object gossip:
     val isAlive    = mi.isAlive.pure[F]
     val endpoint   = mi.httpEndPoint.require[F]("httpEndpoint").map(e => Endpoint(e.address, e.port))
 
-    (instanceId, timestamp, state, isAlive, endpoint).mapN { (ii, ts, st, ia, ep) =>
-      MemberInfo(ii, ts, st, ia, ep)
-    }
+    (instanceId, timestamp, state, isAlive, endpoint).mapN { (ii, ts, st, ia, ep) => MemberInfo(ii, ts, st, ia, ep) }
 
   def mkClusterInfo[F[_]: MonadThrow](ci: p.ClusterInfo): F[ClusterInfo] =
     ci.members.toList.traverse(mkMemberInfo[F]).map(m => ClusterInfo(m.toSet))

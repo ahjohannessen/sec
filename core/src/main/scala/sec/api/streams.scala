@@ -62,7 +62,7 @@ case class TombstoneResult(
 /** A subscription confirmation identifier as the first value from the KurrentDB when subscribing to a stream. Not
   * intended for public use.
   */
-final private[sec] case class SubscriptionConfirmation(
+private[sec] final case class SubscriptionConfirmation(
   id: String
 )
 
@@ -80,10 +80,10 @@ final private[sec] case class SubscriptionConfirmation(
 sealed trait StreamMessage
 object StreamMessage:
 
-  case class StreamEvent(event: Event) extends StreamMessage
+  case class StreamEvent(event: Event)                     extends StreamMessage
   case class FirstStreamPosition(position: StreamPosition) extends StreamMessage
-  case class LastStreamPosition(position: StreamPosition) extends StreamMessage
-  case class NotFound(streamId: StreamId) extends StreamMessage
+  case class LastStreamPosition(position: StreamPosition)  extends StreamMessage
+  case class NotFound(streamId: StreamId)                  extends StreamMessage
   object NotFound:
     extension (nf: NotFound) def toException: StreamNotFound = StreamNotFound(nf.streamId.render)
 
@@ -122,7 +122,7 @@ object StreamMessage:
 sealed trait AllMessage
 object AllMessage:
 
-  case class AllEvent(event: Event) extends AllMessage
+  case class AllEvent(event: Event)                       extends AllMessage
   case class LastAllStreamPosition(position: LogPosition) extends AllMessage
 
   //

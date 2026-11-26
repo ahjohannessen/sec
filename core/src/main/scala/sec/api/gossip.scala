@@ -69,22 +69,22 @@ object MemberInfo:
 sealed trait VNodeState
 object VNodeState:
 
-  case object Initializing extends VNodeState
-  case object DiscoverLeader extends VNodeState
-  case object Unknown extends VNodeState
-  case object PreReplica extends VNodeState
-  case object CatchingUp extends VNodeState
-  case object Clone extends VNodeState
-  case object Follower extends VNodeState
-  case object PreLeader extends VNodeState
-  case object Leader extends VNodeState
-  case object Manager extends VNodeState
-  case object ShuttingDown extends VNodeState
-  case object Shutdown extends VNodeState
+  case object Initializing       extends VNodeState
+  case object DiscoverLeader     extends VNodeState
+  case object Unknown            extends VNodeState
+  case object PreReplica         extends VNodeState
+  case object CatchingUp         extends VNodeState
+  case object Clone              extends VNodeState
+  case object Follower           extends VNodeState
+  case object PreLeader          extends VNodeState
+  case object Leader             extends VNodeState
+  case object Manager            extends VNodeState
+  case object ShuttingDown       extends VNodeState
+  case object Shutdown           extends VNodeState
   case object ReadOnlyLeaderless extends VNodeState
   case object PreReadOnlyReplica extends VNodeState
-  case object ReadOnlyReplica extends VNodeState
-  case object ResigningLeader extends VNodeState
+  case object ReadOnlyReplica    extends VNodeState
+  case object ResigningLeader    extends VNodeState
 
   private[sec] val values: Set[VNodeState] =
     Set(

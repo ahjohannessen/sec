@@ -17,18 +17,18 @@
 package sec
 package api
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import cats.Endo
-import cats.data.{NonEmptyList => Nel}
-import cats.syntax.all._
+import cats.data.NonEmptyList as Nel
+import cats.syntax.all.*
 import cats.effect.IO
-import fs2._
-import sec.syntax.all._
-import helpers.implicits._
+import fs2.*
+import sec.syntax.all.*
+import helpers.implicits.*
 
 class SubscribeToAllFilterSuite extends SnSuite {
 
-  import EventFilter._
+  import EventFilter.*
   import StreamState.NoStream
 
   val maxSearchWindow = 32

@@ -31,11 +31,11 @@ case class Endpoint(
 
 object Endpoint:
 
-  final private val ae: Attributes = Attributes.EMPTY
+  private final val ae: Attributes = Attributes.EMPTY
 
-  given Order[Endpoint] = Order.by(ep => (ep.address, ep.port))
+  given Order[Endpoint]    = Order.by(ep => (ep.address, ep.port))
   given Ordering[Endpoint] = given_Order_Endpoint.toOrdering
-  given Show[Endpoint] = Show.show(renderEndpoint)
+  given Show[Endpoint]     = Show.show(renderEndpoint)
 
   def renderEndpoint(ep: Endpoint): String = s"${ep.address}:${ep.port}"
 

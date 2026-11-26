@@ -90,8 +90,10 @@ class EventSuite extends SecSuite:
     testCommon(er, re)
     testCommon(
       er.copy(streamPosition = er.streamPosition),
-      re.copy(event          = re.event.copy(streamPosition = re.event.streamPosition),
-              link           = re.link.copy(streamPosition = re.link.streamPosition))
+      re.copy(
+        event = re.event.copy(streamPosition = re.event.streamPosition),
+        link  = re.link.copy(streamPosition = re.link.streamPosition)
+      )
     )
 
     test("logPosition") {
@@ -245,7 +247,7 @@ class EventDataSuite extends SecSuite:
 
 class ContentTypeSuite extends SecSuite:
 
-  import ContentType._
+  import ContentType.*
 
   test("render") {
     assertEquals((Binary: ContentType).render, "Binary")

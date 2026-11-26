@@ -261,7 +261,7 @@ object Streams:
     subscriptionTransport: Option[(ReadReq, C) => Stream[F, ReadResp]] = None
   ): Streams[F] = new Streams[F]:
 
-    private given C = mkCtx(None)
+    private given C      = mkCtx(None)
     private val read     = client.read(_)
     private val append   = client.append(_)
     private val appendV2 = clientV2.appendRecords(_)
@@ -491,7 +491,6 @@ object Streams:
     confirmationTimeout: FiniteDuration,
     onConfirmed: F[Unit]
   ): Pipe[F, ReadResp, ReadResp] = in =>
-
     def confirm(response: ReadResp): F[Unit] =
       reqConfirmation[F](response).flatMap(sc => onConfirmed *> logger.debug(s"$sc received"))
 
@@ -583,7 +582,6 @@ object Streams:
       val order       = Order[T]
 
       Stream.eval(Ref.of[F, Option[T]](None)) >>= { state =>
-
         val readFilter: O => F[Boolean] = out => {
 
           val next: T              = extractFn(out)
