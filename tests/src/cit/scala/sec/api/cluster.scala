@@ -17,7 +17,7 @@
 package sec
 package api
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class ClusterSuite extends CSuite:
 

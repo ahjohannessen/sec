@@ -62,34 +62,34 @@ private[sec] object Options:
     private def modifyOO(fn: OperationOptions => OperationOptions): Options =
       o.copy(operationOptions = fn(o.operationOptions))
 
-    def withSecureMode(cert: File): Options                         = o.copy(connectionMode = Secure(cert))
-    def withSecureMode(certBase64: String): Options                 = o.copy(connectionMode = Secure(certBase64))
-    def withInsecureMode: Options                                   = o.copy(connectionMode = Insecure)
-    def withConnectionName(name: String): Options                   = o.copy(connectionName = name)
-    def withCredentials(creds: Option[UserCredentials]): Options    = o.copy(credentials = creds)
-    def withChannelShutdownAwait(await: FiniteDuration): Options    = o.copy(channelShutdownAwait = await)
-    def withKeepAliveTime(value: FiniteDuration): Options           = o.copy(keepAliveTime = value)
-    def withKeepAliveTimeout(value: FiniteDuration): Options        = o.copy(keepAliveTimeout = value)
-    def withKeepAliveWithoutCalls(value: Boolean): Options          = o.copy(keepAliveWithoutCalls = value)
-    def withPrefetchN(n: Int)                                       = o.copy(prefetchN = math.max(n, 1))
-    def withHttpPort(port: Port): Options                           = o.copy(httpPort = port)
-    def withMaxInboundMessageSize(bytes: Int)                       = o.copy(maxInboundMessageSize = bytes)
-    def withOperationsRetryDelay(delay: FiniteDuration): Options    = modifyOO(_.copy(retryDelay = delay))
-    def withOperationsRetryMaxDelay(delay: FiniteDuration): Options = modifyOO(_.copy(retryMaxDelay = delay))
-    def withOperationsRetryMaxAttempts(max: Int): Options           = modifyOO(_.copy(retryMaxAttempts = max))
-    def withOperationsRetryBackoffFactor(factor: Double): Options   = modifyOO(_.copy(retryBackoffFactor = factor))
-    def withOperationsRetryEnabled(enabled: Boolean): Options       = modifyOO(_.copy(retryEnabled = enabled))
+    def withSecureMode(cert: File): Options                                   = o.copy(connectionMode = Secure(cert))
+    def withSecureMode(certBase64: String): Options                           = o.copy(connectionMode = Secure(certBase64))
+    def withInsecureMode: Options                                             = o.copy(connectionMode = Insecure)
+    def withConnectionName(name: String): Options                             = o.copy(connectionName = name)
+    def withCredentials(creds: Option[UserCredentials]): Options              = o.copy(credentials = creds)
+    def withChannelShutdownAwait(await: FiniteDuration): Options              = o.copy(channelShutdownAwait = await)
+    def withKeepAliveTime(value: FiniteDuration): Options                     = o.copy(keepAliveTime = value)
+    def withKeepAliveTimeout(value: FiniteDuration): Options                  = o.copy(keepAliveTimeout = value)
+    def withKeepAliveWithoutCalls(value: Boolean): Options                    = o.copy(keepAliveWithoutCalls = value)
+    def withPrefetchN(n: Int)                                                 = o.copy(prefetchN = math.max(n, 1))
+    def withHttpPort(port: Port): Options                                     = o.copy(httpPort = port)
+    def withMaxInboundMessageSize(bytes: Int)                                 = o.copy(maxInboundMessageSize = bytes)
+    def withOperationsRetryDelay(delay: FiniteDuration): Options              = modifyOO(_.copy(retryDelay = delay))
+    def withOperationsRetryMaxDelay(delay: FiniteDuration): Options           = modifyOO(_.copy(retryMaxDelay = delay))
+    def withOperationsRetryMaxAttempts(max: Int): Options                     = modifyOO(_.copy(retryMaxAttempts = max))
+    def withOperationsRetryBackoffFactor(factor: Double): Options             = modifyOO(_.copy(retryBackoffFactor = factor))
+    def withOperationsRetryEnabled(enabled: Boolean): Options                 = modifyOO(_.copy(retryEnabled = enabled))
     def withSubscriptionConfirmationTimeout(timeout: FiniteDuration): Options =
       modifyOO(_.copy(subscriptionConfirmationTimeout = timeout))
 
 //======================================================================================================================
 
-sealed private[sec] trait ConnectionMode
+private[sec] sealed trait ConnectionMode
 private[sec] object ConnectionMode:
 
   case class CertB64(value: String) extends AnyVal
 
-  case object Insecure extends ConnectionMode
+  case object Insecure                           extends ConnectionMode
   case class Secure(cert: Either[File, CertB64]) extends ConnectionMode
   object Secure:
     def apply(file: File): Secure     = Secure(file.asLeft)
@@ -97,7 +97,7 @@ private[sec] object ConnectionMode:
 
 //======================================================================================================================
 
-final private[sec] case class ClusterOptions(
+private[sec] final case class ClusterOptions(
   maxDiscoverAttempts: Option[Int],
   retryDelay: FiniteDuration,
   retryMaxDelay: FiniteDuration,
@@ -130,7 +130,7 @@ private[sec] object ClusterOptions:
 
 //======================================================================================================================
 
-final private[sec] case class OperationOptions(
+private[sec] final case class OperationOptions(
   retryEnabled: Boolean,
   retryDelay: FiniteDuration,
   retryMaxDelay: FiniteDuration,
@@ -152,7 +152,7 @@ private[sec] object OperationOptions:
 
 //======================================================================================================================
 
-final private[sec] case class ChannelBuilderParams(
+private[sec] final case class ChannelBuilderParams(
   targetOrEndpoint: Either[String, Endpoint],
   creds: Option[ChannelCredentials],
   maxInboundMessageSize: Int,
@@ -203,22 +203,22 @@ private[sec] trait OptionsBuilder[B <: OptionsBuilder[B]]:
 
   private[sec] def modOptions(fn: Options => Options): B
 
-  def withCertificate(value: File): B                       = modOptions(_.withSecureMode(value))
-  def withCertificate(base64: String): B                    = modOptions(_.withSecureMode(base64))
-  def withConnectionName(value: String): B                  = modOptions(_.withConnectionName(value))
-  def withCredentials(value: Option[UserCredentials]): B    = modOptions(_.withCredentials(value))
-  def withChannelShutdownAwait(value: FiniteDuration): B    = modOptions(_.withChannelShutdownAwait(value))
-  def withKeepAliveTime(value: FiniteDuration): B           = modOptions(_.withKeepAliveTime(value))
-  def withKeepAliveTimeout(value: FiniteDuration): B        = modOptions(_.withKeepAliveTimeout(value))
-  def withKeepAliveWithoutCalls(value: Boolean): B          = modOptions(_.withKeepAliveWithoutCalls(value))
-  def withPrefetchN(value: Int)                             = modOptions(_.withPrefetchN(value))
-  def withMaxInboundMessageSize(bytes: Int): B              = modOptions(_.withMaxInboundMessageSize(bytes))
-  def withOperationsRetryDelay(value: FiniteDuration): B    = modOptions(_.withOperationsRetryDelay(value))
-  def withOperationsRetryMaxDelay(value: FiniteDuration): B = modOptions(_.withOperationsRetryMaxDelay(value))
-  def withOperationsRetryMaxAttempts(value: Int): B         = modOptions(_.withOperationsRetryMaxAttempts(value))
-  def withOperationsRetryBackoffFactor(value: Double): B    = modOptions(_.withOperationsRetryBackoffFactor(value))
-  def withOperationsRetryEnabled: B                         = modOptions(_.withOperationsRetryEnabled(true))
-  def withOperationsRetryDisabled: B                        = modOptions(_.withOperationsRetryEnabled(false))
+  def withCertificate(value: File): B                               = modOptions(_.withSecureMode(value))
+  def withCertificate(base64: String): B                            = modOptions(_.withSecureMode(base64))
+  def withConnectionName(value: String): B                          = modOptions(_.withConnectionName(value))
+  def withCredentials(value: Option[UserCredentials]): B            = modOptions(_.withCredentials(value))
+  def withChannelShutdownAwait(value: FiniteDuration): B            = modOptions(_.withChannelShutdownAwait(value))
+  def withKeepAliveTime(value: FiniteDuration): B                   = modOptions(_.withKeepAliveTime(value))
+  def withKeepAliveTimeout(value: FiniteDuration): B                = modOptions(_.withKeepAliveTimeout(value))
+  def withKeepAliveWithoutCalls(value: Boolean): B                  = modOptions(_.withKeepAliveWithoutCalls(value))
+  def withPrefetchN(value: Int)                                     = modOptions(_.withPrefetchN(value))
+  def withMaxInboundMessageSize(bytes: Int): B                      = modOptions(_.withMaxInboundMessageSize(bytes))
+  def withOperationsRetryDelay(value: FiniteDuration): B            = modOptions(_.withOperationsRetryDelay(value))
+  def withOperationsRetryMaxDelay(value: FiniteDuration): B         = modOptions(_.withOperationsRetryMaxDelay(value))
+  def withOperationsRetryMaxAttempts(value: Int): B                 = modOptions(_.withOperationsRetryMaxAttempts(value))
+  def withOperationsRetryBackoffFactor(value: Double): B            = modOptions(_.withOperationsRetryBackoffFactor(value))
+  def withOperationsRetryEnabled: B                                 = modOptions(_.withOperationsRetryEnabled(true))
+  def withOperationsRetryDisabled: B                                = modOptions(_.withOperationsRetryEnabled(false))
   def withSubscriptionConfirmationTimeout(value: FiniteDuration): B =
     modOptions(_.withSubscriptionConfirmationTimeout(value))
 

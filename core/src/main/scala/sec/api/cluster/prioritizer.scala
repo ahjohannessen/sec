@@ -19,9 +19,9 @@ package api
 package cluster
 
 import cats.data.NonEmptyList
-import cats.implicits._
+import cats.implicits.*
 
-import VNodeState._
+import VNodeState.*
 
 private[sec] object NodePrioritizer:
 

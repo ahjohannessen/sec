@@ -110,13 +110,15 @@ class ConfigSuite extends SecSuite:
       )
 
       mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg1).fold(
-        fail("Expected some ClusterBuilder")) { b =>
+        fail("Expected some ClusterBuilder")
+      ) { b =>
         assertEquals(b.authority, "example.org")
         assertEquals(b.endpoints, ClusterEndpoints.ViaDns(host"active.example.org"))
       }
 
       mkClusterBuilder[ErrorOr](Options.default, ClusterOptions.default, cfg2).fold(
-        fail("Expected some ClusterBuilder")) { b =>
+        fail("Expected some ClusterBuilder")
+      ) { b =>
         assertEquals(b.authority, "example.org")
         assertEquals(b.endpoints, ClusterEndpoints.ViaDns(host"example.org"))
       }
@@ -485,7 +487,9 @@ class ConfigSuite extends SecSuite:
       assert(mkPoolConfig[ErrorOr](poolCfg("streams-per-channel = 100, limit = bounded, sanity-cap = 5")).isLeft)
       assert(
         mkPoolConfig[ErrorOr](
-          poolCfg("streams-per-channel = 100, limit = unbounded, max-channels = 5, sanity-cap = 5")).isLeft)
+          poolCfg("streams-per-channel = 100, limit = unbounded, max-channels = 5, sanity-cap = 5")
+        ).isLeft
+      )
 
     }
 

@@ -19,7 +19,7 @@ package api
 package cluster
 
 import java.net.URI
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 import cats.data.{NonEmptyList, NonEmptySet}
 import cats.syntax.all.*
 import cats.effect.*
@@ -33,7 +33,7 @@ import cats.effect.std.Dispatcher
 
 //======================================================================================================================
 
-final private[sec] case class Resolver[F[_]: Sync](
+private[sec] final case class Resolver[F[_]: Sync](
   authority: String,
   notifier: Notifier[F],
   dispatcher: Dispatcher[F]
@@ -74,7 +74,7 @@ private[sec] object Resolver:
 
 //======================================================================================================================
 
-final private[sec] case class ResolverProvider[F[_]](
+private[sec] final case class ResolverProvider[F[_]](
   scheme: String,
   resolver: Resolver[F]
 ) extends NameResolverProvider:

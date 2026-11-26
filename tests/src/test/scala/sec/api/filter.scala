@@ -25,7 +25,7 @@ import org.scalacheck.Prop.forAll
 
 class EventFilterSuite extends SecDisciplineSuite:
 
-  import EventFilter._
+  import EventFilter.*
 
   group("EventFilter") {
 

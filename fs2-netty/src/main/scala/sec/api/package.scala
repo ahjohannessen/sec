@@ -36,14 +36,10 @@ def mkUuid[F[_]: Sync]: F[UUID] = Sync[F].delay(UUID.randomUUID())
 extension (ec: EsClient.type)
 
   def fromConfig[F[_]: Async]: Resource[F, EsClient[F]] =
-    Resource.eval(Sync[F].delay(ConfigFactory.load)) >>= { cfg =>
-      fromConfig[F](cfg, NoOpLogger[F])
-    }
+    Resource.eval(Sync[F].delay(ConfigFactory.load)) >>= { cfg => fromConfig[F](cfg, NoOpLogger[F]) }
 
   def fromConfig[F[_]: Async](logger: Logger[F]): Resource[F, EsClient[F]] =
-    Resource.eval(Sync[F].delay(ConfigFactory.load)) >>= { cfg =>
-      fromConfig[F](cfg, logger)
-    }
+    Resource.eval(Sync[F].delay(ConfigFactory.load)) >>= { cfg => fromConfig[F](cfg, logger) }
 
   def fromConfig[F[_]: Async](cfg: Config, logger: Logger[F]): Resource[F, EsClient[F]] =
     fromConfig[F](cfg, logger, EndpointResolver.default[F])

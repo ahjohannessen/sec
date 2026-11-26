@@ -36,7 +36,6 @@ class ConvertSuite extends SecSuite:
     val unknown  = "<unknown>"
 
     val convert: (Metadata => Unit) => Option[EsException] = f =>
-
       val fn: Metadata => StatusRuntimeException =
         md => Status.INVALID_ARGUMENT.asRuntimeException(md)
 
@@ -249,12 +248,14 @@ class ConvertSuite extends SecSuite:
       convertToEs(
         Status.ABORTED
           .withDescription(
-            "Operation timed out: Consumer too slow to handle event while live. Client resubscription required.")
+            "Operation timed out: Consumer too slow to handle event while live. Client resubscription required."
+          )
           .asRuntimeException()
       ),
       Some(
         ResubscriptionRequired(
-          "ABORTED: Operation timed out: Consumer too slow to handle event while live. Client resubscription required.")
+          "ABORTED: Operation timed out: Consumer too slow to handle event while live. Client resubscription required."
+        )
       )
     )
 

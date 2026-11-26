@@ -231,7 +231,6 @@ class AppendToStreamSuite extends SnSuite:
     // ((data length) + (metadata length) + (eventType length * 2);)
 
     def mkEvent(sizeBytes: Int): IO[EventData] = IO(UUID.randomUUID()).map { uuid =>
-
       val etName   = "et"
       val et       = EventType(etName).unsafeGet
       val etSize   = etName.length * 2

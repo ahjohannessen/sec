@@ -47,7 +47,7 @@ private[sec] object Pool:
   private[pool] enum Outcome[F[_], A]:
     case Acquired(entry: Entry[F, A], grown: Option[GrowEvent])
     case Rejected[F[_], A](size: Int) extends Outcome[F, A]
-    case Closed[F[_], A]() extends Outcome[F, A]
+    case Closed[F[_], A]()            extends Outcome[F, A]
 
   /** The pool serializes placement and growth through a single lock (the [[AtomicCell]]), so nothing that runs while it
     * is held may block or perform I/O: `mk` must only construct lazily (e.g. build an undialed channel) and `healthy`

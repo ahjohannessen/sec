@@ -182,4 +182,4 @@ object NotifierSuite:
     Resource.make(SignallingRef[F, Boolean](false))(_.set(true))
 
   def mkListenerR[F[_]: Sync]: Resource[F, RecordingListener[F]] = Resource.eval(mkListener[F])
-  def mkListener[F[_]: Sync]: F[RecordingListener[F]] = Ref.of[F, List[Nel[Endpoint]]](Nil).map(RecordingListener[F])
+  def mkListener[F[_]: Sync]: F[RecordingListener[F]]            = Ref.of[F, List[Nel[Endpoint]]](Nil).map(RecordingListener[F])

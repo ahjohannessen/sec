@@ -60,8 +60,9 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
     */
   def withSubscriptionPool(value: PoolConfig): SingleNodeBuilder[F] = copy(subscriptionPool = value.some)
 
-  private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](mcb: ChannelBuilderParams => F[MCB])(using
-    F: Async[F]): Resource[F, EsClient[F]] = {
+  private[sec] def build[MCB <: ManagedChannelBuilder[MCB]](
+    mcb: ChannelBuilderParams => F[MCB]
+  )(using F: Async[F]): Resource[F, EsClient[F]] = {
 
     val mkChannelBuilderParams: F[ChannelBuilderParams] =
       mkCredentials(options.connectionMode).map(
@@ -72,7 +73,8 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
           options.keepAliveTime,
           options.keepAliveTimeout,
           options.keepAliveWithoutCalls
-        ))
+        )
+      )
 
     val mods: Endo[MCB] =
       b => authority.fold(b)(a => b.overrideAuthority(a))
@@ -80,16 +82,17 @@ sealed abstract class SingleNodeBuilder[F[_]] private (
     // Credential material is resolved once into params; building a channel from
     // them is pure construction, safe to run under the pool lock when growing.
     Resource.eval(mkChannelBuilderParams) >>= { params =>
-
       val mkChannel: Resource[F, ManagedChannel] =
         channel.mk(mcb(params), mods, options.channelShutdownAwait)
 
       mkChannel >>= { mc =>
-        EsClient[F](mc,
-                    options,
-                    requiresLeader = false,
-                    logger,
-                    subscriptionPool = subscriptionPool.map(pool.SubscriptionPool(_, mkChannel)))
+        EsClient[F](
+          mc,
+          options,
+          requiresLeader = false,
+          logger,
+          subscriptionPool = subscriptionPool.map(pool.SubscriptionPool(_, mkChannel))
+        )
       }
     }
   }
@@ -151,7 +154,6 @@ class ClusterBuilder[F[_]] private (
     // Credential material is resolved once up front; building channels from it is
     // pure construction, safe to run under the pool lock when growing.
     Resource.eval(mkCredentials[F](options.connectionMode)) >>= { creds =>
-
       val builderForTarget: String => F[MCB] = t =>
         mcb(
           ChannelBuilderParams(
@@ -161,7 +163,8 @@ class ClusterBuilder[F[_]] private (
             options.keepAliveTime,
             options.keepAliveTimeout,
             options.keepAliveWithoutCalls
-          ))
+          )
+        )
 
       def gossipFn(mc: ManagedChannel): Resource[F, Gossip[F]] = EsClient
         .mkGossipFs2Grpc[F](mc)
@@ -170,7 +173,8 @@ class ClusterBuilder[F[_]] private (
             g,
             EsClient.mkContext(options, requiresLeader = false),
             EsClient.mkOpts[F](options.operationOptions.copy(retryEnabled = false), log, "gossip")
-          ))
+          )
+        )
 
       val resolveSeed: Resource[F, NonEmptySet[Endpoint]] =
 
@@ -185,9 +189,7 @@ class ClusterBuilder[F[_]] private (
         endpoints.fold(resolveEndpoints, _.endpoints.pure[F]).toResource
 
       resolveSeed >>= { seed =>
-
         ClusterWatch(builderForTarget, options, clusterOptions, gossipFn, seed, authority, log) >>= { cw =>
-
           val mkProvider: Resource[F, ResolverProvider[F]] = ResolverProvider
             .bestNodes[F](authority, clusterOptions.preference, cw.subscribe, log)
             .evalTap(p => Sync[F].delay(NameResolverRegistry.getDefaultRegistry.register(p)))
@@ -203,7 +205,6 @@ class ClusterBuilder[F[_]] private (
           }
 
           mkProvider >>= { p =>
-
             val mkChannel: Resource[F, ManagedChannel] =
               channel.mk(builderForTarget(s"${p.scheme}:///"), mods, options.channelShutdownAwait)
 

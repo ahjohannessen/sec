@@ -21,7 +21,7 @@ package cluster
 import cats.data.NonEmptySet
 import com.comcast.ip4s.Hostname
 
-sealed private[sec] trait ClusterEndpoints
+private[sec] sealed trait ClusterEndpoints
 private[sec] object ClusterEndpoints:
 
   /** Used when discovering endpoints via DNS.

@@ -45,7 +45,7 @@ case class EventFilter(
 object EventFilter:
 
   sealed trait Kind
-  case object ByStreamId extends Kind
+  case object ByStreamId  extends Kind
   case object ByEventType extends Kind
 
   def streamIdPrefix(fst: String, rest: String*): EventFilter  = prefix(ByStreamId, fst, rest*)
@@ -63,7 +63,7 @@ object EventFilter:
 
   sealed trait Expression
   case class PrefixFilter(value: String) extends Expression
-  case class RegexFilter(value: String) extends Expression
+  case class RegexFilter(value: String)  extends Expression
 
   object RegexFilter:
     val excludeSystemEvents: RegexFilter = apply("^[^$].*".r)

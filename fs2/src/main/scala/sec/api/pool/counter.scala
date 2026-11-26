@@ -31,7 +31,7 @@ import org.typelevel.log4cats.Logger
   * hand-rolled infinite read that belongs on the pooled subscription transport. Warns with hysteresis at 90% of the
   * concurrent-stream limit and logs resumption at 75%.
   */
-final private[sec] class CallCounter[F[_]] private (
+private[sec] final class CallCounter[F[_]] private (
   state: Ref[F, CallCounter.State],
   streamsPerChannel: Int,
   warnAt: Int,

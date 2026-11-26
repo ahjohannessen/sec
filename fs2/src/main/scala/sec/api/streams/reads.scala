@@ -110,7 +110,7 @@ object Reads:
 
 // ====================================================================================================================
 
-final private[api] case class ReadAll[F[_]](
+private[api] final case class ReadAll[F[_]](
   from: LogPosition,
   direction: Direction,
   maxCount: Long,
@@ -130,7 +130,7 @@ private[api] object ReadAll:
       val req   = mo.mkReadAllReq(ra.from, ra.direction, ra.maxCount, ra.resolveLinkTos)
       if valid then ra.handle(req) else Stream.empty
 
-final private[api] case class ReadStream[F[_]](
+private[api] final case class ReadStream[F[_]](
   streamId: StreamId,
   from: StreamPosition,
   direction: Direction,

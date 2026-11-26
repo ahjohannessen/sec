@@ -49,8 +49,8 @@ import cats.{Eq, Order}
 sealed trait StreamState
 object StreamState {
 
-  case object NoStream extends StreamState
-  case object Any extends StreamState
+  case object NoStream     extends StreamState
+  case object Any          extends StreamState
   case object StreamExists extends StreamState
 
   given Eq[StreamState] = Eq.fromUniversalEquals

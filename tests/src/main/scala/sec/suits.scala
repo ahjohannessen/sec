@@ -50,7 +50,7 @@ trait SecSuite extends FunSuite:
 
 trait SecDisciplineSuite extends DisciplineSuite with SecSuite
 trait SecScalaCheckSuite extends ScalaCheckSuite with SecSuite
-trait SecEffectSuite extends CatsEffectSuite with SecSuite
+trait SecEffectSuite     extends CatsEffectSuite with SecSuite
 
 trait SecResourceSuite[A] extends SecEffectSuite:
 
