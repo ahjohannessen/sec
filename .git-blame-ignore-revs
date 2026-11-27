@@ -12,3 +12,6 @@ dc1eb4d950a6dc30c69a8cd6107c0c9c206911e0
 
 # Scala Steward: Reformat with scalafmt 3.11.5
 a233f4fc290a6d57c3237d49663afa0de1043260
+
+# Codex: Reformat Scala sources and build files
+05a7e2f1dab58197cc876f14f29aca8c507ca471
